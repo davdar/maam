@@ -1,0 +1,22 @@
+The design and implementation of static analyses is a difficult process.
+%
+Verifying the correctness of an implementation is often the most painful step.
+%
+We present Monadic AAM--an extension of the Abstracting Abstract Machines
+methodology introduced by Van Horn and Might~\cite{van-horn:2010:aam}--which
+captures a large class of both automatically derivable and correct by
+construction abstract interpreters.
+%
+Monadic AAM is part methodology and part toolkit.
+%
+In the methodology, semantics are designed in a monadic extension of
+traditional AAM.
+%
+Once designed, a large class of known analyses can be automatically recovered
+using our language agnostic toolkit.
+%
+Both the computational and correctness properties of our framework are realized
+through a restricted class of monad transformers.
+%
+Our framework enjoys the benefits of being highly compositional and placing a
+minimal burden of proof on the analysis designer.

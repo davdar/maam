@@ -1,0 +1,29 @@
+\begin{center}
+  \begin{tikzpicture}[ampersand replacement=\&]
+    \matrix (m) [matrix of nodes,row sep=3em,column sep=3em,minimum width=2em]
+    {         \& Concrete    \&         \\
+              \& Monadic-AAM \&         \\
+      FS-kCFA \&             \& FI-kCFA \\
+      FS-0CFA \&             \& FI-0CFA \\
+    } ;
+    \path[-stealth]
+      (m-1-2) edge node [right] {$\vartriangle$} (m-2-2)
+        (m-2-2) edge [bend left] node [left] {$\blacktriangle$} (m-1-2)
+      (m-2-2) edge node [above] {$\blacktriangle$} (m-3-1)
+        (m-3-1) edge [dashed] node [below] {$\sqsubseteq$} (m-3-3)
+        (m-3-1) edge [dashed] node [left] {$\sqsubseteq$} (m-4-1)
+      (m-2-2) edge node [above] {$\blacktriangle$} (m-3-3)
+        (m-3-3) edge [dashed] node [right] {$\sqsubseteq$} (m-4-3)
+      (m-2-2) edge node [above] {$\blacktriangle$} (m-4-1)
+        (m-4-1) edge [dashed] node [below] {$\sqsubseteq$} (m-4-3)
+      (m-2-2) edge node [above] {$\blacktriangle$} (m-4-3)
+    ;
+    \begin{customlegend}[legend cell align=left,legend entries={guided by methodology,automated derivation},legend style={at={(6.0,1.75)},font=\footnotesize}]
+      \addlegendimage{mark=triangle,only marks}
+      \addlegendimage{mark=triangle*,only marks}
+    \end{customlegend}
+  \end{tikzpicture}
+\end{center}
+
+
+

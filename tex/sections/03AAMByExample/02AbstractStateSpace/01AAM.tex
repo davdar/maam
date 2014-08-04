@@ -1,0 +1,35 @@
+Now that recursion is eliminated from the state space we take aim at unbounded
+parts of the state space, with the addresses and time that we just introduced
+being the first to go.
+%
+Rather than make a single choice of abstract address and time, we leave this
+choice as a parameter.
+%
+All that is required is:
+\begin{itemize}
+\item a time \h|tzero| to begin execution
+\item a function \h|tick| which moves time forward
+\item a function \h|alloc| which allocates an address for binding a formal
+      parameter at the current time
+\end{itemize}
+%
+We encode this interface using a Haskell type class \h|AAM| with associated
+types \h|Addr| and \h|Time|.
+%
+\begin{figure}[H]
+\haskell{sections/03AAMByExample/02AbstractStateSpace/01AAM.hs}
+\caption*{Address and Time Abstraction}
+\end{figure}
+\noindent
+%
+An implementation of \h|AAM aam0| for a particular type \p|aam0| must pick two
+types, \h|Addr aam0| and \h|Time aam0|, and then implement \h|tzero|, \h|tick|,
+\h|alloc|, for those types.
+%
+The type |aam0| its self will only used as a type level token for selecting
+associated types at the type level, and will have a single inhabitant for
+selecting type class functions at the value level.
+%
+(If Haskell had a proper module system this would all be better expressed as a
+module interface--containing a type and functions over that type--rather than
+an associated type, type class and proxy singleton type.)

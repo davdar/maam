@@ -1,0 +1,13 @@
+To recover kCFA we record a finite number of calling contexts as abstract time,
+and pair these with names for addresses.
+%
+\haskell{sections/03AAMByExample/06RecoveringKCFA/00AAM.hs}
+
+%--%
+
+Running the abstract semantics from
+section~\ref{section:AAMByExample:AbstractSemantics} with this parameterization
+and the symbolic delta parameter--\h|ZCFA_AAM| and \h|Sym_Delta|--recovers a
+kCFA analysis.
+%
+\haskell{sections/03AAMByExample/05Recovering0CFA/02Exec.hs}

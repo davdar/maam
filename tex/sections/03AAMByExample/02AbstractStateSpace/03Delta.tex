@@ -1,0 +1,31 @@
+Now we have a \textit{nondterministic} semantics paramterized by abstract
+addresses--but we are not yet finished.
+%
+The state space is still infinite due to the unboundedness of integer literal
+values.
+%
+(Even if we took the semantics of finite machine integers, $2^{32}$ is still much
+too large a state space to be exploring in a practical analysis.)
+%
+To curb this we introduce yet another axis of parameterization with the intent
+of recovering multiple analyses from the choice later.
+%
+In the Haskell implementation we represent this axis with the type class
+\h|Delta| and associated type \h|Val|.
+%
+\begin{figure}[H]
+\haskell{sections/03AAMByExample/02AbstractStateSpace/03Delta.hs}
+\caption*{(Final) Delta Abstraction}
+\end{figure}
+\noindent
+%
+Different analyses may want to make different choices in their value
+representations, so we don't commit to a particular \h|Val| type, rather we
+require that \textit{some} \h|Val| type exist with a particular interface.
+%
+All that matters is that we have \textit{introduction} forms for literals and
+closures, a \textit{denotation function} for primitive operations, and
+\textit{elimination} forms for booleans and closures.
+%
+Eliminators are only required for booleans and closures because those are the
+only values scrutenized in the control flow of the semantics.

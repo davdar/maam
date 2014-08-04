@@ -1,0 +1,42 @@
+Abstract garbage collection has become standard in structural abstract
+interpretation and a staple in the AAM methodology.
+%
+The idea is analogous to garbage collection for memory safe languages.
+%
+Even though we must accept that abstract addresses can be reused during
+execution, it would be nice if we could completely replace the contents of an
+abstract location if we knew no future state would need the old value.
+%
+This concept--of future states depending on values in the store--can be
+approximated by the \textit{reachability} of those values in the current state.
+%
+Abstract garbage collection is the process where unreachable allocations in the
+store are removed so that future allocations don't require joins in the store.
+
+%--%
+
+To perform abstract garbage collection we must examine all addresses in the
+store and eliminate those which cannot be reached from a \textit{root} in the
+state space.
+%
+The roots $\mathcal{T}(c,e)$ in the state space are the locations bound to free
+variables in $c$:
+%
+\begin{equation*}
+\mathcal{T}(c,e) = \{e(v) : v \in free(c)\}
+\end{equation*}
+%
+The reachable addresses $\mathcal{R}(c,e,s,t)$ are those which are reachable
+from the roots, which is the least solution to the equation:
+%
+\begin{equation*}
+\mathcal{R}(c,e,s,t) = \mathcal{T}(c,e) 
+                  \cup \{ \ell' 
+                        : \ell \in \mathcal{R}(c,e,s,t)
+                        , \ell \leadsto_{\langle e,s \rangle} \ell'
+                       \}
+\end{equation*}
+where $\leadsto_{\langle e,s \rangle}$ is the single-step points-to relation
+in environment $e$ and store $s$.
+%
+The set of addresses to eliminate is the complement of $\mathcal{R}(c,e,s,t)$

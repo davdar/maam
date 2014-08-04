@@ -1,0 +1,39 @@
+In order to obtain Galois connections for our abstract interpreters, it must
+first be established that \h|step| is monotonic.
+%
+Because \h|step| is highly parameterized, we must place monotonicity conditions
+on these parameters in order to arrive at a final monotonicity argument for
+\h|step|.
+
+%--%
+
+We remind the reader that the parameters to the \h|step| function are:
+%
+\begin{itemize}
+\item The \h|Delta d| parameter, which specifies the value type and semantics of
+      primitive operations.
+\item The \h|AAM aam| parameter, which specifies abstract time and address types
+      and the semantics of allocation.
+\item The \h|Monad m| parameter, which specifies the computational properties
+      of the abstraction, like nondeterminism or heap widening.
+\end{itemize}
+%
+To justify that \h|step| is monotonic, we require \textit{all} base types in
+the parameters (like \h|Val d|, \h|Time aam| and \h|Addr aam|) to come equipped
+with partial orders, and \textit{all} functions provided by the the parameters
+to be monotonic.
+%
+We must also clarify that we are using the discrete order for all base types
+(\h|Bool|, \h|Name|, etc.), and the standard subset inclusion ordering for
+\h|Set| and \h|Point| types.
+
+%--%
+
+\newtheorem{atom-call-step-monotonic}{Lemma}
+\begin{atom-call-step-monotonic}
+  \h|atom|, \h|call| and \h|step| are monotonic.
+\end{atom-call-step-monotonic}
+\begin{proof}
+  Follows trivially from the assumed monotonicity of \h|Delta|, \h|AAM| and
+  \h|Monad| operations.
+\end{proof}

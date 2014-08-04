@@ -1,0 +1,31 @@
+The state space for CPS syntactically separates \h|Call| expressions from \h|Atom|
+expressions.
+%
+\haskell{sections/03AAMByExample/00CPS/00Language.hs}
+
+%--% 
+
+\h|Call| expressions are separated from \h|Atom| expressions because they may
+not terminate, and therefore cannot be given a striaghtforward denotation.
+%
+Each syntactic form in \h|Call| is designed to be recursive in only one position,
+eliminating the need for a call stack when we design the operational semantics.
+
+%--%
+
+\h|Atom| expressions are exactly those for which we can compute a denotation.
+%
+The \h|Lam| syntactic form may look troubling because it is mutually recursive
+with \h|Call|, but the denotation of \h|Lam xs c| will be a closure which delays
+the evaluation of \p|c| until it is applied in a \h|Call| rule.
+
+%--%
+
+Possibly non-standard additions to our CPS language are conditional branching
+(\h|IfC|); two literal types, integer and boolean; and primitive operations
+\h|Add1|, \h|Sub1| and \h|IsNonNeg|.
+%
+We include these to bring CPS closer to a language one might use in practice,
+and to examine the design space of their abstract semantics.
+
+

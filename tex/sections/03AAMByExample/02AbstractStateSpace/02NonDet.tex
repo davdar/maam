@@ -1,0 +1,16 @@
+Following the AAM methodology, we realize that in a world with finite adresses
+but potentially infinite executions, there is a chance we will need to reuse an
+existing address.
+%
+This causes us to introduce a powerset both around the state space and into the
+domain of the heap, as a single address may now point to multiple values, and
+variable reference may return multiple values.
+%
+\begin{figure}[H]
+\haskell{sections/03AAMByExample/02AbstractStateSpace/02NonDet.hs}
+\caption*{Introducing Nondeterminism}
+\end{figure}
+\noindent
+%
+As a result of this abstraction, the semantics must consider multiple control
+paths where before there was only one.

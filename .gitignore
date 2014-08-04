@@ -1,0 +1,11 @@
+**/dist
+*.out
+*.log
+*.aux
+*.bib
+*.bbl
+*.blg
+*.toc
+*.exrc
+*.dtx
+*.ins

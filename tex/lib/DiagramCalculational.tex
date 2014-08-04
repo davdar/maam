@@ -1,0 +1,36 @@
+\begin{center}
+\begin{tabular*}{0.66\textwidth}{@{\extracolsep{\fill}} c c}
+  \begin{tikzpicture}[ampersand replacement=\&]
+    \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+    { \DSS                                 \& \DSS                                 \\
+      \node [lightgray] (m-2-1) {\DSSAbs}; \& \node [lightgray] (m-2-2) {\DSSAbs}; \\
+    } ;
+    \path[-stealth]
+    (m-1-1) edge [bend right=40] node [left] {$\alpha$} 
+                                 node [right] {\tiny(2.a)} (m-2-1)
+    (m-2-1) edge [bend right=40] node [right] {$\gamma$} (m-1-1)
+
+    (m-1-2) edge [bend right=40] node [left] {$\alpha$} (m-2-2)
+    (m-2-2) edge [bend right=40] node [right] {$\gamma$} (m-1-2) 
+
+    (m-1-1) edge node [above] {$\Dstep$} (m-1-2)
+    (m-2-1) edge [lightgray] node [lightgray,above] {$\DstepAbs$} 
+                             node [lightgray,below] {\tiny(1.b)} (m-2-2)
+    ;
+    \draw 
+      (m-2-1) node [lightgray,left=0.25cm] {\tiny(1.a)} 
+    ;
+  \end{tikzpicture}
+  &
+  \begin{tikzpicture}
+    \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+    { \node [lightgray] (m-1-1) {\DstepAbs}; \\
+      \Dstep    \\
+    } ;
+    \path
+    (m-1-1) edge [lightgray] node [right] {$\sqsubseteq$} 
+                             node [left] {\tiny(2.b)} (m-2-1)
+    ;
+  \end{tikzpicture}
+\end{tabular*}
+\end{center}

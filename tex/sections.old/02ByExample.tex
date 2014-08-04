@@ -1,0 +1,397 @@
+%%%%%%%%%%%%%%%%%%%% Introduction %%%%%%%%%%%%%%%%%%%%
+
+To demonstrate our monadic abstract interpretation framework we guide the
+reader through the design and implementation of 0CFA for a CPS language with
+small-step semantics.
+%
+We present the process guided by three approaches to abstract interpretation:
+%
+\begin{itemizenobreak}
+  \item Ad hoc design and ``a posteriori'' verification
+  \item Abstracting Abstract Machines a la Van Horn and Might~\cite{van-horn:2010:aam}
+  \item Using our monadic framework
+\end{itemizenobreak}
+%
+General computational, correctness and modularity properties of our framework
+are deferred to sections~\ref{section:computational},~\ref{section:correctness}
+and~\ref{section:modularity}.
+%
+0CFA is chosen because it is well-studied, challenging, and useful for analysis of
+higher order languages.
+%
+CPS is chosen to simplify control flow, and also for being well-studied in the
+context of 0CFA.
+
+%-----%
+
+Our framework, and the techniques presented in this paper, are specialized to
+the traditions of abstract interpretation pioneered by Cousot and Cousot
+\cite{cousot:1977:ai}, and small-step operational semantics pioneered by
+Friedman and Felleisen \cite{felleisen:1986:cek}.
+%
+Consequently, each semantics presented will take the form of a state space
+$\DSS$ and transition function $\Dstep \in \DSS \to \DSS$, and each static
+analysis will take the form of an abstract state space $\DSSAbs$ and abstract
+transition function $\DstepAbs \in \DSSAbs \to \DSSAbs$.
+%
+Possibilties of generalizing to other approaches for semantics are discussed in
+section~\ref{section:future-work}.
+%
+We will use Haskell as both an implementation language and semantics
+meta-language.
+
+%%%%%%%%%%%%%%%%%%%% Concrete Semantics %%%%%%%%%%%%%%%%%%%%
+
+\subsection{Concrete Semantics}
+
+Before discussing various approaches to the design and implementation of 0CFA
+for CPS, we first present the semantics of CPS using Haskell.
+
+%-----%
+
+
+%%%%%%%%%%%%%%%%%%%% Ad-hoc Design %%%%%%%%%%%%%%%%%%%%
+
+\subsection{Ad-hoc Design and ``A Posteriori'' Verification }
+
+In the ``a posteriori'' approach to abstract interpretation the analysis
+designer invents:
+%
+\begin{itemizenobreak}
+\item (1.a) Abstract state space $\DSSAbs$
+\item (1.b) Abstract step function $\DstepAbs \in \DSSAbs \to \DSSAbs$
+\end{itemizenobreak}
+%
+and then attempts to establish correctness properties in an ad-hoc fashion.
+%
+In the abstract interpretation framework, soundness and tightness are
+demonstrated through:
+%
+\begin{itemizenobreak}
+\item (2.a) A Galois connection $\DSS \galois{\alpha}{\gamma} \DSSAbs$
+\item (2.b) A proof that 
+      $\alpha(\Dstep) \sqsubseteq \DstepAbs$
+      or
+      $\Dstep \sqsubseteq \gamma(\DstepAbs)$
+      (they are equivalent)
+\end{itemizenobreak}
+%
+These points are depicted in the following diagram:
+%
+\input{lib/DiagramAdHoc.tex}
+
+%-----%
+
+In the ad-hoc approach to static analysis, none of these steps are automated,
+nor does the designer follow a methodology for how to proceed.
+%
+However this gives the analysis designer ultimate freedom and is simultaneously
+the appeal of the approach, lending it to be used most often in practice.
+
+%-----%
+
+
+We present what the analysis designer might come up with for (1.a) and
+(1.b) in designing 0CFA, and defer the ``a posteriori'' proofs of (2.a) and
+(2.b) to prior work \cite{shivers:1991:cfa, nielson:2004:program-analysis,
+van-horn:2010:aam, midtgaard:2008:calculational-cfa}.
+
+%-----%
+
+The state space for 0CFA, and all abstract state spaces to follow,
+differ only in the \lstinline|Val|, \lstinline|Env| and $\DSS$ types.
+%
+\begin{donotbreak}
+\lstinputlisting{hs/SSAbstract.hs}
+\end{donotbreak}
+%
+A single global environment \lstinline|Env| is used to approximate all
+environments in the concrete image of the abstract state space, which
+corrosponds to heap widening in the literature\cite{shivers:1991:cfa}.
+%
+To maintain soundness in the face of a single global environment, we introduce
+a \lstinline|Set| of values in the image of the environment, as it may need to
+approximate the binding bindings with all possible 
+%
+The state space $\DSS$ contains a set of \lstinline|Call| states
+because the abstract semantics are non-deterministic.
+%
+As a consequence of the global environment abstraction, closures no longer
+need to capture their environment.
+%
+This cuts the recursion in the state space allowing $\DSS$ to be finite and
+therefore the analysis to be computable.
+
+%-----%
+
+The abstract step function $\DstepAbs$ exhibits a few key differences from the
+concrete step function $\Dstep$.
+%
+\lstinputlisting{hs/SSAbstract.hs}
+%
+Interpretations of literal constants and primitive operations truncate to a
+symbolic type tag.
+%
+Non-determinism is introduces in both the denotation for \lstinline|Atomic| and
+operational behavior of \lstinline|Call| when multiple values are returned from
+the environment.
+%
+The global environment is computed as the join of all environments reached
+after a single step, soundly abstracting each individual reachable environment.
+
+%-----%
+
+In summary, we claim advantages and deficiencies of the ad-hoc ``a posteriori''
+approach are:
+\begin{itemizenobreak}
+\item + No restrictive framework in which to funnel the desired analysis
+\item + Most ``off the shelf'' analyses from the literature use this method
+\item - The analysis chosen is an arbitrary point on a spectrum of possible design choices
+\item - Non-modular: Altering the analysis requires reconstructing all points (1.a) - (2.b)
+\end{itemizenobreak}
+
+%%%%%%%%%%%%%%%%%%%% AAM %%%%%%%%%%%%%%%%%%%%
+
+\subsection{Abstracting Abstract Machines}
+
+In the abstracting abstract machines approach to abstract interpretation, the
+analysis designer:
+%
+\begin{itemizenobreak}
+\item (1.a) Is guided to a particular abstract state space $\DSSAbs$ by a systematic methodology
+\item (1.b) Invents abstract step function $\DstepAbs \in \DSS \to \DSS$
+\end{itemizenobreak}
+%
+and in making the correctness argument must establish: 
+%
+\begin{itemizenobreak}
+\item (2.a) A Galois connection $\DSS \galois{\alpha}{\gamma} \DSSAbs$ is
+      derived alongside (1.a) by the systematic methodology
+\item (2.b) The proof that $\alpha(\Dstep) \sqsubseteq \DstepAbs$ in an ad-hoc
+      manner
+\end{itemizenobreak}
+%
+These points are depicted in the following diagram, where grayed out names and
+arrows indicate getting something for free (literally or methodologically):
+%
+\input{lib/DiagramAAM.tex}
+
+%-----%
+
+The derivation process for (1.a) and (2.a) in the Abstracting Abstract Machines
+framework begins with identifying recursion in the state space \lstinline|SS|,
+and cutting it with a level of indirection.
+%
+\begin{lstlisting}
+data Val = LitV Lit 
+         | CloV [Name] Call Env
+type Env = Map Name Val                  
+type SS  = Maybe (Call, Env)
+\end{lstlisting}
+%
+becomes
+%
+\begin{lstlisting}
+data Val   = LitV Lit
+           | CloV [Name] Call Env
+type Env   = Map Name Integer
+type Store = Map Integer Val
+type SS    = Maybe (Call, Env, Store)
+\end{lstlisting}
+%
+A semantics for the new state space allocates unique addresses in the global
+store when binding in a local environment.
+%
+This new semantics can be shown to be equivalent to the initial semantics,
+allowing us to recover the concrete semantics with our new ``instrumented''
+semantics.
+
+%-----%
+
+
+To arrive at a static analaysis, the designer must continue to cut infinite
+portions of the state space.
+%
+The Abstracting Abstract Machines framework guided us to trade recursion for
+indirection through the integers, and now we need only abstract the integers to
+something finite to achieve a finite state space.
+%
+\begin{lstlisting}
+data Val   = LitV Lit
+           | CloV [Name] Call Env
+type Env   = Map Name Integer
+type Store = Map Integer Val
+type SS    = (Maybe (Call, Env), Store)
+\end{lstlisting}
+%
+becomes
+%
+\begin{lstlisting}
+data Val   = LitV Lit
+           | CloV [Name] Call Env
+type Env   = Map Name Name
+type Store = Map Name Val
+type SS    = (Maybe (Call, Env), Store)
+\end{lstlisting}
+%
+We then notice that \lstinline|Env| will always be the identity map, and
+eliminate it from closures and the state space.
+%
+\begin{lstlisting}
+data Val   = LitV Lit
+           | CloV [Name] Call
+type Store = Map Name Val
+type SS    = (Maybe Call, Store)
+\end{lstlisting}
+%
+Finally, we notice that during execution of the semantics, we necessarily must
+reuse abstract addresses, which are now \lstinline|Name|s.
+%
+Because we must reuse addresses, we must do something sensible (meaning sound)
+when two values are bound to the same address.
+%
+To solve this we introduce non-determinism into the semantics, lifting abstract
+values to a powerset and taking the join of abstract values as they collide in
+the store.
+%
+\begin{lstlisting}
+data Val   = LitV Lit
+           | CloV [Name] Call
+type Store = Map Name (Set Val)
+type SS    = (Set Call, Store)
+\end{lstlisting}
+
+%-----%
+
+In the ad-hoc design, we called the global environment \lstinline|Env|, where
+here we use \lstinline|Store|.
+%
+This is an ontological artifact of the systematic design process of Abstracting
+Abstract Machines, where the store was introduced purely to cut recursion in
+the state space.
+
+%-----%
+
+The above derivation of abstract state space is also amenable to derivation of
+Galois connection.
+%
+The first step, which introduces concrete addresses with integers, is
+isomorphic to the inital state space (under assumptions of heap
+well-formedness, which can trivially be shown is preserved by the semantics).
+%
+Abstracting concrete addresses (integers) with abstract addresses (names) forms
+a galois connection between state spaces.
+%
+This galois connection is difficult to fully justify (Van Horn and Might sketch
+the proof; see \cite{midtgaard:2008:calculational-cfa} for all the details),
+but can be done once and for all within the methodolgy, and applied freely by
+the analysis designer.
+
+%-----%
+
+The benefits of the Abstracting Abstract Machines framework extend beyond a
+methodology for designing a \textit{single} abstract interpreter.
+%
+There is a pivot point intentionally placed in the design process--between
+introducing addresses and abstracting addresses--where the designer is set up
+to recover a wide range of possible analyses.
+%
+The idea is then to implement an interpreter once parameterized by the choice
+of abstract address (and abstract time, to recover the full AAM framework),
+which is capable of recovering a wide range of analyses.
+%
+This is benefical to the designer as properties of the analysis change, or if
+multiple analyses of varying precision and power are desired.
+
+%-----%
+
+However, certain classs of design decisions in constructing analyses are
+\textit{not} captured by the pivot point in AAM.
+%
+For example: heap widening, abstract garbage collection and shape analysis each
+cannot be recovered by a single abstract interpreter parameterized by abstract
+address and time.
+%
+While Van Horn and Might have demonstrated the seamless integration of these
+ideas into their framework, they do not come for free, and must still be
+integrated in an ad-hoc manner for the analysis designer.
+
+%-----%
+
+In summary, we claim advantages and deficiencies of the Abstracting Abstract
+Machines approach are:
+\begin{itemizenobreak}
+\item + Nearly systematic design of abstract state space $\DSSAbs$
+\item + Pivot point in analysis design that enables a single parameterized implementation
+\item - Constructing abstract step function $\DstepAbs$ is non-automated
+\item - Pivot point in analysis design doesn't capture certain important
+        classes of analysis design decisions
+\end{itemizenobreak}
+
+%%%%%%%%%%%%%%%%%%%% Calculation %%%%%%%%%%%%%%%%%%%%
+
+\subsection{Calculation}
+
+In the calculational approach to abstract interpretation, the analysis designer:
+%
+\begin{itemizenobreak}
+\item (1.a \& 2.a) Constructs a Galois connection $\DSS \galois{\alpha}{\gamma}
+                   \DSSAbs$ as the composition of several smaller well known
+                   components, inducing the abstract state space $\DSSAbs$ .
+\item (1.b \& 2.b) Performs calculation on the induced abstract semantics
+                   $\DstepAbs = \gamma \comp \Dstep \comp \alpha$ to arrive at
+                   a computable abstract semantics.
+\end{itemizenobreak}
+%
+These points are depicted in the following diagram, where grayed out names and
+arrows indicate getting something for free (literally or methodologically):
+%
+\input{lib/DiagramCalculational.tex}
+
+%-----%
+
+The components used to construct (1.a \& 2.a) are typicall typically drawn from
+a catalogue of known techniques such as independent attribute method, direct
+product, reduced product, total function space, relational method, direct
+tensor product, reduced tensor product and monotone function space, to name a
+few~\cite{nielson:2004:program-analysis}.
+%
+After constructing a final Galois connection, the abstract semantics are
+derived through a process of calculation--a mixture of equational and partial
+order reasoning--over the induced abstract step function $\DstepAbs = \gamma
+\comp \Dstep \comp \alpha$.
+
+
+%%%%%%%%%%%%%%%%%%%% Monadic Derivation %%%%%%%%%%%%%%%%%%%%
+
+\subsection{Monadic Derivation}
+
+Monadic abstract interpretation was introduced by Sergey et al. as a method for
+simultaneously defining multiple versions of a semantics in one go.
+%
+The primary contribution of this work is a proof framework to augment this
+approach, showing that the derived abstract interpreters are correct by
+construction.
+%
+For now we contrast the burdon of proof for the analysis designer with the a
+posteriori verification described in the previous section.
+
+First we translate the semantics of CPS into monadic form as shown in figure
+?, being careful to leave the semantics general enough to capture both concrete
+and abstract semantics.
+%
+We note that certain design decisions must be made up front, like what the
+abstract value space looks like, but defer the full choice of state space to a
+particular instantiation within the monadic framework
+%
+Independent of other languages, we need only justify that mstep is monotonic,
+which is true by simple inspection.
+
+
+We now recover both the concrete semantics and multiple abstract semantics from
+the monadic semantics by:
+%
+\begin{itemizenobreak}
+  \item Designing delta and literal semantic functions
+  \item Building an instance of the abstract monadic effect interface
+\end{itemizenobreak}

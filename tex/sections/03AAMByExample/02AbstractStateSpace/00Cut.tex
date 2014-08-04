@@ -1,0 +1,23 @@
+In the AAM methodology, we first identify recursion in the state space and
+replace it with indirection through addresses and a store.
+%
+\begin{figure}[H]
+\haskell{sections/03AAMByExample/02AbstractStateSpace/00Cut.hs}
+\caption*{Cutting Recursion}
+\end{figure} 
+\noindent
+%
+Abstract time is introduced into the state space as a constantly increasing
+value from which to allocate fresh addresses.
+
+%--%
+
+As a result of this change in the state space, the semantics will need to
+change accordingly.
+%
+Variable lookup must fetch an address from the environment, and then fetch the
+corresponding value bound to that address from the store.
+%
+Variable binding must allocate globally fresh addresses from the current time,
+binding the formal parameter to the address in the environment and the address
+to the value in the store.

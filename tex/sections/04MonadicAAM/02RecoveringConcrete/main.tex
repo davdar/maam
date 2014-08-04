@@ -1,0 +1,41 @@
+To recover concrete semantics we can reuse the concrete parameters \h|C_Delta|
+and \h|C_AAM|, and need only design a concrete monad to instantiate the
+semantics.
+
+%--%
+
+When implementing concrete semantics in section
+\ref{section:AAMByExample:RecoveringConcrete} we were forced to reuse the
+\h|Set| type even though the semantics were fully deterministic.
+%
+Because we have abstracted the semantics over a monad, we are now able to
+choose an appropriately precise domain for execution.
+%
+A more appropriate domain would be the \h|Point| type, where the meaning of
+\h|Point a| is the extension of \p|a| with explicit \h|Top| and \h|Bot| values.
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/00Point.hs}
+
+%--%
+
+Point can be shown to be a monad:
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/01PointMonad.hs}
+%
+and even a monad plus:
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/02PointMonadPlus.hs}
+%
+and finally a monad step:
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/03PointMonadStep.hs}
+
+%--%
+
+Our final monad stack for recovering concrete semantics will be
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/04ConcreteMonad.hs}
+%
+and execution of the concrete semantics can be recovered by
+%
+\haskell{sections/04MonadicAAM/02RecoveringConcrete/05Exec.hs}

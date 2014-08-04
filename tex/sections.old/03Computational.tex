@@ -1,0 +1,205 @@
+%%%%%%%%%%%%%%%%%%%% Computational Framework %%%%%%%%%%%%%%%%%%%%
+
+\section{Computational Framework for Monadic AI}
+\label{section:computational}
+Our approach slices the monads of the existing approach into reusable,
+language-agnostic monad transformer stacks.
+%
+In Section ? we will establish exactly the space of monad transformers which,
+given specific properties can be proven about them, will integrate seamlessly
+within our framework.  For now we introduce a few familiar monad transformers
+for the sake of demonstration, and defer the explanation of \textit{why} they
+can be used.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+Identity     A := A
+StateT   S m A := S $\to$ m (S $\times$ A)
+State    S   A := StateT Identity A
+Set          A := {..., A, ...}
+SetT       m A := m (Set A)
+\end{lstlisting}
+\end{minipage}
+Next, we introduce interfaces for various monadic behaviors and their laws:
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+Monad (m : Type -> Type) :=
+  return : $\forall$ A, A $\to$ m A
+  bind : $\forall$ A B, m A $\to$ (A $\to$ m B) $\to$ m B
+  left_unit : bind aM ret = aM
+  right_unit : bind (ret x) f = f x
+  associativity : bind (bind aM f) g = bind aM ($\lambda$ x $\to$ bind (f x) g)
+MonadFunctor (t : (Type -> Type) -> Type -> Type):= 
+  mapMonad : $\forall$ m, Monad m -> Monad (t m)
+MonadPlus m | Monad m :=
+  mzero : $\forall$ A, m A 
+  _<+>_ : $\forall$ A, m A -> m A -> m A
+  unit : aM <+> mzero = aM
+  left_zero : bind mzero f = mzero
+  right_zero : bind aM ($\lambda$ x $\to$ mzero) = mzero
+  associativity : (aM <+> bM) <+> cM = aM <+> (bM <+> cM)
+  commutativity : aM <+> bM = bM + aM
+MonadPlusFunctor t | MonadFunctor t :=
+  mapMonadPlus : $\forall$ S m, MonadPlus m -> MonadPlus (t m)
+MonadState (S : Type) m | Monad m :=
+  getState : m S
+  putState : S $\to$ m unit
+MonadStateFunctor t | MonadFunctor t := 
+  mapMonadState : $\forall$ S m, MonadState S m -> MonadState S (t m)
+\end{lstlisting}
+and prove the following lemmas:
+\begin{lstlisting}
+forall S:
+  - MonadFunctor (StateT S)
+  - MonadPlusFunctor (StateT S)
+  - MonadStateFunctor (StateT S)
+forall S and m | Monad m:
+  - MonadState S (StateT S m)
+
+MonadFunctor SetT
+MonadStateFunctor SetT
+$\forall$ m | Monad m:
+  - MonadPlus (SetT m)
+\end{lstlisting}
+\end{minipage}
+
+We define \textbf{mjoin} for transporting values from the Set monad to an
+arbitrary MonadPlus:
+\begin{lstlisting}
+mjoin : forall A m | MonadPlus m, Set A -> m A
+mjoin {} = mzero
+mjoin {..., x, ...} = ... <+> return x <+> ...
+\end{lstlisting}
+
+\subsection{Methodology}
+Languages are embedded in the framework using the following methodology:
+\begin{itemizenobreak}
+  \item 
+  Define a \textit{single} language state space, to be used for both concrete
+  and abstract interpreters.
+  \item 
+  Define a \textit{single} \textit{monadic} small-step function, parameterized
+  by a monadic effect interface and $\delta$ function.
+\end{itemizenobreak}
+For example, consider the following state space for a very simple arithmetic
+language:
+\begin{lstlisting}
+Int := { ... the integers ... }
+Symbol := { ... x, y, etc ... }
+Sign := IsZero | IsPos | IsNeg
+AInt := Exact Int | Symbolic Sign
+Lang := Halt Atomic 
+      | LetInc Symbol Atomic Lang 
+      | IfZero Atomic Lang Lang 
+Atomic := Num AInt | Var Symbol
+Env A B := A -> Option B
+\end{lstlisting}
+Notice that \textbf{Lang} is a \textit{mixed} concrete-abstract language,
+potentially capable of expressing both concrete and abstract semantics.
+%
+In this example we will call the delta function \textbf{inc}, because it
+interprets increment for atomic expressions. Given \textbf{$\langle$m,
+inc$\rangle$} where:
+\begin{lstlisting}
+- Monad m
+- MonadPlus m
+- HasState (Env Symbol (Set AInt)) m
+- inc : AInt $\to$ AInt $\to$ Set Ant
+\end{lstlisting}
+The semantics for the language \textbf{AInt} can be defined:
+\begin{lstlisting}
+lookup :: Symbol -> Env Symbol (dom AInt) -> m (dom AInt)
+lookup x e = case e x of
+  None -> mzero
+  Some aD -> return aD
+
+atomic : Atomic -> m (dom AInt)
+atomic (Num n) = return (return n)
+atomic (Var x) = do
+  e <- getEnv
+  v <- lookup x e
+  return v
+
+step : Lang -> m Lang
+step (Halt a) = return (Halt a)
+step (LetInc x na l) = do
+  n <- mjoin (atomic na)
+  r <- delta n
+  modifyEnv (insert x r)
+  return l
+step (IfZero ca tb fb) = do
+  c <- mjoin (atomic ca)
+  case c of
+    Exact 0 -> return tb
+    Exact _ -> return fb
+    Symbolic IsZero -> return tb
+    Symbolic IsNeg -> return fb
+    Symbolic IsPos -> return fb
+\end{lstlisting}
+
+This single semantic step function is capable of expressing both the concrete
+and abstract semantics of our arithmetic language.
+%
+To relate our monadic function back to small-step abstract state machines we
+introduce another interface which all monads in the framework must obey:
+%
+\begin{lstlisting}
+MonadStateSpace m :=
+  ss : Type -> Type
+  transition : $\forall$ A B, (A -> m B) -> ss A -> ss B
+MonadStateSpaceFunctor t :=
+  mapMonadStateSpace : $\forall$ m, MonadStateSpace m -> MonadStateSpace (t m)
+\end{lstlisting}
+%
+and we prove the following lemmas:
+\begin{lstlisting}
+$\forall$ S, MonadStateSpaceFunctor (StateT S) where 
+  ss (StateT S m) A := $\text{ss}_m$ (A $\times$ S)
+
+MonadStateSpaceFunctor SetT where
+  ss (SetT m) A := $\text{ss}_m$ (Set A)
+\end{lstlisting}
+
+[transition] establishes a relationship between the space of actions in the
+monad and the (pure) space of transitions on an abstract machine state space.
+%
+If \textbf{m} is shown to implement MonadStateSpace, then the semantics of our
+language can be described as the least fixed point of iterating [transition
+step] from e, i.e.:  $\llbracket e \rrbracket = \mu\; x \to e \sqcup
+\text{transition}\; x$
+
+To recover the various semantics we are interested in, the monad \textbf{m} can
+then be instantiated with following monad transformer stacks:
+\begin{lstlisting}
+  m1     := EnvStateT (Env Symbol (Set AInt)) Set
+  ss m1 A $\approx$ Set (A $\times$ Env Symbol (Set AInt))
+  m2     := SetT (EnvState (Env Symbol (Set AInt)))
+  ss m2 A $\approx$ Set A $\times$ Env Symbol (Set AInt)
+\end{lstlisting}
+and inc functions:
+\begin{lstlisting}
+  inc-concrete : AInt -> Set AInt
+  inc-concrete (Exact n) = return (Exact (n + 1))
+  inc-concrete (Symbolic IsZero) = return (Symbolic IsPos)
+  inc-concrete (Symbolic IsNeg) = return (Symbolic IsNeg) 
+                              <+> return (Symbolic IsZero)
+  inc-concrete (Symbolic IsPos) = return (Symbolic IsPos)
+
+  inc-abstract : AInt -> AInt -> Set AInt
+  inc-abstract (Exact n) | n < -1  = return IsNeg
+                         | n == -1 = return IsZero
+                         | n > -1  = return IsPos
+  inc-abstract (Symbolic IsZero) = return (Symbolic IsPos)
+  inc-abstract (Symbolic IsNeg) = return (Symbolic IsNeg) 
+                              <+> return (Symbolic IsZero)
+  inc-abstract (Symbolic IsPos) = return (Symbolic IsPos)
+\end{lstlisting}
+
+When instantiated with \textbf{$\langle$m1, inc-concrete$\rangle$} a
+\textit{concrete} interpreter is recovered.  When instantiated with
+\textbf{$\langle$m1, inc-abstract$\rangle$} a computable \textit{abstract}
+interpreter is recovered.  When instantiated with \textbf{$\langle$m2,
+inc-abstract$\rangle$} a computable \textit{abstract} interpreter with
+\textit{heap widening} is recovered.
+
+

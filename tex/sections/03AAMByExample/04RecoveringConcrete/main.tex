@@ -1,0 +1,30 @@
+The final delta abstraction resulted in a highly factorized state space,
+amenable to a wide range of analyses.
+%
+Before manipulating these axes of parameterization, we first show how to
+recover a concrete interpreter.
+
+%--%
+
+Our semantics has two axes of parameterization: \h|AAM| and \h|Delta|.
+%
+For \h|AAM| we choose integers for abstract time and integers paired with
+variable names for abstract addresses.
+%
+\haskell{sections/03AAMByExample/04RecoveringConcrete/00AAM.hs}
+
+%--%
+
+For \h|Delta| we choose the value type and primitive operations from
+section~\ref{section:AAMByExample:Concrete}.
+%
+\haskell{sections/03AAMByExample/04RecoveringConcrete/01Delta.hs}
+
+%--%
+
+Running the abstract semantics from
+section~\ref{section:AAMByExample:AbstractSemantics} with these two
+parameterizations--\h|C_AAM| and \h|C_Delta|--recovers the concrete
+(collecting) semantics.
+%
+\haskell{sections/03AAMByExample/04RecoveringConcrete/02Exec.hs}

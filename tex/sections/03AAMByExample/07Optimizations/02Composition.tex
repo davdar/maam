@@ -1,0 +1,24 @@
+Heap widening and abstract garbage collection were introduced independently;
+what happens when they compose?
+%
+The result is semantically what you want but exhibits bad behavior
+operationally.
+%
+The naive composition of the optimizations results in each store being garbage
+collected independently of each other, which is expensive.
+%
+What is worse, \textit{they are all the exact same store}, making the extra
+effort entirely redundant.
+
+%--%
+
+The solution to this is to either rewrite the semantics to use a widened store
+throughout, or to rewrite abstract garbage collection specifically for the
+widened state space.
+%
+Granted, none of these options are terribly difficult in this setting, but
+rewriting semantics is a time-consuming and bug-ridden process in general.
+%
+A more systematic abstraction is clearly needed for these optimizations: one
+where optimizations compose seamlessly with both one another and the abstract
+semantics.

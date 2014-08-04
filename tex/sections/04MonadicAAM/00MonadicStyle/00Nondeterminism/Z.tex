@@ -1,0 +1,36 @@
+Before introducing the nondeterminism monad, we first describe its interface,
+\h|MonadPlus|.
+%
+\h|MonadPlus| abstractly encodes the notion of nondeterminism.
+%
+\haskell{sections/04MonadicAAM/00MonadicStyle/00Nondeterminism/00MonadPlus.hs}
+%
+\h|mzero| encodes failure and \h|mplus| encodes nondeterministic choice.
+
+%--%
+
+The nondeterminism monad is built with the list datatype
+%
+\haskell{sections/04MonadicAAM/00MonadicStyle/00Nondeterminism/01Nondet.hs}
+%
+and implements the \h|MonadPlus| interface:
+%
+\haskell{sections/04MonadicAAM/00MonadicStyle/00Nondeterminism/02NondetMonadPlus.hs}
+%
+For example, \h|[1,3] >>= \ x -> [x, x+1]| and \h|[1,3] `mplus` [2,4]| both
+evaluate to \h|[1,2,3,4]|.
+
+%--%
+
+The \h|atom| denotation function from
+section~\ref{section:03AAMByExample:AbstractSemantics} can be refactored into
+the nondeterminism monad by replacing \h|setSingleton| with \h|return|,
+\h|eachInSet| with \h|(>>=)|, and \h|setEmpty| with \h|mzero|.
+%
+\haskell{sections/04MonadicAAM/00MonadicStyle/00Nondeterminism/03Atom.hs}
+
+%--%
+
+\h|call| can be factored similarly.
+%
+\haskell{sections/04MonadicAAM/00MonadicStyle/00Nondeterminism/04Call.hs}

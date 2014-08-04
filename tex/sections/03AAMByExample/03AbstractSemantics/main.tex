@@ -1,0 +1,42 @@
+Now that we have designed an abstract state space--albeit highly
+parameterized--we must turn to implementing its semantics.
+%
+The goal in this entire exercise is to develop the abstract state space and
+semantics in such a way that concrete and abstract interpreters can be derived
+from a single implementation.
+
+%--%
+
+Following the structure of the concrete semantics, we adapt each function to
+the new abstract state space.
+%
+\h|op| is now entirely implemented by the designer of the analysis as part of
+the \h|Delta| interface.
+%
+\h|atom| must follow another level of indirection in variable lookups, and must
+account for nondeterminism.
+%
+\haskell{sections/03AAMByExample/03AbstractSemantics/00Atom.hs}
+%
+\h|call| must use the eliminators provided by \h|Delta d| to guide control
+flow.
+%
+\haskell{sections/03AAMByExample/03AbstractSemantics/01Call.hs}
+%
+\h|bindMany| must join stores when binding to addresses, in case the address is
+already in use.
+%
+\haskell{sections/03AAMByExample/03AbstractSemantics/02BindMany.hs}
+%
+Finally, \h|step| must advance time as it advances each \h|Call| state, and
+\h|exec| is modified to a collecting semantics.
+%
+\haskell{sections/03AAMByExample/03AbstractSemantics/03Step.hs}
+%
+The collecting semantics keeps track of all previously seen states.
+%
+% TODO: reference kleene fixpoint theorem.  also motivate this idea
+%       better/earlier
+%
+Keeping track of previous states turns exec into a monotonic function, which
+means its iteration will terminate if the instantiated state space is finite.

@@ -1,0 +1,110 @@
+% This approach is representative of how (sound) static analyses are generally
+% justified in practice.
+% 
+% The abstract state space and step function for 0CFA are shown in
+% figure~\ref{cps:abstract}.
+% %
+% Several seemingly arbitrary choices were made in the design of the abstract
+% state space shown.
+% %
+% Once this choice is made and the Galois connection relating it to the concrete
+% state space is established, the abstract step function, and therefore the
+% entire static analysis, is uniquely uniquely determined.
+% %
+% Exploiting this uniqueness to \textit{derive} rather than \textit{verify} the
+% abstract step relation underlies the calculational approach, which is
+% demonstrated in the next section.
+% %
+% For now, demonstrating a Galois connection (Maybe (Call, Env))
+% \galois{\alpha}{\gamma} (Set Call, AEnv), showing that \textbf{astep} is
+% monotonic, and showing that $(\alpha(\text{step}) \sqsubseteq
+% \widehat{\text{step}})$ are all proof burdens for the analysis designer.
+% %
+% We do not detail such proofs here, rather we refer the reader to [Shivers] and
+% [Might].
+% 
+% We make three observations in the relationship between the concrete and
+% abstract semantics thus far.
+% \begin{itemizenobreak}
+% \item
+% The choice of abstract state space was in some sense arbitrary.
+% %
+% For example, we could have chosen (Set (Call, Env)), yielding a flow-sensitive
+% analysis.
+% %
+% \item
+% \textbf{acall} would look much prettier if written in monadic style.
+% %
+% This observation was the initial inspiration for monadic abstract
+% interpretation; we'll see how that story plays out in a later section.
+% %
+% \item
+% Modifications to either the concrete or abstract semantics will likely render
+% the other incompatible.
+% \end{itemizenobreak}
+% %
+% We argue this last point is the primary point of pain in designing abstract
+% interpreters.
+% %
+% For a large real-world language, the semantics may subtly change during
+% development.  Even more likely, the analysis will be augmented and improved
+% over time, as new questions wish to be asked of the analysis.
+% %
+% Maintaining each of the semantics (and their proofs) to agree on modifications
+% is time consuming and error prone.
+% %
+% It is precisely this use case--the continuing evolution of a concrete and/or
+% abstract semantics--where the analysis designer greatly benefit from using our
+% framework.
+
+% \begin{figure}
+% \begin{lstlisting}
+% type AEnv = Map String (Set AVal
+% data AVal = IntAV | BoolAV | CloAV [String] Call
+% 
+% aop :: Op -> AVal -> Set AVal
+% aop (Add1 IntAV) = Set.singleton IntAV
+% aop (Sub1 IntAV) = Set.singleton IntAV
+% aop (IsNonNeg IntAV) = Set.singleton BoolAV
+% aop _ = Set.empty
+% 
+% aatomic :: Atom -> AEnv -> Set AVal
+% aatomic (LitA (IntL _)) _ = Set.singleton IntAV
+% aatomic (LitA (BoolL )) _ = Set.singleton BoolAV
+% aatomic (VarA x) e = case Map.lookup x e of
+%   Just avs -> avs
+%   Nothing -> Set.empty
+% aatomic (PrimA o a) _ = case aatomic a of
+%   Just v -> aop o v
+%   Nothing -> Set.empty
+% aatomic (LamA x kx c) e = Set.singleton (CloAV [x, kx] c)
+% aatomic (KonA x c) e = Set.singleton (CloAV [x] c e)
+% 
+% acall :: Call -> Env -> (Set Call, AEnv)
+% acall (IfC a tc fc) e = 
+%   if BoolAV `elem` aatomic a
+%     then (Set.fromList [ tc, fb ], e)
+%     else (Set.empty, e)
+% acall (AppC fa xa ka) e =
+%   merge (Set.empty, e) (concatMap (\ fv -> case fv of
+%     CloAV [x, kx] c -> 
+%       let e' = Map.unionWith Set.union (Map.singleton x (aatomic xv e))
+%           e'' = Map.unionWith Set.union (Map.singleton kx (aatomic kx e'))
+%       in [(c, e'')]
+%     _ -> []) (Set.toList (aatomic fa)))
+%   where
+%     merge (cs, e) [] = (cs, e)
+%     merge (cs, e) (c, e') = (Set.insert c cs, join e e')
+%     
+% acall (RetC ka xa) e =
+%   Set.unions (Set.map (\ fv -> case fv of
+%     CloAV [x] c -> 
+%       let e' = Map.unionWith Set.union (Map.singleton x (aatomic xv e))
+%       in Set.singleton (c, e')
+%     _ -> Set.empty)) (aatomic fa)
+% \end{lstlisting}
+% \caption{``A Posteriori'' Abstract Semantics for CPS}
+% \label{cps:abstract}
+% \end{figure}
+
+
