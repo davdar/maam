@@ -1,7 +1,7 @@
-module MAAM.M.Syntax where
+module Lang.CPS.Syntax where
 
 import FP
-import MAAM.Common
+import MAAM
 
 data Lit = I Integer | B Bool
   deriving (Eq, Ord)
@@ -23,3 +23,5 @@ data Call =
   deriving (Eq, Ord)
 instance PartialOrder Call where pcompare = discreteOrder
 
+callP :: P Call
+callP = P

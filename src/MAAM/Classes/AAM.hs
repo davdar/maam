@@ -3,10 +3,12 @@ module MAAM.Classes.AAM where
 import FP
 import MAAM.Common
 
-class AAM addr time μ | μ -> addr, μ -> time where
-  tzero :: P μ -> P 𝓁 -> time 𝓁
-  tick :: P μ -> P 𝓁 -> History 𝓁 -> time 𝓁 -> time 𝓁
-  alloc :: P μ -> P 𝓁 -> Name -> time 𝓁 -> addr
+class AAM μ where
+  type Addr μ :: *
+  type Time μ :: * -> *
+  tzero :: P μ -> Time μ σ
+  tick :: P μ -> σ -> Time μ σ -> Time μ σ
+  alloc :: P μ -> Name -> Time μ σ -> Addr μ
 
--- data T μ 𝓁 = T μ 𝓁
--- type instance Cell (T μ 𝓁) = Time μ 𝓁
+time :: P μ -> P σ -> P (Time μ σ)
+time P P = P

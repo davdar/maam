@@ -1,0 +1,32 @@
+module Lang.CPS.MAAM.AbstractDelta where
+
+-- ----- Abstract
+-- 
+-- data Abstract z = Abstract z
+-- data AVal z = IntA | BoolA | CloA [Name] Call (Env z)
+-- type instance Addr (Abstract z) = Addr z
+-- type instance Val (Abstract z) = AVal z
+-- type instance M (Abstract z) = M z
+-- 
+-- instance (MonadPlus (M z)) => Delta (Abstract z) where
+--   lit :: Abstract z -> Lit -> Val (Abstract z)
+--   lit _ (I _) = IntA
+--   lit _ (B _) = BoolA
+--   clo :: Abstract z -> [Name] -> Call -> Env (Abstract z) -> Val (Abstract z)
+--   clo _ = CloA
+--   elimBool :: Abstract z -> Val (Abstract z) -> M (Abstract z) Bool
+--   elimBool _ BoolA = return True `mplus` return False
+--   elimBool _ _ = mzero
+--   elimClo :: Abstract z -> Val (Abstract z) -> M (Abstract z) ([Name], Call, Env (Abstract z))
+--   elimClo _ (CloA xs c e) = return (xs, c, e)
+--   elimClo _ _ = mzero
+--   op :: Abstract z -> Op -> Val (Abstract z) -> M (Abstract z) (Val (Abstract z))
+--   op _ Add1 IntA = return IntA
+--   op _ Sub1 IntA = return IntA
+--   op _ IsNonNeg IntA = return BoolA
+--   op _ _ _ = mzero
+-- 
+-- ----- 0CFA
+-- 
+-- data ZCFA = ZCFA
+

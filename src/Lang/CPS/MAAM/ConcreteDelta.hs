@@ -1,0 +1,38 @@
+module Lang.CPS.MAAM.ConcreteDelta where
+
+--------------
+-- Concrete --
+--------------
+-- 
+-- data C = C
+-- data CVal = LitC Lit | CloC [Name] Call (Env C)
+--   deriving (Eq)
+-- instance PartialOrder CVal where
+--   pcompare = discreteOrder
+-- type instance Addr C = Integer
+-- data CAddr = CAddr
+-- type instance T CAddr = Integer
+-- type instance Val C = CVal
+-- type instance M C = StateT (Env C) (StateT (Store C) (StateT Integer Point))
+-- 
+-- instance Delta C where
+--   lit :: C -> Lit -> Val C
+--   lit C = LitC
+--   clo :: C -> [Name] -> Call -> Env C -> Val C
+--   clo C = CloC
+--   elimBool :: C -> Val C -> M C Bool
+--   elimBool C (LitC (B b)) = return b
+--   elimBool C _ = mzero
+--   elimClo :: C -> Val C -> M C ([Name], Call, Env C)
+--   elimClo C (CloC xs c e) = return (xs, c, e)
+--   elimClo C _ = mzero
+--   op :: C -> Op -> Val C -> M C (Val C)
+--   op C Add1 (LitC (I n)) = return (LitC (I (n+1)))
+--   op C Sub1 (LitC (I n)) = return (LitC (I (n-1)))
+--   op C IsNonNeg (LitC (I n)) | n >= 0 = return (LitC (B True))
+--                              | otherwise = return (LitC (B False))
+--   op C _ _ = mzero
+-- 
+-- c_MCPS :: (forall c. (MCPS c) => c -> a) -> a
+-- c_MCPS f = f C
+-- 

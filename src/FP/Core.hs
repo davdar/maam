@@ -16,11 +16,11 @@ module FP.Core
 import qualified Prelude
 import Prelude 
   ( Eq(..), Ord(..)
-  , (.), ($), id, const, flip, curry, uncurry
+  , (.), ($), const, flip, curry, uncurry
   , Bool(..), (||), (&&), not, otherwise
   , Char, Int, Integer, Double, Rational
   , Maybe(..)
-  , error, undefined
+  , error, undefined, seq
   , IO
   )
 import Data.ByteString.Char8 (ByteString)
@@ -31,11 +31,49 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Map (Map)
 
+
+infixl 9 #
+infixl 9 #!
+infixl 9 <@>
+infixr 9 <.>
+
+infix 7 /
+infix 7 //
+infixr 7 *
+infixr 7 <*>
+infixr 7 /\
+
+infix 6 -
+infixr 6 +
+infixr 6 <+>
+infixr 6 \/
+
+infix 4 <~
+infix 4 <.
+infix 4 ?
+
+infixl 1 >>=
+infixl 1 >>
+infixl 1 >>~
+
+infixr 0 *$
+infixr 0 *$~
+infixr 0 <$>
+infixr 0 <*$>
+
 -- }}}
 
 -------------
 -- Classes --
 -------------
+
+-- Category {{{ --
+
+class Category t where
+  id :: t a a
+  (<.>) :: t b c -> t a b -> t a c
+
+-- }}} --
 
 -- Conversion {{{
 
@@ -123,8 +161,8 @@ class PartialOrderF t where
 discreteOrder :: (Eq a) => a -> a -> POrdering
 discreteOrder x y = if x == y then PEQ else PUN
 
-poIter :: (PartialOrder a) => (a -> a) -> a -> a
-poIter f = loop
+poiter :: (PartialOrder a) => (a -> a) -> a -> a
+poiter f = loop
   where
     loop x =
       let x' = f x
@@ -138,12 +176,14 @@ class JoinLattice a where
   bot :: a
   (\/) :: a -> a -> a
 
-joinCollect :: (JoinLattice a, PartialOrder a) =>  (a -> a) -> a -> a
-joinCollect f = poIter (\ x -> x \/ f x)
+collect :: (JoinLattice a, PartialOrder a) =>  (a -> a) -> a -> a
+collect f = poiter $ \ x -> x \/ f x
 
 class MeetLattice a where
   top :: a
   (/\) :: a -> a -> a
+
+class (JoinLattice a, MeetLattice a) => Lattice a where
 
 -- }}} --
 
@@ -164,10 +204,16 @@ instance Universal a
 -- Iterable {{{
 
 class Iterable a t | t -> a where
-  iterL :: (a -> b -> b) -> b -> t -> b
+  iter :: (a -> b -> b) -> b -> t -> b
 
-iterOnL :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
-iterOnL = mirror iterL
+iterOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
+iterOn = mirror iter
+
+traverse :: (Iterable a t, Monad m) => (a -> m ()) -> t -> m ()
+traverse f = iter (\ a m -> m >> f a) $ return ()
+
+traverseOn :: (Iterable a t, Monad m) => t -> (a -> m ()) -> m ()
+traverseOn = flip traverse
 
 class CoIterable a t | t -> a where
   coiter :: (a -> b -> b) -> b -> t -> b
@@ -213,7 +259,7 @@ class (Iterable e t) => SetLike e t | t -> e where
   ssize :: (Integral n) => t -> n
 
 unionMap :: (Iterable a t, SetLike b u) => (a -> u) -> t -> u
-unionMap f = iterL (sunion . f) sempty
+unionMap f = iter (sunion . f) sempty
 
 eachUnion :: (Iterable a t, SetLike b u) => t -> (a -> u) -> u
 eachUnion = flip unionMap
@@ -239,6 +285,18 @@ lookup = flip (#)
 
 class Functor t where
   map :: (a -> b) -> t a -> t b
+
+(<$>) :: (Functor t) => (a -> b) -> t a -> t b
+(<$>) = map
+
+class FunctorM t where
+  mapM :: (Monad m) => (a -> m b) -> t a -> m (t b)
+
+(<*$>) :: (FunctorM t, Monad m) => (a -> m b) -> t a -> m (t b)
+(<*$>) = mapM
+
+eachM :: (FunctorM t, Monad m) => t a -> (a -> m b) -> m (t b)
+eachM = flip mapM
 
 -- }}}
 
@@ -300,7 +358,7 @@ class (Monad m) => MonadPlus m where
   (<+>) :: m a -> m a -> m a
 
 msum :: (Iterable a t, MonadZero m, MonadPlus m) => t -> m a
-msum = iterL ((<+>) . return) mzero
+msum = iter ((<+>) . return) mzero
 
 type m ~> n = forall a. m a -> n a
 
@@ -338,17 +396,26 @@ get = stateE $ StateT $ \ s -> return (s, s)
 getP :: (MonadStateE s m) => P s -> m s
 getP P = get
 
+getL :: (MonadStateE s m) => Lens s a -> m a
+getL l = mmap (access l) get
+
 put :: (MonadStateE s m) => s -> m ()
 put s = stateE $ StateT $ \ _ -> return ((), s)
 
 putP :: (MonadStateE s m) => P s -> s -> m ()
 putP P = put
 
+putL :: (MonadStateE s m) => Lens s a -> a -> m ()
+putL = modify .: set
+
 modify :: (MonadStateE s m) => (s -> s) -> m ()
 modify f = stateE $ StateT $ \ s -> return ((), f s)
 
 modifyP :: (MonadStateE s m) => P s -> (s -> s) -> m ()
 modifyP P = modify
+
+modifyL :: (MonadStateE s m) => Lens s a -> (a -> a) -> m ()
+modifyL = modify .: update
 
 -- }}}
 
@@ -357,6 +424,22 @@ modifyP P = modify
 ----------
 
 -- Function {{{ --
+
+instance Category (->) where
+  id x = x
+  (<.>) g f x = g (f x)
+instance Functor ((->) a) where
+  map = (.)
+instance (JoinLattice b) => JoinLattice (a -> b) where
+  bot = const bot
+  (\/) f g x = f x \/ g x
+instance (MeetLattice b) => MeetLattice (a -> b) where
+  top = const top
+  (/\) f g x = f x /\ g x
+instance (Lattice b) => Lattice (a -> b) where
+
+applyTo :: a -> (a -> b) -> b
+applyTo = flip ($)
 
 (.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 (.:) = (.) . (.)
@@ -472,7 +555,7 @@ instance Functor ID where map = mmap
 -- Set {{{
 
 instance Iterable a (Set a) where
-  iterL = Set.foldl' . flip
+  iter = Set.foldl' . flip
 instance (Ord a) => SetLike a (Set a) where
   sempty = Set.empty
   ssingleton = Set.singleton
@@ -495,7 +578,7 @@ smember = flip (?)
 -- Map {{{
 
 instance Iterable (k, v) (Map k v) where
-  iterL f = Map.foldlWithKey $ \ b k v -> f (k, v) b
+  iter f = Map.foldlWithKey $ \ b k v -> f (k, v) b
 instance (Ord k) => Indexed k v (Map k v) where
   p # k = Map.lookup k p
   
@@ -522,5 +605,82 @@ instance ToInteger Int where
 
 print :: String -> IO ()
 print = Prelude.putStrLn . toChars
+
+-- }}}
+
+-- Lens {{{ --
+
+data Cursor a b = Cursor { focus :: a, construct :: a -> b }
+
+data Lens a b = Lens { runLens :: a -> Cursor b a }
+
+lens :: (a -> b) -> (a -> b -> a) -> Lens a b
+lens getter setter = Lens $ \ s -> Cursor (getter s) (setter s)
+
+isoLens :: (a -> b) -> (b -> a) -> Lens a b
+isoLens to from = lens to $ const from
+
+instance Category Lens where
+  id = Lens $ \ a -> Cursor a id
+  g <.> f = Lens $ \ a -> 
+    let Cursor b ba = runLens f a
+        Cursor c cb = runLens g b
+    in Cursor c $ ba . cb
+
+access :: Lens a b -> a -> b
+access = focus .: runLens
+
+update :: Lens a b -> (b -> b) -> a -> a
+update l f a =
+  let Cursor b ba = runLens l a
+  in ba $ f b
+(~:) :: Lens a b -> (b -> b) -> a -> a
+(~:) = update
+
+udpateM :: (Monad m) => Lens a b -> (b -> m b) -> a -> m a
+udpateM l f a =
+  let Cursor b ba = runLens l a
+  in mmap ba $ f b
+
+set :: Lens a b -> b -> a -> a
+set l = update l . const
+(=:) :: Lens a b -> b -> a -> a
+(=:) = set
+
+(|:) :: a -> (a -> a) -> a
+(|:) = applyTo
+
+-- }}} --
+
+-- List {{{
+
+instance Functor [] where
+  map _ [] = []
+  map f (x:xs) = f x:map f xs
+instance FunctorM [] where
+  mapM _ [] = return []
+  mapM f (x:xs) = do
+    y <- f x
+    ys <- mapM f xs
+    return $ y:ys
+instance Iterable a [a] where
+  iter _ i [] = i
+  iter f i (x:xs) = let i' = f x i in i' `seq` iter f i' xs
+instance CoIterable a [a] where
+  coiter _ i [] = i
+  coiter f i (x:xs) = f x $ coiter f i xs
+
+zip :: [a] -> [b] -> [(a, b)]
+zip [] _ = []
+zip _ [] = []
+zip (x:xs) (y:ys) = (x,y):zip xs ys
+
+zipSameLength :: [a] -> [b] -> Maybe [(a, b)]
+zipSameLength [] [] = Just []
+zipSameLength [] (_:_) = Nothing
+zipSameLength (_:_) [] = Nothing
+zipSameLength (x:xs) (y:ys) = do
+  xys <- zipSameLength xs ys
+  return $ (x, y):xys
 
 -- }}}
