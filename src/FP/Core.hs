@@ -31,11 +31,16 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Map (Map)
 
+-- }}}
+
+-- Precedence {{{
 
 infixl 9 #
 infixl 9 #!
 infixl 9 <@>
 infixr 9 <.>
+infixr 9 *.
+infixr 9 *.~
 
 infix 7 /
 infix 7 //
@@ -59,6 +64,7 @@ infixl 1 >>~
 infixr 0 *$
 infixr 0 *$~
 infixr 0 <$>
+infixr 0 <$~>
 infixr 0 <*$>
 
 -- }}}
@@ -298,6 +304,12 @@ class FunctorM t where
 eachM :: (FunctorM t, Monad m) => t a -> (a -> m b) -> m (t b)
 eachM = flip mapM
 
+class CFunctor c t | t -> c where
+  cmap :: (c a, c b) => (a -> b) -> t a -> t b
+
+(<$~>) :: (CFunctor c t, c a, c b) => (a -> b) -> t a -> t b
+(<$~>) = cmap
+
 -- }}}
 
 -- Applicative {{{
@@ -330,6 +342,9 @@ extend = flip (>>=)
 (*$) :: (Monad m) => (a -> m b) -> (m a -> m b)
 (*$) = extend
 
+(*.) :: (Monad m) => (b -> m c) -> (a -> m b) -> (a -> m c)
+(g *. f) x = g *$ f x
+
 mmap :: (Monad m) => (a -> b) -> m a -> m b
 mmap f aM = do
   a <- aM
@@ -341,12 +356,23 @@ mapply fM aM = do
   a <- aM
   return $ f a
 
-class CMonad c m | m -> c where
-  creturn :: (c a) => a -> m a
+class CUnit c t | t -> c where
+  cunit :: (c a) => a -> t a
+
+class (CUnit c m) => CMonad c m | m -> c where
   (>>~) :: (c a, c b) => m a -> (a -> m b) -> m b
 
+creturn :: (CMonad c m, c a) => a -> m a
+creturn = cunit
+
+cextend :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
+cextend = flip (>>~)
+
 (*$~) :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
-(*$~) = flip (>>~)
+(*$~) = cextend
+
+(*.~) :: (CMonad c m, c a, c b, c d) => (b -> m d) -> (a -> m b) -> (a -> m d)
+(g *.~ f) x = g *$~ f x
 
 class (Monad m) => MonadFail m where
   fail :: Chars -> m a
@@ -378,6 +404,10 @@ useMaybeM = maybeE . MaybeT
 
 useMaybe :: (MonadMaybeE m) => Maybe a -> m a
 useMaybe = useMaybeM . return
+
+useMaybeZero :: (MonadZero m) => Maybe a -> m a
+useMaybeZero Nothing = mzero
+useMaybeZero (Just x) = return x
 
 -- }}}
 
@@ -484,7 +514,7 @@ data P a = P
 
 -- }}}
 
--- Point {{{
+-- Pointed {{{
 
 data Pointed a = Top | Bot | Point a
 
@@ -563,15 +593,29 @@ instance (Ord a) => SetLike a (Set a) where
   sintersection = Set.intersection
   (?) = flip Set.member
   ssize = fromInteger . toInteger . Set.size
+instance CUnit Ord Set where
+  cunit = ssingleton
 instance CMonad Ord Set where
-  creturn = ssingleton
   (>>~) = eachUnion
+instance CFunctor Ord Set where
+  cmap = Set.map
 instance (Ord a) => JoinLattice (Set a) where
   bot = sempty
   (\/) = sunion
 
 smember :: (SetLike a t) => a -> t -> Bool
 smember = flip (?)
+
+sinsert :: (SetLike a t) => a -> t -> t
+sinsert = sunion . ssingleton
+
+smap :: (Iterable a t, SetLike b u) => (a -> b) -> t -> u
+smap f = iter (sinsert . f) sempty
+
+useMaybeSet :: (SetLike a t) => Maybe a -> t
+useMaybeSet Nothing = sempty
+useMaybeSet (Just a) = ssingleton a
+
 
 -- }}}
 
@@ -598,6 +642,32 @@ instance FromInteger Int where
   fromInteger = Prelude.fromIntegral
 instance ToInteger Int where
   toInteger = Prelude.toInteger
+instance Peano Int where
+  pzero = 0
+  psuc = Prelude.succ
+instance Additive Int where
+  zero = 0
+  (+) = (Prelude.+)
+instance Multiplicative Int where
+  one = 1
+  (*) = (Prelude.*)
+instance TruncateDivisible Int where
+  (//) = Prelude.div
+instance Integral Int where
+
+-- }}}
+
+-- Integer {{{
+
+instance FromInteger Integer where
+  fromInteger = id
+instance ToInteger Integer where
+  toInteger = id
+instance Additive Integer where
+  zero = 0
+  (+) = (Prelude.+)
+instance Subtractive Integer where
+  (-) = (Prelude.-)
 
 -- }}}
 
@@ -683,4 +753,9 @@ zipSameLength (x:xs) (y:ys) = do
   xys <- zipSameLength xs ys
   return $ (x, y):xys
 
--- }}}
+firstN :: (Eq n, Integral n) => n -> [a] -> [a]
+firstN n = loop zero
+  where
+    loop _ [] = []
+    loop i (x:xs) | i == n = []
+                  | otherwise = x:loop (psuc i) xs

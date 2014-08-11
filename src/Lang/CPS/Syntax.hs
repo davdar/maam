@@ -5,6 +5,13 @@ import MAAM
 
 data Lit = I Integer | B Bool
   deriving (Eq, Ord)
+coerceI :: Lit -> Maybe Integer
+coerceI (I i) = Just i
+coerceI _ = Nothing
+coerceB :: Lit -> Maybe Bool
+coerceB (B b) = Just b
+coerceB _ = Nothing
+
 instance PartialOrder Lit where pcompare = discreteOrder
 data Op = Add1 | Sub1 | IsNonNeg
   deriving (Eq, Ord)
@@ -22,6 +29,3 @@ data Call =
   | Halt Atom
   deriving (Eq, Ord)
 instance PartialOrder Call where pcompare = discreteOrder
-
-callP :: P Call
-callP = P
