@@ -49,8 +49,10 @@ infixr 7 <*>
 infixr 7 /\
 
 infix 6 -
+infix 6 \-\
 infixr 6 +
 infixr 6 <+>
+infixr 6 <+>~
 infixr 6 \/
 
 infix 4 <~
@@ -58,6 +60,7 @@ infix 4 <.
 infix 4 ?
 
 infixl 1 >>=
+infixl 1 >>=~
 infixl 1 >>
 infixl 1 >>~
 
@@ -182,6 +185,9 @@ class JoinLattice a where
   bot :: a
   (\/) :: a -> a -> a
 
+joins :: (Iterable a t, JoinLattice a) => t -> a
+joins = iter (\/) bot
+
 collect :: (JoinLattice a, PartialOrder a) =>  (a -> a) -> a -> a
 collect f = poiter $ \ x -> x \/ f x
 
@@ -234,6 +240,9 @@ class Functorial c t where
 class Bifunctorial c t where
   bifunctorial :: (c a, c b) => W (c (t a b))
 
+bifunctorialP :: (Bifunctorial c t, c a, c b) => P c -> P t -> P a -> P b -> W (c (t a b))
+bifunctorialP P P P P = bifunctorial
+
 -- }}}
 
 -- MapLike {{{
@@ -252,6 +261,9 @@ pinsertWith f k v = punionWith f (psingleton k v)
 pinsert :: (MapLike k v t) => k -> v -> t -> t
 pinsert = pinsertWith $ const id
 
+ponlyKeys :: (Iterable k t, MapLike k v u) => t -> u -> u
+ponlyKeys t u = iter (\ k -> maybe id (pinsert k) $ u # k) pempty t
+
 -- }}}
 
 -- SetLike {{{
@@ -261,14 +273,15 @@ class (Iterable e t) => SetLike e t | t -> e where
   ssingleton :: e -> t
   sunion :: t -> t -> t
   sintersection :: t -> t -> t
+  (\-\) :: t -> t -> t
   (?) :: t -> e -> Bool
   ssize :: (Integral n) => t -> n
 
-unionMap :: (Iterable a t, SetLike b u) => (a -> u) -> t -> u
-unionMap f = iter (sunion . f) sempty
+sunionMap :: (Iterable a t, SetLike b u) => (a -> u) -> t -> u
+sunionMap f = iter (sunion . f) sempty
 
-eachUnion :: (Iterable a t, SetLike b u) => t -> (a -> u) -> u
-eachUnion = flip unionMap
+seachUnion :: (Iterable a t, SetLike b u) => t -> (a -> u) -> u
+seachUnion = flip sunionMap
 
 -- }}}
 
@@ -360,13 +373,16 @@ class CUnit c t | t -> c where
   cunit :: (c a) => a -> t a
 
 class (CUnit c m) => CMonad c m | m -> c where
-  (>>~) :: (c a, c b) => m a -> (a -> m b) -> m b
+  (>>=~) :: (c a, c b) => m a -> (a -> m b) -> m b
 
 creturn :: (CMonad c m, c a) => a -> m a
 creturn = cunit
 
+(>>~) :: (CMonad c m, c a, c b) => m a -> m b -> m b
+aM >>~ bM = aM >>=~ \ _ -> bM
+
 cextend :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
-cextend = flip (>>~)
+cextend = flip (>>=~)
 
 (*$~) :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
 (*$~) = cextend
@@ -374,11 +390,22 @@ cextend = flip (>>~)
 (*.~) :: (CMonad c m, c a, c b, c d) => (b -> m d) -> (a -> m b) -> (a -> m d)
 (g *.~ f) x = g *$~ f x
 
+cmmap :: (CMonad c m) => (c a, c b) => (a -> b) -> m a -> m b
+cmmap f aM =
+  aM >>=~ \ a ->
+  creturn $ f a
+
 class (Monad m) => MonadFail m where
   fail :: Chars -> m a
 
+class (CMonad c m) => CMonadFail c m | m -> c where
+  cfail :: (c a) => Chars -> m a
+
 class (Monad m) => MonadZero m where
   mzero :: m a
+
+class (CMonad c m) => CMonadZero c m where
+  cmzero :: (c a) => m a
 
 class (Monad m) => MonadPlus m where
   (<+>) :: m a -> m a -> m a
@@ -386,7 +413,14 @@ class (Monad m) => MonadPlus m where
 msum :: (Iterable a t, MonadZero m, MonadPlus m) => t -> m a
 msum = iter ((<+>) . return) mzero
 
+class (CMonad c m) => CMonadPlus c m | m -> c where
+  (<+>~) :: (c a) => m a -> m a -> m a
+
+cmsum :: (Iterable a t, MonadZero m, CMonadPlus c m) => (c a) => t -> m a
+cmsum = iter ((<+>~) . creturn) mzero
+
 type m ~> n = forall a. m a -> n a
+type (m ~>~ n) c = forall a. (c a) => m a -> n a
 
 -- }}}
 
@@ -414,6 +448,7 @@ useMaybeZero (Just x) = return x
 -- MonadState {{{
 
 newtype StateT s m a = StateT { unStateT :: s -> m (a, s) }
+
 class (Monad m) => MonadStateI s m where
   stateI :: m ~> StateT s m
 class (Monad m) => MonadStateE s m where
@@ -446,6 +481,39 @@ modifyP P = modify
 
 modifyL :: (MonadStateE s m) => Lens s a -> (a -> a) -> m ()
 modifyL = modify .: update
+
+class (CMonad c m) => CMonadStateI c s m | m -> c where
+  cstateI :: (m ~>~ StateT s m) c
+class (CMonad c m) => CMonadStateE c s m | m -> c where
+  cstateE :: (StateT s m ~>~ m) c
+class (CMonadStateI c s m, CMonadStateE c s m) => CMonadState c s m | m -> c where
+
+cget :: (CMonadStateE c s m, c s, c (s, s)) => m s
+cget = cstateE $ StateT $ \ s -> creturn (s, s)
+
+cgetP :: (CMonadStateE c s m, c s, c (s, s)) => P s -> m s
+cgetP P = cget
+
+cgetL :: (CMonadStateE c s m, c s, c (s, s), c a) => Lens s a -> m a
+cgetL l = cmmap (access l) cget
+
+cput :: (CMonadStateE c s m, c (), c ((), s)) => s -> m ()
+cput s = cstateE $ StateT $ \ _ -> creturn ((), s)
+
+cputP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> s -> m ()
+cputP P = cput
+
+cputL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> a -> m ()
+cputL = cmodify .: set
+
+cmodify :: (CMonadStateE c s m, c (), c ((), s)) => (s -> s) -> m ()
+cmodify f = cstateE $ StateT $ \ s -> creturn ((), f s)
+
+cmodifyP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> (s -> s) -> m ()
+cmodifyP P = cmodify
+
+cmodifyL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> (a -> a) -> m ()
+cmodifyL = cmodify .: update
 
 -- }}}
 
@@ -566,6 +634,10 @@ unsafeCoerceJust :: Maybe a -> a
 unsafeCoerceJust (Just a) = a
 unsafeCoerceJust Nothing = error $ toChars "expected Just but found Nothing"
 
+maybe :: b -> (a -> b) -> Maybe a -> b
+maybe i _ Nothing = i
+maybe _ f (Just a) = f a
+
 -- }}}
 
 -- ID {{{
@@ -590,15 +662,18 @@ instance (Ord a) => SetLike a (Set a) where
   sempty = Set.empty
   ssingleton = Set.singleton
   sunion = Set.union
+  (\-\) = (Set.\\)
   sintersection = Set.intersection
   (?) = flip Set.member
   ssize = fromInteger . toInteger . Set.size
 instance CUnit Ord Set where
   cunit = ssingleton
 instance CMonad Ord Set where
-  (>>~) = eachUnion
+  (>>=~) = seachUnion
 instance CFunctor Ord Set where
   cmap = Set.map
+instance (Ord a) => PartialOrder (Set a) where
+  (<~) = Set.isSubsetOf
 instance (Ord a) => JoinLattice (Set a) where
   bot = sempty
   (\/) = sunion
@@ -616,6 +691,8 @@ useMaybeSet :: (SetLike a t) => Maybe a -> t
 useMaybeSet Nothing = sempty
 useMaybeSet (Just a) = ssingleton a
 
+sset :: (Iterable a t, SetLike a u) => t -> u
+sset = iter sinsert sempty
 
 -- }}}
 

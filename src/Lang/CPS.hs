@@ -1,9 +1,13 @@
 module Lang.CPS
-  ( module Lang.CPS.Delta
-  , module Lang.CPS.MAAM
-  , module Lang.CPS.Syntax
+  ( Lang.CPS.Classes.Delta
+  , Lang.CPS.Instances.Delta.Abstract
+  , Lang.CPS.Instances.Delta.Concrete
+  , Lang.CPS.Syntax
+  , Lang.CPS.Semantics
   ) where
 
-import Lang.CPS.Delta
-import Lang.CPS.MAAM
+import Lang.CPS.Classes.Delta
+import Lang.CPS.Instances.Delta.Abstract
+import Lang.CPS.Instances.Delta.Concrete
 import Lang.CPS.Syntax
+import Lang.CPS.Semantics
