@@ -51,6 +51,7 @@ infixr 7 /\
 infix 6 -
 infix 6 \-\
 infixr 6 +
+infixr 6 ++
 infixr 6 <+>
 infixr 6 <+>~
 infixr 6 \/
@@ -83,6 +84,14 @@ class Category t where
   (<.>) :: t b c -> t a b -> t a c
 
 -- }}} --
+
+-- Monoid {{{
+
+class Monoid a where
+  null :: a
+  (++) :: a -> a -> a
+
+-- }}}
 
 -- Conversion {{{
 
@@ -363,6 +372,12 @@ mmap f aM = do
   a <- aM
   return $ f a
 
+mpair :: (Monad m) => m a -> m b -> m (a, b)
+mpair aM bM = do
+  a <- aM
+  b <- bM
+  return (a, b)
+
 mapply :: (Monad m) => m (a -> b) -> m a -> m b
 mapply fM aM = do
   f <- fM
@@ -412,6 +427,9 @@ class (Monad m) => MonadPlus m where
 
 msum :: (Iterable a t, MonadZero m, MonadPlus m) => t -> m a
 msum = iter ((<+>) . return) mzero
+
+msums :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
+msums = iter (<+>) mzero
 
 class (CMonad c m) => CMonadPlus c m | m -> c where
   (<+>~) :: (c a) => m a -> m a -> m a
@@ -552,6 +570,16 @@ mirror :: (a -> b -> c -> d) -> (c -> b -> a -> d)
 mirror f c b a = f a b c
 
 -- }}} --
+
+-- Tuple {{{
+
+mapFst :: (a -> c) -> (a, b) -> (c, b)
+mapFst f (a, b) = (f a, b)
+
+mapSnd :: (b -> c) -> (a, b) -> (a, c)
+mapSnd f (a, b) = (a, f b)
+
+-- }}}
 
 -- Bool {{{ --
 
@@ -816,6 +844,22 @@ instance Iterable a [a] where
 instance CoIterable a [a] where
   coiter _ i [] = i
   coiter f i (x:xs) = f x $ coiter f i xs
+instance Monoid [a] where
+  null = []
+  (++) = (Prelude.++)
+instance Unit [] where
+  unit = (:[])
+instance MonadPlus [] where
+  (<+>) = (++)
+instance Monad [] where
+  []     >>= _ = []
+  (x:xs) >>= k = k x ++ (xs >>= k)
+instance Applicative [] where
+  []     <*> _  = []
+  (x:xs) <*> ys = map (x,) ys ++ xs <*> ys
+
+singleton :: a -> [a]
+singleton = (:[])
 
 zip :: [a] -> [b] -> [(a, b)]
 zip [] _ = []
@@ -836,3 +880,107 @@ firstN n = loop zero
     loop _ [] = []
     loop i (x:xs) | i == n = []
                   | otherwise = x:loop (psuc i) xs
+
+-- }}}
+
+-- ListSet {{{
+
+newtype ListSet a = ListSet { runListSet :: [a] }
+  deriving (Unit, Functor, Applicative, Monad, MonadPlus, Iterable a)
+instance JoinLattice (ListSet a) where
+  bot = ListSet []
+  xs1 \/ xs2 = ListSet $ runListSet xs1 ++ runListSet xs2
+
+-- }}}
+
+-- StateT {{{ --
+
+instance (Unit m) => Unit (StateT s m) where
+  unit x = StateT $ \ s -> unit (x, s)
+instance (Functor m) => Functor (StateT s m) where
+  map f aM = StateT $ \ s -> map (mapFst f) (unStateT aM s)
+instance (Applicative m) => Applicative (StateT s m) where
+  aM <*> bM = StateT $ \ s -> map (\ ((a, _), (b, s')) -> ((a, b), s')) $ 
+    unStateT aM s <*> unStateT bM s
+instance (Monad m) => Monad (StateT s m) where
+  aM >>= k = StateT $ \ s -> do
+    (a, s') <- unStateT aM s
+    unStateT (k a) s'
+
+instance (Monad m) => MonadStateI s (StateT s m) where
+  stateI aM = StateT $ \ s -> StateT $ \ s' -> do
+    as' <- unStateT aM s
+    return (as', s')
+instance (Monad m) => MonadStateE s (StateT s m) where
+  stateE aMM = StateT $ \ s -> do
+    (as', _) <- unStateT (unStateT aMM s) s
+    return as'
+-- proof of: stateE . stateI = id {{{
+-- 
+-- stateE . stateI = id
+-- <->
+-- (\ aMM -> StateT $ \ s -> do { (as', _) <- unStateT (unStateT aMM s) s ; return as') 
+-- .
+-- (\ aM -> StateT $ \ s -> StateT $ \ s' -> do { as' <- unStateT aM s ; return (as', s')})
+-- = 
+-- id
+-- <->
+-- aM
+-- =
+-- StateT $ \ s -> do { (as', _) <- unStateT (unStateT (StateT $ \ s -> StateT $ \ s' -> do { as' <- unStateT aM s ; return (as', s')}) s) s ; return as'
+-- = [[StateT and function beta]] 
+-- StateT $ \ s -> do { (as', _) <- unStateT (StateT $ \ s' -> do { as' <- unStaetT aM s ; return (as', s')}) s ; return as'
+-- = [[StateT and function beta]]
+-- StateT $ \ s -> do { (as', s') <- do { as' <- unStateT aM s ; return (as', s)} ; return as'
+-- = [[monad associativity]]
+-- StateT $ \ s -> do
+--   as' <- unStateT aM s
+--   (as', s') <- return (as', s)
+--   return as'
+-- = [[bind left unit]]
+--   StateT $ \ s -> do
+--     as' <- unStateT aM s
+--     return as'
+-- = [[bind right unit]]
+--   StateT $ \ s -> do
+--     unStateT aM s
+-- = [[StateT and function eta]]
+-- aM
+-- QED }}}
+
+instance (MonadZero m) => MonadZero (StateT s m) where
+  mzero = StateT $ const mzero
+instance (MonadPlus m) => MonadPlus (StateT s m) where
+  aM1 <+> aM2 = StateT $ \ s -> unStateT aM1 s <+> unStateT aM2 s
+
+-- }}} --
+
+-- ListT {{{
+
+newtype ListT m a = ListT { runListT :: m (ListSet a) }
+
+instance (Unit m) => Unit (ListT m) where
+  unit = ListT . unit . ListSet . singleton
+instance (Functor m) => Functor (ListT m) where
+  map f aM = ListT $ map (map f) $ runListT aM
+instance (Monad m, Functorial JoinLattice m) => Applicative (ListT m) where
+  (<*>) = mpair
+instance (Monad m, Functorial JoinLattice m) => Monad (ListT m) where
+  (>>=) :: forall a b. ListT m a -> (a -> ListT m b) -> ListT m b
+  aM >>= k = ListT $ do
+    xs <- runListT aM
+    runListT $ msums $ map k xs
+instance (Monad m, Functorial JoinLattice m) => MonadZero (ListT m) where
+  mzero :: forall a. ListT m a
+  mzero = 
+    with (functorial :: W (JoinLattice (m (ListSet a)))) $
+    ListT bot
+instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
+  (<+>) :: forall a. ListT m a -> ListT m a -> ListT m a
+  aM1 <+> aM2 = 
+    with (functorial :: W (JoinLattice (m (ListSet a)))) $
+    ListT $ runListT aM1 \/ runListT aM2
+
+-- TODO: Prove monad laws!!!
+
+-- }}}

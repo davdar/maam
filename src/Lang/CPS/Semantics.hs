@@ -95,36 +95,56 @@ call δ μ m (App fa aes) = do
   return c
 call _ _ _ (Halt a) = return $ Halt a
 
+-- 'Standard' semantics --
 exec :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> SS m Call
 exec δ μ m c = poiter (mstep $ call δ μ m) $ unit c
 
+-- Collecting semantics --
 collectExec :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> SS m Call
 collectExec δ μ m c = collect (mstep $ call δ μ m) $ unit c
+
+--------
+-- GC --
+--------
+
+freeVarsLam :: (Analysis δ μ m) => P δ -> P μ -> P m -> [Name] -> Call -> Set Name
+freeVarsLam δ μ m xs c = freeVarsCall δ μ m c \-\ sset xs
 
 freeVarsAtom :: (Analysis δ μ m) => P δ -> P μ -> P m -> Atom -> Set Name
 freeVarsAtom _ _ _ (LitA _) = bot
 freeVarsAtom _ _ _ (Var x) = ssingleton x
 freeVarsAtom δ μ m (Prim _ a) = freeVarsAtom δ μ m a
-freeVarsAtom δ μ m (Lam xs c) = freeVarsCall δ μ m c \-\ sset xs
+freeVarsAtom δ μ m (Lam xs c) = freeVarsLam δ μ m xs c
 
 freeVarsCall :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> Set Name
 freeVarsCall δ μ m (If a tc fc) = freeVarsAtom δ μ m a \/ freeVarsCall δ μ m tc \/ freeVarsCall δ μ m fc
 freeVarsCall δ μ m (App fa aes) = freeVarsAtom δ μ m fa \/ joins (map (freeVarsAtom δ μ m) aes)
 freeVarsCall δ μ m (Halt a) = freeVarsAtom δ μ m a
 
-storeTouched :: Map Name (Addr μ (ψ δ μ)) -> Map (Addr μ (Ψ δ μ)) (Val δ μ (Ψ δ μ)) -> Addr μ (Ψ δ μ) -> Set (Addr μ (Ψ δ μ))
-storeTouched e s l = undefined -- do
---   v <- s # l
---   Clo xs c e lτ <- elimClo v
---   let fxs = freeVarsCall δ μ m e \-\ sset xs
---   index e *$~ fxs
---   -- HERE
+callTouched :: (Analysis δ μ m) => P δ -> P μ -> P m -> Env μ (Ψ δ μ) -> Call -> Set (Addr μ (Ψ δ μ))
+callTouched δ μ m e c = closureTouched δ μ m e [] c
 
+closureTouched :: (Analysis δ μ m) => P δ -> P μ -> P m -> Env μ (Ψ δ μ) -> [Name] -> Call -> Set (Addr μ (Ψ δ μ))
+closureTouched δ μ m e xs c = useMaybeSet . index (runEnv e) *$~ freeVarsLam δ μ m xs c
+
+addrTouched :: (Analysis δ μ m) => P δ -> P μ -> P m -> Store δ μ (Ψ δ μ) -> Addr μ (Ψ δ μ) -> Set (Addr μ (Ψ δ μ))
+addrTouched δ μ m s l = 
+  let clos = elimClo δ *$~ useMaybeSet . index (runStore s) $ l
+  in clos >>=~ \ (Clo xs c e _) -> closureTouched δ μ m e xs c
 
 gc :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> m ()
 gc δ μ m c = do
-  e <- getL $ envL μ $ ψ δ μ
-  s <- getL $ storeL δ μ $ ψ δ μ
-  let live = collect (cextend $ storeTouched e s) $ useMaybeSet . index e *$~ freeVarsCall δ μ m c
+  e <- getP $ envP μ $ ψ δ μ
+  s <- getP $ storeP δ μ $ ψ δ μ
+  let live = collect (cextend $ addrTouched δ μ m s) $ callTouched δ μ m e c
   modifyL (storeL δ μ (ψ δ μ)) $ ponlyKeys live
   return ()
+
+callGC :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> m Call
+callGC δ μ m c = do
+  c' <- call δ μ m c
+  gc δ μ m c'
+  return c'
+
+collectExecGC :: (Analysis δ μ m) => P δ -> P μ -> P m -> Call -> SS m Call
+collectExecGC δ μ m c = collect (mstep $ callGC δ μ m) $ unit c
