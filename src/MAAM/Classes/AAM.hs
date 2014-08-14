@@ -1,17 +1,19 @@
 module MAAM.Classes.AAM where
 
 import FP
+import MAAM.Classes.Temporal
 
-class Time τ where
-  tzero :: τ ψ
-  tick :: ψ -> τ ψ -> τ ψ
+class (Temporal (LexicalTemporal μ), Temporal (DynamicTemporal μ)) => AAM μ where
+  type LexicalTemporal μ :: *
+  type DynamicTemporal μ :: *
+  lexical :: μ -> LexicalTemporal μ
+  dynamic :: μ -> DynamicTemporal μ
 
-class (Time (LexicalTime μ), Time (DynamicTime μ)) => AAM μ where
-  type LexicalTime μ :: * -> *
-  type DynamicTime μ :: * -> *
+type LexicalTime μ = Time (LexicalTemporal μ)
+type DynamicTime μ = Time (DynamicTemporal μ)
 
-lexicalTimeP :: P μ -> P ψ -> P (LexicalTime μ ψ)
-lexicalTimeP P P = P
+lexicalTimeP :: μ -> P ψ -> P (LexicalTime μ ψ)
+lexicalTimeP _ P = P
 
-dynamicTimeP :: P μ -> P ψ -> P (DynamicTime μ ψ)
-dynamicTimeP P P = P
+dynamicTimeP :: μ -> P ψ -> P (DynamicTime μ ψ)
+dynamicTimeP _ P = P

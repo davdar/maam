@@ -440,6 +440,12 @@ cmsum = iter ((<+>~) . creturn) mzero
 type m ~> n = forall a. m a -> n a
 type (m ~>~ n) c = forall a. (c a) => m a -> n a
 
+class MonadFunctor t where
+  mtMap :: (m ~> n) -> t m ~> t n
+
+class MonadIsoFunctor t where
+  mtIsoMap :: (m ~> n, n ~> m) -> t m ~> t n
+
 -- }}}
 
 -- MonadMaybe {{{
@@ -607,6 +613,15 @@ data a :+: b = Inl a | Inr b
 -- P {{{
 
 data P a = P
+
+-- }}}
+
+-- Compose {{{
+
+newtype (t :.: u) a = Compose { runCompose :: t (u a) }
+
+instance (Unit t, Unit u) => Unit (t :.: u) where
+  unit = Compose . unit . unit
 
 -- }}}
 
@@ -866,6 +881,12 @@ zip [] _ = []
 zip _ [] = []
 zip (x:xs) (y:ys) = (x,y):zip xs ys
 
+unzip :: [(a, b)] -> ([a], [b])
+unzip [] = ([], [])
+unzip ((x,y):xys) =
+  let (xs,ys) = unzip xys
+  in (x:xs, y:ys)
+
 zipSameLength :: [a] -> [b] -> Maybe [(a, b)]
 zipSameLength [] [] = Just []
 zipSameLength [] (_:_) = Nothing
@@ -955,38 +976,22 @@ instance (MonadPlus m) => MonadPlus (StateT s m) where
 
 -- }}} --
 
--- ListT {{{
+-- ListSetT {{{
 
-newtype ListT m a = ListT { runListT :: m (ListSet a) }
+newtype ListSetT m a = ListSetT { runListSetT :: m (ListSet a) }
 
-instance (Unit m) => Unit (ListT m) where
-  unit = ListT . unit . ListSet . singleton
-instance (Functor m) => Functor (ListT m) where
-  map f aM = ListT $ map (map f) $ runListT aM
-instance (Monad m, Functorial JoinLattice m) => Applicative (ListT m) where
+instance (Unit m) => Unit (ListSetT m) where
+  unit = ListSetT . unit . ListSet . singleton
+instance (Functor m) => Functor (ListSetT m) where
+  map f aM = ListSetT $ map (map f) $ runListSetT aM
+instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetT m) where
   (<*>) = mpair
-instance (Monad m, Functorial JoinLattice m) => Monad (ListT m) where
-  (>>=) :: forall a b. ListT m a -> (a -> ListT m b) -> ListT m b
-  aM >>= k = ListT $ do
-    xs <- runListT aM
-    runListT $ msums $ map k xs
-instance (Monad m, Functorial JoinLattice m) => MonadZero (ListT m) where
-  mzero :: forall a. ListT m a
-  mzero = 
-    with (functorial :: W (JoinLattice (m (ListSet a)))) $
-    ListT bot
-instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
-  (<+>) :: forall a. ListT m a -> ListT m a -> ListT m a
-  aM1 <+> aM2 = 
-    with (functorial :: W (JoinLattice (m (ListSet a)))) $
-    ListT $ runListT aM1 \/ runListT aM2
-
--- PROOF of: associativity, commutativity and unit of <+> for (ListT m) {{{
---
--- Follows trivially from definition and Lattice laws for underlying monad.
--- QED }}}
-
--- PROOF of: monad laws for (ListT m) {{{
+instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
+  (>>=) :: forall a b. ListSetT m a -> (a -> ListSetT m b) -> ListSetT m b
+  aM >>= k = ListSetT $ do
+    xs <- runListSetT aM
+    runListSetT $ msums $ map k xs
+-- PROOF of: monad laws for (ListSetT m) {{{
 --
 -- ASSUMPTION 1: returnₘ a <+> returnₘ b = returnₘ (a \/ b)
 -- [this comes from m being a lattice functor. (1 x + 1 y) = 1 (x + y)]
@@ -995,18 +1000,18 @@ instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
 --   
 --   return x >>= k
 --   = [[definition of >>=]]
---   ListT $ do { xs <- runListT $ return x ; runListT $ msums $ map k xs }
+--   ListSetT $ do { xs <- runListSetT $ return x ; runListSetT $ msums $ map k xs }
 --   = [[definition of return]]
---   ListT $ do { xs <- runListT $ ListT $ return [x] ; runListT $ msums $ map k xs }
---   = [[ListT beta]]
---   ListT $ do { xs <- return [x] ; runListT $ msums $ map k xs }
+--   ListSetT $ do { xs <- runListSetT $ ListSetT $ return [x] ; runListSetT $ msums $ map k xs }
+--   = [[ListSetT beta]]
+--   ListSetT $ do { xs <- return [x] ; runListSetT $ msums $ map k xs }
 --   = [[monad left unit]]
---   ListT $ runListT $ msums $ map k [x]
+--   ListSetT $ runListSetT $ msums $ map k [x]
 --   = [[definition of map]]
---   ListT $ runListT $ msums $ [k x]
+--   ListSetT $ runListSetT $ msums $ [k x]
 --   = [[definition of msums and <+> unit]]
---   ListT $ runListT $ k x
---   = [[ListT eta]]
+--   ListSetT $ runListSetT $ k x
+--   = [[ListSetT eta]]
 --   k x
 --   QED }}}
 --
@@ -1014,20 +1019,20 @@ instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
 --
 --   aM >>= return
 --   = [[definition of >>=]]
---   ListT $ { xs <- runListT aM ; runListT $ msums $ map return xs }
+--   ListSetT $ { xs <- runListSetT aM ; runListSetT $ msums $ map return xs }
 --   = [[induction/expansion on xs]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ map return [x1,..,xn] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ msums $ map return [x1,..,xn] }
 --   = [[definition of return and map]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ [ListT $ return [x1],..,ListT $ return [xn]] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ msums $ [ListSetT $ return [x1],..,ListSetT $ return [xn]] }
 --   = [[definition of msums]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT $ return [x1] <+> .. <+> return [xn] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ ListSetT $ return [x1] <+> .. <+> return [xn] }
 --   = [[assumption 1]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT $ return [x1,..,xn] }
---   = [[ListT beta]]
---   ListT $ { [x1,..,xn] <- runListT aM ; return [x1,..,xn] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ ListSetT $ return [x1,..,xn] }
+--   = [[ListSetT beta]]
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; return [x1,..,xn] }
 --   = [[monad right unit]]
---   ListT $ runListT aM
---   = [[ListT eta]]
+--   ListSetT $ runListSetT aM
+--   = [[ListSetT eta]]
 --   aM
 --   QED }}}
 --
@@ -1035,35 +1040,69 @@ instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
 --
 --   (aM >>= k1) >>= k2
 --   = [[definition of >>=]]
---   ListT $ { xs <- runListT $ ListT $ { xs' <- runListT aM ; runListT $ msums $ map k1 xs' } ; runListT $ msums $ map k xs }
---   = [[ListT beta]]
---   ListT $ { xs <- { xs' <- runListT aM ; runListT $ msums $ map k1 xs' } ; runListT $ msums $ map k xs }
+--   ListSetT $ { xs <- runListSetT $ ListSetT $ { xs' <- runListSetT aM ; runListSetT $ msums $ map k1 xs' } ; runListSetT $ msums $ map k xs }
+--   = [[ListSetT beta]]
+--   ListSetT $ { xs <- { xs' <- runListSetT aM ; runListSetT $ msums $ map k1 xs' } ; runListSetT $ msums $ map k xs }
 --   = [[monad associativity]]
---   ListT $ { xs' <- runListT aM ; xs <- runListT $ msums $ map k1 xs' ; runListT $ msums $ map k xs }
+--   ListSetT $ { xs' <- runListSetT aM ; xs <- runListSetT $ msums $ map k1 xs' ; runListSetT $ msums $ map k xs }
 --   =
 --   LHS
 --
 --   { x <- aM ; k1 x >>= k2 }
 --   = [[definition of >>=]]
---   ListT $ { xs' <- runListT aM ; runListT $ msums $ map (\ x -> ListT $ { xs <- runListT (k1 x) ; runListT $ msums $ map k2 xs }) xs' }
+--   ListSetT $ { xs' <- runListSetT aM ; runListSetT $ msums $ map (\ x -> ListSetT $ { xs <- runListSetT (k1 x) ; runListSetT $ msums $ map k2 xs }) xs' }
 --   = [[induction/expansion on xs']]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ map (\ x -> ListT $ { xs <- runListT (k1 x) ; runListT $ msums $ map k2 xs }) [x1,..,xn] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ msums $ map (\ x -> ListSetT $ { xs <- runListSetT (k1 x) ; runListSetT $ msums $ map k2 xs }) [x1,..,xn] }
 --   = [[definition of map]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ [ListT $ { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs },..,ListT $ { xs <- runListT (k1 xn) ; runList $ msums $ map k2 xs}] }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ msums $ [ListSetT $ { xs <- runListSetT (k1 x1) ; runListSetT $ msums $ map k2 xs },..,ListSetT $ { xs <- runListSetT (k1 xn) ; runList $ msums $ map k2 xs}] }
 --   = [[definition of msum]]
---   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs } <+> .. <+> ListT { xs <- runListT (k1 xn) ; runListT $ msums $ map k2 xs } }
---   = [[ListT beta and definition of <+> for ListT]]
---   ListT $ { [x1,..,xn] <- runListT aM ; { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs } <+> .. <+> { xs <- runListT (k1 xn) ; runListT $ msums $ map k2 xs } }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; runListSetT $ ListSetT { xs <- runListSetT (k1 x1) ; runListSetT $ msums $ map k2 xs } <+> .. <+> ListSetT { xs <- runListSetT (k1 xn) ; runListSetT $ msums $ map k2 xs } }
+--   = [[ListSetT beta and definition of <+> for ListSetT]]
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; { xs <- runListSetT (k1 x1) ; runListSetT $ msums $ map k2 xs } <+> .. <+> { xs <- runListSetT (k1 xn) ; runListSetT $ msums $ map k2 xs } }
 --   = [[<+> distribute with >>=]]
---   ListT $ { [x1,..,xn] <- runListT aM ; xs <- (runListT (k1 x1) <+> .. <+> runListT (k1 xn)) ;  runListT $ msums $ map k2 xs }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; xs <- (runListSetT (k1 x1) <+> .. <+> runListSetT (k1 xn)) ;  runListSetT $ msums $ map k2 xs }
 --   = [[definition of msums and map]]
---   ListT $ { [x1,..,xn] <- runListT aM ; xs <- runListT $ msums $ map k1 [x1,..,xn] ; runListT $ msums $ map k2 xs }
+--   ListSetT $ { [x1,..,xn] <- runListSetT aM ; xs <- runListSetT $ msums $ map k1 [x1,..,xn] ; runListSetT $ msums $ map k2 xs }
 --   = [[collapsing [x1,..,xn]]]
---   ListT $ { xs' <- runListT aM ; xs <- runListT $ msums $ map k1 xs' ; runListT $ msums $ map k xs }
+--   ListSetT $ { xs' <- runListSetT aM ; xs <- runListSetT $ msums $ map k1 xs' ; runListSetT $ msums $ map k xs }
 --   =
 --   RHS
 --
 --   LHS = RHS
 --   QED }}}
 --
+-- }}}
+instance (Monad m, Functorial JoinLattice m) => MonadZero (ListSetT m) where
+  mzero :: forall a. ListSetT m a
+  mzero = 
+    with (functorial :: W (JoinLattice (m (ListSet a)))) $
+    ListSetT bot
+instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListSetT m) where
+  (<+>) :: forall a. ListSetT m a -> ListSetT m a -> ListSetT m a
+  aM1 <+> aM2 = 
+    with (functorial :: W (JoinLattice (m (ListSet a)))) $
+    ListSetT $ runListSetT aM1 \/ runListSetT aM2
+-- PROOF of: associativity, commutativity, zero and unit of <+> for (ListSetT m) {{{
+--
+-- Follows trivially from definition and Lattice/Zero laws for underlying monad.
+--
+-- (The lattice of the underlying monads must act as a zero for bind.)
+-- QED }}}
+listSetTStateTCommute :: (Monad m) => ListSetT (StateT s m) a -> StateT s (ListSetT m) a
+listSetTStateTCommute aSL = StateT $ \ s -> ListSetT $ do
+  (xs, s') <- unStateT (runListSetT aSL) s
+  return $ map (,s') xs
+stateTListSetTCommute :: (Monad m, JoinLattice s) => StateT s (ListSetT m) a -> ListSetT (StateT s m) a
+stateTListSetTCommute aLS = ListSetT $ StateT $ \ s -> do
+  xss <- runListSetT $ unStateT aLS s
+  let (xs, ss) = unzip $ runListSet xss
+  return (ListSet xs, joins ss)
+instance MonadFunctor ListSetT where
+  mtMap f aM = ListSetT $ f $ runListSetT aM
+instance (MonadStateI s m, Functorial JoinLattice m) => MonadStateI s (ListSetT m) where
+  stateI = listSetTStateTCommute . mtMap stateI
+instance (MonadStateE s m, Functorial JoinLattice m, JoinLattice s) => MonadStateE s (ListSetT m) where
+  stateE = mtMap stateE . stateTListSetTCommute
+instance (MonadState s m, Functorial JoinLattice m, JoinLattice s) => MonadState s (ListSetT m) where
+
 -- }}}

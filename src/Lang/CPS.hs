@@ -1,9 +1,9 @@
 module Lang.CPS
-  ( Lang.CPS.Classes.Delta
-  , Lang.CPS.Instances.Delta.Abstract
-  , Lang.CPS.Instances.Delta.Concrete
-  , Lang.CPS.Syntax
-  , Lang.CPS.Semantics
+  ( module Lang.CPS.Classes.Delta
+  , module Lang.CPS.Instances.Delta.Abstract
+  , module Lang.CPS.Instances.Delta.Concrete
+  , module Lang.CPS.Syntax
+  , module Lang.CPS.Semantics
   ) where
 
 import Lang.CPS.Classes.Delta
