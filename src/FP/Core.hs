@@ -915,7 +915,7 @@ instance (Monad m) => MonadStateE s (StateT s m) where
   stateE aMM = StateT $ \ s -> do
     (as', _) <- unStateT (unStateT aMM s) s
     return as'
--- proof of: stateE . stateI = id {{{
+-- PROOF of: stateE . stateI = id {{{
 -- 
 -- stateE . stateI = id
 -- <->
@@ -981,6 +981,89 @@ instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListT m) where
     with (functorial :: W (JoinLattice (m (ListSet a)))) $
     ListT $ runListT aM1 \/ runListT aM2
 
--- TODO: Prove monad laws!!!
+-- PROOF of: associativity, commutativity and unit of <+> for (ListT m) {{{
+--
+-- Follows trivially from definition and Lattice laws for underlying monad.
+-- QED }}}
 
+-- PROOF of: monad laws for (ListT m) {{{
+--
+-- ASSUMPTION 1: returnₘ a <+> returnₘ b = returnₘ (a \/ b)
+-- [this comes from m being a lattice functor. (1 x + 1 y) = 1 (x + y)]
+--
+-- * PROOF of: left unit := return x >>= k = k x {{{
+--   
+--   return x >>= k
+--   = [[definition of >>=]]
+--   ListT $ do { xs <- runListT $ return x ; runListT $ msums $ map k xs }
+--   = [[definition of return]]
+--   ListT $ do { xs <- runListT $ ListT $ return [x] ; runListT $ msums $ map k xs }
+--   = [[ListT beta]]
+--   ListT $ do { xs <- return [x] ; runListT $ msums $ map k xs }
+--   = [[monad left unit]]
+--   ListT $ runListT $ msums $ map k [x]
+--   = [[definition of map]]
+--   ListT $ runListT $ msums $ [k x]
+--   = [[definition of msums and <+> unit]]
+--   ListT $ runListT $ k x
+--   = [[ListT eta]]
+--   k x
+--   QED }}}
+--
+-- * PROOF of: right unit := aM >>= return = aM {{{
+--
+--   aM >>= return
+--   = [[definition of >>=]]
+--   ListT $ { xs <- runListT aM ; runListT $ msums $ map return xs }
+--   = [[induction/expansion on xs]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ map return [x1,..,xn] }
+--   = [[definition of return and map]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ [ListT $ return [x1],..,ListT $ return [xn]] }
+--   = [[definition of msums]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT $ return [x1] <+> .. <+> return [xn] }
+--   = [[assumption 1]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT $ return [x1,..,xn] }
+--   = [[ListT beta]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; return [x1,..,xn] }
+--   = [[monad right unit]]
+--   ListT $ runListT aM
+--   = [[ListT eta]]
+--   aM
+--   QED }}}
+--
+-- * PROOF of: associativity := (aM >>= k1) >>= k2 = { x <- aM ; k1 x >>= k2 } {{{
+--
+--   (aM >>= k1) >>= k2
+--   = [[definition of >>=]]
+--   ListT $ { xs <- runListT $ ListT $ { xs' <- runListT aM ; runListT $ msums $ map k1 xs' } ; runListT $ msums $ map k xs }
+--   = [[ListT beta]]
+--   ListT $ { xs <- { xs' <- runListT aM ; runListT $ msums $ map k1 xs' } ; runListT $ msums $ map k xs }
+--   = [[monad associativity]]
+--   ListT $ { xs' <- runListT aM ; xs <- runListT $ msums $ map k1 xs' ; runListT $ msums $ map k xs }
+--   =
+--   LHS
+--
+--   { x <- aM ; k1 x >>= k2 }
+--   = [[definition of >>=]]
+--   ListT $ { xs' <- runListT aM ; runListT $ msums $ map (\ x -> ListT $ { xs <- runListT (k1 x) ; runListT $ msums $ map k2 xs }) xs' }
+--   = [[induction/expansion on xs']]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ map (\ x -> ListT $ { xs <- runListT (k1 x) ; runListT $ msums $ map k2 xs }) [x1,..,xn] }
+--   = [[definition of map]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ msums $ [ListT $ { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs },..,ListT $ { xs <- runListT (k1 xn) ; runList $ msums $ map k2 xs}] }
+--   = [[definition of msum]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; runListT $ ListT { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs } <+> .. <+> ListT { xs <- runListT (k1 xn) ; runListT $ msums $ map k2 xs } }
+--   = [[ListT beta and definition of <+> for ListT]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; { xs <- runListT (k1 x1) ; runListT $ msums $ map k2 xs } <+> .. <+> { xs <- runListT (k1 xn) ; runListT $ msums $ map k2 xs } }
+--   = [[<+> distribute with >>=]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; xs <- (runListT (k1 x1) <+> .. <+> runListT (k1 xn)) ;  runListT $ msums $ map k2 xs }
+--   = [[definition of msums and map]]
+--   ListT $ { [x1,..,xn] <- runListT aM ; xs <- runListT $ msums $ map k1 [x1,..,xn] ; runListT $ msums $ map k2 xs }
+--   = [[collapsing [x1,..,xn]]]
+--   ListT $ { xs' <- runListT aM ; xs <- runListT $ msums $ map k1 xs' ; runListT $ msums $ map k xs }
+--   =
+--   RHS
+--
+--   LHS = RHS
+--   QED }}}
+--
 -- }}}
