@@ -239,6 +239,9 @@ traverseOn = flip traverse
 class CoIterable a t | t -> a where
   coiter :: (a -> b -> b) -> b -> t -> b
 
+toList :: (CoIterable a t) => t -> [a]
+toList = coiter (:) []
+
 -- }}}
 
 -- Functorial {{{
@@ -440,6 +443,9 @@ cmsum = iter ((<+>~) . creturn) mzero
 type m ~> n = forall a. m a -> n a
 type (m ~>~ n) c = forall a. (c a) => m a -> n a
 
+class MonadUnit t where
+  mtUnit :: m ~> t m
+
 class MonadFunctor t where
   mtMap :: (m ~> n) -> t m ~> t n
 
@@ -579,6 +585,10 @@ mirror f c b a = f a b c
 
 -- Tuple {{{
 
+instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
+  bot = (bot, bot)
+  (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
+
 mapFst :: (a -> c) -> (a, b) -> (c, b)
 mapFst f (a, b) = (f a, b)
 
@@ -693,7 +703,11 @@ instance Monad ID where
   ID x >>= k = k x
 instance Applicative ID where (<@>) = mapply 
 instance Functor ID where map = mmap
- 
+instance (JoinLattice a) => JoinLattice (ID a) where
+  bot = ID bot
+  xM \/ yM = ID $ runID xM \/ runID yM
+instance Functorial JoinLattice ID where
+  functorial = W
 
 -- }}}
 
@@ -701,6 +715,8 @@ instance Functor ID where map = mmap
 
 instance Iterable a (Set a) where
   iter = Set.foldl' . flip
+instance CoIterable a (Set a) where
+  coiter = Set.foldr
 instance (Ord a) => SetLike a (Set a) where
   sempty = Set.empty
   ssingleton = Set.singleton
@@ -927,6 +943,8 @@ instance (Monad m) => Monad (StateT s m) where
   aM >>= k = StateT $ \ s -> do
     (a, s') <- unStateT aM s
     unStateT (k a) s'
+instance MonadFunctor (StateT s) where
+  mtMap f aM = StateT $ f . unStateT aM
 
 instance (Monad m) => MonadStateI s (StateT s m) where
   stateI aM = StateT $ \ s -> StateT $ \ s' -> do
@@ -968,11 +986,27 @@ instance (Monad m) => MonadStateE s (StateT s m) where
 -- = [[StateT and function eta]]
 -- aM
 -- QED }}}
+instance (Monad m) => MonadState s (StateT s m) where
+stateTStateTCommute :: (Monad m) => StateT s1 (StateT s2 m) a -> StateT s2 (StateT s1 m) a
+stateTStateTCommute aS2S1 = StateT $ \ s2 -> StateT $ \ s1 -> do
+  ((a, s1'), s2') <- unStateT (unStateT aS2S1 s1) s2
+  return ((a, s2'), s1')
 
 instance (MonadZero m) => MonadZero (StateT s m) where
   mzero = StateT $ const mzero
 instance (MonadPlus m) => MonadPlus (StateT s m) where
   aM1 <+> aM2 = StateT $ \ s -> unStateT aM1 s <+> unStateT aM2 s
+
+instance (Functorial JoinLattice m, JoinLattice s, JoinLattice a) => JoinLattice (StateT s m a) where
+  bot :: StateT s m a
+  bot = 
+    with (functorial :: W (JoinLattice (m (a, s)))) $
+    StateT $ \ _ -> bot
+  aM1 \/ aM2 = 
+    with (functorial :: W (JoinLattice (m (a, s)))) $
+    StateT $ \ s -> unStateT aM1 s \/ unStateT aM2 s
+instance (Functorial JoinLattice m, JoinLattice s) => Functorial JoinLattice (StateT s m) where
+  functorial = W
 
 -- }}} --
 
