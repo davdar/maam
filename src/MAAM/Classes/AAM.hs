@@ -9,11 +9,19 @@ class (Temporal (LexicalTemporal μ), Temporal (DynamicTemporal μ)) => AAM μ w
   lexical :: μ -> LexicalTemporal μ
   dynamic :: μ -> DynamicTemporal μ
 
-type LexicalTime μ = Time (LexicalTemporal μ)
-type DynamicTime μ = Time (DynamicTemporal μ)
+newtype LexicalTime μ ψ = LexicalTime { runLexicalTime :: Time (LexicalTemporal μ) ψ }
+deriving instance (Eq (Time (LexicalTemporal μ) ψ)) => Eq (LexicalTime μ ψ)
+deriving instance (Ord (Time (LexicalTemporal μ) ψ)) => Ord (LexicalTime μ ψ)
+newtype DynamicTime μ ψ = DynamicTime { runDynamicTime :: Time (DynamicTemporal μ) ψ }
+deriving instance (Eq (Time (DynamicTemporal μ) ψ)) => Eq (DynamicTime μ ψ)
+deriving instance (Ord (Time (DynamicTemporal μ) ψ)) => Ord (DynamicTime μ ψ)
 
 lexicalTimeP :: μ -> P ψ -> P (LexicalTime μ ψ)
 lexicalTimeP _ P = P
+lexicalTimeL :: μ -> P ψ -> Lens (LexicalTime μ ψ) (Time (LexicalTemporal μ) ψ)
+lexicalTimeL _ P = isoLens runLexicalTime LexicalTime
 
 dynamicTimeP :: μ -> P ψ -> P (DynamicTime μ ψ)
 dynamicTimeP _ P = P
+dynamicTimeL :: μ -> P ψ -> Lens (DynamicTime μ ψ) (Time (DynamicTemporal μ) ψ)
+dynamicTimeL _ P = isoLens runDynamicTime DynamicTime

@@ -11,7 +11,7 @@ data Cτ = Cτ
 
 instance Temporal Cτ where
   type Time Cτ = []
-  tzero Cτ = []
+  tzero P = []
   tick Cτ = (:)
 
 ----------------
@@ -24,7 +24,7 @@ data Zero a = Zero
 
 instance Temporal Zτ where
   type Time Zτ = Zero
-  tzero Zτ = Zero
+  tzero P = Zero
   tick Zτ = const id
 
 ------------------
@@ -35,5 +35,5 @@ data Kτ = Kτ Int
 
 instance Temporal Kτ where
   type Time Kτ = []
-  tzero (Kτ _) = []
+  tzero P = []
   tick (Kτ k) = firstN k .: (:)

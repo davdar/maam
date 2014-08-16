@@ -25,6 +25,10 @@ coerceCloC (CloC c) = Just c
 coerceCloC _ = Nothing
 
 newtype SetCVal μ = SetCVal { runSetCVal :: Set (CVal μ) }
+deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (SetCVal μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (SetCVal μ)
+deriving instance HasBot (SetCVal μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => JoinLattice (SetCVal μ)
 runSetCValL :: Lens (SetCVal μ) (Set (CVal μ))
 runSetCValL = isoLens runSetCVal SetCVal
 
@@ -70,6 +74,11 @@ denoteIA :: Set Bool
 denoteIA = ssingleton True \/ ssingleton False
 
 newtype SetAVal μ = SetAVal { runSetAVal :: Set (AVal μ) }
+deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (SetAVal μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (SetAVal μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => PartialOrder (SetAVal μ)
+deriving instance HasBot (SetAVal μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => JoinLattice (SetAVal μ)
 runSetAValL :: Lens (SetAVal μ) (Set (AVal μ))
 runSetAValL = isoLens runSetAVal SetAVal
 

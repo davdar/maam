@@ -17,6 +17,7 @@ import qualified Prelude
 import Prelude 
   ( Eq(..), Ord(..)
   , (.), ($), const, flip, curry, uncurry
+  , fst, snd
   , Bool(..), (||), (&&), not, otherwise
   , Char, Int, Integer, Double, Rational
   , Maybe(..)
@@ -41,6 +42,8 @@ infixl 9 <@>
 infixr 9 <.>
 infixr 9 *.
 infixr 9 *.~
+infixr 9 .:
+infixr 9 ..:
 
 infix 7 /
 infix 7 //
@@ -190,8 +193,9 @@ poiter f = loop
 
 -- Lattice {{{ --
 
-class JoinLattice a where
+class HasBot a where
   bot :: a
+class (HasBot a) => JoinLattice a where
   (\/) :: a -> a -> a
 
 joins :: (Iterable a t, JoinLattice a) => t -> a
@@ -558,8 +562,9 @@ instance Category (->) where
   (<.>) g f x = g (f x)
 instance Functor ((->) a) where
   map = (.)
-instance (JoinLattice b) => JoinLattice (a -> b) where
+instance (HasBot b) => HasBot (a -> b) where
   bot = const bot
+instance (JoinLattice b) => JoinLattice (a -> b) where
   (\/) f g x = f x \/ g x
 instance (MeetLattice b) => MeetLattice (a -> b) where
   top = const top
@@ -571,6 +576,9 @@ applyTo = flip ($)
 
 (.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 (.:) = (.) . (.)
+
+(..:) :: (d -> e) -> (a -> b -> c -> d) -> (a -> b -> c -> e)
+(..:) = (.) . (.:)
 
 rotateR :: (a -> b -> c -> d) -> (c -> a -> b -> d)
 rotateR f c a b = f a b c
@@ -585,8 +593,11 @@ mirror f c b a = f a b c
 
 -- Tuple {{{
 
-instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
+instance (PartialOrder a, PartialOrder b) => PartialOrder (a, b) where
+  (a1, b1) <~ (a2, b2) = (a1 <~ a2) /\ (b1 <~ b2)
+instance (HasBot a, HasBot b) => HasBot (a, b) where
   bot = (bot, bot)
+instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
 
 mapFst :: (a -> c) -> (a, b) -> (c, b)
@@ -599,8 +610,9 @@ mapSnd f (a, b) = (a, f b)
 
 -- Bool {{{ --
 
-instance JoinLattice Bool where
+instance HasBot Bool where
   bot = False
+instance JoinLattice Bool where
   (\/) = (||)
 instance MeetLattice Bool where
   top = True
@@ -639,8 +651,9 @@ instance (Unit t, Unit u) => Unit (t :.: u) where
 
 data Pointed a = Top | Bot | Point a
 
-instance (Eq a) => JoinLattice (Pointed a) where
+instance HasBot (Pointed a) where
   bot = Bot
+instance (Eq a) => JoinLattice (Pointed a) where
   Top     \/ _   = Top
   _       \/ Top = Top
   Bot     \/ p   = p
@@ -660,6 +673,9 @@ instance ToChars String where
   toChars = BS.unpack
 instance FromChars String where
   fromChars = BS.pack
+instance Monoid String where
+  null = BS.empty
+  (++) = BS.append
 
 -- }}}
 
@@ -696,16 +712,22 @@ maybe _ f (Just a) = f a
 -- ID {{{
 
 newtype ID a = ID { runID :: a }
+  deriving
+  ( PartialOrder
+  , HasBot
+  , JoinLattice
+  )
 
 instance Unit ID where
   unit = ID
+instance Functor ID where
+  map f = ID . f . runID
+instance Applicative ID where
+  aM <*> bM = ID $ (runID aM, runID bM)
 instance Monad ID where
-  ID x >>= k = k x
-instance Applicative ID where (<@>) = mapply 
-instance Functor ID where map = mmap
-instance (JoinLattice a) => JoinLattice (ID a) where
-  bot = ID bot
-  xM \/ yM = ID $ runID xM \/ runID yM
+  aM >>= k = k $ runID aM
+instance Functorial HasBot ID where
+  functorial = W
 instance Functorial JoinLattice ID where
   functorial = W
 
@@ -733,8 +755,9 @@ instance CFunctor Ord Set where
   cmap = Set.map
 instance (Ord a) => PartialOrder (Set a) where
   (<~) = Set.isSubsetOf
+instance HasBot (Set a) where
+  bot = Set.empty
 instance (Ord a) => JoinLattice (Set a) where
-  bot = sempty
   (\/) = sunion
 
 smember :: (SetLike a t) => a -> t -> Bool
@@ -761,7 +784,6 @@ instance Iterable (k, v) (Map k v) where
   iter f = Map.foldlWithKey $ \ b k v -> f (k, v) b
 instance (Ord k) => Indexed k v (Map k v) where
   p # k = Map.lookup k p
-  
 instance (Ord k) => MapLike k v (Map k v) where
   pempty = Map.empty
   psingleton = Map.singleton
@@ -769,6 +791,12 @@ instance (Ord k) => MapLike k v (Map k v) where
   pintersectionWith = Map.intersectionWith
   pmodify = Map.adjust
   psize = fromInteger . toInteger . Map.size
+instance (Ord k, PartialOrder v) => PartialOrder (Map k v) where
+  (<~) = Map.isSubmapOfBy (<~)
+instance HasBot (Map k v) where
+  bot = Map.empty
+instance (Ord k, JoinLattice v) => JoinLattice (Map k v) where
+  (\/) = punionWith (\/)
 
 -- }}}
 
@@ -924,8 +952,9 @@ firstN n = loop zero
 
 newtype ListSet a = ListSet { runListSet :: [a] }
   deriving (Unit, Functor, Applicative, Monad, MonadPlus, Iterable a)
-instance JoinLattice (ListSet a) where
+instance HasBot (ListSet a) where
   bot = ListSet []
+instance JoinLattice (ListSet a) where
   xs1 \/ xs2 = ListSet $ runListSet xs1 ++ runListSet xs2
 
 -- }}}
@@ -991,21 +1020,27 @@ stateTStateTCommute :: (Monad m) => StateT s1 (StateT s2 m) a -> StateT s2 (Stat
 stateTStateTCommute aS2S1 = StateT $ \ s2 -> StateT $ \ s1 -> do
   ((a, s1'), s2') <- unStateT (unStateT aS2S1 s1) s2
   return ((a, s2'), s1')
+stateTLens :: (Monad m) => Lens s1 s2 -> StateT s2 m a -> StateT s1 m a
+stateTLens l aM = StateT $ \ s1 -> do
+  let s2 = access l s1
+  (a, s2') <- unStateT aM s2
+  return (a, set l s2' s1)
 
 instance (MonadZero m) => MonadZero (StateT s m) where
   mzero = StateT $ const mzero
 instance (MonadPlus m) => MonadPlus (StateT s m) where
   aM1 <+> aM2 = StateT $ \ s -> unStateT aM1 s <+> unStateT aM2 s
 
-instance (Functorial JoinLattice m, JoinLattice s, JoinLattice a) => JoinLattice (StateT s m a) where
+instance (Functorial HasBot m, HasBot s, HasBot a) => HasBot (StateT s m a) where
   bot :: StateT s m a
   bot = 
-    with (functorial :: W (JoinLattice (m (a, s)))) $
+    with (functorial :: W (HasBot (m (a, s)))) $
     StateT $ \ _ -> bot
+instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s, JoinLattice a) => JoinLattice (StateT s m a) where
   aM1 \/ aM2 = 
     with (functorial :: W (JoinLattice (m (a, s)))) $
     StateT $ \ s -> unStateT aM1 s \/ unStateT aM2 s
-instance (Functorial JoinLattice m, JoinLattice s) => Functorial JoinLattice (StateT s m) where
+instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s) => Functorial JoinLattice (StateT s m) where
   functorial = W
 
 -- }}} --

@@ -2,62 +2,57 @@ module Lang.CPS.Analyses where
 
 import FP
 import MAAM
-import Lang.CPS.Syntax
 import Lang.CPS.Classes.Delta
+import Lang.CPS.Syntax
 import Lang.CPS.Instances.Delta
+import Lang.CPS.Instances.Monads
 import Lang.CPS.Semantics
 
-data FSΣ δ μ = FSΣ
-  { fsρ :: Env μ
-  , fslτ :: LexicalTime μ Ψ
-  , fsσ :: Store δ μ
-  , fsdτ :: DynamicTime μ Ψ
-  }
-newtype FlowSensitive δ μ a = FlowSensitive { runFlowSensitive :: StateT (FSΣ δ μ) (ListSetT ID) a }
-  deriving 
-    ( Unit, Functor, Applicative, Monad
-    , MonadZero
-    , MonadPlus
-    , MonadStateI (FSΣ δ μ), MonadStateE (FSΣ δ μ), MonadState (FSΣ δ μ)
-    )
--- TODO: MonadState instances for lenses
+actions :: [(String, Action Call)]
+actions = 
+  [ ( "none" , none )
+  , ( "gc"   , gc   )
+  ]
 
-data FIΣ μ = FIΣ
-  { fiρ :: Env μ
-  , filτ :: LexicalTime μ Ψ
-  , fidτ :: DynamicTime μ Ψ
-  }
-newtype FlowInsensitive δ μ a = FlowInsensitive { runFlowInsensitive :: StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID)) a }
-  deriving
-    ( Unit, Functor, Applicative, Monad
-    , MonadZero
-    , MonadPlus
-    , MonadStateI (FIΣ μ), MonadStateE (FIΣ μ), MonadState (FIΣ μ)
-    )
--- TODO: MonadState instances for lenses and lifted from Store
+hybridμs :: [(String, KHybridμ)]
+hybridμs = 
+  [ ( "0CFA"    , KHybridμ 0 0 )
+  , ( "1oCFA"   , KHybridμ 1 0 )
+  , ( "1kCFA"   , KHybridμ 0 1 )
+  , ( "1o1kCFA" , KHybridμ 1 1 )
+  ]
 
---------------
--- Concrete --
---------------
+concrete_SS :: Action Call -> Call -> Set (Call, FSΣ Cδ Cμ)
+concrete_SS = execCollectWith cδ Cμ fsm
 
-concrete :: Call -> Set (Call, Env Cμ, LexicalTime Cμ Ψ, Store Cδ Cμ, DynamicTime Cμ Ψ)
-concrete = _
+concrete :: Action Call -> Call -> Store Cδ Cμ
+concrete = (joins . cmap (fsσ . snd)) .: concrete_SS
 
-concrete_gc :: Call -> Set (Call, Env Cμ, LexicalTime Cμ Ψ, Store Cδ Cμ, DynamicTime Cμ Ψ)
-concrete_gc = _
+hybridFS_SS :: KHybridμ -> Action Call -> Call -> Set (Call, FSΣ Aδ KHybridμ)
+hybridFS_SS μ = execCollectWith aδ μ fsm
 
-------------
--- ko-cfa --
-------------
+hybridFS :: KHybridμ -> Action Call -> Call -> Store Aδ KHybridμ
+hybridFS = (joins . cmap (fsσ . snd)) ..: hybridFS_SS
 
-fs_hybridCFA :: Int -> Int -> Call -> Set (Call, Env KHybridμ, LexicalTime KHybridμ Ψ, Store Aδ KHybridμ, DynamicTime KHybridμ Ψ)
-fs_hybridCFA k o = _
+hybridFI_SS :: KHybridμ -> Action Call -> Call -> (Set (Call, FIΣ KHybridμ), Store Aδ KHybridμ)
+hybridFI_SS μ = execCollectWith aδ μ fim
 
-fs_hybridCFA_gc :: Int -> Int -> Call -> Set (Call, Env KHybridμ, LexicalTime KHybridμ Ψ, Store Aδ KHybridμ, DynamicTime KHybridμ Ψ)
-fs_hybridCFA_gc k o = _
+hybridFI :: KHybridμ -> Action Call -> Call -> Store Aδ KHybridμ
+hybridFI = snd ..: hybridFI_SS
 
-fi_hybridCFA :: Int -> Call -> (Set (Call, Env KHybridμ, LexicalTime KHybridμ Ψ, DynamicTime KHybridμ Ψ), Store Aδ KHybridμ)
-fi_hybridCFA k o = _
+instance ToString (Store δ μ) where
+  toString = undefined
 
-fi_hybridCFA_gc :: Int -> Call -> (Set (Call, Env KHybridμ, LexicalTime KHybridμ Ψ, DynamicTime KHybridμ Ψ), Store Aδ KHybridμ)
-fi_hybridCFA_gc k o = _
+all :: [(String, Call -> String)]
+all = 
+  do
+    (actionS, action) <- actions
+    return ("concrete:" ++ actionS, toString . concrete action)
+  <+>
+  do
+    (actionS, action) <- actions
+    b <- [True, False]
+    (μS, μ) <- hybridμs
+    if b
+      then return ("abstract:FS" ++ μS ++ ":" ++ actionS, toString . hybridFS μ action)
+      else return ("abstract:FI" ++ μS ++ ":" ++ actionS, toString . hybridFI μ action)
