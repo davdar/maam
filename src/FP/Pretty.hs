@@ -1,6 +1,6 @@
 module FP.Pretty where
 
-import FP
+import FP.Core
 import FP.Free
 import FP.Monads ()
 
@@ -202,7 +202,7 @@ app :: (MonadPretty m) => m () -> [m ()] -> m ()
 app f xs = group $ do
   f
   traverseOn xs $ \ x -> nest 2 $
-    ifFlat (space 1) newline >> x
+    ifFlat (space 1) newline >> align x
 
 collection :: (MonadPretty m) => m () -> m () -> m () -> [m ()] -> m ()
 collection open close _ [] = open >> close
@@ -219,43 +219,54 @@ collection open close sep (x:xs) = group $ do
 keyFmt :: Format
 keyFmt = setFG 3 ++ setBD ++ setUL
 
+key :: (MonadPretty m) => String -> m ()
+key = format keyFmt . text
+
 conFmt :: Format
 conFmt = setFG 22 ++ setBD
+
+con :: (MonadPretty m) => String -> m ()
+con = format conFmt . text
 
 bdrFmt :: Format
 bdrFmt = setFG 6
 
+bdr :: (MonadPretty m) => String -> m ()
+bdr = format bdrFmt . text
+
 litFmt :: Format
 litFmt = setFG 1 ++ setBD
+
+lit :: (MonadPretty m) => String -> m ()
+lit = format litFmt . text
 
 punFmt :: Format
 punFmt = setFG 8
 
+pun :: (MonadPretty m) => String -> m ()
+pun = format punFmt . text
+
 highlight :: Format
 highlight = setBG 229
 
+instance Pretty Bool where
+  pretty = lit . toString
 instance Pretty Int where
-  pretty = format litFmt . text . toString
+  pretty = lit . toString
 instance Pretty Integer where
-  pretty = format litFmt . text . toString
+  pretty = lit . toString
 instance Pretty String where
-  pretty = format litFmt . text . toString
+  pretty = lit . toString
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (a, b) = group $ do
-    format punFmt (text "(") >> whenBreak (space 1) >> align (pretty a)
+    pun "(" >> whenBreak (space 1) >> align (pretty a)
     whenBreak newline
-    format punFmt (text ",") >> whenBreak (space 1) >> align (pretty b)
+    pun "," >> whenBreak (space 1) >> align (pretty b)
     whenBreak newline
-    format punFmt (text ")")
+    pun ")"
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
-  pretty (Inl a) = app (format conFmt $ text "Inl")
-    [ prettyParen a 
-    , text "foo"
-    ]
-  pretty (Inr b) = app (format conFmt $ text "Inr")
-    [ prettyParen b 
-    , text "bar"
-    ]
+  pretty (Inl a) = app (con "Inl") [prettyParen a]
+  pretty (Inr b) = app (con "Inr") [prettyParen b]
   prettyParen = parens . pretty
 instance (Pretty a) => Pretty [a] where
   pretty = collection (text "[") (text "]") (text ",") . map pretty
@@ -264,6 +275,6 @@ instance (Pretty a) => Pretty (Set a) where
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection (text "{") (text "}") (text ",") . map prettyMapping . toList
     where
-      prettyMapping (k, v) = app (pretty k >> space 1 >> format punFmt (text "=>")) [pretty v]
+      prettyMapping (k, v) = app (pretty k >> space 1 >> pun "=>") [pretty v]
 
 -- }}}

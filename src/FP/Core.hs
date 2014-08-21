@@ -254,6 +254,9 @@ traverse f = iter (\ a m -> m >> f a) $ return ()
 traverseOn :: (Iterable a t, Monad m) => t -> (a -> m ()) -> m ()
 traverseOn = flip traverse
 
+exec :: (Iterable (m ()) t, Monad m) => t -> m ()
+exec = traverse id
+
 class CoIterable a t | t -> a where
   coiter :: (a -> b -> b) -> b -> t -> b
 
@@ -788,6 +791,8 @@ instance Dual Bool where
 instance Monoid Bool where
   null = bot
   (++) = (\/)
+instance ToString Bool where
+  toString = fromChars . Prelude.show
 
 ifThenElse :: Bool -> a -> a -> a
 ifThenElse True  x _ = x
