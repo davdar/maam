@@ -11,7 +11,7 @@ import qualified FP.Pretty as P
 
 actions :: [(String, Action RCall)]
 actions = 
-  [ ( "none" , none )
+  [ ( "naive" , none )
   , ( "gc"   , gc   )
   ]
 
@@ -23,20 +23,34 @@ hybridμs =
   , ( "1o1kCFA" , KHybridμ 1 1 )
   ]
 
-concrete_SS :: Action RCall -> RCall -> Set (RCall, FSΣ Cδ Cμ)
-concrete_SS = execCollectWith cδ Cμ fsm
+monads :: [(String, KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ)]
+monads =
+  [ ( "FSPS" , hybridFSPS)
+  , ( "FSPI" , hybridFSPI)
+  , ( "FI"   , hybridFI)
+  ]
+
+
+concrete_SS :: Action RCall -> RCall -> Set (RCall, FSPSΣ Cδ Cμ)
+concrete_SS = runFSPS_SS .: execCollectWith cδ Cμ fspsm
 
 concrete :: Action RCall -> RCall -> Store Cδ Cμ
-concrete = (joins . cmap (fsσ . snd)) .: concrete_SS
+concrete = (joins . cmap (fspsσ . snd)) .: concrete_SS
 
-hybridFS_SS :: KHybridμ -> Action RCall -> RCall -> Set (RCall, FSΣ Aδ KHybridμ)
-hybridFS_SS μ = execCollectWith aδ μ fsm
+hybridFSPS_SS :: KHybridμ -> Action RCall -> RCall -> Set (RCall, FSPSΣ Aδ KHybridμ)
+hybridFSPS_SS μ = runFSPS_SS .: execCollectWith aδ μ fspsm
 
-hybridFS :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
-hybridFS = (joins . cmap (fsσ . snd)) ..: hybridFS_SS
+hybridFSPS :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
+hybridFSPS = (joins . cmap (fspsσ . snd)) ..: hybridFSPS_SS
+
+hybridFSPI_SS :: KHybridμ -> Action RCall -> RCall -> Set ((RCall, FSPIΣ KHybridμ), Store Aδ KHybridμ)
+hybridFSPI_SS μ = runFSPI_SS .: execCollectWith aδ μ fspim
+
+hybridFSPI :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
+hybridFSPI = (joins . cmap snd) ..: hybridFSPI_SS
 
 hybridFI_SS :: KHybridμ -> Action RCall -> RCall -> (Set (RCall, FIΣ KHybridμ), Store Aδ KHybridμ)
-hybridFI_SS μ = execCollectWith aδ μ fim
+hybridFI_SS μ = runFI_SS .: execCollectWith aδ μ fim
 
 hybridFI :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
 hybridFI = snd ..: hybridFI_SS
@@ -49,18 +63,16 @@ all =
   <+>
   do
     (actionS, action) <- actions
-    b <- [True, False]
+    (monadS, monad) <- monads
     (μS, μ) <- hybridμs
-    if b
-      then return ("abstract:FS" ++ μS ++ ":" ++ actionS, pretty . hybridFS μ action)
-      else return ("abstract:FI" ++ μS ++ ":" ++ actionS, pretty . hybridFI μ action)
+    return $ (monadS ++ ":" ++ μS ++ ":" ++ actionS, pretty . monad μ action)
 
-runAll :: RCall -> Doc
-runAll r =  do
+runEach :: [(String, RCall -> Doc)] -> RCall -> Doc
+runEach cfgs r =  do
   P.heading "Program:"
   P.newline
   pretty r
-  traverseOn all $ \ (n, f) -> do
+  traverseOn cfgs $ \ (n, f) -> do
     P.newline
     P.heading n
     P.newline

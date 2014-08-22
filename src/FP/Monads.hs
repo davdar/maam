@@ -29,7 +29,8 @@ mtzMap f aM = Trans $ mtMap f $ runTrans aM
 
 newtype ID a = ID { runID :: a }
   deriving
-  ( PartialOrder
+  ( Eq, Ord
+  , PartialOrder
   , HasBot
   , JoinLattice
   )
@@ -38,6 +39,12 @@ instance Unit ID where
   unit = ID
 instance Functor ID where
   map f = ID . f . runID
+instance FunctorM ID where
+  mapM f = map ID . f . runID
+instance CFunctor Universal ID where
+  cmap = map
+instance CFunctorM Universal ID where
+  cmapM = mapM
 instance Applicative ID where
   aM <*> bM = ID $ (runID aM, runID bM)
 instance Monad ID where

@@ -18,4 +18,4 @@ p0 =
       $ halt $ v "x"))
 
 main :: IO ()
-main = pprint $ runAll $ sr p0
+main = pprint $ runEach all $ sr p0

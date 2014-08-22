@@ -240,6 +240,20 @@ instance Universal a
 
 -- }}}
 
+-- CProduct {{{
+
+class (c1 a, c2 a) => (c1 ::*:: c2) a where
+instance (c1 a, c2 a) => (c1 ::*:: c2) a where
+
+-- }}}
+
+-- CCompose {{{
+
+class (t (u a)) => (t ::.:: u) a where
+instance (t (u a)) => (t ::.:: u) a where
+
+-- }}}
+
 -- Iterable {{{
 
 class Iterable a t | t -> a where
@@ -385,6 +399,12 @@ class CFunctor c t | t -> c where
 
 cmapOn :: (CFunctor c t, c a, c b) => t a -> (a -> b) -> t b
 cmapOn = flip cmap
+
+class CFunctorM c t | t -> c where
+  cmapM :: (Monad m, c a, c b) => (a -> m b) -> t a -> m (t b)
+
+csequence :: (CFunctorM c t, Monad m, c a, c (m a)) => t (m a) -> m (t a)
+csequence = cmapM id
 
 -- }}}
 
@@ -796,8 +816,14 @@ sndL = lens snd $ \ (a,_) -> (a,)
 mapFst :: (a -> c) -> (a, b) -> (c, b)
 mapFst f (a, b) = (f a, b)
 
+mapFstM :: (Functor m) => (a -> m c) -> (a, b) -> m (c, b)
+mapFstM f (a, b) = (,b) <$> f a
+
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
+
+mapSndM :: (Functor m) => (b -> m c) -> (a, b) -> m (a, c)
+mapSndM f (a, b) = (a,) <$> f b
 
 -- }}}
 
@@ -842,10 +868,26 @@ data P a = P
 -- Compose {{{
 
 newtype (t :.: u) a = Compose { runCompose :: t (u a) }
+  deriving (Eq, Ord, HasBot, JoinLattice, PartialOrder)
+composeL :: Lens ((t :.: u) a) (t (u a))
+composeL = isoLens runCompose Compose
+
+mapCompose :: (t (u a) -> t (u b)) -> (t :.: u) a -> (t :.: u) b
+mapCompose f = Compose . f . runCompose
+
+mapComposeM :: (Functor m) => (t (u a) -> m (t (u b))) -> (t :.: u) a -> m ((t :.: u) b)
+mapComposeM f = map Compose . f . runCompose
+
 newtype (t :..: u) m a = Compose2 { runCompose2 :: t (u m) a }
 
 instance (Unit t, Unit u) => Unit (t :.: u) where
   unit = Compose . unit . unit
+instance (Functor t, Functor u) => Functor (t :.: u) where
+  map = mapCompose . map . map
+instance (CFunctor ct t, Functor u) => CFunctor (ct ::.:: u) (t :.: u) where
+  cmap = mapCompose . cmap . map
+instance (CFunctorM ct t, FunctorM u) => CFunctorM (ct ::.:: u) (t :.: u) where
+  cmapM = mapComposeM . cmapM . mapM
 
 -- }}}
 

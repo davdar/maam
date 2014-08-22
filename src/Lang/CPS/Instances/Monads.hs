@@ -4,66 +4,126 @@ import FP
 import MAAM
 import Lang.CPS.Classes.Delta
 
-----------------------------
--- Flow Sensitivity Monad --
-----------------------------
+-----------------------------------------
+-- Flow Sensitive Path Sensitive Monad --
+-----------------------------------------
 
-data FSΣ δ μ = FSΣ
-  { fsρ :: Env μ
-  , fslτ :: LexicalTime μ Ψ
-  , fsσ :: Store δ μ
-  , fsdτ :: DynamicTime μ Ψ
+data FSPSΣ δ μ = FSPSΣ
+  { fspsρ :: Env μ
+  , fspslτ :: LexicalTime μ Ψ
+  , fspsσ :: Store δ μ
+  , fspsdτ :: DynamicTime μ Ψ
   }
-deriving instance (Eq (Env μ), Eq (LexicalTime μ Ψ), Eq (Store δ μ), Eq (DynamicTime μ Ψ)) => Eq (FSΣ δ μ)
-deriving instance (Ord (Env μ), Ord (LexicalTime μ Ψ), Ord (Store δ μ), Ord (DynamicTime μ Ψ)) => Ord (FSΣ δ μ)
-instance (AAM μ) => HasBot (FSΣ δ μ) where
-  bot = FSΣ
-    { fsρ = bot
-    , fslτ = LexicalTime $ tzero (P :: P (LexicalTemporal μ))
-    , fsσ = bot
-    , fsdτ = DynamicTime $ tzero (P :: P (DynamicTemporal μ))
+deriving instance (Eq (Env μ), Eq (LexicalTime μ Ψ), Eq (Val δ μ), Eq (DynamicTime μ Ψ)) => Eq (FSPSΣ δ μ)
+deriving instance (Ord (Env μ), Ord (LexicalTime μ Ψ), Ord (Val δ μ), Ord (DynamicTime μ Ψ)) => Ord (FSPSΣ δ μ)
+instance (AAM μ) => HasBot (FSPSΣ δ μ) where
+  bot = FSPSΣ
+    { fspsρ = bot
+    , fspslτ = LexicalTime $ tzero (P :: P (LexicalTemporal μ))
+    , fspsσ = bot
+    , fspsdτ = DynamicTime $ tzero (P :: P (DynamicTemporal μ))
     }
-fsρL :: Lens (FSΣ δ μ) (Env μ)
-fsρL = lens fsρ $ \ ss ρ -> ss { fsρ = ρ }
-fslτL :: Lens (FSΣ δ μ) (LexicalTime μ Ψ)
-fslτL = lens fslτ $ \ ss lτ -> ss { fslτ = lτ }
-fsσL :: Lens (FSΣ δ μ) (Store δ μ)
-fsσL = lens fsσ $ \ ss σ -> ss { fsσ = σ }
-fsdτL :: Lens (FSΣ δ μ) (DynamicTime μ Ψ)
-fsdτL = lens fsdτ $ \ ss dτ -> ss { fsdτ = dτ }
+fspsρL :: Lens (FSPSΣ δ μ) (Env μ)
+fspsρL = lens fspsρ $ \ ss ρ -> ss { fspsρ = ρ }
+fspslτL :: Lens (FSPSΣ δ μ) (LexicalTime μ Ψ)
+fspslτL = lens fspslτ $ \ ss lτ -> ss { fspslτ = lτ }
+fspsσL :: Lens (FSPSΣ δ μ) (Store δ μ)
+fspsσL = lens fspsσ $ \ ss σ -> ss { fspsσ = σ }
+fspsdτL :: Lens (FSPSΣ δ μ) (DynamicTime μ Ψ)
+fspsdτL = lens fspsdτ $ \ ss dτ -> ss { fspsdτ = dτ }
 
-newtype FlowSensitive δ μ a = FlowSensitive { runFlowSensitive :: StateT (FSΣ δ μ) (ListSetT ID) a }
+newtype FSPS δ μ a = FSPS { runFSPS :: StateT (FSPSΣ δ μ) (ListSetT ID) a }
   deriving 
     ( Unit, Functor, Applicative, Monad
     , MonadZero
     , MonadPlus
-    , MonadStateE (FSΣ δ μ)
+    , MonadStateE (FSPSΣ δ μ)
     )
-instance MonadFail (FlowSensitive δ μ) where
+instance MonadFail (FSPS δ μ) where
   fail = error . fromChars
-instance (AAM μ) => MonadStep (FlowSensitive δ μ) where
-  type SS (FlowSensitive δ μ) a = SS (StateT (FSΣ δ μ) (ListSetT ID)) a
-  type SSC (FlowSensitive δ μ) a = SSC (StateT (FSΣ δ μ) (ListSetT ID)) a
-  mstep f = mstep (runFlowSensitive . f)
-  munit P = munit (P :: P (StateT (FSΣ δ μ) (ListSetT ID)))
-instance MonadStateE (Env μ) (FlowSensitive δ μ) where
-  stateE :: StateT (Env μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ
-  stateE = (stateE :: StateT (FSΣ δ μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ) . stateLens fsρL
-instance MonadStateE (LexicalTime μ Ψ) (FlowSensitive δ μ) where
-  stateE :: StateT (LexicalTime μ Ψ) (FlowSensitive δ μ) ~> FlowSensitive δ μ
-  stateE = (stateE :: StateT (FSΣ δ μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ) . stateLens fslτL
-instance MonadStateE (Store δ μ) (FlowSensitive δ μ) where
-  stateE :: StateT (Store δ μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ
-  stateE = (stateE :: StateT (FSΣ δ μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ) . stateLens fsσL
-instance MonadStateE (DynamicTime μ Ψ) (FlowSensitive δ μ) where
-  stateE :: StateT (DynamicTime μ Ψ) (FlowSensitive δ μ) ~> FlowSensitive δ μ
-  stateE = (stateE :: StateT (FSΣ δ μ) (FlowSensitive δ μ) ~> FlowSensitive δ μ) . stateLens fsdτL
-fsm :: P FlowSensitive
-fsm = P
+instance (AAM μ) => MonadStep (FSPS δ μ) where
+  type SS (FSPS δ μ) = SS (StateT (FSPSΣ δ μ) (ListSetT ID))
+  type SSC (FSPS δ μ) = SSC (StateT (FSPSΣ δ μ) (ListSetT ID))
+  mstep f = mstep (runFSPS . f)
+  munit P = munit (P :: P (StateT (FSPSΣ δ μ) (ListSetT ID)))
+instance MonadStateE (Env μ) (FSPS δ μ) where
+  stateE :: StateT (Env μ) (FSPS δ μ) ~> FSPS δ μ
+  stateE = (stateE :: StateT (FSPSΣ δ μ) (FSPS δ μ) ~> FSPS δ μ) . stateLens fspsρL
+instance MonadStateE (LexicalTime μ Ψ) (FSPS δ μ) where
+  stateE :: StateT (LexicalTime μ Ψ) (FSPS δ μ) ~> FSPS δ μ
+  stateE = (stateE :: StateT (FSPSΣ δ μ) (FSPS δ μ) ~> FSPS δ μ) . stateLens fspslτL
+instance MonadStateE (Store δ μ) (FSPS δ μ) where
+  stateE :: StateT (Store δ μ) (FSPS δ μ) ~> FSPS δ μ
+  stateE = (stateE :: StateT (FSPSΣ δ μ) (FSPS δ μ) ~> FSPS δ μ) . stateLens fspsσL
+instance MonadStateE (DynamicTime μ Ψ) (FSPS δ μ) where
+  stateE :: StateT (DynamicTime μ Ψ) (FSPS δ μ) ~> FSPS δ μ
+  stateE = (stateE :: StateT (FSPSΣ δ μ) (FSPS δ μ) ~> FSPS δ μ) . stateLens fspsdτL
+fspsm :: P FSPS
+fspsm = P
 
-------------------------------
--- Flow Insensitivity Monad --
-------------------------------
+runFSPS_SS :: (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), Ord (Val δ μ), Ord a) => SS (FSPS δ μ) a -> Set (a, FSPSΣ δ μ)
+runFSPS_SS = cmap runPairWith . runID . runCompose . runCompose
+
+-----------------------------------------
+-- Flow Sensitive Path Insensitive Monad --
+-----------------------------------------
+
+data FSPIΣ μ = FSPIΣ
+  { fspiρ :: Env μ
+  , fspilτ :: LexicalTime μ Ψ
+  , fspidτ :: DynamicTime μ Ψ
+  }
+deriving instance (Eq (Env μ), Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (FSPIΣ μ)
+deriving instance (Ord (Env μ), Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (FSPIΣ μ)
+instance (AAM μ) => HasBot (FSPIΣ μ) where
+  bot = FSPIΣ
+    { fspiρ = bot
+    , fspilτ = LexicalTime $ tzero (P :: P (LexicalTemporal μ))
+    , fspidτ = DynamicTime $ tzero (P :: P (DynamicTemporal μ))
+    }
+fspiρL :: Lens (FSPIΣ μ) (Env μ)
+fspiρL = lens fspiρ $ \ ss ρ -> ss { fspiρ = ρ }
+fspilτL :: Lens (FSPIΣ μ) (LexicalTime μ Ψ)
+fspilτL = lens fspilτ $ \ ss lτ -> ss { fspilτ = lτ }
+fspidτL :: Lens (FSPIΣ μ) (DynamicTime μ Ψ)
+fspidτL = lens fspidτ $ \ ss dτ -> ss { fspidτ = dτ }
+
+newtype FSPI δ μ a = FSPI { runFSPI :: StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)) a }
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Unit (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Functor (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Applicative (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Monad (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadZero (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadPlus (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (FSPIΣ μ) (FSPI δ μ)
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadFail (FSPI δ μ) where
+  fail = error . fromChars
+instance (AAM μ, Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStep (FSPI δ μ) where
+  type SS (FSPI δ μ) = SS (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)))
+  type SSC (FSPI δ μ) = SSC (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)))
+  mstep f = mstep (runFSPI . f)
+  munit P = munit (P :: P (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID))))
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Env μ) (FSPI δ μ) where
+  stateE :: StateT (Env μ) (FSPI δ μ) ~> FSPI δ μ
+  stateE = (stateE :: StateT (FSPIΣ μ) (FSPI δ μ) ~> FSPI δ μ) . stateLens fspiρL
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (LexicalTime μ Ψ) (FSPI δ μ) where
+  stateE :: StateT (LexicalTime μ Ψ) (FSPI δ μ) ~> FSPI δ μ
+  stateE = (stateE :: StateT (FSPIΣ μ) (FSPI δ μ) ~> FSPI δ μ) . stateLens fspilτL
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Store δ μ) (FSPI δ μ) where
+  stateE :: StateT (Store δ μ) (FSPI δ μ) ~> FSPI δ μ
+  stateE = FSPI . mtMap stateE . stateCommute . mtMap runFSPI
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (DynamicTime μ Ψ) (FSPI δ μ) where
+  stateE :: StateT (DynamicTime μ Ψ) (FSPI δ μ) ~> FSPI δ μ
+  stateE = (stateE :: StateT (FSPIΣ μ) (FSPI δ μ) ~> FSPI δ μ) . stateLens fspidτL
+fspim :: P FSPI
+fspim = P
+
+runFSPI_SS :: (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), Ord (Val δ μ), Ord a) => SS (FSPI δ μ) a -> Set ((a, FSPIΣ μ), Store δ μ)
+runFSPI_SS = cmap (mapFst runPairWith . runPairWith . runID . runCompose) . runCompose . runCompose
+
+----------------------------
+-- Flow Insensitive Monad --
+----------------------------
 
 data FIΣ μ = FIΣ
   { fiρ :: Env μ
@@ -85,33 +145,35 @@ filτL = lens filτ $ \ ss lτ -> ss { filτ = lτ }
 fidτL :: Lens (FIΣ μ) (DynamicTime μ Ψ)
 fidτL = lens fidτ $ \ ss dτ -> ss { fidτ = dτ }
 
-newtype FlowInsensitive δ μ a = FlowInsensitive { runFlowInsensitive :: StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID)) a }
-
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Unit (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Functor (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Applicative (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Monad (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadZero (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadPlus (FlowInsensitive δ μ)
-deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (FIΣ μ) (FlowInsensitive δ μ)
-instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadFail (FlowInsensitive δ μ) where
+newtype FI δ μ a = FI { runFlowInsensitive :: StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID)) a }
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Unit (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Functor (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Applicative (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Monad (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadZero (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadPlus (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (FIΣ μ) (FI δ μ)
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadFail (FI δ μ) where
   fail = error . fromChars
-instance (AAM μ, Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStep (FlowInsensitive δ μ) where
-  type SS (FlowInsensitive δ μ) a = SS (StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID))) a
-  type SSC (FlowInsensitive δ μ) a = SSC (StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID))) a
+instance (AAM μ, Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStep (FI δ μ) where
+  type SS (FI δ μ) = SS (StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID)))
+  type SSC (FI δ μ) = SSC (StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID)))
   mstep f = mstep (runFlowInsensitive . f)
   munit P = munit (P :: P (StateT (FIΣ μ) (ListSetT (StateT (Store δ μ) ID))))
-instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Env μ) (FlowInsensitive δ μ) where
-  stateE :: StateT (Env μ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ
-  stateE = (stateE :: StateT (FIΣ μ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ) . stateLens fiρL
-instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (LexicalTime μ Ψ) (FlowInsensitive δ μ) where
-  stateE :: StateT (LexicalTime μ Ψ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ
-  stateE = (stateE :: StateT (FIΣ μ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ) . stateLens filτL
-instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Store δ μ) (FlowInsensitive δ μ) where
-  stateE :: StateT (Store δ μ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ
-  stateE = FlowInsensitive . mtMap stateE . stateCommute . mtMap runFlowInsensitive
-instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (DynamicTime μ Ψ) (FlowInsensitive δ μ) where
-  stateE :: StateT (DynamicTime μ Ψ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ
-  stateE = (stateE :: StateT (FIΣ μ) (FlowInsensitive δ μ) ~> FlowInsensitive δ μ) . stateLens fidτL
-fim :: P FlowInsensitive
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Env μ) (FI δ μ) where
+  stateE :: StateT (Env μ) (FI δ μ) ~> FI δ μ
+  stateE = (stateE :: StateT (FIΣ μ) (FI δ μ) ~> FI δ μ) . stateLens fiρL
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (LexicalTime μ Ψ) (FI δ μ) where
+  stateE :: StateT (LexicalTime μ Ψ) (FI δ μ) ~> FI δ μ
+  stateE = (stateE :: StateT (FIΣ μ) (FI δ μ) ~> FI δ μ) . stateLens filτL
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Store δ μ) (FI δ μ) where
+  stateE :: StateT (Store δ μ) (FI δ μ) ~> FI δ μ
+  stateE = FI . mtMap stateE . stateCommute . mtMap runFlowInsensitive
+instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (DynamicTime μ Ψ) (FI δ μ) where
+  stateE :: StateT (DynamicTime μ Ψ) (FI δ μ) ~> FI δ μ
+  stateE = (stateE :: StateT (FIΣ μ) (FI δ μ) ~> FI δ μ) . stateLens fidτL
+fim :: P FI
 fim = P
+
+runFI_SS :: (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), Ord a) => SS (FI δ μ) a -> (Set (a, FIΣ μ), Store δ μ)
+runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose

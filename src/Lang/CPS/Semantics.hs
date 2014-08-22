@@ -30,6 +30,9 @@ type Analysis δ μ m =
   , JoinLattice (Val δ μ)
   )
 
+data M where
+  M :: (Analysis δ μ m) => P δ -> P μ -> P m -> M
+
 mP :: P m -> P δ -> μ -> P (m δ μ)
 mP P P _ = P
 
