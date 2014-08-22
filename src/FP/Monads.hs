@@ -132,6 +132,26 @@ instance (MonadZero m, Monoid o) => MonadZero (WriterT o m) where
 
 -- StateT {{{ --
 
+runStateT :: s -> StateT s m a -> m (a, s)
+runStateT = flip unStateT
+
+evalStateT :: (Functor m) => s -> StateT s m a -> m a
+evalStateT = map fst .: runStateT
+
+execStateT :: (Functor m) => s -> StateT s m a -> m s
+execStateT = map snd .: runStateT
+
+type State s = StateT s ID
+
+runState :: s -> State s a -> (a, s)
+runState = runID .: runStateT
+
+evalState :: s -> State s a -> a
+evalState = fst .: runState
+
+execState :: s -> State s a -> s
+execState = snd .: runState
+
 stateCommute :: (Functor m) => StateT s1 (StateT s2 m) ~> StateT s2 (StateT s1 m)
 stateCommute aMM = StateT $ \ s2 -> StateT $ \ s1 -> map ff $ runStateT s2 $ runStateT s1 aMM
   where
@@ -147,9 +167,8 @@ instance (Unit m) => Unit (StateT s m) where
   unit x = StateT $ \ s -> unit (x, s)
 instance (Functor m) => Functor (StateT s m) where
   map f aM = StateT $ \ s -> map (mapFst f) (unStateT aM s)
-instance (Applicative m) => Applicative (StateT s m) where
-  aM <*> bM = StateT $ \ s -> map (\ ((a, _), (b, s')) -> ((a, b), s')) $ 
-    unStateT aM s <*> unStateT bM s
+instance (Monad m) => Applicative (StateT s m) where
+  (<*>) = mpair
 instance (Monad m) => Monad (StateT s m) where
   aM >>= k = StateT $ \ s -> do
     (a, s') <- unStateT aM s
@@ -191,6 +210,10 @@ instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s) => Funct
 
 -- RWST {{{
 
+runRWST :: (Functor m) => r -> s -> RWST r o s m a -> m (a, o, s)
+runRWST r0 s0 = map ff . runStateT s0 . runWriterT . runReaderT r0 . unRWST
+  where
+    ff ((a, o), s) = (a, o, s)
 rwsCommute :: (Functor m, Monoid o1) => RWST r1 o1 s1 (RWST r2 o2 s2 m) ~> RWST r2 o2 s2 (RWST r1 o1 s1 m)
 rwsCommute =
   RWST
@@ -200,7 +223,7 @@ rwsCommute =
 
 deriving instance (Unit m, Monoid o) => Unit (RWST r o s m)
 deriving instance (Functor m) => Functor (RWST r o s m)
-deriving instance (Applicative m, Monoid o) => Applicative (RWST r o s m)
+deriving instance (Monad m, Monoid o) => Applicative (RWST r o s m)
 deriving instance (Monad m, Monoid o) => Monad (RWST r o s m)
 instance (Monoid o) => MonadUnit (RWST r o s) where
   mtUnit = RWST . mtUnit . mtUnit . mtUnit

@@ -5,26 +5,26 @@ import MAAM
 
 import Lang.CPS.Syntax
 
-type Ψ = Call
+type Ψ = Int
 ψ :: P Ψ
 ψ = P
 
 
 data Addr μ = Addr
-  { addrLocation :: Name
+  { addrLocation :: RName
   , addrLexicalTime :: LexicalTime μ Ψ
   , addrDynamicTime :: DynamicTime μ Ψ
   }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Addr μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Addr μ)
 
-newtype Env μ = Env { runEnv :: Map Name (Addr μ) }
+newtype Env μ = Env { runEnv :: Map RName (Addr μ) }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Env μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Env μ)
 deriving instance HasBot (Env μ)
 envP :: μ -> P (Env μ)
 envP _ = P
-envL :: μ -> Lens (Env μ) (Map Name (Addr μ))
+envL :: μ -> Lens (Env μ) (Map RName (Addr μ))
 envL _ = isoLens runEnv Env
 
 newtype Store δ μ = Store { runStore :: Map (Addr μ) (Val δ μ) }
@@ -39,8 +39,8 @@ storeL :: P δ -> μ -> Lens (Store δ μ) (Map (Addr μ) (Val δ μ))
 storeL P _ = isoLens runStore Store
 
 data Clo μ = Clo 
-  { cloArgs :: [Name]
-  , cloCall :: Call
+  { cloArgs :: [RName]
+  , cloCall :: RCall
   , cloEnv :: Env μ
   , cloTime :: LexicalTime μ Ψ
   } 

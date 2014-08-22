@@ -441,6 +441,9 @@ mapply fM aM = do
   a <- aM
   return $ f a
 
+mjoin :: (Monad m) => m (m a) -> m a
+mjoin = extend id
+
 when :: (Monad m) => Bool -> m () -> m ()
 when True = id
 when False = const $ return ()
@@ -554,8 +557,6 @@ useMaybeZero (Just x) = return x
 -- MonadState {{{
 
 newtype StateT s m a = StateT { unStateT :: s -> m (a, s) }
-runStateT :: s -> StateT s m a -> m (a, s)
-runStateT = flip unStateT
 
 class (Monad m) => MonadStateI s m where
   stateI :: m ~> StateT s m
@@ -570,7 +571,7 @@ getP :: (MonadStateE s m) => P s -> m s
 getP P = get
 
 getL :: (MonadStateE s m) => Lens s a -> m a
-getL l = mmap (access l) get
+getL l = map (access l) get
 
 put :: (MonadStateE s m) => s -> m ()
 put s = stateE $ StateT $ \ _ -> return ((), s)
@@ -600,6 +601,12 @@ modifyL = modify .: update
 -- MonadStateI s1 m) }}}
 localState :: (MonadStateI s m) => s -> m a -> m (a, s)
 localState s aM = unStateT (stateI aM) s
+
+next :: (MonadStateE s m, Peano s) => m s
+next = do
+  i <- get
+  put $ psuc i
+  return i
 
 class (CMonad c m) => CMonadStateI c s m | m -> c where
   cstateI :: (m ~>~ StateT s m) c
@@ -660,6 +667,9 @@ askL l = access l <$> ask
 local :: (MonadReader r m) => (r -> r) -> m a -> m a
 local f aM = readerE $ ReaderT $ \ e -> runReaderT (f e) $ readerI aM
 
+localP :: (MonadReader r m) => P r -> (r -> r) -> m a -> m a
+localP P = local
+
 localSet :: (MonadReader r m) => r -> m a -> m a
 localSet = local . const
 
@@ -695,10 +705,6 @@ hijack = runWriterT . writerI
 -- MonadRWST {{{
 
 newtype RWST r o s m a = RWST { unRWST :: ReaderT r (WriterT o (StateT s m)) a }
-runRWST :: (Functor m) => r -> s -> RWST r o s m a -> m (a, o, s)
-runRWST r0 s0 = map ff . runStateT s0 . runWriterT . runReaderT r0 . unRWST
-  where
-    ff ((a, o), s) = (a, o, s)
 
 class (MonadReaderI r m, MonadWriterI o m, MonadStateI s m) => MonadRWSI r o s m where
   rwsI :: m ~> RWST r o s m
@@ -758,6 +764,12 @@ rotateL f b c a = f a b c
 mirror :: (a -> b -> c -> d) -> (c -> b -> a -> d)
 mirror f c b a = f a b c
 
+on :: (b -> b -> c) -> (a -> b) -> (a -> a -> c)
+on p f x y = p (f x) (f y)
+
+composeEndo :: [a -> a] -> a -> a
+composeEndo = runEndo . concat . map Endo
+
 -- }}} --
 
 -- Tuple {{{
@@ -768,6 +780,12 @@ instance (HasBot a, HasBot b) => HasBot (a, b) where
   bot = (bot, bot)
 instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
+
+fstL :: Lens (a, b) a
+fstL = lens fst $ \ (_,b) -> (,b)
+
+sndL :: Lens (a, b) b
+sndL = lens snd $ \ (a,_) -> (a,)
 
 mapFst :: (a -> c) -> (a, b) -> (c, b)
 mapFst f (a, b) = (f a, b)
@@ -1079,7 +1097,7 @@ update l f a =
 udpateM :: (Monad m) => Lens a b -> (b -> m b) -> a -> m a
 udpateM l f a =
   let Cursor b ba = runLens l a
-  in mmap ba $ f b
+  in map ba $ f b
 
 set :: Lens a b -> b -> a -> a
 set l = update l . const
@@ -1203,3 +1221,17 @@ instance Monoid (Endo a) where
 
 -- }}}
 
+-- Annotated {{{
+
+data Annotated ann a = Annotated
+  { annotation :: ann
+  , annValue :: a
+  }
+
+-- }}}
+
+-- Fix {{{
+
+newtype Fix f = Fix { runFix :: f (Fix f) }
+
+-- }}}

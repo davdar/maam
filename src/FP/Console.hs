@@ -45,13 +45,13 @@ formatChunk :: Chunk -> String
 formatChunk (Text s) = s
 formatChunk Newline = "\n"
 
-formatOut :: Out -> String
+formatOut :: POut -> String
 formatOut (MonoidFunctorElem o) = formatChunk o
 formatOut MFNull = ""
 formatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2
 formatOut (MFApply (fmt, o)) = applyFormat fmt $ formatOut o
 
-noFormatOut :: Out -> String
+noFormatOut :: POut -> String
 noFormatOut (MonoidFunctorElem o) = formatChunk o
 noFormatOut MFNull = ""
 noFormatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2

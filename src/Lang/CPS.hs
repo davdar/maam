@@ -8,4 +8,5 @@ module Lang.CPS
 import Lang.CPS.Classes.Delta
 import Lang.CPS.Instances.Delta
 import Lang.CPS.Syntax
+import Lang.CPS.SyntaxPretty ()
 import Lang.CPS.Semantics

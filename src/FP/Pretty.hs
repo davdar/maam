@@ -2,7 +2,7 @@ module FP.Pretty where
 
 import FP.Core
 import FP.Free
-import FP.Monads ()
+import FP.Monads
 
 -- Setup {{{ --
 
@@ -31,33 +31,33 @@ setBD :: Format
 setBD = null { bold = True }
 
 data Chunk = Text String | Newline
-type Out = FreeMonoidFunctor ((,) Format) Chunk
-outP :: P Out
+type POut = FreeMonoidFunctor ((,) Format) Chunk
+outP :: P POut
 outP = P
 
 data Layout = Flat | Break
   deriving (Eq, Ord)
 data Failure = CanFail | CantFail
   deriving (Eq, Ord)
-data Env = Env
+data PEnv = PEnv
   { maxColumnWidth :: Int
   , maxRibbonWidth :: Int
   , layout :: Layout
   , failure :: Failure
   , nesting :: Int
   }
-maxColumnWidthL :: Lens Env Int
+maxColumnWidthL :: Lens PEnv Int
 maxColumnWidthL = lens maxColumnWidth $ \ e w -> e { maxColumnWidth = w }
-maxRibbonWidthL :: Lens Env Int
+maxRibbonWidthL :: Lens PEnv Int
 maxRibbonWidthL = lens maxRibbonWidth $ \ e w -> e { maxRibbonWidth = w }
-layoutL :: Lens Env Layout
+layoutL :: Lens PEnv Layout
 layoutL = lens layout $ \ e l -> e { layout = l }
-failureL :: Lens Env Failure
+failureL :: Lens PEnv Failure
 failureL = lens failure $ \ e f -> e { failure = f }
-nestingL :: Lens Env Int
+nestingL :: Lens PEnv Int
 nestingL = lens nesting $ \ e n -> e { nesting = n }
-env0 :: Env
-env0 = Env
+env0 :: PEnv
+env0 = PEnv
   { maxColumnWidth = 100
   , maxRibbonWidth = 80
   , layout = Break
@@ -65,39 +65,39 @@ env0 = Env
   , nesting = 0
   }
 
-data State = State
+data PState = PState
   { column :: Int
   , ribbon :: Int
   }
-columnL :: Lens State Int
+columnL :: Lens PState Int
 columnL = lens column $ \ s c -> s { column = c }
-ribbonL :: Lens State Int
+ribbonL :: Lens PState Int
 ribbonL = lens ribbon $ \ s r -> s { ribbon = r }
-state0 :: State
-state0 = State
+state0 :: PState
+state0 = PState
   { column = 0
   , ribbon = 0
   }
 
-type MonadPretty m = (MonadReader Env m, MonadWriter Out m, MonadState State m, MonadZero m, MonadMaybe m)
-newtype PrettyT m a = PrettyT { unPrettyT :: RWST Env Out State m a }
+type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadZero m, MonadMaybe m)
+newtype PrettyT m a = PrettyT { unPrettyT :: RWST PEnv POut PState m a }
   deriving 
     ( Unit
     , Functor
     , Applicative
     , Monad
-    , MonadReaderI Env, MonadReaderE Env, MonadReader Env
-    , MonadWriterI Out, MonadWriterE Out, MonadWriter Out
-    , MonadStateI State, MonadStateE State, MonadState State
-    , MonadRWSI Env Out State, MonadRWSE Env Out State, MonadRWS Env Out State
+    , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
+    , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
+    , MonadStateI PState, MonadStateE PState, MonadState PState
+    , MonadRWSI PEnv POut PState, MonadRWSE PEnv POut PState, MonadRWS PEnv POut PState
     , MonadZero
     , MonadMaybeI, MonadMaybeE, MonadMaybe
     )
-runPrettyT :: (Functor m) => Env -> State -> PrettyT m a -> m (a, Out, State)
+runPrettyT :: (Functor m) => PEnv -> PState -> PrettyT m a -> m (a, POut, PState)
 runPrettyT e s = runRWST e s . unPrettyT
 type Doc = PrettyT Maybe ()
 
-execPretty0 :: Doc -> Out
+execPretty0 :: Doc -> POut
 execPretty0 d =
   let rM = runPrettyT env0 state0 d
   in case rM of
