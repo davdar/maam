@@ -2,13 +2,13 @@ module Lang.CPS.Classes.Delta where
 
 import FP
 import MAAM
-
+import Lang.CPS.SyntaxPretty ()
 import Lang.CPS.Syntax
+import qualified FP.Pretty as P
 
 type Ψ = Int
 ψ :: P Ψ
 ψ = P
-
 
 data Addr μ = Addr
   { addrLocation :: RName
@@ -17,11 +17,14 @@ data Addr μ = Addr
   }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Addr μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Addr μ)
+instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Addr μ) where
+  pretty (Addr loc lτ dτ) = P.collection "<" ">" "," [pretty loc, pretty lτ, pretty dτ]
 
 newtype Env μ = Env { runEnv :: Map RName (Addr μ) }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Env μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Env μ)
 deriving instance HasBot (Env μ)
+deriving instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Env μ)
 envP :: μ -> P (Env μ)
 envP _ = P
 envL :: μ -> Lens (Env μ) (Map RName (Addr μ))
@@ -33,6 +36,7 @@ deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), Ord (Val δ
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), PartialOrder (Val δ μ)) => PartialOrder (Store δ μ)
 deriving instance HasBot (Store δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => JoinLattice (Store δ μ)
+deriving instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ), Pretty (Val δ μ)) => Pretty (Store δ μ)
 storeP :: P δ -> μ -> P (Store δ μ)
 storeP P _ = P
 storeL :: P δ -> μ -> Lens (Store δ μ) (Map (Addr μ) (Val δ μ))
@@ -46,6 +50,8 @@ data Clo μ = Clo
   } 
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Clo μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Clo μ)
+instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Clo μ) where
+  pretty (Clo xs c ρ lτ) = P.collection "<" ">" "," [pretty $ Lam xs c, pretty ρ, pretty lτ]
 
 class Delta δ where
   type Val δ :: * -> *

@@ -362,6 +362,9 @@ class Functor t where
 (<$>) :: (Functor t) => (a -> b) -> t a -> t b
 (<$>) = map
 
+mapOn :: (Functor t) => t a -> (a -> b) -> t b
+mapOn = flip map
+
 class FunctorM t where
   mapM :: (Monad m) => (a -> m b) -> t a -> m (t b)
 
@@ -379,6 +382,9 @@ class CFunctor c t | t -> c where
 
 (<$~>) :: (CFunctor c t, c a, c b) => (a -> b) -> t a -> t b
 (<$~>) = cmap
+
+cmapOn :: (CFunctor c t, c a, c b) => t a -> (a -> b) -> t b
+cmapOn = flip cmap
 
 -- }}}
 

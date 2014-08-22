@@ -982,6 +982,36 @@ rwsStateCommute =
 
 -- }}}
 
+-- State // ListSet {{{
+
+stateListSetCommute :: (Functor m, JoinLattice s) => StateT s (ListSetT m) ~> ListSetT (StateT s m)
+stateListSetCommute aMM = ListSetT $ StateT $ \ s -> map ff $ runListSetT $ runStateT s aMM
+  where
+    ff asL = (map fst asL, joins $ map snd asL)
+
+listSetStateCommute :: (Functor m) => ListSetT (StateT s m) ~> StateT s (ListSetT m)
+listSetStateCommute aMM = StateT $ \ s -> ListSetT $ map ff $ runStateT s $ runListSetT aMM
+  where
+    ff (xs, s) = map (,s) xs
+
+instance (MonadListSetI m, JoinLattice s) => MonadListSetI (StateT s m) where
+  listSetI :: StateT s m ~> ListSetT (StateT s m)
+  listSetI = stateListSetCommute . mtMap listSetI
+instance (MonadListSetE m) => MonadListSetE (StateT s m) where
+  listSetE :: ListSetT (StateT s m) ~> StateT s m
+  listSetE = mtMap listSetE . listSetStateCommute
+instance (MonadListSet m, JoinLattice s) => MonadListSet (StateT s m) where
+
+instance (MonadStateI s m, Functorial JoinLattice m) => MonadStateI s (ListSetT m) where
+  stateI :: ListSetT m ~> StateT s (ListSetT m)
+  stateI = listSetStateCommute . mtMap stateI
+instance (MonadStateE s m, Functorial JoinLattice m, JoinLattice s) => MonadStateE s (ListSetT m) where
+  stateE :: StateT s (ListSetT m) ~> ListSetT m
+  stateE = mtMap stateE . stateListSetCommute
+instance (MonadState s m, Functorial JoinLattice m, JoinLattice s) => MonadState s (ListSetT m) where
+
+-- }}}
+
 -- }}}
 
 -- Maybe // * {{{

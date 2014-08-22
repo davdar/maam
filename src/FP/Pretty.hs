@@ -59,7 +59,7 @@ nestingL = lens nesting $ \ e n -> e { nesting = n }
 env0 :: PEnv
 env0 = PEnv
   { maxColumnWidth = 100
-  , maxRibbonWidth = 80
+  , maxRibbonWidth = 60
   , layout = Break
   , failure = CantFail
   , nesting = 0
@@ -115,6 +115,8 @@ class Pretty a where
   pretty :: a -> Doc
   prettyParen :: a -> Doc
   prettyParen = pretty
+instance Pretty Doc where
+  pretty = id
 
 -- }}} ---
 
@@ -204,13 +206,13 @@ app f xs = group $ do
   traverseOn xs $ \ x -> nest 2 $
     ifFlat (space 1) newline >> align x
 
-collection :: (MonadPretty m) => m () -> m () -> m () -> [m ()] -> m ()
-collection open close _ [] = open >> close
+collection :: (MonadPretty m) => String -> String -> String -> [m ()] -> m ()
+collection open close _ [] = pun open >> pun close
 collection open close sep (x:xs) = group $ do
-  format punFmt open >> whenBreak (space 1) >> align x >> whenBreak newline
+  pun open >> whenBreak (space 1) >> align x >> whenBreak newline
   traverseOn xs $ \ x' -> do
-    format punFmt sep >> whenBreak (space 1) >> align x' >> whenBreak newline
-  format punFmt close
+    pun sep >> whenBreak (space 1) >> align x' >> whenBreak newline
+  pun close
 
 -- }}}
 
@@ -246,8 +248,17 @@ punFmt = setFG 8
 pun :: (MonadPretty m) => String -> m ()
 pun = format punFmt . text
 
-highlight :: Format
-highlight = setBG 229
+hlFmt :: Format
+hlFmt = setBG 229
+
+hl :: (MonadPretty m) => String -> m ()
+hl = format hlFmt . text
+
+headingFmt :: Format
+headingFmt = setFG 5 ++ setBD ++ setUL
+
+heading :: (MonadPretty m) => String -> m ()
+heading = format headingFmt . text
 
 instance Pretty Bool where
   pretty = lit . toString
@@ -269,11 +280,11 @@ instance (Pretty a, Pretty b) => Pretty (a :+: b) where
   pretty (Inr b) = app (con "Inr") [prettyParen b]
   prettyParen = parens . pretty
 instance (Pretty a) => Pretty [a] where
-  pretty = collection (text "[") (text "]") (text ",") . map pretty
+  pretty = collection "[" "]" "," . map pretty
 instance (Pretty a) => Pretty (Set a) where
-  pretty = collection (text "{") (text "}") (text ",") . map pretty . toList
+  pretty = collection "{" "}" "," . map pretty . toList
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
-  pretty = collection (text "{") (text "}") (text ",") . map prettyMapping . toList
+  pretty = collection "{" "}" "," . map prettyMapping . toList
     where
       prettyMapping (k, v) = app (pretty k >> space 1 >> pun "=>") [pretty v]
 

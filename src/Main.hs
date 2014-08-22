@@ -1,7 +1,6 @@
 module Main where
 
 import FP
-import MAAM ()
 import Lang.CPS
 
 p0 :: SCall
@@ -19,4 +18,4 @@ p0 =
       $ halt $ v "x"))
 
 main :: IO ()
-main = print "<>"
+main = pprint $ runAll $ sr p0

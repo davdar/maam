@@ -39,3 +39,5 @@ library
                      , NoImplicitPrelude
                      , RebindableSyntax
                      , OverloadedStrings
+                     , ImpredicativeTypes
+                     , GeneralizedNewtypeDeriving

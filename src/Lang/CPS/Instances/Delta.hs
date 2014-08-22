@@ -4,6 +4,7 @@ import FP
 import MAAM
 import Lang.CPS.Syntax
 import Lang.CPS.Classes.Delta
+import qualified FP.Pretty as P
 
 --------------
 -- Concrete --
@@ -13,9 +14,13 @@ data Cδ
 cδ :: P Cδ
 cδ = P
 
-data CVal μ = LitC Lit | CloC (Clo μ)
+data CVal μ = BadC | LitC Lit | CloC (Clo μ)
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (CVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (CVal μ)
+instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (CVal μ) where
+  pretty BadC = P.lit "BAD"
+  pretty (LitC l) = pretty l
+  pretty (CloC c) = pretty c
 
 coerceLitC :: CVal μ -> Maybe Lit
 coerceLitC (LitC l) = Just l
@@ -29,8 +34,9 @@ deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (SetCVa
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (SetCVal μ)
 deriving instance HasBot (SetCVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => JoinLattice (SetCVal μ)
-runSetCValL :: Lens (SetCVal μ) (Set (CVal μ))
-runSetCValL = isoLens runSetCVal SetCVal
+deriving instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (SetCVal μ)
+setCValL :: Lens (SetCVal μ) (Set (CVal μ))
+setCValL = isoLens runSetCVal SetCVal
 
 instance Delta Cδ where
   type Val Cδ = SetCVal
@@ -40,9 +46,9 @@ instance Delta Cδ where
   clo :: (Δ Cδ μ) => P Cδ -> Clo μ -> Val Cδ μ
   clo P = SetCVal . ssingleton . CloC
   op :: (Δ Cδ μ) => P Cδ -> Op -> Val Cδ μ -> Val Cδ μ
-  op P Add1     = update runSetCValL $ cmap (LitC . I . (+  1   )) . cextend (useMaybeSet . coerceI *. coerceLitC)
-  op P Sub1     = update runSetCValL $ cmap (LitC . I . (+  (-1))) . cextend (useMaybeSet . coerceI *. coerceLitC)
-  op P IsNonNeg = update runSetCValL $ cmap (LitC . B . (>= 0   )) . cextend (useMaybeSet . coerceI *. coerceLitC)
+  op P Add1     = update setCValL $ cmap (maybe (\ i -> LitC $ I $ i + 1)  BadC . coerceI *. coerceLitC)
+  op P Sub1     = update setCValL $ cmap (maybe (\ i -> LitC $ I $ i - 1)  BadC . coerceI *. coerceLitC)
+  op P IsNonNeg = update setCValL $ cmap (maybe (\ i -> LitC $ B $ i >= 0) BadC . coerceI *. coerceLitC)
   elimBool :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set Bool
   elimBool P = cextend (useMaybeSet . coerceB *. coerceLitC) . runSetCVal
   elimClo :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set (Clo μ)
@@ -56,9 +62,14 @@ data Aδ
 aδ :: P Aδ
 aδ = P
 
-data AVal μ = IA | BA | CloA (Clo μ)
+data AVal μ = BadA | IA | BA | CloA (Clo μ)
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (AVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (AVal μ)
+instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (AVal μ) where
+  pretty BadA = P.lit "BAD"
+  pretty IA = P.lit "INT"
+  pretty BA = P.lit "BOOL"
+  pretty (CloA c) = pretty c
 
 coerceIA :: AVal μ -> Maybe ()
 coerceIA IA = Just ()
@@ -79,6 +90,7 @@ deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Set
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => PartialOrder (SetAVal μ)
 deriving instance HasBot (SetAVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => JoinLattice (SetAVal μ)
+deriving instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (SetAVal μ)
 runSetAValL :: Lens (SetAVal μ) (Set (AVal μ))
 runSetAValL = isoLens runSetAVal SetAVal
 
@@ -91,9 +103,9 @@ instance Delta Aδ where
   clo :: (Δ Aδ μ) => P Aδ -> Clo μ -> Val Aδ μ
   clo P = SetAVal . ssingleton . CloA
   op :: (Δ Aδ μ) => P Aδ -> Op -> Val Aδ μ -> Val Aδ μ
-  op P Add1     = update runSetAValL $ cmap (const IA) . cextend (useMaybeSet . coerceIA)
-  op P Sub1     = update runSetAValL $ cmap (const IA) . cextend (useMaybeSet . coerceIA)
-  op P IsNonNeg = update runSetAValL $ cmap (const BA) . cextend (useMaybeSet . coerceIA)
+  op P Add1     = update runSetAValL $ cmap (maybe (const IA) BadA . coerceIA)
+  op P Sub1     = update runSetAValL $ cmap (maybe (const IA) BadA . coerceIA)
+  op P IsNonNeg = update runSetAValL $ cmap (maybe (const BA) BadA . coerceIA)
   elimBool :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set Bool
   elimBool P = cextend (const denoteIA *.~ useMaybeSet . coerceBA) . runSetAVal
   elimClo :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set (Clo μ)
