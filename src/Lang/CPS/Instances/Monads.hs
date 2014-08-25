@@ -34,7 +34,7 @@ fspsdτL = lens fspsdτ $ \ ss dτ -> ss { fspsdτ = dτ }
 
 newtype FSPS δ μ a = FSPS { runFSPS :: StateT (FSPSΣ δ μ) (ListSetT ID) a }
   deriving 
-    ( Unit, Functor, Applicative, Monad
+    ( Unit, Functor, Product, Applicative, Bind, Monad
     , MonadZero
     , MonadPlus
     , MonadStateE (FSPSΣ δ μ)
@@ -88,9 +88,11 @@ fspilτL = lens fspilτ $ \ ss lτ -> ss { fspilτ = lτ }
 fspidτL :: Lens (FSPIΣ μ) (DynamicTime μ Ψ)
 fspidτL = lens fspidτ $ \ ss dτ -> ss { fspidτ = dτ }
 
-newtype FSPI δ μ a = FSPI { runFSPI :: StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)) a }
+newtype FSPI δ μ a = FSPI { runFSPI :: StateT (FSPIΣ μ) (ForkLT (StateT (Store δ μ) ID)) a }
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Unit (FSPI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Functor (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Product (FSPI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Bind (FSPI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Applicative (FSPI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Monad (FSPI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadZero (FSPI δ μ)
@@ -99,10 +101,10 @@ deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice
 instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadFail (FSPI δ μ) where
   fail = error . fromChars
 instance (AAM μ, Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStep (FSPI δ μ) where
-  type SS (FSPI δ μ) = SS (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)))
-  type SSC (FSPI δ μ) = SSC (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID)))
+  type SS (FSPI δ μ) = SS (StateT (FSPIΣ μ) (ForkLT (StateT (Store δ μ) ID)))
+  type SSC (FSPI δ μ) = SSC (StateT (FSPIΣ μ) (ForkLT (StateT (Store δ μ) ID)))
   mstep f = mstep (runFSPI . f)
-  munit P = munit (P :: P (StateT (FSPIΣ μ) (ForkT (StateT (Store δ μ) ID))))
+  munit P = munit (P :: P (StateT (FSPIΣ μ) (ForkLT (StateT (Store δ μ) ID))))
 instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadStateE (Env μ) (FSPI δ μ) where
   stateE :: StateT (Env μ) (FSPI δ μ) ~> FSPI δ μ
   stateE = (stateE :: StateT (FSPIΣ μ) (FSPI δ μ) ~> FSPI δ μ) . stateLens fspiρL
@@ -149,6 +151,8 @@ newtype FI δ μ a = FI { runFlowInsensitive :: StateT (FIΣ μ) (ListSetT (Stat
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Unit (FI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Functor (FI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Applicative (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Product (FI δ μ)
+deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Bind (FI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => Monad (FI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadZero (FI δ μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ), JoinLattice (Val δ μ)) => MonadPlus (FI δ μ)

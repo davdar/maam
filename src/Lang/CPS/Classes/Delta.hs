@@ -2,7 +2,6 @@ module Lang.CPS.Classes.Delta where
 
 import FP
 import MAAM
-import Lang.CPS.SyntaxPretty ()
 import Lang.CPS.Syntax
 import qualified FP.Pretty as P
 

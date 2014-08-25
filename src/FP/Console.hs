@@ -1,6 +1,6 @@
 module FP.Console where
 
-import FP.Core
+import FP.Core hiding (reset)
 import FP.Pretty
 import FP.Free
 

@@ -50,9 +50,9 @@ instance Delta Cδ where
   op P Sub1     = update setCValL $ cmap (maybe (\ i -> LitC $ I $ i - 1)  BadC . coerceI *. coerceLitC)
   op P IsNonNeg = update setCValL $ cmap (maybe (\ i -> LitC $ B $ i >= 0) BadC . coerceI *. coerceLitC)
   elimBool :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set Bool
-  elimBool P = cextend (useMaybeSet . coerceB *. coerceLitC) . runSetCVal
+  elimBool P = extend (useMaybeSet . coerceB *. coerceLitC) . runSetCVal
   elimClo :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set (Clo μ)
-  elimClo P = cextend (useMaybeSet . coerceCloC) . runSetCVal
+  elimClo P = extend (useMaybeSet . coerceCloC) . runSetCVal
 
 --------------
 -- Abstract --
@@ -107,6 +107,6 @@ instance Delta Aδ where
   op P Sub1     = update runSetAValL $ cmap (maybe (const IA) BadA . coerceIA)
   op P IsNonNeg = update runSetAValL $ cmap (maybe (const BA) BadA . coerceIA)
   elimBool :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set Bool
-  elimBool P = cextend (const denoteIA *.~ useMaybeSet . coerceBA) . runSetAVal
+  elimBool P = extend (const denoteIA *. useMaybeSet . coerceBA) . runSetAVal
   elimClo :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set (Clo μ)
-  elimClo P = cextend (useMaybeSet . coerceCloA) . runSetAVal
+  elimClo P = extend (useMaybeSet . coerceCloA) . runSetAVal

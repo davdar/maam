@@ -37,6 +37,8 @@ newtype ID a = ID { runID :: a }
 
 instance Unit ID where
   unit = ID
+instance CUnit Universal ID where
+  cunit = unit
 instance Functor ID where
   map f = ID . f . runID
 instance FunctorM ID where
@@ -45,10 +47,13 @@ instance CFunctor Universal ID where
   cmap = map
 instance CFunctorM Universal ID where
   cmapM = mapM
-instance Applicative ID where
+instance Product ID where
   aM <*> bM = ID $ (runID aM, runID bM)
-instance Monad ID where
+instance Applicative ID where
+  fM <@> aM = ID $ runID fM $ runID aM
+instance Bind ID where
   aM >>= k = k $ runID aM
+instance Monad ID where
 instance Functorial HasBot ID where
   functorial = W
 instance Functorial JoinLattice ID where
@@ -67,13 +72,17 @@ instance (Unit m) => Unit (ReaderT r m) where
   unit = ReaderT . const . unit
 instance (Functor m) => Functor (ReaderT r m) where
   map f = ReaderT . map (map f) . unReaderT
-instance (Applicative m) => Applicative (ReaderT r m) where
+instance (Product m) => Product (ReaderT r m) where
   aM1 <*> aM2 = ReaderT $ \ r ->
     runReaderT r aM1 <*> runReaderT r aM2
-instance (Monad m) => Monad (ReaderT r m) where
+instance (Applicative m) => Applicative (ReaderT r m) where
+  fM <@> aM = ReaderT $ \ r ->
+    runReaderT r fM <@> runReaderT r aM
+instance (Bind m) => Bind (ReaderT r m) where
   aM >>= k = ReaderT $ \ r -> do
     a <- runReaderT r aM
     runReaderT r $ k a
+instance (Monad m) => Monad (ReaderT r m) where
 instance MonadUnit (ReaderT r) where
   mtUnit = ReaderT . const
 instance MonadCounit (ReaderT r) where
@@ -106,15 +115,19 @@ instance (Unit m, Monoid o) => Unit (WriterT o m) where
   unit = WriterT . unit . (,null)
 instance (Functor m) => Functor (WriterT o m) where
   map f = WriterT . map (mapFst f) . runWriterT
-instance (Applicative m, Monoid o) => Applicative (WriterT o m) where
+instance (Functor m, Product m, Monoid o) => Product (WriterT o m) where
   aM1 <*> aM2 = WriterT $
-    map (\ ((a1, o1), (a2, o2)) -> ((a1, a2), (o1 ++ o2))) $
+    map (\ ((a1, o1), (a2, o2)) -> ((a1, a2), o1 ++ o2)) $
       runWriterT aM1 <*> runWriterT aM2
-instance (Monad m, Monoid o) => Monad (WriterT o m) where
+instance (Functor m, Applicative m, Monoid o) => Applicative (WriterT o m) where
+  fM <@> aM = WriterT $ map (\ ((a, o1), o2) -> (a, o1 ++ o2)) $
+      map (\ (f, o) -> mapFst ((,o) . f)) (runWriterT fM) <@> runWriterT aM
+instance (Monad m, Monoid o) => Bind (WriterT o m) where
   aM >>= k = WriterT $ do
     (a, o1) <- runWriterT aM
     (b, o2) <- runWriterT $ k a
     return (b, o1 ++ o2)
+instance (Monad m, Monoid o) => Monad (WriterT o m) where
 instance (Monoid w) => MonadUnit (WriterT w) where
   mtUnit = WriterT . map (,null)
 -- this also exists for (WriterT w m ~> m)
@@ -174,12 +187,15 @@ instance (Unit m) => Unit (StateT s m) where
   unit x = StateT $ \ s -> unit (x, s)
 instance (Functor m) => Functor (StateT s m) where
   map f aM = StateT $ \ s -> map (mapFst f) (unStateT aM s)
-instance (Monad m) => Applicative (StateT s m) where
+instance (Monad m) => Product (StateT s m) where
   (<*>) = mpair
-instance (Monad m) => Monad (StateT s m) where
+instance (Monad m) => Applicative (StateT s m) where
+  (<@>) = mapply
+instance (Bind m) => Bind (StateT s m) where
   aM >>= k = StateT $ \ s -> do
     (a, s') <- unStateT aM s
     unStateT (k a) s'
+instance (Monad m) => Monad (StateT s m) where
 instance MonadUnit (StateT s) where
   mtUnit aM = StateT $ \ s -> map (,s) aM
 instance MonadCounit (StateT s) where
@@ -230,7 +246,9 @@ rwsCommute =
 
 deriving instance (Unit m, Monoid o) => Unit (RWST r o s m)
 deriving instance (Functor m) => Functor (RWST r o s m)
+deriving instance (Monad m, Monoid o) => Product (RWST r o s m)
 deriving instance (Monad m, Monoid o) => Applicative (RWST r o s m)
+deriving instance (Monad m, Monoid o) => Bind (RWST r o s m)
 deriving instance (Monad m, Monoid o) => Monad (RWST r o s m)
 instance (Monoid o) => MonadUnit (RWST r o s) where
   mtUnit = RWST . mtUnit . mtUnit . mtUnit
@@ -281,18 +299,25 @@ instance (Unit m) => Unit (MaybeT m) where
   unit = MaybeT . unit . Just
 instance (Functor m) => Functor (MaybeT m) where
   map f = MaybeT . map (map f) . runMaybeT
-instance (Applicative m) => Applicative (MaybeT m) where
+instance (Functor m, Product m) => Product (MaybeT m) where
   aM1 <*> aM2 = MaybeT $ map (uncurry ff) $ runMaybeT aM1 <*> runMaybeT aM2
     where
       ff Nothing _ = Nothing
       ff _ Nothing = Nothing
       ff (Just a1) (Just a2) = Just (a1, a2)
-instance (Monad m) => Monad (MaybeT m) where
+instance (Functor m, Applicative m) => Applicative (MaybeT m) where
+  fM <@> aM = MaybeT $ map ff (runMaybeT fM) <@> runMaybeT aM
+    where
+      ff Nothing _ = Nothing
+      ff _ Nothing = Nothing
+      ff (Just f) (Just a) = Just $ f a
+instance (Monad m) => Bind (MaybeT m) where
   aM >>= k = MaybeT $ do
     aM' <- runMaybeT aM
     case aM' of
       Nothing -> return Nothing
       Just a -> runMaybeT $ k a
+instance (Monad m) => Monad (MaybeT m) where
 instance MonadUnit MaybeT where
   mtUnit = MaybeT . map Just
 instance MonadCounit MaybeT where
@@ -314,6 +339,43 @@ instance (Monad m) => MonadMaybeE (MaybeT m) where
 
 -- }}}
 
+-- KonT {{{
+
+evalKonT :: (Unit m) => KonT r m r -> m r
+evalKonT aM = runKonT aM unit
+
+type Kon r = KonT r ID
+runKon :: Kon r a -> (a -> r) -> r
+runKon aM f = runID $ runKonT aM (ID . f)
+evalKon :: Kon r r -> r
+evalKon aM = runKon aM id
+
+instance (Unit m) => Unit (KonT r m) where
+  unit a = KonT $ \ k -> k a
+instance (Unit m) => Applicative (KonT r m) where
+  (<@>) = mapply
+instance (Unit m) => Product (KonT r m) where
+  (<*>) = mpair
+instance (Unit m) => Functor (KonT r m) where
+  map = mmap
+instance (Unit m) => Bind (KonT r m) where
+  (>>=) :: KonT r m a -> (a -> KonT r m b) -> KonT r m b
+  aM >>= kM = KonT $ \ (k :: b -> m r) -> runKonT aM $ \ a -> runKonT (kM a) k
+instance (Unit m) => Monad (KonT r m) where
+instance (Monad m) => MonadKonI r (KonT r m) where
+  konI :: KonT r m ~> KonT r (KonT r m)
+  konI aM = KonT $ \ (k1 :: a -> KonT r m r) -> KonT $ \ (k2 :: r -> m r) ->
+    k2 *$ runKonT aM $ \ a -> runKonT (k1 a) return
+instance (Monad m) => MonadKonE r (KonT r m) where
+  konE :: KonT r (KonT r m) ~> KonT r m
+  konE aMM = KonT $ \ (k :: a -> m r) -> 
+    let aM :: KonT r m r
+        aM = runKonT aMM $ \ a -> KonT $ \ (k' :: r -> m r) -> k' *$ k a
+    in runKonT aM return
+instance (Monad m) => MonadKon r (KonT r m) where
+
+-- }}}
+
 -- ListSetT {{{
 
 listSetCommute :: (Functor m) => ListSetT (ListSetT m) ~> ListSetT (ListSetT m)
@@ -321,11 +383,15 @@ listSetCommute = ListSetT . ListSetT . map (ListSet . map ListSet . transpose . 
 
 instance (Unit m) => Unit (ListSetT m) where
   unit = ListSetT . unit . ListSet . singleton
+instance (CUnit c m) => CUnit (c ::.:: ListSet) (ListSetT m) where
+  cunit = ListSetT . cunit . ListSet . singleton
 instance (Functor m) => Functor (ListSetT m) where
   map f aM = ListSetT $ map (map f) $ runListSetT aM
-instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetT m) where
+instance (Monad m, Functorial JoinLattice m) => Product (ListSetT m) where
   (<*>) = mpair
-instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
+instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetT m) where
+  (<@>) = mapply
+instance (Bind m, Functorial JoinLattice m) => Bind (ListSetT m) where
   (>>=) :: forall a b. ListSetT m a -> (a -> ListSetT m b) -> ListSetT m b
   aM >>= k = ListSetT $ do
     xs <- runListSetT aM
@@ -411,6 +477,7 @@ instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
 --   QED }}}
 --
 -- }}}
+instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
 instance MonadUnit ListSetT where
   mtUnit = ListSetT . map unit
 instance MonadCounit ListSetT where
@@ -426,12 +493,12 @@ instance (Monad m, Functorial JoinLattice m) => MonadListSetE (ListSetT m) where
   listSetE = mtCounit . listSetCommute
 instance (Monad m, Functorial JoinLattice m) => MonadListSet (ListSetT m) where
 
-instance (Monad m, Functorial JoinLattice m) => MonadZero (ListSetT m) where
+instance (Functorial JoinLattice m) => MonadZero (ListSetT m) where
   mzero :: forall a. ListSetT m a
   mzero = 
     with (functorial :: W (JoinLattice (m (ListSet a)))) $
     ListSetT bot
-instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListSetT m) where
+instance (Functorial JoinLattice m) => MonadPlus (ListSetT m) where
   (<+>) :: forall a. ListSetT m a -> ListSetT m a -> ListSetT m a
   aM1 <+> aM2 = 
     with (functorial :: W (JoinLattice (m (ListSet a)))) $
@@ -442,6 +509,41 @@ instance (Monad m, Functorial JoinLattice m) => MonadPlus (ListSetT m) where
 --
 -- (The lattice of the underlying monads must act as a zero for bind.)
 -- QED }}}
+
+-- }}}
+
+-- SetT {{{
+
+setCommute :: (Functor m) => SetT (SetT m) ~> SetT (SetT m)
+setCommute = SetT . SetT . map setTranspose . runSetT . runSetT
+
+instance (CUnit c m) => CUnit (Ord ::*:: (c ::.:: Set)) (SetT m) where
+  cunit = SetT . cunit . ssingleton 
+instance (Functor m, Product m) => Product (SetT m) where
+  (<*>) :: forall a b. SetT m a -> SetT m b -> SetT m (a, b)
+  aM1 <*> aM2 = SetT $ map (uncurry ff) $ runSetT aM1 <*> runSetT aM2
+    where
+      ff :: Set a -> Set b -> Set (a, b)
+      ff s1 s2 =
+        learnSetOn s1 null $
+        learnSetOn s2 null $
+        fromList $ toList s1 <*> toList s2
+instance (CFunctor c m) => CFunctor (Ord ::*:: (c ::.:: Set)) (SetT m) where
+  cmap = mapSetT . cmap . cmap
+instance (Functorial JoinLattice m, Bind m) => Bind (SetT m) where
+  aM >>= k = SetT $ do
+    aC <- runSetT aM
+    runSetT $ msums $ map k $ toList aC
+instance (Functorial JoinLattice m) => MonadZero (SetT m) where
+  mzero :: forall a. SetT m a
+  mzero = 
+    with (functorial :: W (JoinLattice (m (Set a)))) $
+    SetT bot
+instance (Functorial JoinLattice m) => MonadPlus (SetT m) where
+  (<+>) :: forall a. SetT m a -> SetT m a -> SetT m a
+  aM1 <+> aM2 =
+    with (functorial :: W (JoinLattice (m (Set a)))) $
+    SetT $ runSetT aM1 \/ runSetT aM2
 
 -- }}}
 

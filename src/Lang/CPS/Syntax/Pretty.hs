@@ -1,11 +1,18 @@
-module Lang.CPS.SyntaxPretty where
+module Lang.CPS.Syntax.Pretty where
 
-import Lang.CPS.Syntax
+import Lang.CPS.Syntax.AST
 import FP
 import qualified FP.Pretty as P
 
 instance Pretty SName where
-  pretty (SName s) = P.bdr s
+  pretty (SName iM s) = P.format P.bdrFmt $ do
+    P.text s 
+    case iM of
+      Nothing -> return ()
+      Just i -> do
+        P.text "["
+        P.text $ toString i
+        P.text "]"
 instance Pretty RName where
   pretty (RName i n) = pretty n >> P.bdr "@" >> P.bdr (toString i)
 instance Pretty Lit where
@@ -18,7 +25,7 @@ instance Pretty Op where
   pretty IsNonNeg = P.key ">=0?"
 
 instance (Pretty n, Pretty c) => Pretty (Atom n c) where
-  pretty (LitA l) = pretty l
+  pretty (Lit l) = pretty l
   pretty (Var n) = pretty n
   pretty (Prim o a) = P.app (prettyParen o) [prettyParen a]
   pretty (Lam xs c) = P.app (lambda >> P.space 1 >> binders >> dot) [pretty c]

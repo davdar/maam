@@ -2,7 +2,7 @@ module MAAM.Classes.MonadStep where
 
 import FP
 
-class (Monad m) => MonadStep m where
+class (Bind m) => MonadStep m where
   type SS m :: * -> *
   type SSC m :: * -> Constraint
   mstep :: (SSC m a, SSC m b) => (a -> m b) -> SS m a -> SS m b

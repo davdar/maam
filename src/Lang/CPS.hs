@@ -12,5 +12,4 @@ import Lang.CPS.Instances.Delta
 import Lang.CPS.Instances.Monads
 import Lang.CPS.Analyses
 import Lang.CPS.Syntax
-import Lang.CPS.SyntaxPretty ()
 import Lang.CPS.Semantics

@@ -84,18 +84,21 @@ newtype PrettyT m a = PrettyT { unPrettyT :: RWST PEnv POut PState m a }
   deriving 
     ( Unit
     , Functor
+    , Product
     , Applicative
+    , Bind
     , Monad
     , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
     , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
     , MonadStateI PState, MonadStateE PState, MonadState PState
     , MonadRWSI PEnv POut PState, MonadRWSE PEnv POut PState, MonadRWS PEnv POut PState
-    , MonadZero
     , MonadMaybeI, MonadMaybeE, MonadMaybe
     )
 runPrettyT :: (Functor m) => PEnv -> PState -> PrettyT m a -> m (a, POut, PState)
 runPrettyT e s = runRWST e s . unPrettyT
 type Doc = PrettyT Maybe ()
+
+deriving instance (MonadZero m) => MonadZero (PrettyT m)
 
 execPretty0 :: Doc -> POut
 execPretty0 d =

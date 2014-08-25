@@ -55,7 +55,7 @@ var δ μ x = do
   useMaybeZero $ index s *$ index e $ x
 
 atom :: (Analysis δ μ m) => P δ -> μ -> RAtom -> m δ μ (Val δ μ)
-atom δ _ (LitA l) = return $ lit δ l
+atom δ _ (Lit l) = return $ lit δ l
 atom δ μ (Var x) = var δ μ x
 atom δ μ (Prim o a) = do
   op δ o <$> atom δ μ a
@@ -116,7 +116,7 @@ freeVarsLam :: (Analysis δ μ m) => P δ -> μ -> P m -> [RName] -> Call RName 
 freeVarsLam δ μ m xs c = freeVarsCall δ μ m c \-\ sset xs
 
 freeVarsAtom :: (Analysis δ μ m) => P δ -> μ -> P m -> RAtom -> Set RName
-freeVarsAtom _ _ _ (LitA _) = bot
+freeVarsAtom _ _ _ (Lit _) = bot
 freeVarsAtom _ _ _ (Var x) = ssingleton x
 freeVarsAtom δ μ m (Prim _ a) = freeVarsAtom δ μ m a
 freeVarsAtom δ μ m (Lam xs c) = freeVarsLam δ μ m xs $ rCall c
@@ -130,17 +130,17 @@ callTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Env μ -> Call RName R
 callTouched δ μ m e c = closureTouched δ μ m e [] c
 
 closureTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Env μ -> [RName] -> Call RName RCall -> Set (Addr μ)
-closureTouched δ μ m e xs c = useMaybeSet . index (runEnv e) *$~ freeVarsLam δ μ m xs c
+closureTouched δ μ m e xs c = useMaybeSet . index (runEnv e) *$ freeVarsLam δ μ m xs c
 
 addrTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Store δ μ -> Addr μ -> Set (Addr μ)
 addrTouched δ μ m s l = 
-  let clos = elimClo δ *$~ useMaybeSet . index (runStore s) $ l
-  in clos >>=~ \ (Clo xs c e _) -> closureTouched δ μ m e xs $ rCall c
+  let clos = elimClo δ *$ useMaybeSet . index (runStore s) $ l
+  in clos >>= \ (Clo xs c e _) -> closureTouched δ μ m e xs $ rCall c
 
 gc :: Action RCall
 gc δ μ m c = do
   e <- getP $ envP μ
   s <- getP $ storeP δ μ
-  let live = collect (cextend $ addrTouched δ μ m s) $ callTouched δ μ m e $ rCall c
+  let live = collect (extend $ addrTouched δ μ m s) $ callTouched δ μ m e $ rCall c
   modifyL (storeL δ μ) $ ponlyKeys live
   return c

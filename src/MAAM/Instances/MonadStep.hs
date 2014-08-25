@@ -3,6 +3,8 @@ module MAAM.Instances.MonadStep where
 import FP
 import MAAM.Classes.MonadStep
 
+-- ID {{{
+
 instance MonadStep ID where
   type SS ID = ID
   type SSC ID = Universal
@@ -11,30 +13,9 @@ instance MonadStep ID where
   munit :: (SSC ID a) => P ID -> a -> SS ID a
   munit P = ID
 
-instance (MonadStep m, Functorial JoinLattice m) => MonadStep (ListSetT m) where
-  type SS (ListSetT m) = SS m :.: Set
-  type SSC (ListSetT m) = Ord ::*:: (SSC m ::.:: Set)
-  mstep :: (SSC (ListSetT m) a, SSC (ListSetT m) b) => (a -> ListSetT m b) -> (SS (ListSetT m) a -> SS (ListSetT m) b)
-  mstep f = mapCompose $ mstep $ mmap sset . runListSetT . msums . map f . toList
-  munit :: (SSC (ListSetT m) a) => P (ListSetT m) -> a -> SS (ListSetT m) a
-  munit P = Compose . munit (P :: P m) . ssingleton
+-- }}}
 
-newtype ForkT m a = ForkT { runForkT :: ListSetT m a }
-  deriving (Unit, Functor)
-deriving instance (Monad m, Functorial JoinLattice m) => Applicative (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m) => Monad (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m) => MonadZero (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m) => MonadPlus (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m, MonadStateE s m, JoinLattice s) => MonadStateE s (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m, MonadStateI s m, JoinLattice s) => MonadStateI s (ForkT m)
-deriving instance (Monad m, Functorial JoinLattice m, MonadState s m, JoinLattice s) => MonadState s (ForkT m)
-instance (MonadStep m, Functorial JoinLattice m, CFunctorM (SSC m) (SS m)) => MonadStep (ForkT m) where
-  type SS (ForkT m) = Set :.: SS m
-  type SSC (ForkT m) = (Ord ::.:: SS m) ::*:: SSC m ::*:: (SSC m ::.:: ListSet)
-  mstep :: (SSC (ForkT m) a, SSC (ForkT m) b) => (a -> ForkT m b) -> (SS (ForkT m) a -> SS (ForkT m) b)
-  mstep f = mapCompose $ cextend $ sset . runListSet . csequence . mstep (runListSetT . runForkT . f)
-  munit :: (SSC (ForkT m) a) => P (ForkT m) -> a -> SS (ForkT m) a
-  munit P = Compose . ssingleton . munit (P :: P m)
+-- State {{{
 
 newtype PairWith s a = PairWith { runPairWith :: (a, s) }
   deriving (Eq, Ord, PartialOrder, HasBot, JoinLattice)
@@ -46,7 +27,7 @@ instance Functor (PairWith s) where
   map = mapPairWith . mapFst
 instance FunctorM (PairWith s) where
   mapM = mapPairWithM . mapFstM
-instance (MonadStep m, HasBot s) => MonadStep (StateT s m) where
+instance (MonadStep m, Functor m, HasBot s) => MonadStep (StateT s m) where
   type SS (StateT s m) = SS m :.: PairWith s
   type SSC (StateT s m) = SSC m ::.:: PairWith s
   mstep :: forall a b. (SSC (StateT s m) a, SSC (StateT s m) b) => (a -> StateT s m b) -> (SS (StateT s m) a -> SS (StateT s m) b)
@@ -54,3 +35,67 @@ instance (MonadStep m, HasBot s) => MonadStep (StateT s m) where
      mstep $ \ (runPairWith -> (a, s)) -> map PairWith $ unStateT (f a) s
   munit :: forall a. (SSC (StateT s m) a) => P (StateT s m) -> a -> SS (StateT s m) a
   munit P = Compose . munit (P :: P m) . PairWith . (, bot)
+
+-- }}}
+
+-- Flow Insensitive {{{
+
+instance (MonadStep m, Functor m, Functorial JoinLattice m) => MonadStep (ListSetT m) where
+  type SS (ListSetT m) = SS m :.: Set
+  type SSC (ListSetT m) = Ord ::*:: (SSC m ::.:: Set)
+  mstep :: (SSC (ListSetT m) a, SSC (ListSetT m) b) => (a -> ListSetT m b) -> SS (ListSetT m) a -> SS (ListSetT m) b
+  mstep f = mapCompose $ mstep $ map sset . runListSetT . msums . map f . toList
+  munit :: (SSC (ListSetT m) a) => P (ListSetT m) -> a -> SS (ListSetT m) a
+  munit P = Compose . munit (P :: P m) . cunit
+
+instance (MonadStep m, Functorial JoinLattice m) => MonadStep (SetT m) where
+  type SS (SetT m) = SS m :.: Set
+  type SSC (SetT m) = Ord ::*:: (SSC m ::.:: Set)
+  mstep :: (SSC (SetT m) a, SSC (SetT m) b) => (a -> SetT m b) -> SS (SetT m) a -> SS (SetT m) b
+  mstep f = mapCompose $ mstep $ runSetT . msums . map f . toList
+  munit :: (SSC (SetT m) a) => P (SetT m) -> a -> SS (SetT m) a
+  munit P = Compose . munit (P :: P m) . cunit
+
+-- }}}
+
+-- Flow Sensitive, Path Insensitive {{{
+
+newtype ForkLT m a = ForkLT { runForkLT :: ListSetT m a }
+  deriving (Unit, Functor)
+deriving instance (Monad m, Functorial JoinLattice m) => Applicative (ForkLT m)
+deriving instance (Bind m, Functorial JoinLattice m) => Bind (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m) => Product (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m) => Monad (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m) => MonadZero (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m) => MonadPlus (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m, MonadStateE s m, JoinLattice s) => MonadStateE s (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m, MonadStateI s m, JoinLattice s) => MonadStateI s (ForkLT m)
+deriving instance (Monad m, Functorial JoinLattice m, MonadState s m, JoinLattice s) => MonadState s (ForkLT m)
+instance (MonadStep m, Functorial JoinLattice m, CFunctorM (SSC m) (SS m)) => MonadStep (ForkLT m) where
+  type SS (ForkLT m) = Set :.: SS m
+  type SSC (ForkLT m) = (Ord ::.:: SS m) ::*:: SSC m ::*:: (SSC m ::.:: ListSet)
+  mstep :: forall a b. (SSC (ForkLT m) a, SSC (ForkLT m) b) => (a -> ForkLT m b) -> (SS (ForkLT m) a -> SS (ForkLT m) b)
+  mstep f = mapCompose $ extend $ fromList . runListSet . csequence . mstep (runListSetT . runForkLT . f)
+  munit :: (SSC (ForkLT m) a) => P (ForkLT m) -> a -> SS (ForkLT m) a
+  munit P = Compose . ssingleton . munit (P :: P m)
+
+-- newtype ForkST m a = ForkST { runForkST :: SetT m a }
+-- -- deriving instance (Applicative m, Functorial JoinLattice m) => Applicative (ForkST m)
+-- deriving instance (Bind m, Functorial JoinLattice m) => Bind (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m) => Product (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m) => Monad (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m) => MonadZero (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m) => MonadPlus (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m, MonadStateE s m, JoinLattice s) => MonadStateE s (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m, MonadStateI s m, JoinLattice s) => MonadStateI s (ForkST m)
+-- -- deriving instance (Monad m, Functorial JoinLattice m, MonadState s m, JoinLattice s) => MonadState s (ForkST m)
+-- instance (MonadStep m, Functorial JoinLattice m, CFunctorM (SSC m) (SS m)) => MonadStep (ForkST m) where
+--   type SS (ForkST m) = Set :.: SS m
+--   type SSC (ForkST m) = (Ord ::.:: SS m) ::*:: SSC m ::*:: (SSC m ::.:: Set) ::*:: (SSC m ::.:: [])
+--   mstep :: forall a b. (SSC (ForkST m) a, SSC (ForkST m) b) => (a -> ForkST m b) -> (SS (ForkST m) a -> SS (ForkST m) b)
+--   mstep f = mapCompose $ extend $ fromList . csequence . (cmap toList :: SS m (Set b) -> SS m [b]) . mstep (runSetT . runForkST . f)
+--   munit :: (SSC (ForkST m) a) => P (ForkST m) -> a -> SS (ForkST m) a
+--   munit P = Compose . ssingleton . munit (P :: P m)
+
+-- }}}
+
