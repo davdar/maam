@@ -2,6 +2,7 @@ module MAAM.Instances.Temporal where
 
 import FP
 import MAAM.Classes.Temporal
+import qualified FP.Pretty as P
 
 --------------
 -- Concrete --
@@ -21,6 +22,12 @@ instance Temporal Cτ where
 data Zτ = Zτ
 
 data Zero a = Zero
+  deriving (Eq, Ord)
+instance Pretty (Zero a) where
+  pretty Zero = P.lit "∙"
+instance Functorial Eq Zero where functorial = W
+instance Functorial Ord Zero where functorial = W
+instance Functorial Pretty Zero where functorial = W
 
 instance Temporal Zτ where
   type Time Zτ = Zero

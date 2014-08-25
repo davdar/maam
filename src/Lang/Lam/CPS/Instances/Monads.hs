@@ -1,8 +1,8 @@
-module Lang.CPS.Instances.Monads where
+module Lang.Lam.CPS.Instances.Monads where
 
 import FP
 import MAAM
-import Lang.CPS.Classes.Delta
+import Lang.Lam.CPS.Classes.Delta
 
 -----------------------------------------
 -- Flow Sensitive Path Sensitive Monad --

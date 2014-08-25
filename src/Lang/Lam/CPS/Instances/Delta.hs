@@ -1,10 +1,10 @@
-module Lang.CPS.Instances.Delta where
+module Lang.Lam.CPS.Instances.Delta where
 
 import FP
 import MAAM
-import Lang.CPS.Syntax
-import Lang.CPS.Classes.Delta
+import Lang.Lam.CPS.Classes.Delta
 import qualified FP.Pretty as P
+import Lang.Lam.Syntax (Lit(..), coerceI, coerceB, Op(..))
 
 --------------
 -- Concrete --

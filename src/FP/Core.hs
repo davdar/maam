@@ -665,6 +665,12 @@ next = do
   put $ psuc i
   return i
 
+nextL :: (MonadStateE s m, Peano a) => Lens s a -> m a
+nextL l = do
+  i <- getL l
+  putL l $ psuc i
+  return i
+
 class (CMonad c m) => CMonadStateI c s m | m -> c where
   cstateI :: (m ~>~ StateT s m) c
 class (CMonad c m) => CMonadStateE c s m | m -> c where
@@ -826,17 +832,17 @@ class (Monad m, TransformerMorphism (k r) (K r)) => MonadIsoKonE k r m | m -> k,
   isoKonE :: IsoKonT k r m ~> m
 class (MonadIsoKonI k r m, MonadIsoKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadIsoKon k r m | m -> k, m -> r where
 
-callObjectCC :: (MonadIsoKonE k r m) => (k r m a -> m r) -> m a
-callObjectCC = isoKonE . IsoKonT
+callOpaqueCC :: (MonadIsoKonE k r m) => (k r m a -> m r) -> m a
+callOpaqueCC = isoKonE . IsoKonT
 
 callMetaCC :: (MonadIsoKonE k r m) => ((a -> m r) -> m r) -> m a
-callMetaCC mk = callObjectCC $ \ ok -> mk $ runK $ ffmorph ok
+callMetaCC mk = callOpaqueCC $ \ ok -> mk $ runK $ ffmorph ok
 
-withObjectC :: (MonadIsoKonI k r m) => k r m a -> m a -> m r
-withObjectC k aM = runIsoKonT (isoKonI aM) k
+withOpaqueC :: (MonadIsoKonI k r m) => k r m a -> m a -> m r
+withOpaqueC k aM = runIsoKonT (isoKonI aM) k
 
 withMetaC :: (MonadIsoKonI k r m) => (a -> m r) -> m a -> m r
-withMetaC k = withObjectC $ ffmorph $ K k
+withMetaC k = withOpaqueC $ ffmorph $ K k
 
 isoReset :: (MonadIsoKon k r m) => m r -> m r
 isoReset aM = callMetaCC $ \ k -> k *$ withMetaC return aM
@@ -1075,6 +1081,9 @@ maybe :: (a -> b) -> b -> Maybe a -> b
 maybe _ i Nothing = i
 maybe f _ (Just a) = f a
 
+maybeOn :: Maybe a -> b -> (a -> b) -> b
+maybeOn = mirror maybe
+
 -- }}}
 
 -- Set {{{
@@ -1258,6 +1267,18 @@ instance ToString Integer where
 
 -- IO {{{
 
+instance Unit IO where
+  unit = Prelude.return
+instance Functor IO where
+  map = mmap
+instance Applicative IO where
+  (<@>) = mapply
+instance Product IO where
+  (<*>) = mpair
+instance Bind IO where
+  (>>=) = (Prelude.>>=)
+instance Monad IO where
+
 print :: String -> IO ()
 print = Prelude.putStrLn . toChars
 
@@ -1308,6 +1329,9 @@ set l = update l . const
 -- }}} --
 
 -- List {{{
+
+instance Functorial Eq [] where functorial = W
+instance Functorial Ord [] where functorial = W
 
 instance Functor [] where
   map _ [] = []
@@ -1442,6 +1466,23 @@ data Annotated ann a = Annotated
 
 -- Fix {{{
 
+data Stamped a f = Stamped
+  { stampedID :: a
+  , stamped :: f
+  }
+instance (Eq a) => Eq (Stamped a f) where
+  (==) = (==) `on` stampedID
+instance (Ord a) => Ord (Stamped a f) where
+  compare = compare `on` stampedID
+
 newtype Fix f = Fix { runFix :: f (Fix f) }
+data StampedFix a f = StampedFix
+  { stampedFixID :: a
+  , stampedFix :: f (StampedFix a f)
+  } 
+instance (Eq a) => Eq (StampedFix a f) where
+  (==) = (==) `on` stampedFixID
+instance (Ord a) => Ord (StampedFix a f) where
+  compare = compare `on` stampedFixID
 
 -- }}}

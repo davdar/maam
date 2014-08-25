@@ -1,15 +1,16 @@
-module Lang.CPS.Analyses where
+module Lang.Lam.CPS.Analyses where
 
 import FP
 import MAAM
-import Lang.CPS.Classes.Delta
-import Lang.CPS.Syntax
-import Lang.CPS.Instances.Delta
-import Lang.CPS.Instances.Monads
-import Lang.CPS.Semantics
+import Lang.Lam.CPS.Classes.Delta
+import Lang.Lam.CPS.Syntax
+import Lang.Lam.CPS.Instances.Delta
+import Lang.Lam.CPS.Instances.Monads
+import Lang.Lam.CPS.MonadicSemantics
 import qualified FP.Pretty as P
+import Lang.Lam.Syntax (SGName)
 
-actions :: [(String, Action RCall)]
+actions :: [(String, Action (Call SGName))]
 actions = 
   [ ( "naive" , none )
   , ( "gc"   , gc   )
@@ -23,7 +24,7 @@ hybridμs =
   , ( "1o1kCFA" , KHybridμ 1 1 )
   ]
 
-monads :: [(String, KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ)]
+monads :: [(String, KHybridμ -> Action (Call SGName) -> (Call SGName) -> Store Aδ KHybridμ)]
 monads =
   [ ( "FSPS" , hybridFSPS)
   , ( "FSPI" , hybridFSPI)
@@ -31,31 +32,31 @@ monads =
   ]
 
 
-concrete_SS :: Action RCall -> RCall -> Set (RCall, FSPSΣ Cδ Cμ)
+concrete_SS :: Action (Call SGName) -> (Call SGName) -> Set ((Call SGName), FSPSΣ Cδ Cμ)
 concrete_SS = runFSPS_SS .: execCollectWith cδ Cμ fspsm
 
-concrete :: Action RCall -> RCall -> Store Cδ Cμ
+concrete :: Action (Call SGName) -> (Call SGName) -> Store Cδ Cμ
 concrete = (joins . cmap (fspsσ . snd)) .: concrete_SS
 
-hybridFSPS_SS :: KHybridμ -> Action RCall -> RCall -> Set (RCall, FSPSΣ Aδ KHybridμ)
+hybridFSPS_SS :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> Set ((Call SGName), FSPSΣ Aδ KHybridμ)
 hybridFSPS_SS μ = runFSPS_SS .: execCollectWith aδ μ fspsm
 
-hybridFSPS :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
+hybridFSPS :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> Store Aδ KHybridμ
 hybridFSPS = (joins . cmap (fspsσ . snd)) ..: hybridFSPS_SS
 
-hybridFSPI_SS :: KHybridμ -> Action RCall -> RCall -> Set ((RCall, FSPIΣ KHybridμ), Store Aδ KHybridμ)
+hybridFSPI_SS :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> Set (((Call SGName), FSPIΣ KHybridμ), Store Aδ KHybridμ)
 hybridFSPI_SS μ = runFSPI_SS .: execCollectWith aδ μ fspim
 
-hybridFSPI :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
+hybridFSPI :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> Store Aδ KHybridμ
 hybridFSPI = (joins . cmap snd) ..: hybridFSPI_SS
 
-hybridFI_SS :: KHybridμ -> Action RCall -> RCall -> (Set (RCall, FIΣ KHybridμ), Store Aδ KHybridμ)
+hybridFI_SS :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> (Set ((Call SGName), FIΣ KHybridμ), Store Aδ KHybridμ)
 hybridFI_SS μ = runFI_SS .: execCollectWith aδ μ fim
 
-hybridFI :: KHybridμ -> Action RCall -> RCall -> Store Aδ KHybridμ
+hybridFI :: KHybridμ -> Action (Call SGName) -> (Call SGName) -> Store Aδ KHybridμ
 hybridFI = snd ..: hybridFI_SS
 
-all :: [(String, RCall -> Doc)]
+all :: [(String, (Call SGName) -> Doc)]
 all = 
   do
     (actionS, action) <- actions
@@ -67,7 +68,7 @@ all =
     (μS, μ) <- hybridμs
     return $ (monadS ++ ":" ++ μS ++ ":" ++ actionS, pretty . monad μ action)
 
-runEach :: [(String, RCall -> Doc)] -> RCall -> Doc
+runEach :: [(String, (Call SGName) -> Doc)] -> (Call SGName) -> Doc
 runEach cfgs r =  do
   P.heading "Program:"
   P.newline

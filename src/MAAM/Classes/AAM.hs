@@ -10,13 +10,32 @@ class (Temporal (LexicalTemporal μ), Temporal (DynamicTemporal μ)) => AAM μ w
   dynamic :: μ -> DynamicTemporal μ
 
 newtype LexicalTime μ ψ = LexicalTime { runLexicalTime :: Time (LexicalTemporal μ) ψ }
-deriving instance (Eq (Time (LexicalTemporal μ) ψ)) => Eq (LexicalTime μ ψ)
-deriving instance (Ord (Time (LexicalTemporal μ) ψ)) => Ord (LexicalTime μ ψ)
-deriving instance (Pretty (Time (LexicalTemporal μ) ψ)) => Pretty (LexicalTime μ ψ)
-newtype DynamicTime μ ψ = DynamicTime { runDynamicTime :: Time (DynamicTemporal μ) ψ }
-deriving instance (Eq (Time (DynamicTemporal μ) ψ)) => Eq (DynamicTime μ ψ)
-deriving instance (Ord (Time (DynamicTemporal μ) ψ)) => Ord (DynamicTime μ ψ)
-deriving instance (Pretty (Time (DynamicTemporal μ) ψ)) => Pretty (DynamicTime μ ψ)
+instance (AAM μ, Eq ψ) => Eq (LexicalTime μ ψ) where
+  (==) = 
+    with (functorial :: W (Eq (Time (LexicalTemporal μ) ψ))) $
+    (==) `on` runLexicalTime
+instance (AAM μ, Ord ψ) => Ord (LexicalTime μ ψ) where
+  compare = 
+    with (functorial :: W (Ord (Time (LexicalTemporal μ) ψ))) $
+    compare `on` runLexicalTime
+instance (AAM μ, Pretty ψ) => Pretty (LexicalTime μ ψ) where
+  pretty = 
+    with (functorial :: W (Pretty (Time (LexicalTemporal μ) ψ))) $
+    pretty . runLexicalTime
+
+newtype DynamicTime μ ψ = DynamicTime { runDynamicTime :: Time (DynamicTemporal μ) (LexicalTime μ ψ) }
+instance (AAM μ, Eq ψ) => Eq (DynamicTime μ ψ) where
+  (==) =
+    with (functorial :: W (Eq (Time (DynamicTemporal μ) (LexicalTime μ ψ)))) $
+    (==) `on` runDynamicTime
+instance (AAM μ, Ord ψ) => Ord (DynamicTime μ ψ) where
+  compare =
+    with (functorial :: W (Ord (Time (DynamicTemporal μ) (LexicalTime μ ψ)))) $
+    compare `on` runDynamicTime
+instance (AAM μ, Pretty ψ) => Pretty (DynamicTime μ ψ) where
+  pretty =
+    with (functorial :: W (Pretty (Time (DynamicTemporal μ) (LexicalTime μ ψ)))) $
+    pretty . runDynamicTime
 
 lexicalTimeP :: μ -> P ψ -> P (LexicalTime μ ψ)
 lexicalTimeP _ P = P
@@ -25,5 +44,5 @@ lexicalTimeL _ P = isoLens runLexicalTime LexicalTime
 
 dynamicTimeP :: μ -> P ψ -> P (DynamicTime μ ψ)
 dynamicTimeP _ P = P
-dynamicTimeL :: μ -> P ψ -> Lens (DynamicTime μ ψ) (Time (DynamicTemporal μ) ψ)
+dynamicTimeL :: μ -> P ψ -> Lens (DynamicTime μ ψ) (Time (DynamicTemporal μ) (LexicalTime μ ψ))
 dynamicTimeL _ P = isoLens runDynamicTime DynamicTime

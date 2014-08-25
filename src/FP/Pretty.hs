@@ -217,10 +217,6 @@ collection open close sep (x:xs) = group $ do
     pun sep >> whenBreak (space 1) >> align x' >> whenBreak newline
   pun close
 
--- }}}
-
--- Instances {{{
-
 keyFmt :: Format
 keyFmt = setFG 3 ++ setBD ++ setUL
 
@@ -263,6 +259,27 @@ headingFmt = setFG 5 ++ setBD ++ setUL
 heading :: (MonadPretty m) => String -> m ()
 heading = format headingFmt . text
 
+-- }}}
+
+-- No Format {{{
+
+formatChunk :: Chunk -> String
+formatChunk (Text s) = s
+formatChunk Newline = "\n"
+
+noFormatOut :: POut -> String
+noFormatOut (MonoidFunctorElem o) = formatChunk o
+noFormatOut MFNull = ""
+noFormatOut (o1 :+++: o2) = noFormatOut o1 ++ noFormatOut o2
+noFormatOut (MFApply (_, o)) = noFormatOut o
+
+ptoString :: (Pretty a) => a -> String
+ptoString = noFormatOut . execPretty0 . pretty
+
+-- }}}
+
+-- Instances {{{
+
 instance Pretty Bool where
   pretty = lit . toString
 instance Pretty Int where
@@ -284,11 +301,19 @@ instance (Pretty a, Pretty b) => Pretty (a :+: b) where
   prettyParen = parens . pretty
 instance (Pretty a) => Pretty [a] where
   pretty = collection "[" "]" "," . map pretty
+instance Functorial Pretty [] where functorial = W
 instance (Pretty a) => Pretty (Set a) where
   pretty = collection "{" "}" "," . map pretty . toList
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . toList
     where
       prettyMapping (k, v) = app (pretty k >> space 1 >> pun "=>") [pretty v]
+
+instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
+  pretty (Stamped a f) = pun (ptoString a) >> pun ":" >> pretty f
+instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
+  pretty (StampedFix a f) = 
+    with (functorial :: W (Pretty (f (StampedFix a f)))) $
+    pun (ptoString a) >> pun ":" >> pretty f
 
 -- }}}

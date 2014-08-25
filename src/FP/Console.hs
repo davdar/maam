@@ -41,21 +41,11 @@ applyFormat (Format fg bg ul bd) s = concat
   , sgrCloser
   ]
 
-formatChunk :: Chunk -> String
-formatChunk (Text s) = s
-formatChunk Newline = "\n"
-
 formatOut :: POut -> String
 formatOut (MonoidFunctorElem o) = formatChunk o
 formatOut MFNull = ""
 formatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2
 formatOut (MFApply (fmt, o)) = applyFormat fmt $ formatOut o
-
-noFormatOut :: POut -> String
-noFormatOut (MonoidFunctorElem o) = formatChunk o
-noFormatOut MFNull = ""
-noFormatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2
-noFormatOut (MFApply (_, o)) = formatOut o
 
 pprint :: (Pretty a) => a -> IO ()
 pprint = print . formatOut . execPretty0 . pretty

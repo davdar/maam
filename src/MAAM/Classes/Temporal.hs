@@ -2,7 +2,7 @@ module MAAM.Classes.Temporal where
 
 import FP
 
-class Temporal τ where
-  type Time τ :: * -> *
-  tzero :: P τ -> Time τ ψ
-  tick :: τ -> ψ -> Time τ ψ -> Time τ ψ
+class (Functorial Eq (Time θ), Functorial Ord (Time θ), Functorial Pretty (Time θ)) => Temporal θ where
+  type Time θ :: * -> *
+  tzero :: P θ -> Time θ ψ
+  tick :: θ -> ψ -> Time θ ψ -> Time θ ψ

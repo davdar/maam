@@ -1,16 +1,18 @@
-module Lang.CPS.Classes.Delta where
+module Lang.Lam.CPS.Classes.Delta where
 
 import FP
 import MAAM
-import Lang.CPS.Syntax
+import Lang.Lam.CPS.Syntax
 import qualified FP.Pretty as P
+import Lang.Lam.CPS.Instances.PrettySyntax
+import Lang.Lam.Syntax (SGName, Lit(..), Op(..))
 
 type Ψ = Int
 ψ :: P Ψ
 ψ = P
 
 data Addr μ = Addr
-  { addrLocation :: RName
+  { addrLocation :: SGName
   , addrLexicalTime :: LexicalTime μ Ψ
   , addrDynamicTime :: DynamicTime μ Ψ
   }
@@ -19,14 +21,14 @@ deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Add
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Addr μ) where
   pretty (Addr loc lτ dτ) = P.collection "<" ">" "," [pretty loc, pretty lτ, pretty dτ]
 
-newtype Env μ = Env { runEnv :: Map RName (Addr μ) }
+newtype Env μ = Env { runEnv :: Map SGName (Addr μ) }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Env μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Env μ)
 deriving instance HasBot (Env μ)
 deriving instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Env μ)
 envP :: μ -> P (Env μ)
 envP _ = P
-envL :: μ -> Lens (Env μ) (Map RName (Addr μ))
+envL :: μ -> Lens (Env μ) (Map SGName (Addr μ))
 envL _ = isoLens runEnv Env
 
 newtype Store δ μ = Store { runStore :: Map (Addr μ) (Val δ μ) }
@@ -42,15 +44,15 @@ storeL :: P δ -> μ -> Lens (Store δ μ) (Map (Addr μ) (Val δ μ))
 storeL P _ = isoLens runStore Store
 
 data Clo μ = Clo 
-  { cloArgs :: [RName]
-  , cloCall :: RCall
+  { cloArgs :: [SGName]
+  , cloCall :: Call SGName
   , cloEnv :: Env μ
   , cloTime :: LexicalTime μ Ψ
   } 
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Clo μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Clo μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Clo μ) where
-  pretty (Clo xs c ρ lτ) = P.collection "<" ">" "," [pretty $ Lam xs c, pretty ρ, pretty lτ]
+  pretty (Clo xs c ρ lτ) = P.collection "<" ">" "," [pretty $ prettyLam xs c, pretty ρ, pretty lτ]
 
 class Delta δ where
   type Val δ :: * -> *
