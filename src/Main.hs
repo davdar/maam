@@ -2,20 +2,19 @@ module Main where
 
 import FP
 import Lang.Lam
+import qualified FP.Pretty as P
 
--- p0 :: SCall
--- p0 = 
---   ( letAtom "f" 
---       (lam "x" "k" $ v "k" @# v "x") 
---   $ letAtom "g" 
---       (lam "x" "k" 
---          $ letApp "y" (v "f") (v "x") 
---          $ v "k" @# v "y")
---   $ ifc true
---       ( letApp "x" (v "g") (int 1) 
---       $ halt $ v "x")
---       ( letApp "x" (v "f") (int 1) 
---       $ halt $ v "x"))
+p0 :: Exp
+p0 = 
+  llet "id" (lam "x" $ v "x") $
+  v "id" @# int 1
 
 main :: IO ()
-main = return () -- pprint $ runEach all $ sr p0
+main = do
+  let (e, c) = stampCPS p0
+  pprint $ do
+    P.heading "Direct Style"
+    pretty e
+    P.newline >> P.heading "CPS"
+    pretty c
+    

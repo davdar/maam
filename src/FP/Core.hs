@@ -101,6 +101,7 @@ ffrom = fmorph
 class TransformerMorphism t u where
   ffmorph :: (Monad m) => t m ~> u m
 class (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
+instance (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
 ffto :: (TransformerIsomorphism t u, Monad m) => t m ~> u m
 ffto = ffmorph
 fffrom :: (TransformerIsomorphism t u, Monad m) => u m ~> t m
@@ -481,29 +482,29 @@ extend = flip (>>=)
 (*.) :: (Bind m) => (b -> m c) -> (a -> m b) -> (a -> m c)
 (g *. f) x = g *$ f x
 
-mmap :: (Monad m) => (a -> b) -> m a -> m b
+mmap :: (Bind m, Unit m) => (a -> b) -> m a -> m b
 mmap f aM = do
   a <- aM
-  return $ f a
+  unit $ f a
 
-mpair :: (Monad m) => m a -> m b -> m (a, b)
+mpair :: (Bind m, Unit m) => m a -> m b -> m (a, b)
 mpair aM bM = do
   a <- aM
   b <- bM
-  return (a, b)
+  unit (a, b)
 
-mapply :: (Monad m) => m (a -> b) -> m a -> m b
+mapply :: (Bind m, Unit m) => m (a -> b) -> m a -> m b
 mapply fM aM = do
   f <- fM
   a <- aM
-  return $ f a
+  unit $ f a
 
-mjoin :: (Monad m) => m (m a) -> m a
+mjoin :: (Bind m) => m (m a) -> m a
 mjoin = extend id
 
-when :: (Monad m) => Bool -> m () -> m ()
+when :: (Unit m) => Bool -> m () -> m ()
 when True = id
-when False = const $ return ()
+when False = const $ unit ()
 
 -- class CBind c m | m -> c where
 --   (>>=~) :: (c a, c b) => m a -> (a -> m b) -> m b
@@ -542,10 +543,10 @@ class MonadCounit t where
   mtCounit :: (Monad m) => t (t m) ~> t m
 
 class MonadFunctor t where
-  mtMap :: (m ~> n) -> t m ~> t n
+  mtMap :: (Monad m, Monad n) => (m ~> n) -> t m ~> t n
 
 class MonadIsoFunctor t where
-  mtIsoMap :: (m ~> n, n ~> m) -> t m ~> t n
+  mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> t m ~> t n
 
 
 -- }}}
@@ -822,29 +823,32 @@ reset aM = callCC $ \ k -> k *$ withC return aM
 
 -- }}}
 
--- MonadIsoKon {{{
+-- MonadOpaqueKon {{{
 
 newtype K r m a = K { runK :: a -> m r }
-newtype IsoKonT k r m a = IsoKonT { runIsoKonT :: k r m a -> m r }
-class (Monad m, TransformerMorphism (K r) (k r)) => MonadIsoKonI k r m | m -> k, m -> r where
-  isoKonI :: m ~> IsoKonT k r m
-class (Monad m, TransformerMorphism (k r) (K r)) => MonadIsoKonE k r m | m -> k, m -> r where
-  isoKonE :: IsoKonT k r m ~> m
-class (MonadIsoKonI k r m, MonadIsoKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadIsoKon k r m | m -> k, m -> r where
+newtype OpaqueKonT k r m a = OpaqueKonT { runOpaqueKonT :: k r m a -> m r }
+class (Monad m, TransformerMorphism (K r) (k r)) => MonadOpaqueKonI k r m | m -> k, m -> r where
+  opaqueKonI :: m ~> OpaqueKonT k r m
+class (Monad m, TransformerMorphism (k r) (K r)) => MonadOpaqueKonE k r m | m -> k, m -> r where
+  opaqueKonE :: OpaqueKonT k r m ~> m
+class (MonadOpaqueKonI k r m, MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r m | m -> k, m -> r where
 
-callOpaqueCC :: (MonadIsoKonE k r m) => (k r m a -> m r) -> m a
-callOpaqueCC = isoKonE . IsoKonT
+-- opaqueReturn :: (Monad m, TransformerMorphism (K r) (k r)) => k r m r
+-- opaqueReturn = ffmorph $ K $ return
 
-callMetaCC :: (MonadIsoKonE k r m) => ((a -> m r) -> m r) -> m a
+callOpaqueCC :: (MonadOpaqueKonE k r m) => (k r m a -> m r) -> m a
+callOpaqueCC = opaqueKonE . OpaqueKonT
+
+callMetaCC :: (MonadOpaqueKonE k r m) => ((a -> m r) -> m r) -> m a
 callMetaCC mk = callOpaqueCC $ \ ok -> mk $ runK $ ffmorph ok
 
-withOpaqueC :: (MonadIsoKonI k r m) => k r m a -> m a -> m r
-withOpaqueC k aM = runIsoKonT (isoKonI aM) k
+withOpaqueC :: (MonadOpaqueKonI k r m) => k r m a -> m a -> m r
+withOpaqueC k aM = runOpaqueKonT (opaqueKonI aM) k
 
-withMetaC :: (MonadIsoKonI k r m) => (a -> m r) -> m a -> m r
+withMetaC :: (MonadOpaqueKonI k r m) => (a -> m r) -> m a -> m r
 withMetaC k = withOpaqueC $ ffmorph $ K k
 
-isoReset :: (MonadIsoKon k r m) => m r -> m r
+isoReset :: (MonadOpaqueKon k r m) => m r -> m r
 isoReset aM = callMetaCC $ \ k -> k *$ withMetaC return aM
 
 -- }}}

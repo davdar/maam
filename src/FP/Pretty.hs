@@ -310,10 +310,10 @@ instance (Pretty k, Pretty v) => Pretty (Map k v) where
       prettyMapping (k, v) = app (pretty k >> space 1 >> pun "=>") [pretty v]
 
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
-  pretty (Stamped a f) = pun (ptoString a) >> pun ":" >> pretty f
+  pretty (Stamped a f) = pretty a >> pun ":" >> pretty f
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $
-    pun (ptoString a) >> pun ":" >> pretty f
+    pretty a >> pun ":" >> pretty f
 
 -- }}}

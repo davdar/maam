@@ -9,5 +9,5 @@ module FP
 import FP.Core
 import FP.Free
 import FP.Monads
-import FP.Pretty (Pretty(..), Doc)
+import FP.Pretty (Pretty(..), Doc, ptoString)
 import FP.Console (pprint, pprintWidth)

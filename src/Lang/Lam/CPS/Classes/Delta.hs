@@ -5,9 +5,9 @@ import MAAM
 import Lang.Lam.CPS.Syntax
 import qualified FP.Pretty as P
 import Lang.Lam.CPS.Instances.PrettySyntax
-import Lang.Lam.Syntax (SGName, Lit(..), Op(..))
+import Lang.Lam.Syntax (SGName, Lit(..), Op(..), LocNum)
 
-type Ψ = Int
+type Ψ = LocNum
 ψ :: P Ψ
 ψ = P
 

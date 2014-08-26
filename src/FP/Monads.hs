@@ -20,7 +20,7 @@ mtPush aM = Trans $ Compose2 $ runTrans aM
 mtPop :: (t1 :..: t2) :@: m ~> t1 :@: t2 m
 mtPop aM = Trans $ runCompose2 $ runTrans aM
 
-mtzMap :: (MonadFunctor t) => (m ~> n) -> t :@: m ~> t :@: n
+mtzMap :: (MonadFunctor t, Monad m, Monad n) => (m ~> n) -> t :@: m ~> t :@: n
 mtzMap f aM = Trans $ mtMap f $ runTrans aM
 
 -- }}}
@@ -65,6 +65,11 @@ newtype IDT m a = IDT { runIDT :: m a }
 
 -- ReaderT {{{
 
+type Reader r = ReaderT r ID
+
+runReader :: r -> Reader r a -> a
+runReader r = runID . runReaderT r
+
 readerCommute :: ReaderT r1 (ReaderT r2 m) ~> ReaderT r2 (ReaderT r1 m)
 readerCommute aMM = ReaderT $ \ r2 -> ReaderT $ \ r1 -> runReaderT r2 $ runReaderT r1 aMM
 
@@ -88,7 +93,7 @@ instance MonadUnit (ReaderT r) where
 instance MonadCounit (ReaderT r) where
   mtCounit aMM = ReaderT $ \ r -> runReaderT r $ runReaderT r aMM
 instance MonadFunctor (ReaderT r) where
-  mtMap :: (m ~> n) -> (ReaderT r m ~> ReaderT r n)
+  mtMap :: (Monad m, Monad n) => (m ~> n) -> (ReaderT r m ~> ReaderT r n)
   mtMap f aM = ReaderT $ \ r -> f $ runReaderT r aM
 
 instance (Monad m) => MonadReaderI r (ReaderT r m) where
@@ -134,7 +139,7 @@ instance (Monoid w) => MonadUnit (WriterT w) where
 instance MonadCounit (WriterT w) where
   mtCounit = map fst . runWriterT
 instance MonadFunctor (WriterT w) where
-  mtMap :: (m ~> n) -> (WriterT w m ~> WriterT w n)
+  mtMap :: (Monad m, Monad n) => (m ~> n) -> (WriterT w m ~> WriterT w n)
   mtMap f aM = WriterT $ f $ runWriterT aM
 
 instance (Monad m, Monoid o) => MonadWriterI o (WriterT o m) where
@@ -201,7 +206,7 @@ instance MonadUnit (StateT s) where
 instance MonadCounit (StateT s) where
   mtCounit aMM = StateT $ \ s -> runStateT s $ fst <$> runStateT s aMM
 instance MonadFunctor (StateT s) where
-  mtMap :: (m ~> n) -> StateT s m ~> StateT s n
+  mtMap :: (Monad m, Monad n) => (m ~> n) -> StateT s m ~> StateT s n
   mtMap f aM = StateT $ f . unStateT aM
 
 instance (Monad m) => MonadStateI s (StateT s m) where
@@ -237,7 +242,7 @@ runRWST :: (Functor m) => r -> s -> RWST r o s m a -> m (a, o, s)
 runRWST r0 s0 = map ff . runStateT s0 . runWriterT . runReaderT r0 . unRWST
   where
     ff ((a, o), s) = (a, o, s)
-rwsCommute :: (Functor m, Monoid o1) => RWST r1 o1 s1 (RWST r2 o2 s2 m) ~> RWST r2 o2 s2 (RWST r1 o1 s1 m)
+rwsCommute :: (Monad m, Monoid o1, Monoid o2) => RWST r1 o1 s1 (RWST r2 o2 s2 m) ~> RWST r2 o2 s2 (RWST r1 o1 s1 m)
 rwsCommute =
   RWST
   . mtMap (mtMap rwsStateCommute . rwsWriterCommute)
@@ -259,7 +264,7 @@ instance (Monoid o) => MonadCounit (RWST r o s) where
     . mtMap (mtMap mtCounit . writerReaderCommute)
     . mtMap (mtMap (mtMap (mtMap mtCounit . stateWriterCommute) . stateReaderCommute))
     . unRWST . mtMap unRWST
-instance MonadFunctor (RWST r o s) where
+instance (Monoid o) => MonadFunctor (RWST r o s) where
   mtMap f = RWST . mtMap (mtMap (mtMap f)) . unRWST
 
 deriving instance (Monad m, Monoid o) => MonadReaderI r (RWST r o s m)
@@ -327,7 +332,7 @@ instance MonadCounit MaybeT where
       ff (Just Nothing) = Nothing
       ff (Just (Just a)) = Just a
 instance MonadFunctor MaybeT where
-  mtMap :: (m ~> n) -> MaybeT m ~> MaybeT n
+  mtMap :: (Monad m, Monad n) => (m ~> n) -> MaybeT m ~> MaybeT n
   mtMap f = MaybeT . f . runMaybeT
 
 instance (Monad m) => MonadMaybeI (MaybeT m) where
@@ -362,6 +367,10 @@ instance (Unit m) => Bind (KonT r m) where
   (>>=) :: KonT r m a -> (a -> KonT r m b) -> KonT r m b
   aM >>= kM = KonT $ \ (k :: b -> m r) -> runKonT aM $ \ a -> runKonT (kM a) k
 instance (Unit m) => Monad (KonT r m) where
+instance MonadIsoFunctor (KonT r) where
+  mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> KonT r m ~> KonT r n
+  mtIsoMap to from aM = KonT $ \ (k :: a -> n r) -> to $ runKonT aM $ \ a -> from $ k a
+
 instance (Monad m) => MonadKonI r (KonT r m) where
   konI :: KonT r m ~> KonT r (KonT r m)
   konI aM = KonT $ \ (k1 :: a -> KonT r m r) -> KonT $ \ (k2 :: r -> m r) ->
@@ -373,6 +382,64 @@ instance (Monad m) => MonadKonE r (KonT r m) where
         aM = runKonT aMM $ \ a -> KonT $ \ (k' :: r -> m r) -> k' *$ k a
     in runKonT aM return
 instance (Monad m) => MonadKon r (KonT r m) where
+
+-- }}}
+
+-- OpaqueKonT {{{
+
+runOpaqueKonTWith :: k r m a -> OpaqueKonT k r m a -> m r
+runOpaqueKonTWith = flip runOpaqueKonT
+makeMetaKonT :: (Monad m, TransformerMorphism (k r) (K r)) => ((a -> m r) -> m r) -> OpaqueKonT k r m a
+makeMetaKonT nk = OpaqueKonT $ \ (k :: k r m a) -> nk $ runK $ ffmorph k
+runMetaKonT :: (Monad m, TransformerMorphism (K r) (k r)) => OpaqueKonT k r m a -> (a -> m r) -> m r
+runMetaKonT aM k = runOpaqueKonT aM $ ffmorph $ K k
+runMetaKonTWith :: (Monad m, TransformerMorphism (K r) (k r)) => (a -> m r) -> OpaqueKonT k r m a -> m r
+runMetaKonTWith = flip runMetaKonT
+evalOpaqueKonT :: (Monad m, TransformerMorphism (K r) (k r)) => OpaqueKonT k r m r -> m r
+evalOpaqueKonT aM = runMetaKonT aM return
+
+type OpaqueKon k r = OpaqueKonT k r ID
+makeOpaqueKon :: (k r ID a -> r) -> OpaqueKon k r a
+makeOpaqueKon nk = OpaqueKonT $ ID . nk
+makeMetaKon :: (TransformerMorphism (k r) (K r)) => ((a -> r) -> r) -> OpaqueKon k r a
+makeMetaKon nk = makeOpaqueKon $ \ (k :: k r ID a) -> nk $ (.) runID . runK $ ffmorph k
+runOpaqueKon :: OpaqueKon k r a -> k r ID a -> r
+runOpaqueKon = runID .: runOpaqueKonT
+runMetaKon :: (TransformerMorphism (K r) (k r)) => OpaqueKon k r a -> (a -> r) -> r
+runMetaKon aM k = runOpaqueKon aM $ ffmorph $ K $ ID . k
+evalOpaqueKon :: (TransformerMorphism (K r) (k r)) => OpaqueKon k r r -> r
+evalOpaqueKon aM = runMetaKon aM id
+
+instance (Monad m, TransformerMorphism (k r) (K r)) => Unit (OpaqueKonT k r m) where
+  unit :: a -> OpaqueKonT k r m a
+  unit a = OpaqueKonT $ \ (k :: k r m a) -> runK (ffmorph k) a
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => Functor (OpaqueKonT k r m) where
+  map = mmap
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => Applicative (OpaqueKonT k r m) where
+  (<@>) = mapply
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => Product (OpaqueKonT k r m) where
+  (<*>) = mpair
+instance (Monad m, TransformerMorphism (K r) (k r)) => Bind (OpaqueKonT k r m) where
+  (>>=) :: OpaqueKonT k r m a -> (a -> OpaqueKonT k r m b) -> OpaqueKonT k r m b
+  aM >>= kM = OpaqueKonT $ \ (k :: k r m a) -> runMetaKonT aM $ \ a -> runOpaqueKonT (kM a) k
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => Monad (OpaqueKonT k r m) where
+instance (TransformerIsomorphism (k r) (K r)) => MonadIsoFunctor (OpaqueKonT k r) where
+  mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> OpaqueKonT k r m ~> OpaqueKonT k r n
+  mtIsoMap to from aM = makeMetaKonT $ \ (k :: a -> n r) -> to $ runMetaKonT aM $ \ a -> from $ k a
+  
+
+
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => MonadOpaqueKonI k r (OpaqueKonT k r m) where
+  opaqueKonI :: OpaqueKonT k r m ~> OpaqueKonT k r (OpaqueKonT k r m)
+  opaqueKonI aM = makeMetaKonT $ \ (k1 :: a -> OpaqueKonT k r m r) -> makeMetaKonT $ \ (k2 :: r -> m r) -> 
+    k2 *$ runMetaKonT aM $ \ a -> runMetaKonT (k1 a) return
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => MonadOpaqueKonE k r (OpaqueKonT k r m) where
+  opaqueKonE :: OpaqueKonT k r (OpaqueKonT k r m) ~> OpaqueKonT k r m
+  opaqueKonE aMM = makeMetaKonT $ \ (k :: a -> m r) ->
+    let aM :: OpaqueKonT k r m r
+        aM = runMetaKonT aMM $ \ a -> makeMetaKonT $ \ (k' :: r -> m r) -> k' *$ k a
+    in runMetaKonT aM return
+instance (Monad m, TransformerIsomorphism (K r) (k r)) => MonadOpaqueKon k r (OpaqueKonT k r m) where
 
 -- }}}
 
@@ -547,27 +614,7 @@ instance (Functorial JoinLattice m) => MonadPlus (SetT m) where
 
 -- }}}
 
-----------------------
--- Monads Commuting --
-----------------------
-
--- listSetTStateTCommute :: (Monad m) => ListSetT (StateT s m) a -> StateT s (ListSetT m) a
--- listSetTStateTCommute aSL = StateT $ \ s -> ListSetT $ do
---   (xs, s') <- unStateT (runListSetT aSL) s
---   return $ map (,s') xs
--- stateTListSetTCommute :: (Monad m, JoinLattice s) => StateT s (ListSetT m) a -> ListSetT (StateT s m) a
--- stateTListSetTCommute aLS = ListSetT $ StateT $ \ s -> do
---   xss <- runListSetT $ unStateT aLS s
---   let (xs, ss) = unzip $ runListSet xss
---   return (ListSet xs, joins ss)
-
--- instance (MonadStateI s m, Functorial JoinLattice m) => MonadStateI s (ListSetT m) where
---   stateI = listSetTStateTCommute . mtMap stateI
--- instance (MonadStateE s m, Functorial JoinLattice m, JoinLattice s) => MonadStateE s (ListSetT m) where
---   stateE = mtMap stateE . stateTListSetTCommute
--- instance (MonadState s m, Functorial JoinLattice m, JoinLattice s) => MonadState s (ListSetT m) where
-
--- {{{
+-- Monads Commuting {{{
 
 -- Reader // * {{{
 
@@ -648,6 +695,34 @@ instance (MonadReaderE r m) => MonadReaderE r (MaybeT m) where
   readerE :: ReaderT r (MaybeT m) ~> MaybeT m
   readerE = mtMap readerE . readerMaybeCommute
 instance (MonadReader r m) => MonadReader r (MaybeT m) where
+
+-- }}}
+
+-- Reader // OpaqueKonT {{{
+
+readerOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r (ReaderT e m)
+readerOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> ReaderT e m r) -> ReaderT $ \ e -> do
+  runMetaKonT (runReaderT e aSK) $ \ a -> runReaderT e $ k a
+
+opaqueKonReaderCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (ReaderT e m) ~> ReaderT e (OpaqueKonT k r m)
+opaqueKonReaderCommute aKS = ReaderT $ \ e -> makeMetaKonT $ \ (k :: a -> m r) -> do
+  runReaderT e $ runMetaKonT aKS $ \ a -> ReaderT $ \ _ -> k a
+
+instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (ReaderT e m) where
+  opaqueKonI :: ReaderT e m ~> OpaqueKonT k r (ReaderT e m)
+  opaqueKonI = readerOpaqueKonCommute . mtMap opaqueKonI
+instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (ReaderT e m) where
+  opaqueKonE :: OpaqueKonT k r (ReaderT e m) ~> ReaderT e m
+  opaqueKonE = mtMap opaqueKonE . opaqueKonReaderCommute
+instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (ReaderT e m) where
+
+instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderI e (OpaqueKonT k r m) where
+  readerI :: OpaqueKonT k r m ~> ReaderT e (OpaqueKonT k r m)
+  readerI = opaqueKonReaderCommute . mtIsoMap readerI readerE
+instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderE e (OpaqueKonT k r m) where
+  readerE :: ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r m
+  readerE = mtIsoMap readerE readerI . readerOpaqueKonCommute
+instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReader e (OpaqueKonT k r m) where
 
 -- }}}
 
@@ -735,7 +810,7 @@ instance (MonadReader r m) => MonadReader r (MaybeT m) where
 
 -- Reader // RWST {{{
 
-readerRWSCommute :: (Functor m) => ReaderT r1 (RWST r2 o s m) ~> RWST r2 o s (ReaderT r1 m)
+readerRWSCommute :: (Monad m, Monoid o) => ReaderT r1 (RWST r2 o s m) ~> RWST r2 o s (ReaderT r1 m)
 readerRWSCommute =
     RWST
   . mtMap 
@@ -745,7 +820,7 @@ readerRWSCommute =
   . readerCommute
   . mtMap unRWST
 
-rwsReaderCommute :: (Functor m) => RWST r1 o s (ReaderT r2 m) ~> ReaderT r2 (RWST r1 o s m)
+rwsReaderCommute :: (Monad m, Monoid o) => RWST r1 o s (ReaderT r2 m) ~> ReaderT r2 (RWST r1 o s m)
 rwsReaderCommute = 
     mtMap RWST
   . readerCommute
@@ -917,7 +992,7 @@ instance (Monoid w, MonadWriter w m) => MonadWriter w (MaybeT m) where
 
 -- Writer // RWST {{{
 
-writerRWSCommute :: (Monad m, Monoid o2) => WriterT o1 (RWST r o2 s m) ~> RWST r o2 s (WriterT o1 m)
+writerRWSCommute :: (Monad m, Monoid o1, Monoid o2) => WriterT o1 (RWST r o2 s m) ~> RWST r o2 s (WriterT o1 m)
 writerRWSCommute =
     RWST
   . mtMap 
@@ -927,7 +1002,7 @@ writerRWSCommute =
   . writerReaderCommute
   . mtMap unRWST
 
-rwsWriterCommute :: (Functor m, Monoid o1) => RWST r o1 s (WriterT o2 m) ~> WriterT o2 (RWST r o1 s m)
+rwsWriterCommute :: (Monad m, Monoid o1, Monoid o2) => RWST r o1 s (WriterT o2 m) ~> WriterT o2 (RWST r o1 s m)
 rwsWriterCommute =
     mtMap RWST
   . readerWriterCommute
@@ -961,19 +1036,48 @@ maybeStateCommute aMSM = StateT $ \ s1 -> MaybeT $ do
 
 instance (MonadMaybeI m) => MonadMaybeI (StateT s m) where
   maybeI :: StateT s m ~> MaybeT (StateT s m)
-  maybeI aSM = stateMaybeCommute $ mtMap maybeI aSM
+  maybeI = stateMaybeCommute . mtMap maybeI
 instance (MonadMaybeE m) => MonadMaybeE (StateT s m) where
   maybeE :: MaybeT (StateT s m) ~> StateT s m
-  maybeE aMSM = mtMap maybeE $ maybeStateCommute aMSM
+  maybeE = mtMap maybeE . maybeStateCommute
 instance (MonadMaybe m) => MonadMaybe (StateT s m) where
 
 instance (MonadStateI s m) => MonadStateI s (MaybeT m) where
   stateI :: MaybeT m ~> StateT s (MaybeT m)
-  stateI aMM = maybeStateCommute $ mtMap stateI aMM
+  stateI = maybeStateCommute . mtMap stateI
 instance (MonadStateE s m) => MonadStateE s (MaybeT m) where
   stateE :: StateT s (MaybeT m) ~> MaybeT m
-  stateE aSMM = mtMap stateE $ stateMaybeCommute aSMM
+  stateE = mtMap stateE . stateMaybeCommute
 instance (MonadState s m) => MonadState s (MaybeT m) where
+
+-- }}}
+
+-- State // OpaqueKonT {{{
+
+stateOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r (StateT s m)
+stateOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> StateT s m r) -> StateT $ \ s -> do
+  r <- runMetaKonT (runStateT s aSK) $ \ (a, s') -> fst <$> runStateT s' $ k a
+  return (r, s)
+
+opaqueKonStateCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (StateT s m) ~> StateT s (OpaqueKonT k r m)
+opaqueKonStateCommute aKS = StateT $ \ s -> makeMetaKonT $ \ (k :: (a, s) -> m r) -> do
+  fst <$> runStateT s $ runMetaKonT aKS $ \ a -> StateT $ \ s' -> (,s') <$> k (a, s')
+
+instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (StateT s m) where
+  opaqueKonI :: StateT s m ~> OpaqueKonT k r (StateT s m)
+  opaqueKonI = stateOpaqueKonCommute . mtMap opaqueKonI
+instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (StateT s m) where
+  opaqueKonE :: OpaqueKonT k r (StateT s m) ~> StateT s m
+  opaqueKonE = mtMap opaqueKonE . opaqueKonStateCommute
+instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (StateT s m) where
+
+instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateI s (OpaqueKonT k r m) where
+  stateI :: OpaqueKonT k r m ~> StateT s (OpaqueKonT k r m)
+  stateI = opaqueKonStateCommute . mtIsoMap stateI stateE
+instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateE s (OpaqueKonT k r m) where
+  stateE :: StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r m
+  stateE = mtIsoMap stateE stateI . stateOpaqueKonCommute
+instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadState s (OpaqueKonT k r m) where
 
 -- }}}
 
@@ -1079,7 +1183,7 @@ stateRWSCommute =
   . stateReaderCommute
   . mtMap unRWST
 
-rwsStateCommute :: (Functor m, Monoid o) => RWST r o s1 (StateT s2 m) ~> StateT s2 (RWST r o s1 m)
+rwsStateCommute :: (Monad m, Monoid o) => RWST r o s1 (StateT s2 m) ~> StateT s2 (RWST r o s1 m)
 rwsStateCommute =
     mtMap RWST
   . readerStateCommute
@@ -1103,13 +1207,13 @@ listSetStateCommute aMM = StateT $ \ s -> ListSetT $ map ff $ runStateT s $ runL
   where
     ff (xs, s) = map (,s) xs
 
-instance (MonadListSetI m, JoinLattice s) => MonadListSetI (StateT s m) where
+instance (MonadListSetI m, Functorial JoinLattice m, JoinLattice s) => MonadListSetI (StateT s m) where
   listSetI :: StateT s m ~> ListSetT (StateT s m)
   listSetI = stateListSetCommute . mtMap listSetI
-instance (MonadListSetE m) => MonadListSetE (StateT s m) where
+instance (MonadListSetE m, Functorial JoinLattice m) => MonadListSetE (StateT s m) where
   listSetE :: ListSetT (StateT s m) ~> StateT s m
   listSetE = mtMap listSetE . listSetStateCommute
-instance (MonadListSet m, JoinLattice s) => MonadListSet (StateT s m) where
+instance (MonadListSet m, Functorial JoinLattice m, JoinLattice s) => MonadListSet (StateT s m) where
 
 instance (MonadStateI s m, Functorial JoinLattice m) => MonadStateI s (ListSetT m) where
   stateI :: ListSetT m ~> StateT s (ListSetT m)
@@ -1377,4 +1481,3 @@ instance (MonadState s m, Functorial JoinLattice m, JoinLattice s) => MonadState
 -- }}}
 
 -- }}} --
-

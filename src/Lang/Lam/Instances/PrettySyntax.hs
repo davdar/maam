@@ -4,6 +4,10 @@ import FP
 import Lang.Lam.Syntax
 import qualified FP.Pretty as P
 
+instance Pretty LocNum where
+  pretty (LocNum i) = P.pun $ ptoString i
+instance Pretty BdrNum where
+  pretty (BdrNum i) = P.format (P.setFG 2) $ P.text $ ptoString i
 instance Pretty Name where
   pretty (Name s) = P.bdr s
 instance Pretty GName where

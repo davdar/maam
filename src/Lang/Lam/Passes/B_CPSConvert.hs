@@ -2,84 +2,125 @@ module Lang.Lam.Passes.B_CPSConvert where
 
 import FP
 import Lang.Lam.CPS.Syntax
-import Lang.Lam.Syntax (Name(..), GName(..), SGName, StampedExp)
+import Lang.Lam.Syntax (Exp, Name(..), GName(..), SGName, BdrNum(..), LocNum(..), SExp, sgNameFromSName)
 import qualified Lang.Lam.Syntax as L
+import qualified Lang.Lam.Passes.A_Stamp as Stamp
 
 data St = St
-  { callID :: Int
-  , bdrID :: Int
+  { callID :: LocNum
+  , bdrID :: BdrNum
   , genID :: Int
   }
-callIDL :: Lens St Int
+callIDL :: Lens St LocNum
 callIDL = lens callID $ \ s i -> s { callID = i }
-bdrIDL :: Lens St Int
+bdrIDL :: Lens St BdrNum
 bdrIDL = lens bdrID $ \ s i -> s { bdrID = i }
 genIDL :: Lens St Int
 genIDL = lens genID $ \ s i -> s { genID = i }
+stampL :: Lens St Stamp.St
+stampL = lens lin lout
+  where
+    lin (St cid bid _) = Stamp.St cid bid
+    lout (St _ _ gid) (Stamp.St cid bid) = St cid bid gid
 st0 :: St
-st0 = St 0 0 0
+st0 = St pzero pzero pzero
 
-type M m = (MonadStateE St m, MonadIsoKon CPSKon (Call SGName) m)
+type M m = (MonadStateE St m, MonadOpaqueKon CPSKon SGCall m)
 
 fresh :: (M m) => String -> m SGName
 fresh x = do
-  i <- nextL callIDL
+  i <- nextL bdrIDL
   g <- nextL genIDL
   return $ Stamped i $ GName (Just g) $ Name x
 
 data CPSKon r m a where
   MetaCPSKon :: (a -> m r) -> CPSKon r m a
-  VarKon :: Int -> SGName -> CPSKon r m (Atom SGName)
-instance TransformerMorphism (CPSKon (Call SGName)) (K (Call SGName)) where
-  ffmorph :: (Monad m) => CPSKon (Call SGName) m ~> K (Call SGName) m
+  AtomKon :: LocNum -> SGAtom -> CPSKon r m SGAtom
+instance TransformerMorphism (CPSKon SGCall) (K SGCall) where
+  ffmorph :: (Monad m) => CPSKon SGCall m ~> K SGCall m
   ffmorph (MetaCPSKon mk) = K mk
-  ffmorph (VarKon i k) = K $ \ a -> do
-    return $ StampedFix i $ AppK (Var k) a
-instance TransformerMorphism (K (Call SGName)) (CPSKon (Call SGName)) where
+  ffmorph (AtomKon i k) = K $ return . StampedFix i . AppK k
+instance TransformerMorphism (K SGCall) (CPSKon SGCall) where
   ffmorph (K mk) = MetaCPSKon mk
-instance TransformerIsomorphism (CPSKon (Call SGName)) (K (Call SGName)) where
 
-reify :: (M m) => CPSKon (Call SGName) m (Atom SGName) -> m (Atom SGName)
+reify :: (M m) => CPSKon SGCall m SGAtom -> m SGAtom
 reify (MetaCPSKon mk) = do
   x <- fresh "x"
-  c <- mk $ Var $ x
-  return $ LamK x c
-reify (VarKon _ k) = return $ Var k
+  LamK x <$> mk $ Var $ x
+reify (AtomKon _ a) = return a
 
-reflect :: (M m) => SGName -> m (CPSKon (Call SGName) m (Atom SGName))
-reflect n = unit VarKon <@> nextL callIDL <@> unit n
+reifyNamedAtom :: (M m) => LocNum -> SGAtom -> m SGName
+reifyNamedAtom i k = do
+  kx <- fresh "x"
+  callMetaCC $ \ (mk' :: SGName -> m SGCall) -> do
+    kc <- mk' kx
+    return $ StampedFix i $ AppK (LamK kx kc) k
 
-reifyNamed :: (M m) => CPSKon (Call SGName) m (Atom SGName) -> m SGName
-reifyNamed (VarKon _ k) = return k
+reifyNamed :: (M m) => CPSKon SGCall m SGAtom -> m SGName
 reifyNamed (MetaCPSKon mk) = do
   x <- fresh "x"
-  c <- mk $ Var x
-  let ok = LamK x c
-  kx <- fresh "k"
-  callMetaCC $ \ mk' -> do
-    kc <- mk' kx 
-    i <- nextL callIDL
-    return $ StampedFix i $ AppK (LamK kx kc) ok
+  i <- nextL callIDL
+  reifyNamedAtom i *$ LamK x <$> mk $ Var x
+reifyNamed (AtomKon _ (Var k)) = return k
+reifyNamed (AtomKon i k) = reifyNamedAtom i k
 
-cps :: (M m) => StampedExp SGName -> m (Atom SGName)
-cps (StampedFix i e0) = case e0 of
+reflect :: (M m) => SGAtom -> m (CPSKon SGCall m SGAtom)
+reflect a = do
+  i <- nextL callIDL
+  return $ AtomKon i a
+
+cpsM :: (M m) => SExp -> m SGAtom
+cpsM (StampedFix i e0) = case e0 of
   L.Lit l -> return $ Lit l
-  L.Var n -> return $ Var n
+  L.Var n -> return $ Var $ sgNameFromSName n
   L.Lam x e -> do
     k <- fresh "k"
-    rk <- reflect k
-    LamF x k <$> withOpaqueC rk $ cps e
-  L.Prim o e -> Prim o <$> cps e
+    rk <- reflect $ Var k
+    LamF (sgNameFromSName x) k <$> withOpaqueC rk $ cpsM e
+  L.Prim o e -> Prim o <$> cpsM e
+  L.Let x e b -> do
+    let sgx = sgNameFromSName x
+    ea <- cpsM e
+    callOpaqueCC $ \ (ok :: CPSKon SGCall m SGAtom) -> do
+      bc <- withOpaqueC ok $ cpsM b
+      return $ StampedFix i $ AppK (LamK sgx bc) ea
   L.App f e -> do
-    fa <- cps f
-    ea <- cps e
+    fa <- cpsM f
+    ea <- cpsM e
     callOpaqueCC $ \ ok -> do
-      rok <- reify ok
-      return $ StampedFix i $ AppF fa ea rok
+      StampedFix i <$> AppF fa ea <$> reify ok
   L.If ce te fe -> do
-    cae <- cps ce
+    cae <- cpsM ce
     callOpaqueCC $ \ ok -> do
       k <- reifyNamed ok
-      rk1 <- reflect k
-      rk2 <- reflect k
-      unit (StampedFix i .: If cae) <@> withOpaqueC rk1 (cps te) <@> withOpaqueC rk2 (cps fe)
+      rk1 <- reflect $ Var k
+      rk2 <- reflect $ Var k
+      unit (StampedFix i .: If cae) <@> withOpaqueC rk1 (cpsM te) <@> withOpaqueC rk2 (cpsM fe)
+
+newtype StStateT m a = StStateT { unStStateT :: StateT St m a }
+  deriving
+    ( Unit, Functor, Product, Applicative, Bind, Monad
+    , MonadStateI St, MonadStateE St, MonadState St
+    , MonadReaderI r, MonadReaderE r, MonadReader r
+    )
+instance (Monad m) => MonadStateE Stamp.St (StStateT m) where
+  stateE :: StateT Stamp.St (StStateT m) ~> StStateT m
+  stateE = 
+    StStateT
+    . stateE
+    . stateLens stampL
+    . mtMap unStStateT
+  
+evalStStateT :: (Functor m) => St -> StStateT m a -> m a
+evalStStateT s = evalStateT s . unStStateT
+
+stampCPS :: Exp -> (SExp, SGCall)
+stampCPS e = runReader Stamp.env0 $ evalStStateT st0 $ do
+  se <- Stamp.stampM e
+  c <- runMetaKonT (cpsM se) $ \ a -> do
+    i' <- nextL callIDL
+    return $ StampedFix i' $ Halt a
+  return (se, c)
+
+cps :: Exp -> SGCall
+cps = snd . stampCPS
