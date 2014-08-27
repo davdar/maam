@@ -19,7 +19,11 @@ data Addr μ = Addr
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Addr μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Addr μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Addr μ) where
-  pretty (Addr loc lτ dτ) = P.collection "<" ">" "," [pretty loc, pretty lτ, pretty dτ]
+  pretty (Addr loc lτ dτ) = P.collection "<" ">" "," 
+    [ exec [P.pun "x=", P.align $ pretty loc]
+    , exec [P.pun "lτ=", P.align $ pretty lτ]
+    , exec [P.pun "dτ=", P.align $ pretty dτ]
+    ]
 
 newtype Env μ = Env { runEnv :: Map SGName (Addr μ) }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Env μ)
@@ -52,7 +56,11 @@ data Clo μ = Clo
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Clo μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Clo μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Clo μ) where
-  pretty (Clo xs c ρ lτ) = P.collection "<" ">" "," [pretty $ prettyLam xs c, pretty ρ, pretty lτ]
+  pretty (Clo xs c ρ lτ) = P.collection "<" ">" "," 
+    [ exec [P.pun "λ=", P.align $ pretty $ prettyLam xs c]
+    , exec [P.pun "ρ=", P.align $ pretty ρ]
+    , exec [P.pun "lτ=", P.align $ pretty lτ]
+    ]
 
 class Delta δ where
   type Val δ :: * -> *

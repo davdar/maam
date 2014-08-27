@@ -62,27 +62,31 @@ data Aδ
 aδ :: P Aδ
 aδ = P
 
-data AVal μ = BadA | IA | BA | CloA (Clo μ)
+data AVal μ = BadA | LitA Lit | IA | CloA (Clo μ)
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (AVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (AVal μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (AVal μ) where
   pretty BadA = P.lit "BAD"
+  pretty (LitA l) = pretty l
   pretty IA = P.lit "INT"
-  pretty BA = P.lit "BOOL"
   pretty (CloA c) = pretty c
 
 coerceIA :: AVal μ -> Maybe ()
 coerceIA IA = Just ()
 coerceIA _ = Nothing
-coerceBA :: AVal μ -> Maybe ()
-coerceBA BA = Just ()
-coerceBA _ = Nothing
+coerceLitA :: AVal μ -> Maybe Lit
+coerceLitA (LitA l) = Just l
+coerceLitA _ = Nothing
+coerceIOrIntA :: AVal μ -> Maybe ()
+coerceIOrIntA v = mtries
+  [ coerceIA v 
+  , void $ coerceI *$ coerceLitA v
+  ]
+coerceBoolA :: AVal μ -> Set Bool
+coerceBoolA v = cuseMaybeZero $ coerceB *$ coerceLitA v
 coerceCloA :: AVal μ -> Maybe (Clo μ)
 coerceCloA (CloA c) = Just c
 coerceCloA _ = Nothing
-
-denoteIA :: Set Bool
-denoteIA = ssingleton True \/ ssingleton False
 
 newtype SetAVal μ = SetAVal { runSetAVal :: Set (AVal μ) }
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (SetAVal μ)
@@ -98,15 +102,19 @@ instance Delta Aδ where
   type Val Aδ = SetAVal
   type Δ Aδ μ = (Ord (Addr μ), Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ))
   lit :: (Δ Aδ μ) => P Aδ -> Lit -> Val Aδ μ
-  lit P (I _) = SetAVal $ ssingleton IA
-  lit P (B _) = SetAVal $ ssingleton BA
+  lit P (I i) = SetAVal $ ssingleton $ LitA $ I i
+  lit P (B b) = SetAVal $ ssingleton $ LitA $ B b
   clo :: (Δ Aδ μ) => P Aδ -> Clo μ -> Val Aδ μ
   clo P = SetAVal . ssingleton . CloA
   op :: (Δ Aδ μ) => P Aδ -> Op -> Val Aδ μ -> Val Aδ μ
-  op P Add1     = update runSetAValL $ cmap (maybe (const IA) BadA . coerceIA)
-  op P Sub1     = update runSetAValL $ cmap (maybe (const IA) BadA . coerceIA)
-  op P IsNonNeg = update runSetAValL $ cmap (maybe (const BA) BadA . coerceIA)
+  op P Add1     = update runSetAValL $ cmap $ maybe (const IA) BadA . coerceIOrIntA
+  op P Sub1     = update runSetAValL $ cmap $ maybe (const IA) BadA . coerceIOrIntA
+  op P IsNonNeg = update runSetAValL $ extend $ \ v -> 
+    case v of
+      LitA (I i) -> cmap (LitA . B) $ cunit $ i >= 0
+      IA -> cmap (LitA . B) $ cunit True <+> cunit False
+      _ -> cunit BadA
   elimBool :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set Bool
-  elimBool P = extend (const denoteIA *. useMaybeSet . coerceBA) . runSetAVal
+  elimBool P = extend coerceBoolA . runSetAVal
   elimClo :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set (Clo μ)
   elimClo P = extend (useMaybeSet . coerceCloA) . runSetAVal

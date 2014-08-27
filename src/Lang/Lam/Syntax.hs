@@ -2,6 +2,10 @@ module Lang.Lam.Syntax where
 
 import FP
 
+infixl 9 @#
+infixr 0 $#
+infixr 6 /\#
+
 newtype Name = Name { getName :: String }
   deriving (Eq, Ord)
 data GName = GName
@@ -70,7 +74,19 @@ llet n = Fix .: Let (Name n)
 (@#) :: Exp -> Exp -> Exp
 (@#) = Fix .: App
 
+($#) :: Exp -> Exp -> Exp
+($#) = (@#)
+
 iif :: Exp -> Exp -> Exp -> Exp
 iif = Fix ..: If
+
+gez :: Exp -> Exp
+gez = Fix . Prim IsNonNeg
+
+(/\#) :: Exp -> Exp -> Exp
+e1 /\# e2 = iif e1 e2 $ bool False
+
+someBool :: Exp
+someBool = gez $ add1 $ int 0
 
 -- }}}

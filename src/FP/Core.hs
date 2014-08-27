@@ -63,6 +63,7 @@ infixr 6 \/
 infix 4 <~
 infix 4 <.
 infix 4 ?
+infix 4 #?
 
 infixl 1 >>=
 infixl 1 >>
@@ -172,6 +173,10 @@ class Peano a where
   pzero :: a
   psuc :: a -> a
   piter :: (b -> b) -> b -> a -> b
+
+piterOn :: (Peano a) => a -> b -> (b -> b) -> b
+piterOn = mirror piter
+
 class Additive a where
   zero :: a
   (+) :: a -> a -> a
@@ -242,8 +247,11 @@ class (HasBot a) => JoinLattice a where
 joins :: (Iterable a t, JoinLattice a) => t -> a
 joins = iter (\/) bot
 
-collect :: (JoinLattice a, PartialOrder a) =>  (a -> a) -> a -> a
+collect :: (JoinLattice a, PartialOrder a) => (a -> a) -> a -> a
 collect f = poiter $ \ x -> x \/ f x
+
+collectN :: (JoinLattice a, PartialOrder a, Peano n) => n -> (a -> a) -> a -> a
+collectN n f x0 = piterOn n x0 $ \ x -> x \/ f x
 
 class MeetLattice a where
   top :: a
@@ -371,6 +379,9 @@ sunionMap f = iter (sunion . f) sempty
 sunionMapOn :: (Iterable a t, SetLike c b u) => t -> (a -> u) -> u
 sunionMapOn = flip sunionMap
 
+selemOf :: (SetLike c e t) => t -> e -> Bool
+selemOf = (?)
+
 -- }}}
 
 -- VectorLike {{{
@@ -392,6 +403,16 @@ index = (#)
 
 lookup :: (Indexed i e t) => i -> t -> Maybe e
 lookup = flip (#)
+
+-- }}}
+
+-- Container {{{
+
+class Container e t | t -> e where
+  (#?) :: t -> e -> Bool
+
+elemOf :: (Container e t) => t -> e -> Bool
+elemOf = (#?)
 
 -- }}}
 
@@ -475,6 +496,9 @@ aM >> bM = aM >>= const bM
 
 extend :: (Bind m) => (a -> m b) -> (m a -> m b)
 extend = flip (>>=)
+
+void :: (Functor m) => m a -> m ()
+void = map (const ())
 
 (*$) :: (Bind m) => (a -> m b) -> (m a -> m b)
 (*$) = extend
@@ -609,6 +633,10 @@ mtries = coiter (<|>) abort
 useMaybeZero :: (Unit m, MonadZero m) => Maybe a -> m a
 useMaybeZero Nothing = mzero
 useMaybeZero (Just x) = unit x
+
+cuseMaybeZero :: (CUnit c m, MonadZero m, c a) => Maybe a -> m a
+cuseMaybeZero Nothing = mzero
+cuseMaybeZero (Just x) = cunit x
 
 -- }}}
 
@@ -907,6 +935,10 @@ instance (HasBot a, HasBot b) => HasBot (a, b) where
   bot = (bot, bot)
 instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
+instance Bifunctorial Eq (,) where
+  bifunctorial = W
+instance Bifunctorial Ord (,) where
+  bifunctorial = W
 
 fstL :: Lens (a, b) a
 fstL = lens fst $ \ (_,b) -> (,b)
@@ -1172,6 +1204,8 @@ instance HasBot (Set a) where
   bot = EmptySet
 instance JoinLattice (Set a) where
   (\/) = sunion
+instance MonadPlus Set where
+  (<+>) = (\/)
 
 smember :: (SetLike c a t) => a -> t -> Bool
 smember = flip (?)
@@ -1376,6 +1410,8 @@ instance MonadMaybeE [] where
     case aM' of
       Nothing -> mzero
       Just x -> return x
+instance (Eq a) => Container a [a] where
+  xs #? y = coiter (\ x -> (||) $ x == y) False xs
 
 singleton :: a -> [a]
 singleton = (:[])
@@ -1436,6 +1472,10 @@ setTranspose aMM = result
     loop (s:ss) = 
       learnSetOn s (loop ss) $
       fromList $ map fromList $ transpose $ map toList aML
+
+mapRest :: (a -> a) -> [a] -> [a]
+mapRest _ [] = []
+mapRest f (x:xs) = x:map f xs
 
 -- }}}
 

@@ -45,6 +45,7 @@ data PEnv = PEnv
   , layout :: Layout
   , failure :: Failure
   , nesting :: Int
+  , wrap :: Bool
   }
 maxColumnWidthL :: Lens PEnv Int
 maxColumnWidthL = lens maxColumnWidth $ \ e w -> e { maxColumnWidth = w }
@@ -56,6 +57,8 @@ failureL :: Lens PEnv Failure
 failureL = lens failure $ \ e f -> e { failure = f }
 nestingL :: Lens PEnv Int
 nestingL = lens nesting $ \ e n -> e { nesting = n }
+wrapL :: Lens PEnv Bool
+wrapL = lens wrap $ \ e p -> e { wrap = p }
 env0 :: PEnv
 env0 = PEnv
   { maxColumnWidth = 100
@@ -63,6 +66,7 @@ env0 = PEnv
   , layout = Break
   , failure = CantFail
   , nesting = 0
+  , wrap = False
   }
 
 data PState = PState
@@ -116,8 +120,6 @@ instance MonadFunctor PrettyT where
 
 class Pretty a where
   pretty :: a -> Doc
-  prettyParen :: a -> Doc
-  prettyParen = pretty
 instance Pretty Doc where
   pretty = id
 
@@ -156,6 +158,9 @@ whenFlat aM = ifFlat aM $ return ()
 
 whenBreak :: (MonadPretty m) => m () -> m ()
 whenBreak aM = ifFlat (return ()) aM
+
+mustBreak :: (MonadPretty m) => m () -> m ()
+mustBreak = (>>) $ whenFlat mzero
 
 hardLine :: (MonadPretty m) => m ()
 hardLine = do
@@ -197,28 +202,57 @@ format f aM = do
 
 -- High Level Helpers {{{
 
+hsep :: (MonadPretty m) => [m ()] -> m ()
+hsep = exec . intersperse (space 1)
+
+vsep :: (MonadPretty m) => [m ()] -> m ()
+vsep = exec . intersperse newline
+
+hvsep :: (MonadPretty m) => [m ()] -> m ()
+hvsep = group . exec . intersperse (ifFlat (space 1) newline)
+
+hsepTight :: (MonadPretty m) => [m ()] -> m ()
+hsepTight = exec . intersperse (ifFlat (return ()) (space 1))
+
+hvsepTight :: (MonadPretty m) => [m ()] -> m ()
+hvsepTight = group . exec . intersperse (ifFlat (return ()) newline)
+
 parens :: (MonadPretty m) => m () -> m ()
 parens aM = do
   format punFmt $ text "("
   align aM
   format punFmt $ text ")"
 
-app :: (MonadPretty m) => m () -> [m ()] -> m ()
-app f xs = group $ do
-  f
-  traverseOn xs $ \ x -> nest 2 $
-    ifFlat (space 1) newline >> align x
+wrapped :: (MonadPretty m) => m () -> m ()
+wrapped = localSetL wrapL True
+
+unwrapped :: (MonadPretty m) => m () -> m ()
+unwrapped = localSetL wrapL False
+
+parensIfWrapped :: (MonadPretty m) => m () -> m ()
+parensIfWrapped aM = do
+  w <- askL wrapL
+  if w then parens $ unwrapped aM else unwrapped aM
+
+app :: (MonadPretty m) => [m ()] -> m ()
+app = align . parensIfWrapped . wrapped . hvsep . map align
 
 collection :: (MonadPretty m) => String -> String -> String -> [m ()] -> m ()
 collection open close _ [] = pun open >> pun close
-collection open close sep (x:xs) = group $ do
-  pun open >> whenBreak (space 1) >> align x >> whenBreak newline
-  traverseOn xs $ \ x' -> do
-    pun sep >> whenBreak (space 1) >> align x' >> whenBreak newline
-  pun close
+collection open close sep (x:xs) = group $ unwrapped $ hvsepTight $ concat
+  [ return $ hsepTight [pun open, align x]
+  , mapOn xs $ \ x' -> hsepTight [pun sep, align x']
+  , return $ pun close
+  ]
+
+keyPunFmt :: Format
+keyPunFmt = setFG 3 ++ setBD
+
+keyPun :: (MonadPretty m) => String -> m ()
+keyPun = format keyPunFmt . text
 
 keyFmt :: Format
-keyFmt = setFG 3 ++ setBD ++ setUL
+keyFmt = keyPunFmt ++ setUL
 
 key :: (MonadPretty m) => String -> m ()
 key = format keyFmt . text
@@ -236,7 +270,7 @@ bdr :: (MonadPretty m) => String -> m ()
 bdr = format bdrFmt . text
 
 litFmt :: Format
-litFmt = setFG 1 ++ setBD
+litFmt = setFG 1 -- ++ setBD
 
 lit :: (MonadPretty m) => String -> m ()
 lit = format litFmt . text
@@ -289,16 +323,12 @@ instance Pretty Integer where
 instance Pretty String where
   pretty = lit . toString
 instance (Pretty a, Pretty b) => Pretty (a, b) where
-  pretty (a, b) = group $ do
-    pun "(" >> whenBreak (space 1) >> align (pretty a)
-    whenBreak newline
-    pun "," >> whenBreak (space 1) >> align (pretty b)
-    whenBreak newline
-    pun ")"
+  pretty (a, b) = collection "(" ")" "," [pretty a, pretty b]
+instance Bifunctorial Pretty (,) where
+  bifunctorial = W
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
-  pretty (Inl a) = app (con "Inl") [prettyParen a]
-  pretty (Inr b) = app (con "Inr") [prettyParen b]
-  prettyParen = parens . pretty
+  pretty (Inl a) = app [con "Inl", pretty a]
+  pretty (Inr b) = app [con "Inr", pretty b]
 instance (Pretty a) => Pretty [a] where
   pretty = collection "[" "]" "," . map pretty
 instance Functorial Pretty [] where functorial = W
@@ -307,13 +337,17 @@ instance (Pretty a) => Pretty (Set a) where
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . toList
     where
-      prettyMapping (k, v) = app (pretty k >> space 1 >> pun "=>") [pretty v]
+      prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
 
+instance (Functorial Pretty f) => Pretty (Fix f) where
+  pretty (Fix f) =
+    with (functorial :: W (Pretty (f (Fix f)))) $
+    pretty f
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
-  pretty (Stamped a f) = pretty a >> pun ":" >> pretty f
+  pretty (Stamped a f) = parensIfWrapped $ exec [pretty a, pun ":", pretty f]
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
-    with (functorial :: W (Pretty (f (StampedFix a f)))) $
-    pretty a >> pun ":" >> pretty f
+    with (functorial :: W (Pretty (f (StampedFix a f)))) $ parensIfWrapped $
+    exec [pretty a, pun ":", pretty f]
 
 -- }}}

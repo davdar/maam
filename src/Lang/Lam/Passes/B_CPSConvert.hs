@@ -51,7 +51,7 @@ reify (AtomKon _ a) = return a
 
 reifyNamedAtom :: (M m) => LocNum -> SGAtom -> m SGName
 reifyNamedAtom i k = do
-  kx <- fresh "x"
+  kx <- fresh "k"
   callMetaCC $ \ (mk' :: SGName -> m SGCall) -> do
     kc <- mk' kx
     return $ StampedFix i $ AppK (LamK kx kc) k

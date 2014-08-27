@@ -4,9 +4,7 @@ import FP
 import MAAM.Classes.AAM
 import MAAM.Instances.Temporal
 
---------------
--- Concrete --
---------------
+-- Concrete {{{
 
 data Cμ = Cμ
 cμ :: P Cμ
@@ -18,9 +16,9 @@ instance AAM Cμ where
   lexical Cμ = Cτ
   dynamic Cμ = Cτ
 
-----------
--- 0CFA --
-----------
+-- }}}
+
+-- 0CFA {{{
 
 data ZCFAμ = ZCFAμ
 zCFAμ :: P ZCFAμ
@@ -32,9 +30,9 @@ instance AAM ZCFAμ where
   lexical ZCFAμ = Zτ
   dynamic ZCFAμ = Zτ
 
-----------
--- kCFA --
-----------
+-- }}}
+
+-- kCFA {{{
 
 data KCFAμ = KCFAμ Int
 kCFAμ :: P KCFAμ
@@ -46,9 +44,9 @@ instance AAM KCFAμ where
   lexical (KCFAμ _) = Zτ
   dynamic (KCFAμ k) = Kτ k
 
-------------------------
--- k-object-sensitive --
-------------------------
+-- }}}
+
+-- k-object-sensitive {{{
 
 data KOSμ = KOSμ Int
 kOSμ :: P KOSμ
@@ -60,9 +58,9 @@ instance AAM KOSμ where
   lexical (KOSμ k) = Kτ k
   dynamic (KOSμ _) = Zτ
 
----------------------------------------------
--- Hybrid k-call-site + k-object-sensitive --
----------------------------------------------
+-- }}}
+
+-- Hybrid k-call-site + k-object-sensitive {{{
 
 data KHybridμ = KHybridμ Int Int
 kHybridμ :: P KHybridμ
@@ -73,3 +71,5 @@ instance AAM KHybridμ where
   type DynamicTemporal KHybridμ = Kτ
   lexical (KHybridμ lk _) = Kτ lk
   dynamic (KHybridμ _ dk) = Kτ dk
+
+-- }}}

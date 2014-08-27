@@ -121,12 +121,14 @@ instance (Unit m, Monoid o) => Unit (WriterT o m) where
 instance (Functor m) => Functor (WriterT o m) where
   map f = WriterT . map (mapFst f) . runWriterT
 instance (Functor m, Product m, Monoid o) => Product (WriterT o m) where
-  aM1 <*> aM2 = WriterT $
-    map (\ ((a1, o1), (a2, o2)) -> ((a1, a2), o1 ++ o2)) $
-      runWriterT aM1 <*> runWriterT aM2
+  aM1 <*> aM2 = WriterT $ map ff $ runWriterT aM1 <*> runWriterT aM2
+    where
+      ff ((a1, o1), (a2, o2)) = ((a1, a2), o1 ++ o2)
 instance (Functor m, Applicative m, Monoid o) => Applicative (WriterT o m) where
-  fM <@> aM = WriterT $ map (\ ((a, o1), o2) -> (a, o1 ++ o2)) $
-      map (\ (f, o) -> mapFst ((,o) . f)) (runWriterT fM) <@> runWriterT aM
+  fM <@> aM = WriterT $ map ff2 $ map ff1 (runWriterT fM) <@> runWriterT aM
+    where
+      ff1 (f, o) = mapFst ((,o) . f)
+      ff2 ((a, o1), o2) = (a, o1 ++ o2)
 instance (Monad m, Monoid o) => Bind (WriterT o m) where
   aM >>= k = WriterT $ do
     (a, o1) <- runWriterT aM
@@ -135,7 +137,6 @@ instance (Monad m, Monoid o) => Bind (WriterT o m) where
 instance (Monad m, Monoid o) => Monad (WriterT o m) where
 instance (Monoid w) => MonadUnit (WriterT w) where
   mtUnit = WriterT . map (,null)
--- this also exists for (WriterT w m ~> m)
 instance MonadCounit (WriterT w) where
   mtCounit = map fst . runWriterT
 instance MonadFunctor (WriterT w) where

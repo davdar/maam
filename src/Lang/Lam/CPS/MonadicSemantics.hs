@@ -75,33 +75,36 @@ elimBoolM = msum .: elimBool
 elimCloM :: (Analysis δ μ m) => P δ -> Val δ μ -> m δ μ (Clo μ)
 elimCloM = msum .: elimClo
 
--- TODO: get this right
 tickM :: (Analysis δ μ m) => P δ -> μ -> LocNum -> m δ μ ()
 tickM δ μ cid = do
   _ <- getP $ envP μ
   _ <- getP $ storeP δ μ
   modifyL (lexicalTimeL μ ψ) $ tick (lexical μ) cid
   lτ <- getP (lexicalTimeP μ ψ)
-  modifyL (dynamicTimeL μ ψ) $ tick (dynamic μ) lτ
+  modifyL (dynamicTimeL μ ψ) $ tick (dynamic μ) $ DynamicMoment cid lτ
 
-apply :: (Analysis δ μ m) => P δ -> μ -> P m -> LocNum -> SGAtom -> [SGAtom] -> m δ  μ SGCall
-apply δ μ _ cid fa eas = do
+apply :: (Analysis δ μ m) => P δ -> μ -> P m -> SGAtom -> [SGAtom] -> m δ  μ SGCall
+apply δ μ _ fa eas = do
   Clo xs c' e lτ <- elimCloM δ *$ atom δ μ fa
   vs <- atom δ μ <*$> eas
   xvs <- useMaybeZero $ zipSameLength xs vs
   putP (envP μ) e
   putP (lexicalTimeP μ ψ) lτ
   traverseOn xvs $ uncurry $ bind δ μ
-  tickM δ μ cid
   return c'
 
 call :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> m δ μ SGCall
 call δ μ m (StampedFix cid c) = case c of
   If a tc fc -> do
+    tickM δ μ cid
     b <- elimBoolM δ *$ atom δ μ a
     return $ if b then tc else fc
-  AppF fa ea ka -> apply δ μ m cid fa [ea, ka]
-  AppK ka ea -> apply δ μ m cid ka [ea]
+  AppF fa ea ka -> do
+    tickM δ μ cid
+    apply δ μ m fa [ea, ka]
+  AppK ka ea -> do
+    tickM δ μ cid
+    apply δ μ m ka [ea]
   Halt a -> return $ StampedFix cid $ Halt a
 
 -- 'Standard' semantics --
@@ -113,15 +116,13 @@ execCollect :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> SS (m δ μ)
 execCollect δ μ m = collect (mstep $ call δ μ m) . munit (mP m δ μ)
 
 type Action a = forall δ μ m. (Analysis δ μ m) => P δ -> μ -> P m -> a -> m δ μ a
-none :: Action a
-none P _ P = return
+naive :: Action a
+naive P _ P = return
 
 execCollectWith :: (Analysis δ μ m) => P δ -> μ -> P m -> Action SGCall -> SGCall -> SS (m δ μ) SGCall
-execCollectWith δ μ m action = collect (mstep $ action δ μ m *. call δ μ m) . munit (mP m δ μ)
+execCollectWith δ μ m action = collectN (6 :: Int) (mstep $ action δ μ m *. call δ μ m) . munit (mP m δ μ)
 
---------
--- GC --
---------
+-- GC {{{
 
 freeVarsLam :: (Analysis δ μ m) => P δ -> μ -> P m -> [SGName] -> PreCall SGName SGCall -> Set SGName
 freeVarsLam δ μ m xs c = freeVarsCall δ μ m c \-\ sset xs
@@ -157,3 +158,5 @@ gc δ μ m c = do
   let live = collect (extend $ addrTouched δ μ m s) $ callTouched δ μ m e $ stampedFix c
   modifyL (storeL δ μ) $ ponlyKeys live
   return c
+
+-- }}}
