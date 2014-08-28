@@ -1,4 +1,4 @@
-module Lang.Lam.Examples where
+module Examples where
 
 import Lang.Lam.Syntax
 import FP
@@ -49,5 +49,5 @@ exampleMain =
   pprint $ P.vsep
     [ return ()
     -- , doSimpleKCFA
-    , doConfig simpleMCFA ["abstract"] ["naive"] ["0-cfa"] ["fi"]
+    , doConfig simpleMCFA ["abstract"] ["naive"] ["1k-cfa"] ["fi"]
     ]

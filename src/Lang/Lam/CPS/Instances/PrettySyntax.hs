@@ -24,11 +24,11 @@ instance (Pretty n, Pretty c) => Pretty (PreCall n c) where
     , P.hvsep [P.key "then", pretty tc]
     , P.hvsep [P.key "else", pretty fc]
     ]
-  pretty (AppK (LamK x c) ae) = P.mustBreak $ P.vsep
+  pretty (AppK (LamK x c) ae) = P.parensIfWrapped $ P.mustBreak $ P.vsep
     [ P.hsep [pretty x, P.keyPun ":=", pretty ae]
     , pretty c
     ]
-  pretty (AppF f ae (LamK k c)) = P.mustBreak $ P.vsep
+  pretty (AppF f ae (LamK k c)) = P.parensIfWrapped $ P.mustBreak $ P.vsep
     [ P.nest 2 $ P.hvsep
         [ P.hsep [pretty k, P.pun "<-"]
         , P.app [pretty f, pretty ae]

@@ -1148,10 +1148,8 @@ elimSetListOn :: Set a -> b -> ((Ord a) => [a] -> b) -> b
 elimSetListOn = rotateR elimSetList
 
 instance Monoid (Set a) where
-  null = mzero
+  null = bot
   (++) = (\/)
-instance MonadZero Set where
-  mzero = null
 instance Eq (Set a) where
   s1 == s2 =
     elimSetOn s1 (elimSetOn s2 True (const False)) $ \ s1' ->
@@ -1192,7 +1190,7 @@ instance Bind Set where
   aM >>= k = loop $ map k $ toList aM
     where
       loop [] = EmptySet
-      loop (s:xs) = (elimSetOn s id $ \ s' -> sunion $ Set s') $ loop xs
+      loop (s:xs) = (learnSetOn s id $ sunion s) $ loop xs
 instance CFunctor Ord Set where
   cmap f s = elimSetOn s EmptySet $ \ s' -> Set $ Set.map f s'
 instance PartialOrder (Set a) where
@@ -1204,6 +1202,8 @@ instance HasBot (Set a) where
   bot = EmptySet
 instance JoinLattice (Set a) where
   (\/) = sunion
+instance MonadZero Set where
+  mzero = null
 instance MonadPlus Set where
   (<+>) = (\/)
 

@@ -1,7 +1,7 @@
-all: src tex
+all: src
 
 src:
-	cabal configure && cabal build
+	cabal configure --enable-library-profiling --enable-executable-profiling && cabal build
 
 tex:
 	make -C tex
@@ -10,7 +10,7 @@ toc:
 	make -C tex toc.pdf
 
 clean:
-	make -C code clean
+	cabal clean
 	make -C tex clean
 
 .PHONY: all src tex toc clean

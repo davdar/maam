@@ -120,7 +120,7 @@ naive :: Action a
 naive P _ P = return
 
 execCollectWith :: (Analysis δ μ m) => P δ -> μ -> P m -> Action SGCall -> SGCall -> SS (m δ μ) SGCall
-execCollectWith δ μ m action = collectN (6 :: Int) (mstep $ action δ μ m *. call δ μ m) . munit (mP m δ μ)
+execCollectWith δ μ m action = collect (mstep $ action δ μ m *. call δ μ m) . munit (mP m δ μ)
 
 -- GC {{{
 

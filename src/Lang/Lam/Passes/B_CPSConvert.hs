@@ -22,6 +22,11 @@ stampL = lens lin lout
   where
     lin (St cid bid _) = Stamp.St cid bid
     lout (St _ _ gid) (Stamp.St cid bid) = St cid bid gid
+-- stampInvL :: Lens Stamp.St St
+-- stampInvL = lens lin lout
+--   where
+--     lin (Stamp.St eid bid) = St eid bid 0
+--     lout _ (St cid bid _) = Stamp.St cid bid
 st0 :: St
 st0 = St pzero pzero pzero
 
@@ -105,22 +110,27 @@ newtype StStateT m a = StStateT { unStStateT :: StateT St m a }
     )
 instance (Monad m) => MonadStateE Stamp.St (StStateT m) where
   stateE :: StateT Stamp.St (StStateT m) ~> StStateT m
-  stateE = 
-    StStateT
-    . stateE
-    . stateLens stampL
-    . mtMap unStStateT
+  stateE = stateE . stateLens stampL
+-- instance (Monad m) => MonadStateI Stamp.St (StStateT m) where
+--   stateI :: StStateT m ~> StateT Stamp.St (StStateT m)
+--   stateI = stateLens stampInvL . stateI  
   
 evalStStateT :: (Functor m) => St -> StStateT m a -> m a
 evalStStateT s = evalStateT s . unStStateT
 
 stampCPS :: Exp -> (SExp, SGCall)
-stampCPS e = runReader Stamp.env0 $ evalStStateT st0 $ do
-  se <- Stamp.stampM e
-  c <- runMetaKonT (cpsM se) $ \ a -> do
-    i' <- nextL callIDL
-    return $ StampedFix i' $ Halt a
-  return (se, c)
+stampCPS e = 
+  -- let (se, Stamp.St eid bid) = runReader Stamp.env0 $ runStateT Stamp.st0 $ Stamp.stampM e
+  --     c :: SGCall
+  --     c = runMetaKon (evalStateT (St (psuc eid) bid 0) (cpsM se)) $ \ a -> StampedFix eid $ Halt a
+  -- in (se, c)
+     
+  runReader Stamp.env0 $ evalStStateT st0 $ do
+    se <- Stamp.stampM e
+    c <- runMetaKonT (cpsM se) $ \ a -> do
+      i' <- nextL callIDL
+      return $ StampedFix i' $ Halt a
+    return (se, c)
 
 cps :: Exp -> SGCall
 cps = snd . stampCPS
