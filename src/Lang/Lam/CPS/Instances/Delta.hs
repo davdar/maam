@@ -6,19 +6,16 @@ import Lang.Lam.CPS.Classes.Delta
 import qualified FP.Pretty as P
 import Lang.Lam.Syntax (Lit(..), coerceI, coerceB, Op(..))
 
---------------
--- Concrete --
---------------
+-- Concrete {{{
 
 data Cδ
 cδ :: P Cδ
 cδ = P
 
-data CVal μ = BadC | LitC Lit | CloC (Clo μ)
+data CVal μ = LitC Lit | CloC (Clo μ)
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (CVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (CVal μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (CVal μ) where
-  pretty BadC = P.lit "BAD"
   pretty (LitC l) = pretty l
   pretty (CloC c) = pretty c
 
@@ -46,27 +43,26 @@ instance Delta Cδ where
   clo :: (Δ Cδ μ) => P Cδ -> Clo μ -> Val Cδ μ
   clo P = SetCVal . ssingleton . CloC
   op :: (Δ Cδ μ) => P Cδ -> Op -> Val Cδ μ -> Val Cδ μ
-  op P Add1     = update setCValL $ cmap (maybe (\ i -> LitC $ I $ i + 1)  BadC . coerceI *. coerceLitC)
-  op P Sub1     = update setCValL $ cmap (maybe (\ i -> LitC $ I $ i - 1)  BadC . coerceI *. coerceLitC)
-  op P IsNonNeg = update setCValL $ cmap (maybe (\ i -> LitC $ B $ i >= 0) BadC . coerceI *. coerceLitC)
+  op P Add1     = update setCValL $ cmap (LitC . I) . extend (cmap (+1)    . cuseMaybeZero . coerceI *. coerceLitC)
+  op P Sub1     = update setCValL $ cmap (LitC . I) . extend (cmap (+(-1)) . cuseMaybeZero . coerceI *. coerceLitC)
+  op P IsNonNeg = update setCValL $ cmap (LitC . B) . extend (cmap (>=0)   . cuseMaybeZero . coerceI *. coerceLitC)
   elimBool :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set Bool
   elimBool P = extend (useMaybeSet . coerceB *. coerceLitC) . runSetCVal
   elimClo :: (Δ Cδ μ) => P Cδ -> Val Cδ μ -> Set (Clo μ)
   elimClo P = extend (useMaybeSet . coerceCloC) . runSetCVal
 
---------------
--- Abstract --
---------------
+-- }}}
+
+-- Abstract {{{
 
 data Aδ
 aδ :: P Aδ
 aδ = P
 
-data AVal μ = BadA | LitA Lit | IA | CloA (Clo μ)
+data AVal μ = LitA Lit | IA | CloA (Clo μ)
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (AVal μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (AVal μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (AVal μ) where
-  pretty BadA = P.lit "BAD"
   pretty (LitA l) = pretty l
   pretty IA = P.lit "INT"
   pretty (CloA c) = pretty c
@@ -78,10 +74,7 @@ coerceLitA :: AVal μ -> Maybe Lit
 coerceLitA (LitA l) = Just l
 coerceLitA _ = Nothing
 coerceIOrIntA :: AVal μ -> Maybe ()
-coerceIOrIntA v = mtries
-  [ coerceIA v 
-  , void $ coerceI *$ coerceLitA v
-  ]
+coerceIOrIntA = mftries [ coerceIA , void . coerceI *. coerceLitA ]
 coerceBoolA :: AVal μ -> Set Bool
 coerceBoolA v = cuseMaybeZero $ coerceB *$ coerceLitA v
 coerceCloA :: AVal μ -> Maybe (Clo μ)
@@ -106,15 +99,16 @@ instance Delta Aδ where
   lit P (B b) = SetAVal $ ssingleton $ LitA $ B b
   clo :: (Δ Aδ μ) => P Aδ -> Clo μ -> Val Aδ μ
   clo P = SetAVal . ssingleton . CloA
-  op :: (Δ Aδ μ) => P Aδ -> Op -> Val Aδ μ -> Val Aδ μ
-  op P Add1     = update runSetAValL $ cmap $ maybe (const IA) BadA . coerceIOrIntA
-  op P Sub1     = update runSetAValL $ cmap $ maybe (const IA) BadA . coerceIOrIntA
-  op P IsNonNeg = update runSetAValL $ extend $ \ v -> 
-    case v of
-      LitA (I i) -> cmap (LitA . B) $ cunit $ i >= 0
-      IA -> cmap (LitA . B) $ cunit True <+> cunit False
-      _ -> cunit BadA
+  op :: forall μ. (Δ Aδ μ) => P Aδ -> Op -> Val Aδ μ -> Val Aδ μ
+  op P Add1     = update runSetAValL $ cmap (const IA) . extend (cuseMaybeZero . coerceIOrIntA)
+  op P Sub1     = update runSetAValL $ cmap (const IA) . extend (cuseMaybeZero . coerceIOrIntA)
+  op P IsNonNeg = update runSetAValL $ extend $ mfsums
+    [ cmap (LitA . B . (>=0)) . cuseMaybeZero . coerceI *. coerceLitA
+    , cmap (LitA . B) . extend (const $ fromList [True, False]) . cuseMaybeZero . coerceIA
+    ]
   elimBool :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set Bool
   elimBool P = extend coerceBoolA . runSetAVal
   elimClo :: (Δ Aδ μ) => P Aδ -> Val Aδ μ -> Set (Clo μ)
   elimClo P = extend (useMaybeSet . coerceCloA) . runSetAVal
+
+-- }}}

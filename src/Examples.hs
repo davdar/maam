@@ -29,25 +29,26 @@ simpleKCFA =
     (v "id" $# int 2)
 
 doSimpleKCFA :: Doc
-doSimpleKCFA = doConfig simpleKCFA ["concrete, abstract"] ["naive"] ["0-cfa", "1k-cfa"] ["fi"]
+doSimpleKCFA = doConfig simpleKCFA ["abstract"] ["naive"] ["0-cfa", "1k-cfa"] ["fi"]
 
 -- }}}
 
 simpleMCFA :: Exp
 simpleMCFA =
-  llet "g" (lam "x" $ -- lam "y" $
-    iif (v "x" {- /\# v "y" -}) (int 100) (int 200)) $
-  -- llet "ff" (lam "f" $ v "f" @# int 1) $
-  iif (bool True)
-    (v "g" @# int 2) -- @# int 1)
-    (v "g" @# int 3) -- @# int 1)
-    -- (v "ff" $# v "g" @# int 2 @# int 1)
-    -- (v "ff" $# v "g" @# int (-2) @# int 1)
+  llet "g" (lam "x" $ lam "y" $
+    iif (gez (v "x") /\# gez (v "y")) (int 100) (int 200)) $
+  llet "ff" (lam "f" $ v "f" @# int 1) $
+  iif someBool
+    (v "ff" $# v "g" @# int 1)
+    (v "ff" $# v "g" @# int (-1))
+
+doSimpleMCFA :: Doc
+doSimpleMCFA = doConfig simpleMCFA ["abstract"] ["naive"] ["1k-cfa"] ["fi"]
 
 exampleMain :: IO ()
 exampleMain =
   pprint $ P.vsep
     [ return ()
-    -- , doSimpleKCFA
-    , doConfig simpleMCFA ["abstract"] ["naive"] ["1k-cfa"] ["fi"]
+    , doSimpleKCFA
+    -- , doSimpleMCFA
     ]

@@ -427,8 +427,6 @@ instance (Monad m, TransformerIsomorphism (K r) (k r)) => Monad (OpaqueKonT k r 
 instance (TransformerIsomorphism (k r) (K r)) => MonadIsoFunctor (OpaqueKonT k r) where
   mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> OpaqueKonT k r m ~> OpaqueKonT k r n
   mtIsoMap to from aM = makeMetaKonT $ \ (k :: a -> n r) -> to $ runMetaKonT aM $ \ a -> from $ k a
-  
-
 
 instance (Monad m, TransformerIsomorphism (K r) (k r)) => MonadOpaqueKonI k r (OpaqueKonT k r m) where
   opaqueKonI :: OpaqueKonT k r m ~> OpaqueKonT k r (OpaqueKonT k r m)

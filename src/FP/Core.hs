@@ -597,6 +597,9 @@ msum = iter ((<+>) . unit) mzero
 msums :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
 msums = iter (<+>) mzero
 
+mfsums :: (MonadZero m, MonadPlus m) => [a -> m b] -> a -> m b
+mfsums fs x = iter (\ f -> (<+>) $ f x) mzero fs
+
 -- }}}
 
 -- MonadMaybe {{{
@@ -629,6 +632,9 @@ aM1 <|> aM2 = do
 
 mtries :: (MonadMaybe m) => [m a] -> m a
 mtries = coiter (<|>) abort
+
+mftries :: (MonadMaybe m) => [a -> m b] -> a -> m b
+mftries fs x = mtries $ map ($ x) fs
 
 useMaybeZero :: (Unit m, MonadZero m) => Maybe a -> m a
 useMaybeZero Nothing = mzero
@@ -861,9 +867,6 @@ class (Monad m, TransformerMorphism (k r) (K r)) => MonadOpaqueKonE k r m | m ->
   opaqueKonE :: OpaqueKonT k r m ~> m
 class (MonadOpaqueKonI k r m, MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r m | m -> k, m -> r where
 
--- opaqueReturn :: (Monad m, TransformerMorphism (K r) (k r)) => k r m r
--- opaqueReturn = ffmorph $ K $ return
-
 callOpaqueCC :: (MonadOpaqueKonE k r m) => (k r m a -> m r) -> m a
 callOpaqueCC = opaqueKonE . OpaqueKonT
 
@@ -878,6 +881,12 @@ withMetaC k = withOpaqueC $ ffmorph $ K k
 
 isoReset :: (MonadOpaqueKon k r m) => m r -> m r
 isoReset aM = callMetaCC $ \ k -> k *$ withMetaC return aM
+
+modifyOpaqueKon :: (MonadOpaqueKon k r m) => (r -> m r) -> m a -> m a
+modifyOpaqueKon f aM = callMetaCC $ \ (k :: a -> m r) -> f *$ k *$ aM
+
+modifyOpaqueKonOn :: (MonadOpaqueKon k r m) => m a -> (r -> m r) -> m a
+modifyOpaqueKonOn = flip modifyOpaqueKon
 
 -- }}}
 
