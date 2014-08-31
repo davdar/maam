@@ -111,7 +111,7 @@ call δ μ m (StampedFix cid c) = case c of
     tickM δ μ cid
     fv <- pico δ μ fx
     av <- pico δ μ ax
-    kv <- atom δ μ ka
+    kv <- pico δ μ ka
     apply δ μ m fv [av, kv]
   AppK kx ax -> do
     tickM δ μ cid
@@ -153,7 +153,7 @@ freeVarsAtom δ μ m (LamK x c) = freeVarsLam δ μ m [x] $ stampedFix c
 freeVarsCall :: (Analysis δ μ m) => P δ -> μ -> P m -> PreCall SGName SGCall -> Set SGName
 freeVarsCall δ μ m (Let x a c) = freeVarsAtom δ μ m a \/ (freeVarsCall δ μ m (stampedFix c) \-\ cunit x)
 freeVarsCall δ μ m (If ax tc fc) = freeVarsPico δ μ m ax \/ joins (map (freeVarsCall δ μ m . stampedFix) [tc, fc])
-freeVarsCall δ μ m (AppF fx ax kx) = joins (map (freeVarsPico δ μ m) [fx, ax]) \/ freeVarsAtom δ μ m kx
+freeVarsCall δ μ m (AppF fx ax kx) = joins $ map (freeVarsPico δ μ m) [fx, ax, kx]
 freeVarsCall δ μ m (AppK kx ax) = joins $ map (freeVarsPico δ μ m) [kx, ax]
 freeVarsCall δ μ m (Halt ax) = freeVarsPico δ μ m ax
 

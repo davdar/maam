@@ -23,7 +23,7 @@ type StampedSGAtom = Stamped LocNum (Atom SGName)
 data PreCall n c =
     Let n (PreAtom n c) c
   | If (PrePico n) c c 
-  | AppF (PrePico n) (PrePico n) (PreAtom n c)
+  | AppF (PrePico n) (PrePico n) (PrePico n)
   | AppK (PrePico n) (PrePico n)
   | Halt (PrePico n)
 type Call n = StampedFix LocNum (PreCall n)

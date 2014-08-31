@@ -613,6 +613,54 @@ instance (Functorial JoinLattice m) => MonadPlus (SetT m) where
 
 -- }}}
 
+-- StateOpaqueKon {{{
+
+class FFMorph t u where
+  ffmorph' :: t m a x -> u m a x
+class (FFMorph t u, FFMorph u t) => FFIso t u where
+ffto' :: (FFIso t u) => t m a x -> u m a x
+ffto' = ffmorph'
+fffrom' :: (FFIso t u) => u m a x -> t m a x
+fffrom' = ffmorph'
+newtype KK s r a = KK { runKK :: (a, s) -> (r, s) }
+  
+newtype StateOpaqueKon s k r a = StateOpaqueKon { runStateOpaqueKon :: s -> k s r a -> (r, s) }
+makeStateMetaKon :: (FFMorph k KK) => (s -> ((a, s) -> (r, s)) -> (r, s)) -> StateOpaqueKon s k r a
+makeStateMetaKon kk = StateOpaqueKon $ \ s k -> kk s $ runKK $ ffmorph' k
+runStateMetaKon :: (FFMorph KK k) => StateOpaqueKon s k r a -> s -> ((a, s) -> (r, s)) -> (r, s)
+runStateMetaKon aM s k = runStateOpaqueKon aM s $ ffmorph' $ KK k
+
+instance (FFMorph k KK) => Unit (StateOpaqueKon s k r) where
+  unit a = makeStateMetaKon $ \ s (k :: (a, s) -> (r, s)) -> k (a, s)
+instance (FFIso k KK) => Bind (StateOpaqueKon s k r) where
+  aM >>= kM = makeStateMetaKon $ \ s (k :: (b, s) -> (r, s)) ->
+    runStateMetaKon aM s $ \ (a, s') -> runStateMetaKon (kM a) s' k
+instance (FFIso k KK) => Functor (StateOpaqueKon s k r) where map = mmap
+instance (FFIso k KK) => Applicative (StateOpaqueKon s k r) where (<@>) = mapply
+instance (FFIso k KK) => Product (StateOpaqueKon s k r) where (<*>) = mpair
+instance (FFIso k KK) => Monad (StateOpaqueKon s k r) where
+
+instance (FFIso k KK) => MonadStateI s (StateOpaqueKon s k r) where
+  stateI :: StateOpaqueKon s k r ~> StateT s (StateOpaqueKon s k r)
+  stateI aM = StateT $ \ s -> makeStateMetaKon $ \ s' (k :: ((a, s), s) -> (r, s)) ->
+    runStateMetaKon aM s $ \ (axs :: (a, s)) -> k (axs, s')
+instance (FFIso k KK) => MonadStateE s (StateOpaqueKon s k r) where
+  stateE :: StateT s (StateOpaqueKon s k r) ~> StateOpaqueKon s k r
+  stateE aMM = makeStateMetaKon $ \ s (k :: (a, s) -> (r, s)) ->
+    runStateMetaKon (runStateT s aMM) s $ \ axss -> k $ fst axss
+instance (FFIso k KK) => MonadKonI r (StateOpaqueKon s k r) where
+  konI :: StateOpaqueKon s k r ~> KonT r (StateOpaqueKon s k r)
+  konI aM = KonT $ \ (k1 :: a -> StateOpaqueKon s k r r) -> makeStateMetaKon $ \ s (k2 :: (r, s) -> (r, s)) -> 
+    k2 $ runStateMetaKon aM s $ \ (a, s') -> runStateMetaKon (k1 a) s' id
+instance (FFIso k KK) => MonadKonE r (StateOpaqueKon s k r) where
+  konE :: KonT r (StateOpaqueKon s k r) ~> StateOpaqueKon s k r
+  konE aMM = makeStateMetaKon $ \ s (k1 :: (a, s) -> (r, s)) -> 
+    let aM :: StateOpaqueKon s k r r
+        aM = runKonT aMM $ \ a -> makeStateMetaKon $ \ s' (k2 :: (r, s) -> (r, s)) -> k2 $ k1 (a, s')
+    in runStateMetaKon aM s id
+
+-- }}}
+
 -- Monads Commuting {{{
 
 -- Reader // * {{{
@@ -699,29 +747,30 @@ instance (MonadReader r m) => MonadReader r (MaybeT m) where
 
 -- Reader // OpaqueKonT {{{
 
-readerOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r (ReaderT e m)
-readerOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> ReaderT e m r) -> ReaderT $ \ e -> do
-  runMetaKonT (runReaderT e aSK) $ \ a -> runReaderT e $ k a
-
-opaqueKonReaderCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (ReaderT e m) ~> ReaderT e (OpaqueKonT k r m)
-opaqueKonReaderCommute aKS = ReaderT $ \ e -> makeMetaKonT $ \ (k :: a -> m r) -> do
-  runReaderT e $ runMetaKonT aKS $ \ a -> ReaderT $ \ _ -> k a
-
-instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (ReaderT e m) where
-  opaqueKonI :: ReaderT e m ~> OpaqueKonT k r (ReaderT e m)
-  opaqueKonI = readerOpaqueKonCommute . mtMap opaqueKonI
-instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (ReaderT e m) where
-  opaqueKonE :: OpaqueKonT k r (ReaderT e m) ~> ReaderT e m
-  opaqueKonE = mtMap opaqueKonE . opaqueKonReaderCommute
-instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (ReaderT e m) where
-
-instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderI e (OpaqueKonT k r m) where
-  readerI :: OpaqueKonT k r m ~> ReaderT e (OpaqueKonT k r m)
-  readerI = opaqueKonReaderCommute . mtIsoMap readerI readerE
-instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderE e (OpaqueKonT k r m) where
-  readerE :: ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r m
-  readerE = mtIsoMap readerE readerI . readerOpaqueKonCommute
-instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReader e (OpaqueKonT k r m) where
+-- REMOVED BECAUSE BAD
+-- readerOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r (ReaderT e m)
+-- readerOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> ReaderT e m r) -> ReaderT $ \ e -> do
+--   runMetaKonT (runReaderT e aSK) $ \ a -> runReaderT e $ k a
+-- 
+-- opaqueKonReaderCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (ReaderT e m) ~> ReaderT e (OpaqueKonT k r m)
+-- opaqueKonReaderCommute aKS = ReaderT $ \ e -> makeMetaKonT $ \ (k :: a -> m r) -> do
+--   runReaderT e $ runMetaKonT aKS $ \ a -> ReaderT $ \ _ -> k a
+-- 
+-- instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (ReaderT e m) where
+--   opaqueKonI :: ReaderT e m ~> OpaqueKonT k r (ReaderT e m)
+--   opaqueKonI = readerOpaqueKonCommute . mtMap opaqueKonI
+-- instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (ReaderT e m) where
+--   opaqueKonE :: OpaqueKonT k r (ReaderT e m) ~> ReaderT e m
+--   opaqueKonE = mtMap opaqueKonE . opaqueKonReaderCommute
+-- instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (ReaderT e m) where
+-- 
+-- instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderI e (OpaqueKonT k r m) where
+--   readerI :: OpaqueKonT k r m ~> ReaderT e (OpaqueKonT k r m)
+--   readerI = opaqueKonReaderCommute . mtIsoMap readerI readerE
+-- instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReaderE e (OpaqueKonT k r m) where
+--   readerE :: ReaderT e (OpaqueKonT k r m) ~> OpaqueKonT k r m
+--   readerE = mtIsoMap readerE readerI . readerOpaqueKonCommute
+-- instance (MonadReader e m, TransformerIsomorphism (k r) (K r)) => MonadReader e (OpaqueKonT k r m) where
 
 -- }}}
 
@@ -1053,30 +1102,31 @@ instance (MonadState s m) => MonadState s (MaybeT m) where
 
 -- State // OpaqueKonT {{{
 
-stateOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r (StateT s m)
-stateOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> StateT s m r) -> StateT $ \ s -> do
-  r <- runMetaKonT (runStateT s aSK) $ \ (a, s') -> fst <$> runStateT s' $ k a
-  return (r, s)
-
-opaqueKonStateCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (StateT s m) ~> StateT s (OpaqueKonT k r m)
-opaqueKonStateCommute aKS = StateT $ \ s -> makeMetaKonT $ \ (k :: (a, s) -> m r) -> do
-  fst <$> runStateT s $ runMetaKonT aKS $ \ a -> StateT $ \ s' -> (,s') <$> k (a, s')
-
-instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (StateT s m) where
-  opaqueKonI :: StateT s m ~> OpaqueKonT k r (StateT s m)
-  opaqueKonI = stateOpaqueKonCommute . mtMap opaqueKonI
-instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (StateT s m) where
-  opaqueKonE :: OpaqueKonT k r (StateT s m) ~> StateT s m
-  opaqueKonE = mtMap opaqueKonE . opaqueKonStateCommute
-instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (StateT s m) where
-
-instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateI s (OpaqueKonT k r m) where
-  stateI :: OpaqueKonT k r m ~> StateT s (OpaqueKonT k r m)
-  stateI = opaqueKonStateCommute . mtIsoMap stateI stateE
-instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateE s (OpaqueKonT k r m) where
-  stateE :: StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r m
-  stateE = mtIsoMap stateE stateI . stateOpaqueKonCommute
-instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadState s (OpaqueKonT k r m) where
+-- REMOVED BECAUSE BAD
+-- stateOpaqueKonCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r (StateT s m)
+-- stateOpaqueKonCommute aSK = makeMetaKonT $ \ (k :: a -> StateT s m r) -> StateT $ \ s -> do
+--   r <- runMetaKonT (runStateT s aSK) $ \ (a, s') -> fst <$> runStateT s' $ k a
+--   return (r, s)
+-- 
+-- opaqueKonStateCommute :: (Monad m, TransformerIsomorphism (k r) (K r)) => OpaqueKonT k r (StateT s m) ~> StateT s (OpaqueKonT k r m)
+-- opaqueKonStateCommute aKS = StateT $ \ s -> makeMetaKonT $ \ (k :: (a, s) -> m r) -> do
+--   fst <$> runStateT s $ runMetaKonT aKS $ \ a -> StateT $ \ s' -> (,s') <$> k (a, s')
+-- 
+-- instance (MonadOpaqueKonI k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonI k r (StateT s m) where
+--   opaqueKonI :: StateT s m ~> OpaqueKonT k r (StateT s m)
+--   opaqueKonI = stateOpaqueKonCommute . mtMap opaqueKonI
+-- instance (MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKonE k r (StateT s m) where
+--   opaqueKonE :: OpaqueKonT k r (StateT s m) ~> StateT s m
+--   opaqueKonE = mtMap opaqueKonE . opaqueKonStateCommute
+-- instance (MonadOpaqueKon k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r (StateT s m) where
+-- 
+-- instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateI s (OpaqueKonT k r m) where
+--   stateI :: OpaqueKonT k r m ~> StateT s (OpaqueKonT k r m)
+--   stateI = opaqueKonStateCommute . mtIsoMap stateI stateE
+-- instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadStateE s (OpaqueKonT k r m) where
+--   stateE :: StateT s (OpaqueKonT k r m) ~> OpaqueKonT k r m
+--   stateE = mtIsoMap stateE stateI . stateOpaqueKonCommute
+-- instance (MonadState s m, TransformerIsomorphism (k r) (K r)) => MonadState s (OpaqueKonT k r m) where
 
 -- }}}
 
