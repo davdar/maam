@@ -4,6 +4,9 @@ import FP.Core
 import FP.Free
 import FP.Monads
 
+-- TODO: get rid of (MonadPretty m) and make everything return PrettyT m.
+-- if you want to extend it, make a (usePrettyT :: PrettyT m ~> m) for your m.
+
 -- Setup {{{ --
 
 newtype Color256 = Color256 { color256Raw :: Int }
@@ -95,7 +98,7 @@ newtype PrettyT m a = PrettyT { unPrettyT :: RWST PEnv POut PState m a }
     , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
     , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
     , MonadStateI PState, MonadStateE PState, MonadState PState
-    , MonadRWSI PEnv POut PState, MonadRWSE PEnv POut PState, MonadRWS PEnv POut PState
+    -- , MonadRWSI PEnv POut PState, MonadRWSE PEnv POut PState, MonadRWS PEnv POut PState
     , MonadMaybeI, MonadMaybeE, MonadMaybe
     )
 runPrettyT :: (Functor m) => PEnv -> PState -> PrettyT m a -> m (a, POut, PState)

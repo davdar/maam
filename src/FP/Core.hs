@@ -84,29 +84,29 @@ infixr 0 <*$>
 
 -- Misc {{{
 
-class Morphism a b where
-  morph :: a -> b
-class (Morphism a b, Morphism b a) => Isomorphism a b where
-ito :: (Isomorphism a b) => a -> b
-ito = morph
-ifrom :: (Isomorphism a b) => b -> a
-ifrom = morph
-
-class FunctorMorphism t u where
-  fmorph :: t ~> u
-class (FunctorMorphism t u, FunctorMorphism u t) => FunctorIsomorphism t u where
-fto :: (FunctorIsomorphism t u) => t ~> u
-fto = fmorph
-ffrom :: (FunctorIsomorphism t u) => u ~> t
-ffrom = fmorph
-class TransformerMorphism t u where
-  ffmorph :: (Monad m) => t m ~> u m
-class (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
-instance (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
-ffto :: (TransformerIsomorphism t u, Monad m) => t m ~> u m
-ffto = ffmorph
-fffrom :: (TransformerIsomorphism t u, Monad m) => u m ~> t m
-fffrom = ffmorph
+-- class Morphism a b where
+--   morph :: a -> b
+-- class (Morphism a b, Morphism b a) => Isomorphism a b where
+-- ito :: (Isomorphism a b) => a -> b
+-- ito = morph
+-- ifrom :: (Isomorphism a b) => b -> a
+-- ifrom = morph
+-- 
+-- class FunctorMorphism t u where
+--   fmorph :: t ~> u
+-- class (FunctorMorphism t u, FunctorMorphism u t) => FunctorIsomorphism t u where
+-- fto :: (FunctorIsomorphism t u) => t ~> u
+-- fto = fmorph
+-- ffrom :: (FunctorIsomorphism t u) => u ~> t
+-- ffrom = fmorph
+-- class TransformerMorphism t u where
+--   ffmorph :: (Monad m) => t m ~> u m
+-- class (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
+-- instance (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
+-- ffto :: (TransformerIsomorphism t u, Monad m) => t m ~> u m
+-- ffto = ffmorph
+-- fffrom :: (TransformerIsomorphism t u, Monad m) => u m ~> t m
+-- fffrom = ffmorph
 
 -- }}}
 
@@ -117,6 +117,42 @@ class Category t where
   (<.>) :: t b c -> t a b -> t a c
 
 -- }}} --
+
+-- Morphism {{{
+
+class Morphism a b where
+  morph :: a -> b
+class FMorphism t u where
+  fmorph :: t a -> u a
+class FFMorphism v w where
+  ffmorph :: v t a -> w t a
+
+-- }}}
+
+-- Isomorphism {{{
+
+class (Morphism a b, Morphism b a) => Isomorphism a b where
+
+ito :: (Isomorphism a b) => a -> b
+ito = morph
+ifrom :: (Isomorphism a b) => b -> a
+ifrom = morph
+
+class (FMorphism t u, FMorphism u t) => FIsomorphism t u where
+
+fto :: (FIsomorphism t u) => t a -> u a
+fto = fmorph
+ffrom :: (FIsomorphism t u) => t a -> u a
+ffrom = fmorph
+
+class (FFMorphism v w, FFMorphism w v) => FFIsomorphism v w where
+
+ffto :: (FFIsomorphism v w) => v t a -> w t a
+ffto = ffmorph
+fffrom :: (FFIsomorphism v w) => v t a -> w t a
+fffrom = ffmorph
+
+-- }}}
 
 -- Monoid {{{
 
@@ -572,7 +608,6 @@ class MonadFunctor t where
 class MonadIsoFunctor t where
   mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> t m ~> t n
 
-
 -- }}}
 
 -- MonadZero {{{
@@ -643,6 +678,87 @@ useMaybeZero (Just x) = unit x
 cuseMaybeZero :: (CUnit c m, MonadZero m, c a) => Maybe a -> m a
 cuseMaybeZero Nothing = mzero
 cuseMaybeZero (Just x) = cunit x
+
+-- }}}
+
+-- MonadError {{{
+
+newtype ErrorT e m a = ErrorT { runErrorT :: m (e :+: a) }
+
+class (Monad m) => MonadErrorI e m where
+  errorI :: m ~> ErrorT e m
+class (Monad m) => MonadErrorE e m where
+  errorE :: ErrorT e m ~> m
+class (MonadErrorI e m, MonadErrorE e m) => MonadError e m where
+
+throw :: (MonadErrorE e m) => e -> m a
+throw e = errorE $ ErrorT $ return $ Inl e
+
+catch :: (MonadErrorI e m) => m a -> (e -> m a) -> m a
+catch aM h = do
+  aeM <- runErrorT $ errorI aM
+  case aeM of
+    Inl e -> h e
+    Inr a -> return a
+
+-- }}}
+
+-- MonadReader {{{
+
+newtype ReaderT r m a = ReaderT { unReaderT :: r -> m a }
+runReaderT :: r -> ReaderT r m a -> m a
+runReaderT = flip unReaderT
+
+class (Monad m) => MonadReaderI r m where
+  readerI :: m ~> ReaderT r m
+class (Monad m) => MonadReaderE r m where
+  readerE :: ReaderT r m ~> m
+class (MonadReaderI r m, MonadReaderE r m) => MonadReader r m where
+
+ask :: (MonadReaderE r m) => m r
+ask = readerE $ ReaderT return
+
+askP :: (MonadReaderE r m) => P r -> m r
+askP P = ask
+
+askL :: (MonadReaderE r m) => Lens r a -> m a
+askL l = access l <$> ask
+
+local :: (MonadReader r m) => (r -> r) -> m a -> m a
+local f aM = readerE $ ReaderT $ \ e -> runReaderT (f e) $ readerI aM
+
+localP :: (MonadReader r m) => P r -> (r -> r) -> m a -> m a
+localP P = local
+
+localSet :: (MonadReader r m) => r -> m a -> m a
+localSet = local . const
+
+localL :: (MonadReader r m) => Lens r b -> (b -> b) -> m a -> m a
+localL = local .: update
+
+localSetL :: (MonadReader r m) => Lens r b -> b -> m a -> m a
+localSetL l = localL l . const
+
+-- }}}
+
+-- MonadWriter {{{
+
+newtype WriterT o m a = WriterT { runWriterT :: m (a, o) }
+
+class (Monad m) => MonadWriterI o m where
+  writerI :: m ~> WriterT o m
+class (Monad m) => MonadWriterE o m where
+  writerE :: WriterT o m ~> m
+class (MonadWriterI o m, MonadWriterE o m) => MonadWriter o m where
+
+tell :: (MonadWriterE o m) => o -> m ()
+tell = writerE . WriterT . return . ((),)
+
+tellP :: (MonadWriterE o m) => P o -> o -> m ()
+tellP P = tell
+
+hijack :: (MonadWriterI o m) => m a -> m (a, o)
+hijack = runWriterT . writerI
 
 -- }}}
 
@@ -741,65 +857,6 @@ cmodifyL = cmodify .: update
 
 -- }}}
 
--- MonadReader {{{
-
-newtype ReaderT r m a = ReaderT { unReaderT :: r -> m a }
-runReaderT :: r -> ReaderT r m a -> m a
-runReaderT = flip unReaderT
-
-class (Monad m) => MonadReaderI r m where
-  readerI :: m ~> ReaderT r m
-class (Monad m) => MonadReaderE r m where
-  readerE :: ReaderT r m ~> m
-class (MonadReaderI r m, MonadReaderE r m) => MonadReader r m where
-
-ask :: (MonadReaderE r m) => m r
-ask = readerE $ ReaderT return
-
-askP :: (MonadReaderE r m) => P r -> m r
-askP P = ask
-
-askL :: (MonadReaderE r m) => Lens r a -> m a
-askL l = access l <$> ask
-
-local :: (MonadReader r m) => (r -> r) -> m a -> m a
-local f aM = readerE $ ReaderT $ \ e -> runReaderT (f e) $ readerI aM
-
-localP :: (MonadReader r m) => P r -> (r -> r) -> m a -> m a
-localP P = local
-
-localSet :: (MonadReader r m) => r -> m a -> m a
-localSet = local . const
-
-localL :: (MonadReader r m) => Lens r b -> (b -> b) -> m a -> m a
-localL = local .: update
-
-localSetL :: (MonadReader r m) => Lens r b -> b -> m a -> m a
-localSetL l = localL l . const
-
--- }}}
-
--- MonadWriter {{{
-
-newtype WriterT o m a = WriterT { runWriterT :: m (a, o) }
-
-class (Monad m) => MonadWriterI o m where
-  writerI :: m ~> WriterT o m
-class (Monad m) => MonadWriterE o m where
-  writerE :: WriterT o m ~> m
-class (MonadWriterI o m, MonadWriterE o m) => MonadWriter o m where
-
-tell :: (MonadWriterE o m) => o -> m ()
-tell = writerE . WriterT . return . ((),)
-
-tellP :: (MonadWriterE o m) => P o -> o -> m ()
-tellP P = tell
-
-hijack :: (MonadWriterI o m) => m a -> m (a, o)
-hijack = runWriterT . writerI
-
--- }}}
-
 -- MonadRWST {{{
 
 newtype RWST r o s m a = RWST { unRWST :: ReaderT r (WriterT o (StateT s m)) a }
@@ -855,38 +912,25 @@ withC k aM = runKonT (konI aM) k
 reset :: (MonadKon r m) => m r -> m r
 reset aM = callCC $ \ k -> k *$ withC return aM
 
+modifyC :: (MonadKon r m) => (r -> m r) -> m a -> m a
+modifyC f aM = callCC $ \ k -> withC (f *. k) aM
+
 -- }}}
 
 -- MonadOpaqueKon {{{
 
-newtype K r m a = K { runK :: a -> m r }
+newtype KFun r m a = KFun { runKFun :: a -> m r }
 newtype OpaqueKonT k r m a = OpaqueKonT { runOpaqueKonT :: k r m a -> m r }
-class (Monad m, TransformerMorphism (K r) (k r)) => MonadOpaqueKonI k r m | m -> k, m -> r where
-  opaqueKonI :: m ~> OpaqueKonT k r m
-class (Monad m, TransformerMorphism (k r) (K r)) => MonadOpaqueKonE k r m | m -> k, m -> r where
-  opaqueKonE :: OpaqueKonT k r m ~> m
-class (MonadOpaqueKonI k r m, MonadOpaqueKonE k r m, TransformerIsomorphism (k r) (K r)) => MonadOpaqueKon k r m | m -> k, m -> r where
-
-callOpaqueCC :: (MonadOpaqueKonE k r m) => (k r m a -> m r) -> m a
-callOpaqueCC = opaqueKonE . OpaqueKonT
-
-callMetaCC :: (MonadOpaqueKonE k r m) => ((a -> m r) -> m r) -> m a
-callMetaCC mk = callOpaqueCC $ \ ok -> mk $ runK $ ffmorph ok
-
-withOpaqueC :: (MonadOpaqueKonI k r m) => k r m a -> m a -> m r
-withOpaqueC k aM = runOpaqueKonT (opaqueKonI aM) k
-
-withMetaC :: (MonadOpaqueKonI k r m) => (a -> m r) -> m a -> m r
-withMetaC k = withOpaqueC $ ffmorph $ K k
-
-isoReset :: (MonadOpaqueKon k r m) => m r -> m r
-isoReset aM = callMetaCC $ \ k -> k *$ withMetaC return aM
-
-modifyOpaqueKon :: (MonadOpaqueKon k r m) => (r -> m r) -> m a -> m a
-modifyOpaqueKon f aM = callMetaCC $ \ (k :: a -> m r) -> f *$ k *$ aM
-
-modifyOpaqueKonOn :: (MonadOpaqueKon k r m) => m a -> (r -> m r) -> m a
-modifyOpaqueKonOn = flip modifyOpaqueKon
+-- class (Monad m) => MonadOpaqueKonI k r m | m -> k, m -> r where
+--   opaqueKonI :: m ~> OpaqueKonT k r m
+-- class (Monad m) => MonadOpaqueKonE k r m | m -> k, m -> r where
+--   opaqueKonE :: OpaqueKonT k r m ~> m
+-- class (MonadOpaqueKonI k r m, MonadOpaqueKonE k r m) => MonadOpaqueKon k r m | m -> k, m -> r where
+class (MonadKonI r m, Monad m) => MonadOpaqueKonI k r m | m -> k, m -> r where
+  withOpaqueC :: k r m a -> m a -> m r
+class (MonadKonE r m, Monad m) => MonadOpaqueKonE k r m | m -> k, m -> r where
+  callOpaqueCC :: (k r m a -> m r) -> m a
+class (MonadKon r m, MonadOpaqueKonI k r m, MonadOpaqueKonE k r m) => MonadOpaqueKon k r m | m -> k, m -> r where
 
 -- }}}
 
@@ -998,6 +1042,14 @@ cond p t f x = if p x then t else f
 -- Sum {{{
 
 data a :+: b = Inl a | Inr b
+
+mapLeft :: (a -> c) -> a :+: b -> c :+: b
+mapLeft f (Inl a) = Inl $ f a
+mapLeft _ (Inr b) = Inr b
+
+mapRight :: (b -> c) -> a :+: b -> a :+: c
+mapRight _ (Inl a) = Inl a
+mapRight f (Inr b) = Inr $ f b
 
 -- }}}
 

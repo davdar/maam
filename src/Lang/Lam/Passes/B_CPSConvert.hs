@@ -25,75 +25,52 @@ stampL = lens lin lout
 st0 :: St
 st0 = St pzero pzero pzero
 
-type M = StateOpaqueKon St CPSKon SGCall
+type M m = (MonadOpaqueKon CPSKon SGCall m, MonadState St m)
 
-fresh :: String -> M SGName
+fresh :: (M m) => String -> m SGName
 fresh x = do
   i <- nextL bdrIDL
   g <- nextL genIDL
   return $ Stamped i $ GName (Just g) $ Name x
 
-data CPSKon s r a where
-  MetaKon :: ((a, s) -> (r, s)) -> CPSKon s r a
-  ObjectKon :: SGPico -> CPSKon St SGCall SGPico
-instance FFMorph CPSKon KK where
-  ffmorph' :: CPSKon s r a -> KK s r a
-  ffmorph' (MetaKon mk) = KK mk
-  ffmorph' (ObjectKon kx) = KK $ \ (ax, St cid bid gid) -> (StampedFix cid $ AppK kx ax, St (psuc cid) bid gid)
-instance FFMorph KK CPSKon where
-  ffmorph' (KK mk) = MetaKon mk
-instance FFIso CPSKon KK
+data CPSKon r m a where
+  MetaKon :: (a -> m r) -> CPSKon r m a
+  ObjectKon :: SGPico -> (SGPico -> m SGCall) -> CPSKon SGCall m SGPico
+instance FFMorphism (KFun r) (CPSKon r) where
+  ffmorph (KFun mk) = MetaKon mk
+instance FFMorphism (CPSKon r) (KFun r) where
+  ffmorph :: CPSKon r m a -> KFun r m a
+  ffmorph (MetaKon mk) = KFun mk
+  ffmorph (ObjectKon _ mk) = KFun mk
+instance FFIsomorphism (KFun r) (CPSKon r) where
+instance Balloon CPSKon SGCall where
+  inflate :: (Monad m) => CPSKon SGCall m ~> CPSKon SGCall (OpaqueKonT CPSKon SGCall m)
+  inflate (MetaKon mk) = MetaKon $ \ a -> makeMetaKonT $ \ k -> k *$ mk a
+  inflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> makeMetaKonT $ \ k -> k *$ mk ax
+  deflate :: (Monad m) => CPSKon SGCall (OpaqueKonT CPSKon SGCall m) ~> CPSKon SGCall m
+  deflate (MetaKon mk) = MetaKon $ \ a -> runMetaKonTWith return $ mk a
+  deflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> evalOpaqueKonT $ mk ax
 
-withKont :: CPSKon St SGCall SGPico -> M SGPico -> M SGCall
-withKont k aM = do
-  st <- get
-  let (c, st') = runStateOpaqueKon aM st k
-  put st'
-  return c
-
-withKontMeta :: ((SGPico, St) -> (SGCall, St)) -> M SGPico -> M SGCall
-withKontMeta k aM = withKont (ffmorph' $ KK k) aM
-
-captureKont :: (CPSKon St SGCall SGPico -> M SGCall) -> M SGPico
-captureKont kk = StateOpaqueKon $ \ s (k :: CPSKon St SGCall SGPico) -> runStateMetaKon (kk k) s id
-
-captureKontMeta :: (((SGPico, St) -> (SGCall, St)) -> M SGCall) -> M SGPico
-captureKontMeta kk = captureKont $ \ (k :: CPSKon St SGCall SGPico) -> kk $ runKK $ ffmorph' k
-
-modifyKont :: (SGCall -> SGCall) -> M SGPico -> M SGPico
-modifyKont f aM = captureKont $ \ k -> do 
-  c <- withKont k aM
-  return $ f c
-
-internalizeKon :: ((a, St) -> (r, St)) -> a -> M r
-internalizeKon f a = do
-  st <- get
-  let (r, st') = f (a, st)
-  put st'
-  return r
-
-letAtom :: LocNum -> String -> SGAtom -> M SGPico
+letAtom :: (M m) => LocNum -> String -> SGAtom -> m SGPico
 letAtom i n a = do
   x <- fresh n
-  modifyKont (StampedFix i . Let x a) $ 
+  modifyC (return . StampedFix i . Let x a) $ 
     return $ Var x
 
-letAtomNoStamp :: String -> SGAtom -> M SGPico
-letAtomNoStamp n a = do
-  i <- nextL callIDL
-  letAtom i n a
-
-reify :: CPSKon St SGCall SGPico -> M SGPico
+reify :: (M m) => CPSKon SGCall m SGPico -> m SGPico
 reify (MetaKon mk) = do
   x <- fresh "x"
-  c <- internalizeKon mk $ Var x
-  letAtomNoStamp "k" $ LamK x c
-reify (ObjectKon k) = return k
+  c <- mk $ Var x
+  i <- nextL callIDL
+  letAtom i "k" $ LamK x c
+reify (ObjectKon k _) = return k
 
-reflect :: SGPico -> CPSKon St SGCall SGPico
-reflect kx = ObjectKon kx 
+reflect :: (M m) => SGPico -> CPSKon SGCall m SGPico
+reflect kx = ObjectKon kx $ \ ax -> do
+  i <- nextL callIDL
+  return $ StampedFix i $ AppK kx ax
 
-cpsM :: SExp -> M SGPico
+cpsM :: (M m) => SExp -> m SGPico
 cpsM (StampedFix i e0) = case e0 of
   L.Lit l -> 
     return $ Lit l
@@ -103,7 +80,7 @@ cpsM (StampedFix i e0) = case e0 of
   L.Lam x e -> do
     let sx = sgNameFromSName x
     kx <- fresh "k"
-    c <- withKont (reflect $ Var kx) $ cpsM e
+    c <- withOpaqueC (reflect $ Var kx) $ cpsM e
     letAtom i "f" $ LamF sx kx c
   L.Prim o e -> do
     ex <- cpsM e
@@ -111,29 +88,29 @@ cpsM (StampedFix i e0) = case e0 of
   L.Let x e b -> do
     ea <- cpsAtomM e
     let sx = sgNameFromSName x
-    captureKont $ \ (ko :: CPSKon St SGCall SGPico) -> do
-      bc <- withKont ko $ cpsM b
+    callOpaqueCC $ \ (ko :: CPSKon SGCall m SGPico) -> do
+      bc <- withOpaqueC ko $ cpsM b
       return $ StampedFix i $ Let sx ea bc
   L.App f e -> do
-    captureKont $ \ (ko :: CPSKon St SGCall SGPico) -> do
+    callOpaqueCC $ \ (ko :: CPSKon SGCall m SGPico) -> do
       fx <- cpsM f
       ex <- cpsM e
       ka <- reify ko
       return $ StampedFix i $ AppF fx ex ka
   L.If ce te fe -> do
-    captureKont $ \ (ko :: CPSKon St SGCall SGPico) -> do
+    callOpaqueCC $ \ (ko :: CPSKon SGCall m SGPico) -> do
       cx <- cpsM ce
       ko' <- reflect <$> reify ko
-      tc <- withKont ko' $ cpsM te
-      fc <- withKont ko' $ cpsM fe
+      tc <- withOpaqueC ko' $ cpsM te
+      fc <- withOpaqueC ko' $ cpsM fe
       return $ StampedFix i $ If cx tc fc
 
-cpsAtomM :: SExp -> M SGAtom
+cpsAtomM :: (M m) => SExp -> m SGAtom
 cpsAtomM se@(StampedFix _ e0) = case e0 of
   L.Lam x e -> do
     let sx = sgNameFromSName x
     kx <- fresh "k"
-    c <- withKont (reflect $ Var kx) $ cpsM e
+    c <- withOpaqueC (reflect $ Var kx) $ cpsM e
     return $ LamF sx kx c
   L.Prim o e -> do
     ea <- cpsM e
@@ -156,17 +133,12 @@ evalStStateT :: (Functor m) => St -> StStateT m a -> m a
 evalStStateT s = evalStateT s . unStStateT
 
 stampCPS :: Exp -> (SExp, SGCall)
-stampCPS e = 
-  let (se, Stamp.St ei bi) = runReader Stamp.env0 $ runStateT Stamp.st0 $ Stamp.stampM e
-      c = fst $ runStateMetaKon (cpsM se) (St ei bi 0) $ \ (ex, St ei' bi' gi') ->
-        (StampedFix ei $ Halt ex, St (psuc ei') bi' gi')
-  in (se, c)
-  -- runReader Stamp.env0 $ evalStStateT st0 $ do
-  --   se <- Stamp.stampM e
-  --   c <- runMetaKonT (cpsM se) $ \ ex -> do
-  --     i <- nextL callIDL
-  --     return $ StampedFix i $ Halt ex
-  --   return (se, c)
+stampCPS e = runReader Stamp.env0 $ evalStStateT st0 $ do
+  se <- Stamp.stampM e
+  c <- runMetaKonT (cpsM se) $ \ ex -> do
+    i <- nextL callIDL
+    return $ StampedFix i $ Halt ex
+  return (se, c)
 
 cps :: Exp -> SGCall
 cps = snd . stampCPS
