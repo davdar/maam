@@ -55,11 +55,17 @@ var δ μ x = do
   s <- getL $ storeL δ μ
   useMaybeZero $ index s *$ index e $ x
 
+createClosureLinked :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> Env μ -> m δ μ (Val δ μ)
+createClosureLinked δ μ xs c ρ = undefined
+
+createClosureCopied :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> Env μ -> m δ μ (Val δ μ)
+createClosureCopied δ μ xs c ρ = undefined
+
 lam :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> m δ μ (Val δ μ)
 lam δ μ xs c = do
-  e <- getP $ envP μ
+  ρ <- getP $ envP μ
   lτ <- getP $ lexicalTimeP μ ψ
-  return $ clo δ $ Clo xs c e lτ
+  return $ clo δ $ Clo xs c ρ lτ
 
 pico :: (Analysis δ μ m) => P δ -> μ -> SGPico -> m δ μ (Val δ μ)
 pico δ _ (Lit l) = return $ lit δ l
