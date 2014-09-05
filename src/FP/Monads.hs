@@ -199,6 +199,18 @@ instance (MonadZero m) => MonadZero (ReaderT r m) where
 
 -- WriterT {{{
 
+execWriterT :: (Functor m) => WriterT o m a -> m o
+execWriterT = map snd . runWriterT
+
+mapOutput :: (Functor m) => (o1 -> o2) -> WriterT o1 m a -> WriterT o2 m a
+mapOutput f = WriterT . map (mapSnd f) . runWriterT
+
+-- execWriterTEndo :: (Functor m) => b -> WriterT (b -> b) m a -> m b
+-- execWriterTEndo b = map (runEndo b) . execWriterT . mapOutput Endo
+-- 
+-- execWriterTKleisliEndo :: (Monad m) => b -> WriterT (b -> m b) m a -> m b
+-- execWriterTKleisliEndo b = runKleisliEndo b *. execWriterT . mapOutput KleisliEndo
+
 writerCommute :: (Functor m) => WriterT o1 (WriterT o2 m) ~> WriterT o2 (WriterT o1 m)
 writerCommute aMM = WriterT $ WriterT $ map ff $ runWriterT $ runWriterT aMM
   where

@@ -10,4 +10,4 @@ import FP.Core
 import FP.Free
 import FP.Monads
 import FP.Pretty (Pretty(..), Doc, ptoString)
-import FP.Console (pprint, pprintWidth)
+import FP.Console (pprint, pprintWith, pprintWidth)

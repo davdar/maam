@@ -4,4 +4,4 @@ import FP
 import Examples
 
 main :: IO ()
-main = exampleMain
+main = examplesMain

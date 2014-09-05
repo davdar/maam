@@ -28,3 +28,7 @@ data PreCall n c =
   | Halt (PrePico n)
 type Call n = StampedFix LocNum (PreCall n)
 type SGCall = Call SGName
+
+isAppF :: SGCall -> Bool
+isAppF (StampedFix _ (AppF _ _ _)) = True
+isAppF _ = False

@@ -34,49 +34,48 @@ type Analysis δ μ m =
 data M where
   M :: (Analysis δ μ m) => P δ -> P μ -> P m -> M
 
+type GC δ μ m = P δ -> μ -> P m -> SGCall -> m δ μ ()
+type PolyGC = forall δ μ m. (Analysis δ μ m) => GC δ μ m
+type CreateClo δ μ m = P δ -> μ -> P m -> [SGName] -> SGCall -> m δ μ (Clo μ)
+type PolyCreateClo = forall δ μ m. (Analysis δ μ m) => CreateClo δ μ m
+type TimeFilter = SGCall -> Bool
+
 mP :: P m -> P δ -> μ -> P (m δ μ)
 mP P P _ = P
 
 new :: (Analysis δ μ m) => P δ -> μ -> SGName -> m δ μ (Addr μ)
-new _ μ x = do
+new P μ x = do
   lτ <- getP $ lexicalTimeP μ ψ
   dτ <- getP $ dynamicTimeP μ ψ
   return $ Addr x lτ dτ
 
-bind :: (Analysis δ μ m) => P δ -> μ -> SGName -> Val δ μ -> m δ μ ()
-bind δ μ x vD = do
+bind :: (Analysis δ μ m) => P δ -> μ -> P m -> SGName -> Val δ μ -> Map SGName (Addr μ) -> m δ μ (Map SGName (Addr μ))
+bind δ μ _ x vD ρ = do
   l <- new δ μ x
-  modifyL (envL μ) $ pinsert x l
   modifyL (storeL δ μ) $ pinsertWith (\/) l vD
+  return $ pinsert x l ρ
+
+bindM :: (Analysis δ μ m) => P δ -> μ -> P m -> SGName -> Val δ μ -> m δ μ ()
+bindM δ μ m x vD = modifyLM (envL μ) $ bind δ μ m x vD
 
 var :: (Analysis δ μ m) => P δ -> μ -> SGName -> m δ μ (Val δ μ)
 var δ μ x = do
-  e <- getL $ envL μ
-  s <- getL $ storeL δ μ
-  useMaybeZero $ index s *$ index e $ x
+  ρ <- getL $ envL μ
+  σ <- getL $ storeL δ μ
+  useMaybeZero $ index σ *$ index ρ $ x
 
-createClosureLinked :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> Env μ -> m δ μ (Val δ μ)
-createClosureLinked δ μ xs c ρ = undefined
-
-createClosureCopied :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> Env μ -> m δ μ (Val δ μ)
-createClosureCopied δ μ xs c ρ = undefined
-
-lam :: (Analysis δ μ m) => P δ -> μ -> [SGName] -> SGCall -> m δ μ (Val δ μ)
-lam δ μ xs c = do
-  ρ <- getP $ envP μ
-  lτ <- getP $ lexicalTimeP μ ψ
-  return $ clo δ $ Clo xs c ρ lτ
+lam :: (Analysis δ μ m) => P δ -> μ -> P m -> CreateClo δ μ m -> [SGName] -> SGCall -> m δ μ (Val δ μ)
+lam δ μ m createClo = map (clo δ) .: createClo δ μ m
 
 pico :: (Analysis δ μ m) => P δ -> μ -> SGPico -> m δ μ (Val δ μ)
 pico δ _ (Lit l) = return $ lit δ l
 pico δ μ (Var x) = var δ μ x
 
-atom :: (Analysis δ μ m) => P δ -> μ -> SGAtom -> m δ μ (Val δ μ)
-atom δ μ (Pico p) = pico δ μ p
-atom δ μ (Prim o ax) = do
-  op δ o <$> pico δ μ ax
-atom δ μ (LamF x kx c) = lam δ μ [x, kx] c
-atom δ μ (LamK x c) = lam δ μ [x] c
+atom :: (Analysis δ μ m) => P δ -> μ -> P m -> CreateClo δ μ m ->  SGAtom -> m δ μ (Val δ μ)
+atom δ μ P _ (Pico p) = pico δ μ p
+atom δ μ P _ (Prim o ax) = op δ o <$> pico δ μ ax
+atom δ μ m createClo (LamF x kx c) = lam δ μ m createClo [x, kx] c
+atom δ μ m createClo (LamK x c) = lam δ μ m createClo [x] c
 
 elimBoolM :: (Analysis δ μ m) => P δ -> Val δ μ -> m δ μ Bool
 elimBoolM = msum .: elimBool
@@ -85,101 +84,118 @@ elimCloM :: (Analysis δ μ m) => P δ -> Val δ μ -> m δ μ (Clo μ)
 elimCloM = msum .: elimClo
 
 tickM :: (Analysis δ μ m) => P δ -> μ -> LocNum -> m δ μ ()
-tickM δ μ cid = do
-  _ <- getP $ envP μ
-  _ <- getP $ storeP δ μ
+tickM _ μ cid = do
   modifyL (lexicalTimeL μ ψ) $ tick (lexical μ) cid
-  lτ <- getP (lexicalTimeP μ ψ)
+  lτ <- getP $ lexicalTimeP μ ψ
   modifyL (dynamicTimeL μ ψ) $ tick (dynamic μ) $ DynamicMoment cid lτ
 
 apply :: (Analysis δ μ m) => P δ -> μ -> P m -> Val δ μ -> [Val δ μ] -> m δ  μ SGCall
-apply δ μ _ fv avs = do
-  Clo xs c' e lτ <- elimCloM δ fv
+apply δ μ m fv avs = do
+  Clo xs c' ρ lτ <- elimCloM δ fv
   xvs <- useMaybeZero $ zipSameLength xs avs
-  putP (envP μ) e
+  putP (envP μ) ρ
+  traverseOn xvs $ uncurry $ bindM δ μ m
   putP (lexicalTimeP μ ψ) lτ
-  traverseOn xvs $ \ (x,v) -> 
-    bind δ μ x v
   return c'
 
-call :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> m δ μ SGCall
-call δ μ m (StampedFix cid c) = case c of
-  Let x a c' -> do
-    tickM δ μ cid
-    v <- atom δ μ a
-    bind δ μ x v
-    return c'
-  If ax tc fc -> do
-    tickM δ μ cid
-    b <- elimBoolM δ *$ pico δ μ ax
-    return $ if b then tc else fc
-  AppF fx ax ka -> do
-    tickM δ μ cid
-    fv <- pico δ μ fx
-    av <- pico δ μ ax
-    kv <- pico δ μ ka
-    apply δ μ m fv [av, kv]
-  AppK kx ax -> do
-    tickM δ μ cid
-    kv <- pico δ μ kx
-    av <- pico δ μ ax
-    apply δ μ m kv [av]
-  Halt a -> return $ StampedFix cid $ Halt a
+call :: (Analysis δ μ m) => P δ -> μ -> P m -> GC δ μ m -> CreateClo δ μ m -> TimeFilter -> SGCall -> m δ μ SGCall
+call δ μ m gc createClo timeFilter c = do
+  when (timeFilter c) $
+    tickM δ μ $ stampedFixID c
+  c' <- case stampedFix c of
+    Let x a c' -> do
+      v <- atom δ μ m createClo a
+      bindM δ μ m x v
+      return c'
+    If ax tc fc -> do
+      b <- elimBoolM δ *$ pico δ μ ax
+      return $ if b then tc else fc
+    AppF fx ax ka -> do
+      fv <- pico δ μ fx
+      av <- pico δ μ ax
+      kv <- pico δ μ ka
+      apply δ μ m fv [av, kv]
+    AppK kx ax -> do
+      kv <- pico δ μ kx
+      av <- pico δ μ ax
+      apply δ μ m kv [av]
+    Halt _ -> return c
+  gc δ μ m c'
+  return c'
 
--- 'Standard' semantics --
-exec :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> SS (m δ μ) SGCall
-exec δ μ m = poiter (mstep $ call δ μ m) . munit (mP m δ μ)
+exec :: (Analysis δ μ m) => P δ -> μ -> P m -> GC δ μ m -> CreateClo δ μ m -> TimeFilter -> SGCall -> SS (m δ μ) SGCall
+exec δ μ m gc createClo timeFilter = poiter (mstep $ call δ μ m gc createClo timeFilter) . munit (mP m δ μ)
 
--- Collecting semantics --
-execCollect :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> SS (m δ μ) SGCall
-execCollect δ μ m = collect (mstep $ call δ μ m) . munit (mP m δ μ)
+execCollect :: (Analysis δ μ m) => P δ -> μ -> P m -> GC δ μ m -> CreateClo δ μ m -> TimeFilter -> SGCall -> SS (m δ μ) SGCall
+execCollect δ μ m gc createClo timeFilter = collect (mstep $ call δ μ m gc createClo timeFilter) . munit (mP m δ μ)
 
-type Action a = forall δ μ m. (Analysis δ μ m) => P δ -> μ -> P m -> a -> m δ μ a
-naive :: Action a
-naive P _ P = return
+-- Computing Free Vars {{{
 
-execCollectWith :: (Analysis δ μ m) => P δ -> μ -> P m -> Action SGCall -> SGCall -> SS (m δ μ) SGCall
-execCollectWith δ μ m action = collect (mstep $ action δ μ m *. call δ μ m) . munit (mP m δ μ)
+freeVarsLam :: [SGName] -> PreCall SGName SGCall -> Set SGName
+freeVarsLam xs c = freeVarsCall c \-\ sset xs
+
+freeVarsPico :: SGPico -> Set SGName
+freeVarsPico (Lit _) = bot
+freeVarsPico (Var x) = cunit x
+
+freeVarsAtom :: SGAtom -> Set SGName
+freeVarsAtom (Pico p) = freeVarsPico p
+freeVarsAtom (Prim _ ax) = freeVarsPico ax
+freeVarsAtom (LamF x kx c) = freeVarsLam [x, kx] $ stampedFix c
+freeVarsAtom (LamK x c) = freeVarsLam [x] $ stampedFix c
+
+freeVarsCall :: PreCall SGName SGCall -> Set SGName
+freeVarsCall (Let x a c) = freeVarsAtom a \/ (freeVarsCall (stampedFix c) \-\ cunit x)
+freeVarsCall (If ax tc fc) = freeVarsPico ax \/ joins (map (freeVarsCall . stampedFix) [tc, fc])
+freeVarsCall (AppF fx ax kx) = joins $ map (freeVarsPico) [fx, ax, kx]
+freeVarsCall (AppK kx ax) = joins $ map (freeVarsPico) [kx, ax]
+freeVarsCall (Halt ax) = freeVarsPico ax
+
+-- }}}
 
 -- GC {{{
 
-freeVarsLam :: (Analysis δ μ m) => P δ -> μ -> P m -> [SGName] -> PreCall SGName SGCall -> Set SGName
-freeVarsLam δ μ m xs c = freeVarsCall δ μ m c \-\ sset xs
+nogc :: PolyGC
+nogc _ _ _ _ = return ()
 
-freeVarsPico :: (Analysis δ μ m) => P δ -> μ -> P m -> SGPico -> Set SGName
-freeVarsPico _ _ _ (Lit _) = bot
-freeVarsPico _ _ _ (Var x) = cunit x
-
-freeVarsAtom :: (Analysis δ μ m) => P δ -> μ -> P m -> SGAtom -> Set SGName
-freeVarsAtom δ μ m (Pico p) = freeVarsPico δ μ m p
-freeVarsAtom δ μ m (Prim _ ax) = freeVarsPico δ μ m ax
-freeVarsAtom δ μ m (LamF x kx c) = freeVarsLam δ μ m [x, kx] $ stampedFix c
-freeVarsAtom δ μ m (LamK x c) = freeVarsLam δ μ m [x] $ stampedFix c
-
-freeVarsCall :: (Analysis δ μ m) => P δ -> μ -> P m -> PreCall SGName SGCall -> Set SGName
-freeVarsCall δ μ m (Let x a c) = freeVarsAtom δ μ m a \/ (freeVarsCall δ μ m (stampedFix c) \-\ cunit x)
-freeVarsCall δ μ m (If ax tc fc) = freeVarsPico δ μ m ax \/ joins (map (freeVarsCall δ μ m . stampedFix) [tc, fc])
-freeVarsCall δ μ m (AppF fx ax kx) = joins $ map (freeVarsPico δ μ m) [fx, ax, kx]
-freeVarsCall δ μ m (AppK kx ax) = joins $ map (freeVarsPico δ μ m) [kx, ax]
-freeVarsCall δ μ m (Halt ax) = freeVarsPico δ μ m ax
-
-callTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Env μ -> PreCall SGName SGCall -> Set (Addr μ)
-callTouched δ μ m e c = closureTouched δ μ m e [] c
-
-closureTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Env μ -> [SGName] -> PreCall SGName SGCall -> Set (Addr μ)
-closureTouched δ μ m e xs c = useMaybeSet . index (runEnv e) *$ freeVarsLam δ μ m xs c
+closureTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Clo μ -> Set (Addr μ)
+closureTouched _ _ _ (Clo xs c ρ _) = useMaybeSet . index (runEnv ρ) *$ freeVarsLam xs $ stampedFix c
 
 addrTouched :: (Analysis δ μ m) => P δ -> μ -> P m -> Store δ μ -> Addr μ -> Set (Addr μ)
-addrTouched δ μ m s l = 
-  let clos = elimClo δ *$ useMaybeSet . index (runStore s) $ l
-  in clos >>= \ (Clo xs c e _) -> closureTouched δ μ m e xs $ stampedFix c
+addrTouched δ μ m σ = closureTouched δ μ m *. elimClo δ *. useMaybeSet . index (runStore σ)
 
-gc :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> m δ μ SGCall
-gc δ μ m c = do
-  e <- getP $ envP μ
-  s <- getP $ storeP δ μ
-  let live = collect (extend $ addrTouched δ μ m s) (callTouched δ μ m e $ stampedFix c)
+currClosure :: (Analysis δ μ m) => P δ -> μ -> P m -> SGCall -> m δ μ (Clo μ)
+currClosure _ μ _ c = do
+  ρ <- getP $ envP μ
+  lτ <- getP $ lexicalTimeP μ ψ
+  return $ Clo [] c ρ lτ
+
+yesgc :: PolyGC
+yesgc δ μ m c = do
+  σ <- getP $ storeP δ μ
+  initial <- closureTouched δ μ m <$> currClosure δ μ m c
+  let live = collect (extend $ addrTouched δ μ m σ) initial
   modifyL (storeL δ μ) $ ponlyKeys live
-  return c
+
+-- }}}
+
+-- CreateClo {{{
+
+linkClo :: PolyCreateClo
+linkClo _ μ _ xs c = do
+  ρ <- getP $ envP μ
+  lτ <- getP $ lexicalTimeP μ ψ
+  return $ Clo xs c ρ lτ
+
+copyClo :: PolyCreateClo
+copyClo δ μ m xs c = do
+  let ys = toList $ freeVarsLam xs $ stampedFix c
+  vs <- mapM (var δ μ) ys
+  yvs <- useMaybeZero $ zipSameLength ys vs
+  ρ' <- Env <$> runKleisliEndo pempty *$ execWriterT $ do
+    traverseOn yvs $ uncurry $ \ y v ->
+      tell $ KleisliEndo $ bind δ μ m y v
+  lτ <- getP $ lexicalTimeP μ ψ
+  return $ Clo xs c ρ' lτ
 
 -- }}}

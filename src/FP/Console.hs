@@ -47,8 +47,14 @@ formatOut MFNull = ""
 formatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2
 formatOut (MFApply (fmt, o)) = applyFormat fmt $ formatOut o
 
+pprintWith :: (Pretty a) => (Doc -> Doc) -> a -> IO ()
+pprintWith f = print . formatOut . execPretty0 . f . pretty
+
 pprint :: (Pretty a) => a -> IO ()
-pprint = print . formatOut . execPretty0 . pretty
+pprint = pprintWith id
 
 pprintWidth :: (Pretty a) => Int -> a -> IO ()
-pprintWidth n = print . formatOut . execPretty0 . localSetL maxColumnWidthL n . pretty
+pprintWidth = pprintWith . localSetL maxColumnWidthL
+
+pprintRibbon :: (Pretty a) => Int -> a -> IO ()
+pprintRibbon = pprintWith . localSetL maxRibbonWidthL

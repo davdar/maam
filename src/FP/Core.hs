@@ -527,6 +527,9 @@ class MonadFail (m :: * -> *) where
 return :: (Monad m) => a -> m a
 return = unit
 
+freturn :: (Monad m) => (a -> b) -> (a -> m b)
+freturn = (.) return
+
 (>>) :: (Bind m) => m a -> m b -> m b
 aM >> bM = aM >>= const bM
 
@@ -790,8 +793,11 @@ putP P = put
 putL :: (MonadStateE s m) => Lens s a -> a -> m ()
 putL = modify .: set
 
+modifyM :: (MonadStateE s m) => (s -> m s) -> m ()
+modifyM f = stateE $ StateT $ \ s -> return () <*> f s
+
 modify :: (MonadStateE s m) => (s -> s) -> m ()
-modify f = stateE $ StateT $ \ s -> return ((), f s)
+modify = modifyM . freturn
 
 modifyP :: (MonadStateE s m) => P s -> (s -> s) -> m ()
 modifyP P = modify
@@ -799,16 +805,36 @@ modifyP P = modify
 modifyL :: (MonadStateE s m) => Lens s a -> (a -> a) -> m ()
 modifyL = modify .: update
 
--- Note about [localState :: (MonadStateE s m) => ...] {{{
--- Equivalent functionality can also be implemented with MonadStateE.
--- Although, for example, transforming (StateT s2 m a) with a (Lens s1 s2)
--- resulting in a (StateT s1 m a) only goes one direction, so only MonadStateE
--- can be converted in this form.
--- (Although, given the alternate implementation of localState with
--- MonadStateE, this doesn't prevent (MonadStateI s2 m, Lens s1 s2) =>
--- MonadStateI s1 m) }}}
-localState :: (MonadStateI s m) => s -> m a -> m (a, s)
-localState s aM = unStateT (stateI aM) s
+modifyLM :: (MonadStateE s m) => Lens s a -> (a -> m a) -> m ()
+modifyLM = modifyM .: updateM
+
+localStateSet :: (MonadStateI s m) => s -> m a -> m (a, s)
+localStateSet s aM = unStateT (stateI aM) s
+
+-- these have strange behavior, maybe they shouldn't be used to avoid
+-- confusion...
+--
+-- localState :: (MonadState s m) => (s -> s) -> m a -> m (a, s)
+-- localState f aM = do
+--   s <- get
+--   localStateSet (f s) aM
+-- 
+-- localStateSetP :: (MonadStateI s m) => P s -> s -> m a -> m (a, s)
+-- localStateSetP P = localStateSet
+-- 
+-- localStateP :: (MonadState s m) => P s -> (s -> s) -> m a -> m (a, s)
+-- localStateP P = localState
+-- 
+-- localStateL :: (MonadState s m) => Lens s b -> (b -> b) -> m a -> m (a, b)
+-- localStateL l f aM = do
+--   s <- get
+--   let b = access l s
+--   (a, s') <- localStateSet (set l (f b) s) aM
+--   put $ set l b s'
+--   return (a, access l s')
+-- 
+-- localStateSetL :: (MonadState s m) => Lens s b -> b -> m a -> m (a, b)
+-- localStateSetL l = localStateL l . const
 
 next :: (MonadStateE s m, Peano s) => m s
 next = do
@@ -963,6 +989,12 @@ applyTo = flip ($)
 (..:) :: (d -> e) -> (a -> b -> c -> d) -> (a -> b -> c -> e)
 (..:) = (.) . (.:)
 
+(...:) :: (e -> f) -> (a -> b -> c -> d -> e) -> (a -> b -> c -> d -> f)
+(...:) = (.) . (..:)
+
+(....:) :: (f -> g) -> (a -> b -> c -> d -> e -> f) -> (a -> b -> c -> d -> e -> g)
+(....:) = (.) . (...:)
+
 rotateR :: (a -> b -> c -> d) -> (c -> a -> b -> d)
 rotateR f c a b = f a b c
 
@@ -976,7 +1008,7 @@ on :: (b -> b -> c) -> (a -> b) -> (a -> a -> c)
 on p f x y = p (f x) (f y)
 
 composeEndo :: [a -> a] -> a -> a
-composeEndo = runEndo . concat . map Endo
+composeEndo = unEndo . concat . map Endo
 
 -- }}} --
 
@@ -1412,8 +1444,8 @@ update l f a =
 (~:) :: Lens a b -> (b -> b) -> a -> a
 (~:) = update
 
-udpateM :: (Monad m) => Lens a b -> (b -> m b) -> a -> m a
-udpateM l f a =
+updateM :: (Monad m) => Lens a b -> (b -> m b) -> a -> m a
+updateM l f a =
   let Cursor b ba = runLens l a
   in map ba $ f b
 
@@ -1553,10 +1585,21 @@ instance JoinLattice (ListSet a) where
 
 -- Endo {{{
 
-data Endo a = Endo { runEndo :: a -> a }
+data Endo a = Endo { unEndo :: a -> a }
+runEndo :: a -> Endo a -> a
+runEndo = flip unEndo
+
 instance Monoid (Endo a) where
   null = Endo id
-  g ++ f = Endo $ runEndo g . runEndo f
+  g ++ f = Endo $ unEndo g . unEndo f
+
+data KleisliEndo m a = KleisliEndo { unKleisliEndo :: a -> m a }
+runKleisliEndo :: a -> KleisliEndo m a -> m a
+runKleisliEndo = flip unKleisliEndo
+
+instance (Monad m) => Monoid (KleisliEndo m a) where
+  null = KleisliEndo return
+  g ++ f = KleisliEndo $ unKleisliEndo g *. unKleisliEndo f
 
 -- }}}
 
