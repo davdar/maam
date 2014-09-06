@@ -47,7 +47,7 @@ newtype IDT m a = IDT { runIDT :: m a }
 -- MaybeT {{{
 
 maybeCommute :: (Functor m) => MaybeT (MaybeT m) ~> MaybeT (MaybeT m)
-maybeCommute aMM = MaybeT $ MaybeT $ map ff $ runMaybeT $ runMaybeT aMM
+maybeCommute aMM = MaybeT $ MaybeT $ ff ^$ runMaybeT $ runMaybeT aMM
   where
     ff Nothing = Just Nothing
     ff (Just Nothing) = Nothing
@@ -56,15 +56,15 @@ maybeCommute aMM = MaybeT $ MaybeT $ map ff $ runMaybeT $ runMaybeT aMM
 instance (Unit m) => Unit (MaybeT m) where
   unit = MaybeT . unit . Just
 instance (Functor m) => Functor (MaybeT m) where
-  map f = MaybeT . map (map f) . runMaybeT
+  map f = MaybeT . f ^^. runMaybeT
 instance (Functor m, Product m) => Product (MaybeT m) where
-  aM1 <*> aM2 = MaybeT $ map (uncurry ff) $ runMaybeT aM1 <*> runMaybeT aM2
+  aM1 <*> aM2 = MaybeT $ uncurry ff ^$ runMaybeT aM1 <*> runMaybeT aM2
     where
       ff Nothing _ = Nothing
       ff _ Nothing = Nothing
       ff (Just a1) (Just a2) = Just (a1, a2)
 instance (Functor m, Applicative m) => Applicative (MaybeT m) where
-  fM <@> aM = MaybeT $ map ff (runMaybeT fM) <@> runMaybeT aM
+  fM <@> aM = MaybeT $ ff ^@ runMaybeT fM <$> runMaybeT aM
     where
       ff Nothing _ = Nothing
       ff _ Nothing = Nothing
@@ -77,9 +77,9 @@ instance (Monad m) => Bind (MaybeT m) where
       Just a -> runMaybeT $ k a
 instance (Monad m) => Monad (MaybeT m) where
 instance MonadUnit MaybeT where
-  mtUnit = MaybeT . map Just
+  mtUnit = MaybeT .^ Just
 instance MonadCounit MaybeT where
-  mtCounit = MaybeT . map ff . runMaybeT . runMaybeT
+  mtCounit = MaybeT . ff ^. runMaybeT . runMaybeT
     where
       ff Nothing = Nothing
       ff (Just aM) = aM
@@ -99,7 +99,7 @@ instance (Monad m) => MonadMaybeE (MaybeT m) where
 -- ErrorT {{{
 
 errorCommute :: (Functor m) => ErrorT e (ErrorT e m) ~> ErrorT e (ErrorT e m)
-errorCommute = ErrorT . ErrorT . map ff . runErrorT . runErrorT
+errorCommute = ErrorT . ErrorT . ff ^. runErrorT . runErrorT
   where
     ff (Inl e) = Inr (Inl e)
     ff (Inr (Inl e)) = Inl e
@@ -108,15 +108,15 @@ errorCommute = ErrorT . ErrorT . map ff . runErrorT . runErrorT
 instance (Unit m) => Unit (ErrorT e m) where
   unit a = ErrorT $ unit $ Inr a
 instance (Functor m) => Functor (ErrorT e m) where
-  map f aM = ErrorT $ map (mapRight f) $ runErrorT aM
+  map f aM = ErrorT $ mapRight f ^$ runErrorT aM
 instance (Functor m, Product m) => Product (ErrorT e m) where
-  aM1 <*> aM2 = ErrorT $ map ff $ runErrorT aM1 <*> runErrorT aM2
+  aM1 <*> aM2 = ErrorT $ ff ^$ runErrorT aM1 <*> runErrorT aM2
     where
       ff (Inl e, _) = Inl e
       ff (_, Inl e) = Inl e
       ff (Inr a, Inr b) = Inr (a, b)
 instance (Functor m, Applicative m) => Applicative (ErrorT e m) where
-  fM <@> aM = ErrorT $ map ff (runErrorT fM) <@> runErrorT aM
+  fM <@> aM = ErrorT $ ff ^@ runErrorT fM <$> runErrorT aM
     where
       ff (Inl e) _ = Inl e
       ff _ (Inl e) = Inl e
@@ -130,16 +130,16 @@ instance (Unit m, Bind m) => Bind (ErrorT e m) where
 instance (Monad m) => Monad (ErrorT e m) where
 instance MonadUnit (ErrorT e) where
   mtUnit :: (Monad m) => m ~> ErrorT e m
-  mtUnit aM = ErrorT $ map Inr aM
+  mtUnit aM = ErrorT $ Inr ^$ aM
 instance MonadCounit (ErrorT e) where
   mtCounit :: (Monad m) => ErrorT e (ErrorT e m) ~> ErrorT e m
-  mtCounit = ErrorT . map ff . runErrorT . runErrorT
+  mtCounit = ErrorT . ff ^. runErrorT . runErrorT
     where
       ff (Inl e) = Inl e
       ff (Inr ea) = ea
 instance MonadFunctor (ErrorT e) where
   mtMap :: (Monad m, Monad n) => m ~> n -> ErrorT e m ~> ErrorT e n
-  mtMap f aM = ErrorT $ f $ runErrorT aM
+  mtMap f = ErrorT . f . runErrorT
 
 instance (Monad m) => MonadErrorI e (ErrorT e m) where
   errorI :: ErrorT e m ~> ErrorT e (ErrorT e m)
@@ -164,7 +164,7 @@ readerCommute aMM = ReaderT $ \ r2 -> ReaderT $ \ r1 -> runReaderT r2 $ runReade
 instance (Unit m) => Unit (ReaderT r m) where
   unit = ReaderT . const . unit
 instance (Functor m) => Functor (ReaderT r m) where
-  map f = ReaderT . map (map f) . unReaderT
+  map f = ReaderT . f ^^. unReaderT
 instance (Product m) => Product (ReaderT r m) where
   aM1 <*> aM2 = ReaderT $ \ r ->
     runReaderT r aM1 <*> runReaderT r aM2
@@ -172,9 +172,7 @@ instance (Applicative m) => Applicative (ReaderT r m) where
   fM <@> aM = ReaderT $ \ r ->
     runReaderT r fM <@> runReaderT r aM
 instance (Bind m) => Bind (ReaderT r m) where
-  aM >>= k = ReaderT $ \ r -> do
-    a <- runReaderT r aM
-    runReaderT r $ k a
+  aM >>= k = ReaderT $ \ r -> runReaderT r . k *$ runReaderT r aM
 instance (Monad m) => Monad (ReaderT r m) where
 instance MonadUnit (ReaderT r) where
   mtUnit = ReaderT . const
@@ -200,32 +198,26 @@ instance (MonadZero m) => MonadZero (ReaderT r m) where
 -- WriterT {{{
 
 execWriterT :: (Functor m) => WriterT o m a -> m o
-execWriterT = map snd . runWriterT
+execWriterT = snd ^. runWriterT
 
 mapOutput :: (Functor m) => (o1 -> o2) -> WriterT o1 m a -> WriterT o2 m a
-mapOutput f = WriterT . map (mapSnd f) . runWriterT
-
--- execWriterTEndo :: (Functor m) => b -> WriterT (b -> b) m a -> m b
--- execWriterTEndo b = map (runEndo b) . execWriterT . mapOutput Endo
--- 
--- execWriterTKleisliEndo :: (Monad m) => b -> WriterT (b -> m b) m a -> m b
--- execWriterTKleisliEndo b = runKleisliEndo b *. execWriterT . mapOutput KleisliEndo
+mapOutput f = WriterT . mapSnd f ^. runWriterT
 
 writerCommute :: (Functor m) => WriterT o1 (WriterT o2 m) ~> WriterT o2 (WriterT o1 m)
-writerCommute aMM = WriterT $ WriterT $ map ff $ runWriterT $ runWriterT aMM
+writerCommute aMM = WriterT $ WriterT $ ff ^$ runWriterT $ runWriterT aMM
   where
     ff ((a, o1), o2) = ((a, o2), o1)
 
 instance (Unit m, Monoid o) => Unit (WriterT o m) where
   unit = WriterT . unit . (,null)
 instance (Functor m) => Functor (WriterT o m) where
-  map f = WriterT . map (mapFst f) . runWriterT
+  map f = WriterT . mapFst f ^. runWriterT
 instance (Functor m, Product m, Monoid o) => Product (WriterT o m) where
-  aM1 <*> aM2 = WriterT $ map ff $ runWriterT aM1 <*> runWriterT aM2
+  aM1 <*> aM2 = WriterT $ ff ^$ runWriterT aM1 <*> runWriterT aM2
     where
       ff ((a1, o1), (a2, o2)) = ((a1, a2), o1 ++ o2)
 instance (Functor m, Applicative m, Monoid o) => Applicative (WriterT o m) where
-  fM <@> aM = WriterT $ map ff2 $ map ff1 (runWriterT fM) <@> runWriterT aM
+  fM <@> aM = WriterT $ ff2 ^$ ff1 ^@ runWriterT fM <$> runWriterT aM
     where
       ff1 (f, o) = mapFst ((,o) . f)
       ff2 ((a, o1), o2) = (a, o1 ++ o2)
@@ -236,9 +228,9 @@ instance (Monad m, Monoid o) => Bind (WriterT o m) where
     return (b, o1 ++ o2)
 instance (Monad m, Monoid o) => Monad (WriterT o m) where
 instance (Monoid w) => MonadUnit (WriterT w) where
-  mtUnit = WriterT . map (,null)
+  mtUnit = WriterT .^ (,null)
 instance MonadCounit (WriterT w) where
-  mtCounit = map fst . runWriterT
+  mtCounit = fst ^. runWriterT
 instance MonadFunctor (WriterT w) where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> (WriterT w m ~> WriterT w n)
   mtMap f aM = WriterT $ f $ runWriterT aM
@@ -262,10 +254,10 @@ runStateT :: s -> StateT s m a -> m (a, s)
 runStateT = flip unStateT
 
 evalStateT :: (Functor m) => s -> StateT s m a -> m a
-evalStateT = map fst .: runStateT
+evalStateT = fst ^.: runStateT
 
 execStateT :: (Functor m) => s -> StateT s m a -> m s
-execStateT = map snd .: runStateT
+execStateT = snd ^.: runStateT
 
 type State s = StateT s ID
 
@@ -279,7 +271,7 @@ execState :: s -> State s a -> s
 execState = snd .: runState
 
 stateCommute :: (Functor m) => StateT s1 (StateT s2 m) ~> StateT s2 (StateT s1 m)
-stateCommute aMM = StateT $ \ s2 -> StateT $ \ s1 -> map ff $ runStateT s2 $ runStateT s1 aMM
+stateCommute aMM = StateT $ \ s2 -> StateT $ \ s1 -> ff ^$ runStateT s2 $ runStateT s1 aMM
   where
     ff ((a, s1), s2) = ((a, s2), s1)
 
@@ -292,7 +284,7 @@ stateLens l aM = StateT $ \ s1 -> do
 instance (Unit m) => Unit (StateT s m) where
   unit x = StateT $ \ s -> unit (x, s)
 instance (Functor m) => Functor (StateT s m) where
-  map f aM = StateT $ \ s -> map (mapFst f) (unStateT aM s)
+  map f aM = StateT $ \ s -> mapFst f ^$ unStateT aM s
 instance (Monad m) => Product (StateT s m) where
   (<*>) = mpair
 instance (Monad m) => Applicative (StateT s m) where
@@ -303,9 +295,9 @@ instance (Bind m) => Bind (StateT s m) where
     unStateT (k a) s'
 instance (Monad m) => Monad (StateT s m) where
 instance MonadUnit (StateT s) where
-  mtUnit aM = StateT $ \ s -> map (,s) aM
+  mtUnit aM = StateT $ \ s -> (,s) ^$ aM
 instance MonadCounit (StateT s) where
-  mtCounit aMM = StateT $ \ s -> runStateT s $ fst <$> runStateT s aMM
+  mtCounit aMM = StateT $ \ s -> runStateT s $ fst ^$ runStateT s aMM
 instance MonadFunctor (StateT s) where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> StateT s m ~> StateT s n
   mtMap f aM = StateT $ f . unStateT aM
@@ -340,7 +332,7 @@ instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s) => Funct
 -- RWST {{{
 
 runRWST :: (Functor m) => r -> s -> RWST r o s m a -> m (a, o, s)
-runRWST r0 s0 = map ff . runStateT s0 . runWriterT . runReaderT r0 . unRWST
+runRWST r0 s0 = ff ^. runStateT s0 . runWriterT . runReaderT r0 . unRWST
   where
     ff ((a, o), s) = (a, o, s)
 rwsCommute :: (Monad m, Monoid o1, Monoid o2) => RWST r1 o1 s1 (RWST r2 o2 s2 m) ~> RWST r2 o2 s2 (RWST r1 o1 s1 m)
@@ -395,14 +387,14 @@ deriving instance (MonadMaybe m, Monoid o) => MonadMaybe (RWST r o s m)
 -- ListSetT {{{
 
 listSetCommute :: (Functor m) => ListSetT (ListSetT m) ~> ListSetT (ListSetT m)
-listSetCommute = ListSetT . ListSetT . map (ListSet . map ListSet . transpose . map runListSet . runListSet) . runListSetT . runListSetT
+listSetCommute = ListSetT . ListSetT . (ListSet . ListSet ^. transpose . runListSet ^. runListSet) ^. runListSetT . runListSetT
 
 instance (Unit m) => Unit (ListSetT m) where
   unit = ListSetT . unit . ListSet . singleton
 instance (CUnit c m) => CUnit (c ::.:: ListSet) (ListSetT m) where
   cunit = ListSetT . cunit . ListSet . singleton
 instance (Functor m) => Functor (ListSetT m) where
-  map f aM = ListSetT $ map (map f) $ runListSetT aM
+  map f = ListSetT . f ^^. runListSetT
 instance (Monad m, Functorial JoinLattice m) => Product (ListSetT m) where
   (<*>) = mpair
 instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetT m) where
@@ -411,7 +403,7 @@ instance (Bind m, Functorial JoinLattice m) => Bind (ListSetT m) where
   (>>=) :: forall a b. ListSetT m a -> (a -> ListSetT m b) -> ListSetT m b
   aM >>= k = ListSetT $ do
     xs <- runListSetT aM
-    runListSetT $ msums $ map k xs
+    runListSetT $ msums $ k ^$ xs
 -- PROOF of: monad laws for (ListSetT m) {{{
 --
 -- ASSUMPTION 1: returnₘ a <+> returnₘ b = returnₘ (a \/ b)
@@ -495,11 +487,11 @@ instance (Bind m, Functorial JoinLattice m) => Bind (ListSetT m) where
 -- }}}
 instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
 instance MonadUnit ListSetT where
-  mtUnit = ListSetT . map unit
+  mtUnit = ListSetT .^ unit
 instance MonadCounit ListSetT where
-  mtCounit = ListSetT . map concat . runListSetT . runListSetT
+  mtCounit = ListSetT . concat ^. runListSetT . runListSetT
 instance MonadFunctor ListSetT where
-  mtMap f aM = ListSetT $ f $ runListSetT aM
+  mtMap f = ListSetT . f . runListSetT
 
 instance (Monad m, Functorial JoinLattice m) => MonadListSetI (ListSetT m) where
   listSetI :: ListSetT m ~> ListSetT (ListSetT m)
@@ -531,13 +523,13 @@ instance (Functorial JoinLattice m) => MonadPlus (ListSetT m) where
 -- SetT {{{
 
 setCommute :: (Functor m) => SetT (SetT m) ~> SetT (SetT m)
-setCommute = SetT . SetT . map setTranspose . runSetT . runSetT
+setCommute = SetT . SetT . setTranspose ^. runSetT . runSetT
 
 instance (CUnit c m) => CUnit (Ord ::*:: (c ::.:: Set)) (SetT m) where
   cunit = SetT . cunit . ssingleton 
 instance (Functor m, Product m) => Product (SetT m) where
   (<*>) :: forall a b. SetT m a -> SetT m b -> SetT m (a, b)
-  aM1 <*> aM2 = SetT $ map (uncurry ff) $ runSetT aM1 <*> runSetT aM2
+  aM1 <*> aM2 = SetT $ uncurry ff ^$ runSetT aM1 <*> runSetT aM2
     where
       ff :: Set a -> Set b -> Set (a, b)
       ff s1 s2 =
@@ -549,7 +541,7 @@ instance (CFunctor c m) => CFunctor (Ord ::*:: (c ::.:: Set)) (SetT m) where
 instance (Functorial JoinLattice m, Bind m) => Bind (SetT m) where
   aM >>= k = SetT $ do
     aC <- runSetT aM
-    runSetT $ msums $ map k $ toList aC
+    runSetT $ msums $ k ^$ toList aC
 instance (Functorial JoinLattice m) => MonadZero (SetT m) where
   mzero :: forall a. SetT m a
   mzero = 
@@ -937,12 +929,12 @@ rwsReaderCommute =
 -- Writer // State // FULL COMMUTE {{{
 
 writerStateCommute :: (Functor m) => WriterT w (StateT s m) ~> StateT s (WriterT w m)
-writerStateCommute aRMM = StateT $ \ s1 -> WriterT $ map ff $ runStateT s1 $ runWriterT aRMM
+writerStateCommute aRMM = StateT $ \ s1 -> WriterT $ ff ^$ runStateT s1 $ runWriterT aRMM
   where
     ff ((a, w), s) = ((a, s), w)
 
 stateWriterCommute :: (Functor m) => StateT s (WriterT w m) ~> WriterT w (StateT s m)
-stateWriterCommute aMRM = WriterT $ StateT $ map ff . runWriterT . unStateT aMRM
+stateWriterCommute aMRM = WriterT $ StateT $ ff ^. runWriterT . unStateT aMRM
   where
     ff ((a, s), w) = ((a, w), s)
 
@@ -1017,14 +1009,14 @@ rwsStateCommute =
 -- State // ListSet {{{
 
 stateListSetCommute :: (Functor m, JoinLattice s) => StateT s (ListSetT m) ~> ListSetT (StateT s m)
-stateListSetCommute aMM = ListSetT $ StateT $ \ s -> map ff $ runListSetT $ runStateT s aMM
+stateListSetCommute aMM = ListSetT $ StateT $ \ s -> ff ^$ runListSetT $ runStateT s aMM
   where
-    ff asL = (map fst asL, joins $ map snd asL)
+    ff asL = (fst ^$ asL, joins $ snd ^$ asL)
 
 listSetStateCommute :: (Functor m) => ListSetT (StateT s m) ~> StateT s (ListSetT m)
-listSetStateCommute aMM = StateT $ \ s -> ListSetT $ map ff $ runStateT s $ runListSetT aMM
+listSetStateCommute aMM = StateT $ \ s -> ListSetT $ ff ^$ runStateT s $ runListSetT aMM
   where
-    ff (xs, s) = map (,s) xs
+    ff (xs, s) = (,s) ^$ xs
 
 instance (MonadListSetI m, Functorial JoinLattice m, JoinLattice s) => MonadListSetI (StateT s m) where
   listSetI :: StateT s m ~> ListSetT (StateT s m)

@@ -26,26 +26,26 @@ type M m = (MonadStateE St m, MonadReader Env m)
 
 lookupName :: (M m) => Name -> m SName
 lookupName x = do
-  xi <- maybe return (nextL bdrIDL) *$ lookup x <$> askL bdrEnvL
+  xi <- maybe return (nextL bdrIDL) *$ lookup x ^$ askL bdrEnvL
   return $ Stamped xi x
 
 stampM :: (M m) => Exp -> m SExp
 stampM pe = do
-  unit StampedFix <@> nextL expIDL <@> case runFix pe of
+  StampedFix ^@ nextL expIDL <@> case runFix pe of
     Lit l -> return $ Lit l
-    Var x -> Var <$> lookupName x
+    Var x -> Var ^$ lookupName x
     Lam x e -> do
       i <- nextL bdrIDL
       se <- local (update bdrEnvL $ pinsert x i) $ stampM e
       return $ Lam (Stamped i x) se
-    Prim o e -> Prim o <$> stampM e
+    Prim o e -> Prim o ^$ stampM e
     Let x e b -> do
       se <- stampM e
       i <- nextL bdrIDL
       sb <- local (update bdrEnvL $ pinsert x i) $ stampM b
       return $ Let (Stamped i x) se sb
-    App fe e -> unit App <@> stampM fe <@> stampM e
-    If e te fe -> unit If <@> stampM e <@> stampM te <@> stampM fe
+    App fe e -> App ^@ stampM fe <@> stampM e
+    If e te fe -> If ^@ stampM e <@> stampM te <@> stampM fe
 
 stamp :: Exp -> SExp
 stamp = evalState st0 . runReaderT env0 . stampM

@@ -51,8 +51,9 @@ instance Balloon CPSKon SGCall where
   deflate (MetaKon mk) = MetaKon $ \ a -> runMetaKonTWith return $ mk a
   deflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> evalOpaqueKonT $ mk ax
 
-letAtom :: (M m) => LocNum -> String -> SGAtom -> m SGPico
-letAtom i n a = do
+letAtom :: (M m) => String -> SGAtom -> m SGPico
+letAtom n a = do
+  i <- nextL callIDL
   x <- fresh n
   modifyC (return . StampedFix i . Let x a) $ 
     return $ Var x
@@ -62,7 +63,7 @@ reify (MetaKon mk) = do
   x <- fresh "x"
   c <- mk $ Var x
   i <- nextL callIDL
-  letAtom i "k" $ LamK x c
+  letAtom "k" $ Stamped i $ LamK x c
 reify (ObjectKon k _) = return k
 
 reflect :: (M m) => SGPico -> CPSKon SGCall m SGPico
@@ -81,10 +82,10 @@ cpsM (StampedFix i e0) = case e0 of
     let sx = sgNameFromSName x
     kx <- fresh "k"
     c <- withOpaqueC (reflect $ Var kx) $ cpsM e
-    letAtom i "f" $ LamF sx kx c
+    letAtom "f" $ Stamped i $ LamF sx kx c
   L.Prim o e -> do
     ex <- cpsM e
-    letAtom i "a" $ Prim o ex
+    letAtom "a" $ Stamped i $ Prim o ex
   L.Let x e b -> do
     ea <- cpsAtomM e
     let sx = sgNameFromSName x
@@ -100,13 +101,13 @@ cpsM (StampedFix i e0) = case e0 of
   L.If ce te fe -> do
     callOpaqueCC $ \ (ko :: CPSKon SGCall m SGPico) -> do
       cx <- cpsM ce
-      ko' <- reflect <$> reify ko
+      ko' <- reflect ^$ reify ko
       tc <- withOpaqueC ko' $ cpsM te
       fc <- withOpaqueC ko' $ cpsM fe
       return $ StampedFix i $ If cx tc fc
 
 cpsAtomM :: (M m) => SExp -> m SGAtom
-cpsAtomM se@(StampedFix _ e0) = case e0 of
+cpsAtomM se@(StampedFix i e0) = Stamped i ^$ case e0 of
   L.Lam x e -> do
     let sx = sgNameFromSName x
     kx <- fresh "k"

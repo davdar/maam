@@ -20,10 +20,11 @@ allCreateClos =
   , ( "copy" , copyClo )
   ]
 
-allTimeFilters :: [(String, TimeFilter)]
+allTimeFilters :: [(String, SGCall -> Bool)]
 allTimeFilters =
-  [ ("location", const True )
-  , ("function", isAppF     )
+  [ ("location" , const True )
+  , ("app"      , isAppF     )
+  -- , ("lambda"   , isLamF     )
   ]
 
 allμs :: [(String, KHybridμ)]
@@ -65,23 +66,26 @@ fi_SS μ gc createClo timeFilter = runFI_SS . execCollect aδ μ fim gc createCl
 fi :: KHybridμ -> PolyGC -> PolyCreateClo -> TimeFilter -> SGCall -> Store Aδ KHybridμ
 fi = snd ....: fi_SS
 
-allP :: (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> [(String, SGCall -> Doc)]
-allP modeP gcP createCloP timeFilterP μP monadP = 
+allP :: (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> (String -> Bool) -> [(String, SGCall -> Doc)]
+allP modeP gcP createCloP lexTimeFilterP dynTimeFilterP μP monadP = 
   do
     guard $ modeP "concrete"
     (gcS, gc) <- allGCs
     guard $ gcP gcS
     (createCloS, createClo) <- allCreateClos
     guard $ createCloP createCloS
-    (timeFilterS, timeFilter) <- allTimeFilters
-    guard $ timeFilterP timeFilterS
+    (lexTimeFilterS, lexTimeFilter) <- allTimeFilters
+    guard $ lexTimeFilterP lexTimeFilterS
+    (dynTimeFilterS, dynTimeFilter) <- allTimeFilters
+    guard $ dynTimeFilterP dynTimeFilterS
     let msg = concat $ intersperse " "
           [ "<concrete>"
           , "<gc=" ++ gcS ++ ">"
           , "<createClo=" ++ createCloS ++ ">"
-          , "<timeFilter=" ++ timeFilterS ++ ">"
+          , "<lexTimeFilter=" ++ lexTimeFilterS ++ ">"
+          , "<dynTimeFilter=" ++ dynTimeFilterS ++ ">"
           ]
-    return (msg, pretty . concrete gc createClo timeFilter)
+    return (msg, pretty . concrete gc createClo (TimeFilter lexTimeFilter dynTimeFilter))
   <+>
   do
     guard $ modeP "abstract" 
@@ -89,8 +93,10 @@ allP modeP gcP createCloP timeFilterP μP monadP =
     guard $ gcP gcS
     (createCloS, createClo) <- allCreateClos
     guard $ createCloP createCloS
-    (timeFilterS, timeFilter) <- allTimeFilters
-    guard $ timeFilterP timeFilterS
+    (lexTimeFilterS, lexTimeFilter) <- allTimeFilters
+    guard $ lexTimeFilterP lexTimeFilterS
+    (dynTimeFilterS, dynTimeFilter) <- allTimeFilters
+    guard $ dynTimeFilterP dynTimeFilterS
     (μS, μ) <- allμs
     guard $ μP μS
     (monadS, monad) <- allMonads
@@ -99,14 +105,15 @@ allP modeP gcP createCloP timeFilterP μP monadP =
           [ "<abstract>"
           , "<gc=" ++ gcS ++ ">"
           , "<createClo=" ++ createCloS ++ ">"
-          , "<timeFilter=" ++ timeFilterS ++ ">"
+          , "<lexTimeFilter=" ++ lexTimeFilterS ++ ">"
+          , "<dynTimeFilter=" ++ dynTimeFilterS ++ ">"
           , "<μ=" ++ μS ++ ">"
           , "<monad=" ++ monadS ++ ">"
           ]
-    return (msg, pretty . monad μ gc createClo timeFilter)
+    return (msg, pretty . monad μ gc createClo (TimeFilter lexTimeFilter dynTimeFilter))
 
 all :: [(String, SGCall -> Doc)]
-all = allP top top top top top top
+all = allP top top top top top top top
 
-allE :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(String, SGCall -> Doc)]
-allE modes gcs createClos timeFilters μs monads = allP (elemOf modes) (elemOf gcs) (elemOf createClos) (elemOf timeFilters) (elemOf μs) (elemOf monads)
+allE :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(String, SGCall -> Doc)]
+allE modes gcs createClos lexTimeFilters dynTimeFilters μs monads = allP (elemOf modes) (elemOf gcs) (elemOf createClos) (elemOf lexTimeFilters) (elemOf dynTimeFilters) (elemOf μs) (elemOf monads)

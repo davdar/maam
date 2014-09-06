@@ -1,7 +1,7 @@
 module Lang.Lam.CPS.Syntax where
 
 import FP
-import Lang.Lam.Syntax
+import Lang.Lam.Syntax (SGName, LocNum, Op, Lit)
 
 data PrePico n =
     Lit Lit
@@ -16,12 +16,12 @@ data PreAtom n c =
   | LamK n c
   deriving (Eq, Ord)
 instance (Eq n, Eq c) => PartialOrder (PreAtom n c) where pcompare = discreteOrder
-type Atom n = PreAtom n (Call n)
+type SPreAtom n c = Stamped LocNum (PreAtom n c)
+type Atom n = SPreAtom n (Call n)
 type SGAtom = Atom SGName
-type StampedSGAtom = Stamped LocNum (Atom SGName)
 
 data PreCall n c =
-    Let n (PreAtom n c) c
+    Let n (SPreAtom n c) c
   | If (PrePico n) c c 
   | AppF (PrePico n) (PrePico n) (PrePico n)
   | AppK (PrePico n) (PrePico n)

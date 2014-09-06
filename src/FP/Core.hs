@@ -40,8 +40,16 @@ import Data.Char (isSpace)
 infixl 9 #
 infixl 9 #!
 infixl 9 <@>
-infixr 9 <.>
+infixl 9 *@
+infixl 9 ^@
+infixl 9 ^*@
 infixr 9 *.
+infixr 9 ^.
+infixr 9 .^
+infixr 9 ^^.
+infixr 9 ^.:
+infixr 9 ^*.
+infixr 9 <.>
 infixr 9 ..:
 infixr 9 :.:
 infixr 9 :..:
@@ -70,11 +78,14 @@ infixl 1 >>
 infixr 1 ~>
 
 infixr 0 *$
+infixr 0 ^$
+infixr 0 ^*$
 infixr 0 <$>
-infixr 0 <$~>
-infixr 0 <*$>
+infixr 0 ^*$~
 
-
+infixr 0 ~:
+infixr 0 =:
+infixr 0 |:
 
 -- }}}
 
@@ -457,8 +468,26 @@ elemOf = (#?)
 class Functor t where
   map :: (a -> b) -> t a -> t b
 
-(<$>) :: (Functor t) => (a -> b) -> t a -> t b
-(<$>) = map
+(^@) :: (Functor t) => (a -> b) -> t a -> t b
+(^@) = map
+
+(^$) :: (Functor t) => (a -> b) -> t a -> t b
+(^$) = map
+
+(^.) :: (Functor t) => (b -> c) -> (a -> t b) -> a -> t c
+g ^. f = map g . f
+
+(.^) :: (Functor t) => (t b -> c) -> (a -> b) -> t a -> c
+g .^ f = g . map f
+
+(^.:) :: (Functor t) => (c -> d) -> (a -> b -> t c) -> a -> b -> t d
+g ^.: f = map g .: f
+
+(^..:) :: (Functor t) => (d -> e) -> (a -> b -> c -> t d) -> a -> b -> c -> t e
+g ^..: f = map g ..: f
+
+(^^.) :: (Functor t, Functor u) => (b -> c) -> (a -> t (u b)) -> a -> (t (u c))
+g ^^. f = map (map g) . f
 
 mapOn :: (Functor t) => t a -> (a -> b) -> t b
 mapOn = flip map
@@ -466,8 +495,14 @@ mapOn = flip map
 class FunctorM t where
   mapM :: (Monad m) => (a -> m b) -> t a -> m (t b)
 
-(<*$>) :: (FunctorM t, Monad m) => (a -> m b) -> t a -> m (t b)
-(<*$>) = mapM
+(^*@) :: (FunctorM t, Monad m) => (a -> m b) -> t a -> m (t b)
+(^*@) = mapM
+
+(^*$) :: (FunctorM t, Monad m) => (a -> m b) -> t a -> m (t b)
+(^*$) = mapM
+
+(^*.) :: (FunctorM t, Monad m) => (b -> m c) -> (a -> m b) -> t a -> m (t c)
+(g ^*. f) aT = mapM g *$ f ^*$ aT
 
 mapMOn :: (FunctorM t, Monad m) => t a -> (a -> m b) -> m (t b)
 mapMOn = flip mapM
@@ -478,8 +513,8 @@ sequence = mapM id
 class CFunctor c t | t -> c where
   cmap :: (c a, c b) => (a -> b) -> t a -> t b
 
-(<$~>) :: (CFunctor c t, c a, c b) => (a -> b) -> t a -> t b
-(<$~>) = cmap
+(^*$~) :: (CFunctor c t, c a, c b) => (a -> b) -> t a -> t b
+(^*$~) = cmap
 
 cmapOn :: (CFunctor c t, c a, c b) => t a -> (a -> b) -> t b
 cmapOn = flip cmap
@@ -503,6 +538,9 @@ class Applicative t where
   (<@>) :: t (a -> b) -> t a -> t b
 tapply :: (Applicative t) => t (a -> b) -> t a -> t b
 tapply = (<@>)
+
+(<$>) :: (Applicative t) => t (a -> b) -> t a -> t b
+(<$>) = (<@>)
 
 -- }}}
 
@@ -539,6 +577,9 @@ extend = flip (>>=)
 void :: (Functor m) => m a -> m ()
 void = map (const ())
 
+(*@) :: (Bind m) => (a -> m b) -> (m a -> m b)
+(*@) = extend
+
 (*$) :: (Bind m) => (a -> m b) -> (m a -> m b)
 (*$) = extend
 
@@ -569,24 +610,10 @@ when :: (Unit m) => Bool -> m () -> m ()
 when True = id
 when False = const $ unit ()
 
--- class CBind c m | m -> c where
---   (>>=~) :: (c a, c b) => m a -> (a -> m b) -> m b
 type CMonad c m = (CUnit c m, CFunctor c m, Applicative m, Bind m)
 
 creturn :: (CMonad c m, c a) => a -> m a
 creturn = cunit
-
--- (>>~) :: (CMonad c m, c a, c b) => m a -> m b -> m b
--- aM >>~ bM = aM >>=~ \ _ -> bM
--- 
--- cextend :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
--- cextend = flip (>>=~)
--- 
--- (*$~) :: (CMonad c m, c a, c b) => (a -> m b) -> (m a -> m b)
--- (*$~) = cextend
--- 
--- (*.~) :: (CMonad c m, c a, c b, c d) => (b -> m d) -> (a -> m b) -> (a -> m d)
--- (g *.~ f) x = g *$~ f x
 
 cmmap :: (CMonad c m) => (c b) => (a -> b) -> m a -> m b
 cmmap f aM =
@@ -725,7 +752,7 @@ askP :: (MonadReaderE r m) => P r -> m r
 askP P = ask
 
 askL :: (MonadReaderE r m) => Lens r a -> m a
-askL l = access l <$> ask
+askL l = access l ^$ ask
 
 local :: (MonadReader r m) => (r -> r) -> m a -> m a
 local f aM = readerE $ ReaderT $ \ e -> runReaderT (f e) $ readerI aM
@@ -1035,13 +1062,13 @@ mapFst :: (a -> c) -> (a, b) -> (c, b)
 mapFst f (a, b) = (f a, b)
 
 mapFstM :: (Functor m) => (a -> m c) -> (a, b) -> m (c, b)
-mapFstM f (a, b) = (,b) <$> f a
+mapFstM f (a, b) = (,b) ^$ f a
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
 mapSndM :: (Functor m) => (b -> m c) -> (a, b) -> m (a, c)
-mapSndM f (a, b) = (a,) <$> f b
+mapSndM f (a, b) = (a,) ^$ f b
 
 -- }}}
 

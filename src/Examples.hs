@@ -9,8 +9,8 @@ import Lang.Lam.Passes.B_CPSConvert
 formatResults :: Doc -> Doc
 formatResults = localSetL P.maxColumnWidthL 120 . localSetL P.maxRibbonWidthL 120
 
-doConfig :: Exp -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> Doc
-doConfig e modes gcs createClosures timeFilters μs monads =
+doConfig :: Exp -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> Doc
+doConfig e modes gcs createClosures lexTimeFilter dynTimeFilter μs monads =
   let (se, c) = stampCPS e
   in P.vsep
     [ P.heading "Source"
@@ -19,7 +19,7 @@ doConfig e modes gcs createClosures timeFilters μs monads =
     , localSetL P.maxRibbonWidthL 40 $ pretty se
     , P.heading "CPS"
     , localSetL P.maxRibbonWidthL 40 $ pretty c
-    , P.vsep $ mapOn (A.allE modes gcs createClosures timeFilters μs monads) $ uncurry $ \ n f -> P.vsep
+    , P.vsep $ mapOn (A.allE modes gcs createClosures lexTimeFilter dynTimeFilter μs monads) $ uncurry $ \ n f -> P.vsep
         [ P.heading n
         , formatResults $ f c
         ]
@@ -54,7 +54,7 @@ examplesMain :: IO ()
 examplesMain =
   pprint $ P.vsep
     [ return ()
-    -- , doConfig simpleKCFA        ["abstract"] ["no"] ["link"]         ["location"] ["0-cfa", "1k-cfa"]  ["fi"]
-    -- , doConfig simpleMCFA        ["abstract"] ["no"] ["link", "copy"] ["location"] ["1k-cfa"]           ["fi"]
-    , doConfig simpleLexicalTime ["abstract"] ["no"] ["link"]         ["location"] ["1k-cfa", "1o-cfa"] ["fi"]
+    -- , doConfig simpleKCFA        ["abstract"] ["no"] ["link"]         ["location"] ["location"] ["0-cfa", "1k-cfa"]  ["fi"]
+    -- , doConfig simpleMCFA        ["abstract"] ["no"] ["link", "copy"] ["location"] ["location"] ["1k-cfa"]           ["fi"]
+    , doConfig simpleLexicalTime ["abstract"] ["no"] ["link"]         ["app"]   ["app"]      ["1k-cfa", "1o-cfa"] ["fi"]
     ]

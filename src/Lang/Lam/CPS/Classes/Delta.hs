@@ -48,7 +48,8 @@ storeL :: P δ -> μ -> Lens (Store δ μ) (Map (Addr μ) (Val δ μ))
 storeL P _ = isoLens runStore Store
 
 data Clo μ = Clo 
-  { cloArgs :: [SGName]
+  { cloLoc :: LocNum
+  , cloArgs :: [SGName]
   , cloCall :: SGCall
   , cloEnv :: Env μ
   , cloTime :: LexicalTime μ Ψ
@@ -56,9 +57,9 @@ data Clo μ = Clo
 deriving instance (Eq (LexicalTime μ Ψ), Eq (DynamicTime μ Ψ)) => Eq (Clo μ)
 deriving instance (Ord (LexicalTime μ Ψ), Ord (DynamicTime μ Ψ)) => Ord (Clo μ)
 instance (Pretty (LexicalTime μ Ψ), Pretty (DynamicTime μ Ψ)) => Pretty (Clo μ) where
-  pretty (Clo _xs c _ρ lτ) = P.collection "<" ">" "," 
+  pretty (Clo l _xs _c _ρ lτ) = P.collection "<" ">" "," 
     -- [ exec [P.pun "λ=", P.align $ pretty $ prettyLam xs c]
-    [ exec [P.pun "λ=", pretty $ stampedFixID c]
+    [ exec [P.pun "λ=", pretty l]
     -- , exec [P.pun "ρ=", P.align $ pretty ρ]
     , exec [P.pun "lτ=", P.align $ pretty lτ]
     ]

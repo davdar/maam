@@ -238,7 +238,7 @@ parensIfWrapped aM = do
   if w then parens $ unwrapped aM else unwrapped aM
 
 app :: (MonadPretty m) => [m ()] -> m ()
-app = align . parensIfWrapped . wrapped . hvsep . map align
+app = align . parensIfWrapped . wrapped . hvsep .^ align
 
 collection :: (MonadPretty m) => String -> String -> String -> [m ()] -> m ()
 collection open close _ [] = pun open >> pun close

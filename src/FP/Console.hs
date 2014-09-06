@@ -29,8 +29,8 @@ applyFormat :: Format -> String -> String
 applyFormat (Format fg bg ul bd) s = concat
   [ leader 
   , concat $ intersperse ";" $ msums
-    [ useMaybe $ fgCode <$> fg
-    , useMaybe $ bgCode <$> bg
+    [ useMaybe $ fgCode ^$ fg
+    , useMaybe $ bgCode ^$ bg
     , guard ul >> return ulCode
     , guard bd >> return bdCode
     ]
