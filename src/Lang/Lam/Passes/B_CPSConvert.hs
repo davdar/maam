@@ -39,7 +39,7 @@ data CPSKon r m a where
 instance FFMorphism (KFun r) (CPSKon r) where
   ffmorph (KFun mk) = MetaKon mk
 instance FFMorphism (CPSKon r) (KFun r) where
-  ffmorph :: CPSKon r m a -> KFun r m a
+  ffmorph :: CPSKon r ~~> KFun r
   ffmorph (MetaKon mk) = KFun mk
   ffmorph (ObjectKon _ mk) = KFun mk
 instance FFIsomorphism (KFun r) (CPSKon r) where

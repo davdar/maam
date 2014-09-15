@@ -3,6 +3,7 @@ module FP.Console where
 import FP.Core hiding (reset)
 import FP.Pretty
 import FP.Free
+import System.IO.Unsafe
 
 leader :: String
 leader = "\ESC["
@@ -28,9 +29,9 @@ bdCode = "1"
 applyFormat :: Format -> String -> String
 applyFormat (Format fg bg ul bd) s = concat
   [ leader 
-  , concat $ intersperse ";" $ msums
-    [ useMaybe $ fgCode ^$ fg
-    , useMaybe $ bgCode ^$ bg
+  , concat $ intersperse ";" $ mconcat
+    [ useMaybeZero $ fgCode ^$ fg
+    , useMaybeZero $ bgCode ^$ bg
     , guard ul >> return ulCode
     , guard bd >> return bdCode
     ]
@@ -48,7 +49,7 @@ formatOut (o1 :+++: o2) = formatOut o1 ++ formatOut o2
 formatOut (MFApply (fmt, o)) = applyFormat fmt $ formatOut o
 
 pprintWith :: (Pretty a) => (Doc -> Doc) -> a -> IO ()
-pprintWith f = print . formatOut . execPretty0 . f . pretty
+pprintWith f = print . formatOut . execDoc . f . pretty
 
 pprint :: (Pretty a) => a -> IO ()
 pprint = pprintWith id
@@ -58,3 +59,8 @@ pprintWidth = pprintWith . localSetL maxColumnWidthL
 
 pprintRibbon :: (Pretty a) => Int -> a -> IO ()
 pprintRibbon = pprintWith . localSetL maxRibbonWidthL
+
+ptrace :: (Pretty a) => a -> b -> b
+ptrace a b = unsafePerformIO $ do
+  pprint a
+  return b

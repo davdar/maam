@@ -44,7 +44,7 @@ instance (MonadStep m, Functor m, Functorial JoinLattice m) => MonadStep (ListSe
   type SS (ListSetT m) = SS m :.: Set
   type SSC (ListSetT m) = Ord ::*:: (SSC m ::.:: Set)
   mstep :: (SSC (ListSetT m) a, SSC (ListSetT m) b) => (a -> ListSetT m b) -> SS (ListSetT m) a -> SS (ListSetT m) b
-  mstep f = mapCompose $ mstep $ map sset . runListSetT . msums . map f . toList
+  mstep f = mapCompose $ mstep $ map sset . runListSetT . msum . map f . toList
   munit :: (SSC (ListSetT m) a) => P (ListSetT m) -> a -> SS (ListSetT m) a
   munit P = Compose . munit (P :: P m) . cunit
 
@@ -52,7 +52,7 @@ instance (MonadStep m, Functorial JoinLattice m) => MonadStep (SetT m) where
   type SS (SetT m) = SS m :.: Set
   type SSC (SetT m) = Ord ::*:: (SSC m ::.:: Set)
   mstep :: (SSC (SetT m) a, SSC (SetT m) b) => (a -> SetT m b) -> SS (SetT m) a -> SS (SetT m) b
-  mstep f = mapCompose $ mstep $ runSetT . msums . map f . toList
+  mstep f = mapCompose $ mstep $ runSetT . msum . map f . toList
   munit :: (SSC (SetT m) a) => P (SetT m) -> a -> SS (SetT m) a
   munit P = Compose . munit (P :: P m) . cunit
 

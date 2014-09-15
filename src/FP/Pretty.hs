@@ -4,9 +4,6 @@ import FP.Core
 import FP.Free
 import FP.Monads
 
--- TODO: get rid of (MonadPretty m) and make everything return PrettyT m.
--- if you want to extend it, make a (usePrettyT :: PrettyT m ~> m) for your m.
-
 -- Setup {{{ --
 
 newtype Color256 = Color256 { color256Raw :: Int }
@@ -86,46 +83,7 @@ state0 = PState
   , ribbon = 0
   }
 
-type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadZero m, MonadMaybe m)
-newtype PrettyT m a = PrettyT { unPrettyT :: RWST PEnv POut PState m a }
-  deriving 
-    ( Unit
-    , Functor
-    , Product
-    , Applicative
-    , Bind
-    , Monad
-    , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
-    , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
-    , MonadStateI PState, MonadStateE PState, MonadState PState
-    -- , MonadRWSI PEnv POut PState, MonadRWSE PEnv POut PState, MonadRWS PEnv POut PState
-    , MonadMaybeI, MonadMaybeE, MonadMaybe
-    )
-runPrettyT :: (Functor m) => PEnv -> PState -> PrettyT m a -> m (a, POut, PState)
-runPrettyT e s = runRWST e s . unPrettyT
-type Doc = PrettyT Maybe ()
-
-deriving instance (MonadZero m) => MonadZero (PrettyT m)
-
-execPretty0 :: Doc -> POut
-execPretty0 d =
-  let rM = runPrettyT env0 state0 d
-  in case rM of
-    Nothing -> MonoidFunctorElem $ Text "<internal pretty printing error>"
-    Just ((), o, _) -> o
-
-instance MonadUnit PrettyT where
-  mtUnit = PrettyT . mtUnit
-instance MonadCounit PrettyT where
-  mtCounit = PrettyT . mtCounit . unPrettyT . mtMap unPrettyT
-instance MonadFunctor PrettyT where
-  mtMap f = PrettyT . mtMap f . unPrettyT
-
-class Pretty a where
-  pretty :: a -> Doc
-instance Pretty Doc where
-  pretty = id
-
+type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadMaybe m)
 -- }}} ---
 
 -- Low Level Interface {{{ --
@@ -141,12 +99,12 @@ text o = do
     rmax <- askL maxRibbonWidthL
     c <- getL columnL
     r <- getL ribbonL
-    when (c > cmax) mzero
-    when (r > rmax) mzero
+    when (c > cmax) abort
+    when (r > rmax) abort
   where
     countNonSpace = iter (cond isSpace id psuc) 0
 
-space :: (MonadZero m, MonadPretty m) => Int -> m ()
+space :: (MonadPretty m) => Int -> m ()
 space = text . otimes " "
 
 ifFlat :: (MonadPretty m) => m a -> m a -> m a
@@ -163,7 +121,7 @@ whenBreak :: (MonadPretty m) => m () -> m ()
 whenBreak aM = ifFlat (return ()) aM
 
 mustBreak :: (MonadPretty m) => m () -> m ()
-mustBreak = (>>) $ whenFlat mzero
+mustBreak = (>>) $ whenFlat abort
 
 hardLine :: (MonadPretty m) => m ()
 hardLine = do
@@ -171,7 +129,7 @@ hardLine = do
   putL columnL 0
   putL ribbonL 0
 
-newline :: (MonadZero m, MonadPretty m) => m ()
+newline :: (MonadPretty m) => m ()
 newline = do
   n <- askL nestingL
   hardLine
@@ -298,6 +256,44 @@ heading = format headingFmt . text
 
 -- }}}
 
+-- DocM {{{
+
+newtype DocM a = DocM { unDocM :: RWST PEnv POut PState Maybe a }
+  deriving 
+    ( Unit
+    , Functor
+    , Product
+    , Applicative
+    , Bind
+    , Monad
+    , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
+    , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
+    , MonadStateI PState, MonadStateE PState, MonadState PState
+    , MonadMaybeI, MonadMaybeE, MonadMaybe
+    )
+runDocM :: PEnv -> PState -> DocM a -> Maybe (a, POut, PState)
+runDocM e s = runRWST e s . unDocM
+
+execDoc :: Doc -> POut
+execDoc d =
+  let rM = runDocM env0 state0 d
+  in case rM of
+    Nothing -> MonoidFunctorElem $ Text "<internal pretty printing error>"
+    Just ((), o, _) -> o
+
+type Doc = DocM ()
+
+instance Monoid Doc where
+  null = abort
+  (++) = (>>)
+
+class Pretty a where
+  pretty :: a -> Doc
+instance Pretty Doc where
+  pretty = id
+
+-- }}}
+
 -- No Format {{{
 
 formatChunk :: Chunk -> String
@@ -311,22 +307,28 @@ noFormatOut (o1 :+++: o2) = noFormatOut o1 ++ noFormatOut o2
 noFormatOut (MFApply (_, o)) = noFormatOut o
 
 ptoString :: (Pretty a) => a -> String
-ptoString = noFormatOut . execPretty0 . pretty
+ptoString = noFormatOut . execDoc . pretty
 
 -- }}}
 
 -- Instances {{{
 
 instance Pretty Bool where
-  pretty = lit . toString
+  pretty = con . toString
 instance Pretty Int where
   pretty = lit . toString
 instance Pretty Integer where
   pretty = lit . toString
+instance Pretty Char where
+  pretty = lit . toString
 instance Pretty String where
   pretty = lit . toString
+instance Pretty () where
+  pretty () = con "()"
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (a, b) = collection "(" ")" "," [pretty a, pretty b]
+instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
+  pretty (a, b, c) = collection "(" ")" "," [pretty a, pretty b, pretty c]
 instance Bifunctorial Pretty (,) where
   bifunctorial = W
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
@@ -352,5 +354,36 @@ instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ parensIfWrapped $
     exec [pretty a, pun ":", pretty f]
+
+instance (Pretty e, Pretty a) => Pretty (ErrorList e a) where
+  pretty (ErrorListFailure e) = app [con "Failure", pretty e]
+  pretty (ErrorListSuccess x xs) = app [con "Success", pretty (x:xs)]
+
+instance (Pretty a) => Pretty (ID a) where
+  --pretty (ID a) = app [con "ID", pretty a]
+  pretty (ID a) = pretty a
+instance Functorial Pretty ID where
+  functorial = W
+
+instance (Functorial Pretty m, Pretty e, Pretty a) => Pretty (ErrorT e m a) where
+  pretty (ErrorT aM) =
+    with (functorial :: W (Pretty (m (e :+: a)))) $
+    -- app [con "ErrorT", pretty aM]
+    pretty aM
+
+instance (Functorial Pretty m, Pretty a) => Pretty (ListT m a) where
+  pretty (ListT aM) =
+    with (functorial :: W (Pretty (m [a]))) $
+    --app [con "ListT", pretty aM]
+    pretty aM
+    
+instance (Functorial Pretty m, Pretty e, Pretty a) => Pretty (ErrorListT e m a) where
+  pretty (ErrorListT aM) = 
+    with (functorial :: W (Pretty (m (ErrorList e a)))) $
+    -- app [con "ErrorListT", pretty aM]
+    pretty aM
+instance (Functorial Pretty m, Pretty e) => Functorial Pretty (ErrorListT e m) where
+  functorial = W
+
 
 -- }}}

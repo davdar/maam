@@ -27,11 +27,10 @@ import Prelude
 import Data.Text (Text)
 import GHC.Exts (type Constraint)
 import qualified Data.Text as Text
--- import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Char (isSpace)
+import Data.Char (isSpace, isAlphaNum, isLetter, isDigit)
 
 -- }}}
 
@@ -93,34 +92,6 @@ infixr 0 |:
 -- Classes --
 -------------
 
--- Misc {{{
-
--- class Morphism a b where
---   morph :: a -> b
--- class (Morphism a b, Morphism b a) => Isomorphism a b where
--- ito :: (Isomorphism a b) => a -> b
--- ito = morph
--- ifrom :: (Isomorphism a b) => b -> a
--- ifrom = morph
--- 
--- class FunctorMorphism t u where
---   fmorph :: t ~> u
--- class (FunctorMorphism t u, FunctorMorphism u t) => FunctorIsomorphism t u where
--- fto :: (FunctorIsomorphism t u) => t ~> u
--- fto = fmorph
--- ffrom :: (FunctorIsomorphism t u) => u ~> t
--- ffrom = fmorph
--- class TransformerMorphism t u where
---   ffmorph :: (Monad m) => t m ~> u m
--- class (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
--- instance (TransformerMorphism t u, TransformerMorphism u t) => TransformerIsomorphism t u where
--- ffto :: (TransformerIsomorphism t u, Monad m) => t m ~> u m
--- ffto = ffmorph
--- fffrom :: (TransformerIsomorphism t u, Monad m) => u m ~> t m
--- fffrom = ffmorph
-
--- }}}
-
 -- Category {{{ --
 
 class Category t where
@@ -131,12 +102,15 @@ class Category t where
 
 -- Morphism {{{
 
+type m ~> n = forall a. m a -> n a
+type t ~~> u = forall a m. t m a -> u m a
+
 class Morphism a b where
   morph :: a -> b
-class FMorphism t u where
-  fmorph :: t a -> u a
-class FFMorphism v w where
-  ffmorph :: v t a -> w t a
+class FMorphism m n where
+  fmorph :: m ~> n
+class FFMorphism t u where
+  ffmorph :: t ~~> u
 
 -- }}}
 
@@ -344,6 +318,9 @@ class Iterable a t | t -> a where
 iterOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
 iterOn = mirror iter
 
+iterFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
+iterFrom = flip iter
+
 traverse :: (Iterable a t, Monad m) => (a -> m ()) -> t -> m ()
 traverse f = iter (\ a m -> m >> f a) $ return ()
 
@@ -405,7 +382,7 @@ pinsert :: (MapLike k v t) => k -> v -> t -> t
 pinsert = pinsertWith $ const id
 
 ponlyKeys :: (Iterable k t, MapLike k v u) => t -> u -> u
-ponlyKeys t u = iter (\ k -> maybe (pinsert k) id $ u # k) pempty t
+ponlyKeys t u = iter (\ k -> maybe id (pinsert k) $ u # k) pempty t
 
 -- }}}
 
@@ -624,19 +601,32 @@ cmmap f aM =
 
 -- Monad Transformers {{{
 
-type m ~> n = forall (a :: *). m a -> n a
-type (m ~>~ n) c = forall (a :: *). (c a) => m a -> n a
+class HigherUnit t where
+  htUnit :: m ~> t m
+class HigherJoin t where
+  htJoin :: t (t m) ~> t m
+class HigherFunctor t where
+  htMap :: (m ~> n) -> t m ~> t n
+class HigherIsoFunctor t where
+  htIsoMap :: (m ~> n) -> (n ~> m) -> t m ~> t n
+
+class FunctorUnit t where
+  ftUnit :: (Functor m) => m ~> t m
+class FunctorJoin t where
+  ftJoin :: (Functor m) => t (t m) ~> t m
+class FunctorFunctor t where
+  ftMap :: (Functor m, Functor n) => (m ~> n) -> t m ~> t n
+class FunctorIsoFunctor t where
+  ftIsoMap :: (Functor m, Functor n) => (m ~> n) -> (n ~> m) -> t m ~> t n
 
 class MonadUnit t where
   mtUnit :: (Monad m) => m ~> t m
-class MonadCounit t where
-  mtCounit :: (Monad m) => t (t m) ~> t m
-
+class MonadJoin t where
+  mtJoin :: (Monad m) => t (t m) ~> t m
 class MonadFunctor t where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> t m ~> t n
-
 class MonadIsoFunctor t where
-  mtIsoMap :: (Monad m, Monad n) => m ~> n -> n ~> m -> t m ~> t n
+  mtIsoMap :: (Monad m, Monad n) => (m ~> n) -> (n ~> m) -> t m ~> t n
 
 -- }}}
 
@@ -651,19 +641,50 @@ guard False = mzero
 
 -- }}}
 
+-- MonadMonoid {{{
+
+class MonadMonoid (m :: * -> *) where
+  (<++>) :: m a -> m a -> m a
+
+mconcat :: (CoIterable (m a) t, MonadZero m, MonadMonoid m) => t -> m a
+mconcat = coiter (<++>) mzero
+
+-- }}}
+
 -- MonadPlus {{{
 
 class MonadPlus (m :: * -> *) where
   (<+>) :: m a -> m a -> m a
 
-msum :: (Iterable a t, MonadZero m, Unit m, MonadPlus m) => t -> m a
-msum = iter ((<+>) . unit) mzero
+msum :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
+msum = iter (<+>) mzero
 
-msums :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
-msums = iter (<+>) mzero
+msumVals :: (Iterable a t, MonadZero m, Unit m, MonadPlus m) => t -> m a
+msumVals = iter ((<+>) . unit) mzero
 
-mfsums :: (MonadZero m, MonadPlus m) => [a -> m b] -> a -> m b
-mfsums fs x = iter (\ f -> (<+>) $ f x) mzero fs
+mfsum :: (MonadZero m, MonadPlus m) => [a -> m b] -> a -> m b
+mfsum fs x = iter (\ f -> (<+>) $ f x) mzero fs
+
+oneOrMore :: (Monad m, MonadZero m, MonadMonoid m) => m a -> m (a, [a])
+oneOrMore aM = do
+  x <- aM
+  xs <- many aM
+  return (x, xs)
+
+twoOrMore :: (Monad m, MonadZero m, MonadMonoid m) => m a -> m (a, a, [a])
+twoOrMore aM = do
+  x1 <- aM
+  (x2, xs) <- oneOrMore aM
+  return (x1, x2, xs)
+
+oneOrMoreList :: (Monad m, MonadZero m, MonadMonoid m) => m a -> m [a]
+oneOrMoreList = uncurry cons ^. oneOrMore
+
+many :: (Monad m, MonadZero m, MonadMonoid m) => m a -> m [a]
+many aM = mconcat
+  [ oneOrMoreList aM
+  , return []
+  ]
 
 -- }}}
 
@@ -730,6 +751,9 @@ catch aM h = do
   case aeM of
     Inl e -> h e
     Inr a -> return a
+
+catchP :: (MonadErrorI e m) => P e -> m a -> (e -> m a) -> m a
+catchP _ = catch
 
 -- }}}
 
@@ -875,38 +899,41 @@ nextL l = do
   putL l $ psuc i
   return i
 
-class (CMonad c m) => CMonadStateI c s m | m -> c where
-  cstateI :: (m ~>~ StateT s m) c
-class (CMonad c m) => CMonadStateE c s m | m -> c where
-  cstateE :: (StateT s m ~>~ m) c
-class (CMonadStateI c s m, CMonadStateE c s m) => CMonadState c s m | m -> c where
+bumpL :: (MonadStateE s m, Peano a) => Lens s a -> m ()
+bumpL l = modifyL l psuc
 
-cget :: (CMonadStateE c s m, c s, c (s, s)) => m s
-cget = cstateE $ StateT $ \ s -> creturn (s, s)
+-- class (CMonad c m) => CMonadStateI c s m | m -> c where
+--   cstateI :: (m ~>~ StateT s m) c
+-- class (CMonad c m) => CMonadStateE c s m | m -> c where
+--   cstateE :: (StateT s m ~>~ m) c
+-- class (CMonadStateI c s m, CMonadStateE c s m) => CMonadState c s m | m -> c where
 
-cgetP :: (CMonadStateE c s m, c s, c (s, s)) => P s -> m s
-cgetP P = cget
-
-cgetL :: (CMonadStateE c s m, c s, c (s, s), c a) => Lens s a -> m a
-cgetL l = cmmap (access l) cget
-
-cput :: (CMonadStateE c s m, c (), c ((), s)) => s -> m ()
-cput s = cstateE $ StateT $ \ _ -> creturn ((), s)
-
-cputP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> s -> m ()
-cputP P = cput
-
-cputL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> a -> m ()
-cputL = cmodify .: set
-
-cmodify :: (CMonadStateE c s m, c (), c ((), s)) => (s -> s) -> m ()
-cmodify f = cstateE $ StateT $ \ s -> creturn ((), f s)
-
-cmodifyP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> (s -> s) -> m ()
-cmodifyP P = cmodify
-
-cmodifyL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> (a -> a) -> m ()
-cmodifyL = cmodify .: update
+-- cget :: (CMonadStateE c s m, c s, c (s, s)) => m s
+-- cget = cstateE $ StateT $ \ s -> creturn (s, s)
+-- 
+-- cgetP :: (CMonadStateE c s m, c s, c (s, s)) => P s -> m s
+-- cgetP P = cget
+-- 
+-- cgetL :: (CMonadStateE c s m, c s, c (s, s), c a) => Lens s a -> m a
+-- cgetL l = cmmap (access l) cget
+-- 
+-- cput :: (CMonadStateE c s m, c (), c ((), s)) => s -> m ()
+-- cput s = cstateE $ StateT $ \ _ -> creturn ((), s)
+-- 
+-- cputP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> s -> m ()
+-- cputP P = cput
+-- 
+-- cputL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> a -> m ()
+-- cputL = cmodify .: set
+-- 
+-- cmodify :: (CMonadStateE c s m, c (), c ((), s)) => (s -> s) -> m ()
+-- cmodify f = cstateE $ StateT $ \ s -> creturn ((), f s)
+-- 
+-- cmodifyP :: (CMonadStateE c s m, c (), c ((), s)) => P s -> (s -> s) -> m ()
+-- cmodifyP P = cmodify
+-- 
+-- cmodifyL :: (CMonadStateE c s m, c (), c ((), s)) => Lens s a -> (a -> a) -> m ()
+-- cmodifyL = cmodify .: update
 
 -- }}}
 
@@ -922,17 +949,48 @@ class (MonadReader r m, MonadWriter o m, MonadState s m) => MonadRWS r o s m whe
 
 -- }}}
 
+-- MonadList {{{
+
+newtype ListT m a = ListT { runListT :: m [a] }
+
+class (Monad m) => MonadListI m where
+  listI :: m ~> ListT m
+class (Monad m) => MonadListE m where
+  listE :: ListT m ~> m
+class (MonadListI m, MonadListE m) => MonadList m where
+
+listAbort :: (MonadListE m) => m a
+listAbort = listE $ ListT $ unit []
+
+-- }}}
+
+-- MonadErrorList {{{
+
+newtype ErrorListT e m a = ErrorListT { runErrorListT :: m (ErrorList e a) }
+
+class (Monad m) => MonadErrorListI e m where
+  errorListI :: m ~> ErrorListT e m
+class (Monad m) => MonadErrorListE e m where
+  errorListE :: ErrorListT e m ~> m
+class (MonadErrorListI e m, MonadErrorListE e m) => MonadErrorList e m where
+
+throwErrorList :: (MonadErrorListE e m) => e -> m a
+throwErrorList = errorListE . ErrorListT . unit . ErrorListFailure . unit
+
+-- }}}
+
 -- MonadListSet {{{
 
 newtype ListSetT m a = ListSetT { runListSetT :: m (ListSet a) }
 
-class (Monad m) => MonadListSetI m where
+class (Monad m) => MonadListSetI m  where
   listSetI :: m ~> ListSetT m
 class (Monad m) => MonadListSetE m where
   listSetE :: ListSetT m ~> m
 class (MonadListSetI m, MonadListSetE m) => MonadListSet m where
 
 -- }}}
+
 
 -- MonadSet {{{
 
@@ -991,7 +1049,7 @@ class (MonadKon r m, MonadOpaqueKonI k r m, MonadOpaqueKonE k r m) => MonadOpaqu
 -- Data --
 ----------
 
--- Function {{{ --
+-- Function {{{
 
 instance Category (->) where
   id x = x
@@ -1037,7 +1095,7 @@ on p f x y = p (f x) (f y)
 composeEndo :: [a -> a] -> a -> a
 composeEndo = unEndo . concat . map Endo
 
--- }}} --
+-- }}}
 
 -- Tuple {{{
 
@@ -1045,6 +1103,9 @@ instance (PartialOrder a, PartialOrder b) => PartialOrder (a, b) where
   (a1, b1) <~ (a2, b2) = (a1 <~ a2) /\ (b1 <~ b2)
 instance (HasBot a, HasBot b) => HasBot (a, b) where
   bot = (bot, bot)
+instance (Monoid a, Monoid b) => Monoid (a, b) where
+  null = (null, null)
+  (a1, b1) ++ (a2, b2) = (a1 ++ a2, b1 ++ b2)
 instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
 instance Bifunctorial Eq (,) where
@@ -1087,7 +1148,7 @@ instance Monoid Bool where
   null = bot
   (++) = (\/)
 instance ToString Bool where
-  toString = fromChars . Prelude.show
+  toString = preludeShow
 
 ifThenElse :: Bool -> a -> a -> a
 ifThenElse True  x _ = x
@@ -1101,6 +1162,25 @@ cond p t f x = if p x then t else f
 -- Sum {{{
 
 data a :+: b = Inl a | Inr b
+  deriving (Eq, Ord)
+
+instance Unit ((:+:) a) where
+  unit = Inr
+instance Functor ((:+:) a) where
+  map _ (Inl a) = Inl a
+  map f (Inr b) = Inr $ f b
+instance Product ((:+:) a) where
+  Inl a <*> _ = Inl a
+  _ <*> Inl a = Inl a
+  Inr b <*> Inr c = Inr (b, c)
+instance Applicative ((:+:) a) where
+  Inl a <@> _ = Inl a
+  _ <@> Inl a = Inl a
+  Inr f <@> Inr b = Inr $ f b
+instance Bind ((:+:) a) where
+  Inl a >>= _ = Inl a
+  Inr a >>= k = k a
+instance Monad ((:+:) a) where
 
 mapLeft :: (a -> c) -> a :+: b -> c :+: b
 mapLeft f (Inl a) = Inl $ f a
@@ -1185,10 +1265,13 @@ instance VectorLike Char String where
   -- O(n)
   length = Text.length
 instance ToString String where
-  toString = fromChars . Prelude.show
+  toString = preludeShow
 
 error :: String -> a
 error = Prelude.error . toChars 
+
+preludeShow :: (Prelude.Show a) => a -> String
+preludeShow = fromChars . Prelude.show
 
 -- }}}
 
@@ -1233,12 +1316,16 @@ unsafeCoerceJust :: Maybe a -> a
 unsafeCoerceJust (Just a) = a
 unsafeCoerceJust Nothing = error "expected Just but found Nothing"
 
-maybe :: (a -> b) -> b -> Maybe a -> b
-maybe _ i Nothing = i
-maybe f _ (Just a) = f a
+maybe :: b -> (a -> b) -> Maybe a -> b
+maybe i _ Nothing = i
+maybe _ f (Just a) = f a
 
 maybeOn :: Maybe a -> b -> (a -> b) -> b
-maybeOn = mirror maybe
+maybeOn = rotateR maybe
+
+whenNothing :: a -> Maybe a -> a
+whenNothing x Nothing = x
+whenNothing _ (Just x) = x
 
 -- }}}
 
@@ -1403,7 +1490,11 @@ instance FromInt Int where
   fromInt = id
 instance Integral Int where
 instance ToString Int where
-  toString = fromChars . Prelude.show
+  toString = preludeShow
+instance HasBot Int where
+  bot = Prelude.minBound
+instance JoinLattice Int where
+  x \/ y = Prelude.max x y
 
 -- }}}
 
@@ -1419,7 +1510,14 @@ instance Additive Integer where
 instance Subtractive Integer where
   (-) = (Prelude.-)
 instance ToString Integer where
-  toString = fromChars . Prelude.show
+  toString = preludeShow
+
+-- }}}
+
+-- Char {{{
+
+instance ToString Char where
+  toString = preludeShow
 
 -- }}}
 
@@ -1509,10 +1607,9 @@ instance CoIterable a [a] where
 instance Monoid [a] where
   null = []
   xs ++ ys = coiter (:) ys xs
+instance Functorial Monoid [] where functorial = W
 instance Unit [] where
   unit = (:[])
-instance MonadPlus [] where
-  (<+>) = (++)
 instance Bind [] where
   []     >>= _ = []
   (x:xs) >>= k = k x ++ (xs >>= k)
@@ -1523,15 +1620,13 @@ instance Applicative [] where
   (<@>) = mapply
 instance MonadZero [] where
   mzero = []
-instance MonadMaybeE [] where
-  maybeE :: MaybeT [] ~> []
-  maybeE aM = do
-    aM' <- runMaybeT aM
-    case aM' of
-      Nothing -> mzero
-      Just x -> return x
+instance MonadMonoid [] where
+  (<++>) = (++)
 instance (Eq a) => Container a [a] where
   xs #? y = coiter (\ x -> (||) $ x == y) False xs
+instance Buildable a [a] where
+  nil = []
+  cons = (:)
 
 singleton :: a -> [a]
 singleton = (:[])
@@ -1569,19 +1664,19 @@ intersperse i0 (x0:xs0) = x0 : recur i0 xs0
     recur _ [] = []
     recur i (x:xs) = i:x:recur i xs
 
-pluck :: [[a]] -> ([a], [[a]])
-pluck [] = ([], [])
-pluck ([]:xss) = pluck xss
-pluck ((x:xs):xss) = let
-  (xs', xss') = pluck xss
-  in (x:xs', xs:xss')
+pluck :: [a] -> [[a]] -> Maybe ([a], [[a]])
+pluck [] _ = Nothing
+pluck (x:xs) [] = Just ([x], [xs])
+pluck (x1:xs1) (xs2:xss) = do
+  (ys2, xss') <-  pluck xs2 xss
+  return (x1 : ys2, xs1 : xss')
 
 transpose :: [[a]] -> [[a]]
-transpose [] = []
-transpose ([]:xss) = transpose xss
-transpose xss =
-  let (xs, xss') = pluck xss
-  in xs : transpose xss'
+transpose [] = [[]]
+transpose (xs:xss) =
+  case pluck xs xss of
+    Nothing -> []
+    Just (ys, xss') -> ys : transpose xss'
 
 setTranspose :: forall a. Set (Set a) -> Set (Set a)
 setTranspose aMM = result
@@ -1597,16 +1692,87 @@ mapRest :: (a -> a) -> [a] -> [a]
 mapRest _ [] = []
 mapRest f (x:xs) = x:map f xs
 
+filter :: (a -> Bool) -> [a] -> [a]
+filter p = coiter (\ x -> if p x then (:) x else id) []
+
+head :: [a] -> Maybe a
+head [] = Nothing
+head (x:_) = Just x
+
+tail :: [a] -> Maybe [a]
+tail [] = Nothing
+tail (_:xs) = Just xs
+
 -- }}}
 
 -- ListSet {{{
 
 newtype ListSet a = ListSet { runListSet :: [a] }
-  deriving (Monoid, Unit, Functor, Product, Applicative, Bind, Monad, MonadPlus, Iterable a, CoIterable a)
+  deriving (Monoid, Unit, Functor, Product, Applicative, Bind, Monad, Iterable a, CoIterable a)
 instance HasBot (ListSet a) where
   bot = ListSet []
 instance JoinLattice (ListSet a) where
   xs1 \/ xs2 = ListSet $ runListSet xs1 ++ runListSet xs2
+instance MonadPlus ListSet where
+  (<+>) = (\/)
+
+-- }}}
+
+-- ErrorList {{{
+
+data ErrorList e a =
+    ErrorListFailure [e]
+  | ErrorListSuccess a [a]
+
+instance Monoid (ErrorList e a) where
+  null = ErrorListFailure []
+  ErrorListFailure e1 ++ ErrorListFailure e2 = ErrorListFailure $ e1 ++ e2
+  ErrorListSuccess x xs ++ ErrorListSuccess y ys = ErrorListSuccess x (xs ++ (y:ys))
+  ErrorListFailure _ ++ ys = ys
+  xs ++ ErrorListFailure _ = xs
+instance Functorial Monoid (ErrorList e) where functorial = W
+instance Unit (ErrorList e) where
+  unit x = ErrorListSuccess x []
+instance Functor (ErrorList e) where
+  map = mmap
+instance Product (ErrorList e) where
+  (<*>) = mpair
+instance Applicative (ErrorList e) where
+  (<@>) = mapply
+instance Bind (ErrorList e) where
+  ErrorListFailure e >>= _ = ErrorListFailure e
+  ErrorListSuccess x [] >>= k = k x
+  ErrorListSuccess x (x':xs') >>= k = k x ++ (ErrorListSuccess x' xs' >>= k)
+instance Monad (ErrorList e) where
+instance MonadZero (ErrorList e) where
+  mzero = null
+instance MonadMonoid (ErrorList e) where
+  (<++>) = (++)
+instance CoIterable a (ErrorList e a) where
+  coiter _ i (ErrorListFailure _) = i
+  coiter f i (ErrorListSuccess x xs) = f x $ coiter f i xs
+instance Buildable a (ErrorList e a) where
+  nil = ErrorListFailure []
+  cons x xs = ErrorListSuccess x $ toList xs
+
+errorListConcat :: ErrorList e (ErrorList e a) -> ErrorList e a
+errorListConcat (ErrorListFailure e) = ErrorListFailure e
+errorListConcat (ErrorListSuccess x xs) = x ++ concat xs
+
+errorListPluck :: ErrorList e a -> ErrorList e (ErrorList e a) -> [e] :+: (ErrorList e a, ErrorList e (ErrorList e a))
+errorListPluck (ErrorListFailure e1) (ErrorListFailure e2) = Inl $ e1 ++ e2
+errorListPluck (ErrorListFailure e1) (ErrorListSuccess _ _) = Inl e1
+errorListPluck (ErrorListSuccess x xs) (ErrorListFailure _) = Inr (unit x, unit $ fromList xs)
+errorListPluck (ErrorListSuccess x1 xs1) (ErrorListSuccess xs2 xss) = do
+  (ys2, xss') <- errorListPluck xs2 $ fromList xss
+  return (ErrorListSuccess x1 $ toList ys2, ErrorListSuccess (fromList xs1) $ toList xss')
+
+errorListTranspose :: ErrorList e (ErrorList e a) -> ErrorList e (ErrorList e a)
+errorListTranspose (ErrorListFailure e) = unit $ ErrorListFailure e
+errorListTranspose (ErrorListSuccess xs xss) =
+  case errorListPluck xs $ fromList xss of
+    Inl e -> ErrorListFailure e
+    Inr (ys, xss') -> ErrorListSuccess ys $ toList $ errorListTranspose xss'
 
 -- }}}
 

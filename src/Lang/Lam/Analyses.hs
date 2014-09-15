@@ -35,6 +35,7 @@ allμs =
   , ( "1k-1o-CFA" , KHybridμ 1 1 )
   ]
 
+-- control sensitivity?
 allMonads :: [(String, KHybridμ -> PolyGC -> PolyCreateClo -> TimeFilter -> SGCall -> Store Aδ KHybridμ)]
 allMonads =
   [ ( "fsps" , fsps)
@@ -86,7 +87,7 @@ allP modeP gcP createCloP lexTimeFilterP dynTimeFilterP μP monadP =
           , "<dynTimeFilter=" ++ dynTimeFilterS ++ ">"
           ]
     return (msg, pretty . concrete gc createClo (TimeFilter lexTimeFilter dynTimeFilter))
-  <+>
+  <++>
   do
     guard $ modeP "abstract" 
     (gcS, gc) <- allGCs

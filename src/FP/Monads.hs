@@ -13,6 +13,7 @@ newtype ID a = ID { runID :: a }
   ( Eq, Ord
   , PartialOrder
   , HasBot
+  , Monoid
   , JoinLattice
   )
 
@@ -38,6 +39,8 @@ instance Monad ID where
 instance Functorial HasBot ID where
   functorial = W
 instance Functorial JoinLattice ID where
+  functorial = W
+instance Functorial Monoid ID where
   functorial = W
 
 newtype IDT m a = IDT { runIDT :: m a }
@@ -76,10 +79,11 @@ instance (Monad m) => Bind (MaybeT m) where
       Nothing -> return Nothing
       Just a -> runMaybeT $ k a
 instance (Monad m) => Monad (MaybeT m) where
-instance MonadUnit MaybeT where
-  mtUnit = MaybeT .^ Just
-instance MonadCounit MaybeT where
-  mtCounit = MaybeT . ff ^. runMaybeT . runMaybeT
+
+instance FunctorUnit MaybeT where
+  ftUnit = MaybeT .^ Just
+instance FunctorJoin MaybeT where
+  ftJoin = MaybeT . ff ^. runMaybeT . runMaybeT
     where
       ff Nothing = Nothing
       ff (Just aM) = aM
@@ -89,14 +93,17 @@ instance MonadFunctor MaybeT where
 
 instance (Monad m) => MonadMaybeI (MaybeT m) where
   maybeI :: MaybeT m ~> MaybeT (MaybeT m)
-  maybeI = maybeCommute . mtUnit
+  maybeI = maybeCommute . ftUnit
 instance (Monad m) => MonadMaybeE (MaybeT m) where
   maybeE :: MaybeT (MaybeT m) ~> MaybeT m
-  maybeE = mtCounit . maybeCommute
+  maybeE = ftJoin . maybeCommute
 
 -- }}}
 
 -- ErrorT {{{
+
+mapError :: (Functor m) => (e1 -> e2) -> ErrorT e1 m a -> ErrorT e2 m a
+mapError f = ErrorT . mapLeft f ^. runErrorT
 
 errorCommute :: (Functor m) => ErrorT e (ErrorT e m) ~> ErrorT e (ErrorT e m)
 errorCommute = ErrorT . ErrorT . ff ^. runErrorT . runErrorT
@@ -131,9 +138,9 @@ instance (Monad m) => Monad (ErrorT e m) where
 instance MonadUnit (ErrorT e) where
   mtUnit :: (Monad m) => m ~> ErrorT e m
   mtUnit aM = ErrorT $ Inr ^$ aM
-instance MonadCounit (ErrorT e) where
-  mtCounit :: (Monad m) => ErrorT e (ErrorT e m) ~> ErrorT e m
-  mtCounit = ErrorT . ff ^. runErrorT . runErrorT
+instance MonadJoin (ErrorT e) where
+  mtJoin :: (Monad m) => ErrorT e (ErrorT e m) ~> ErrorT e m
+  mtJoin = ErrorT . ff ^. runErrorT . runErrorT
     where
       ff (Inl e) = Inl e
       ff (Inr ea) = ea
@@ -146,7 +153,7 @@ instance (Monad m) => MonadErrorI e (ErrorT e m) where
   errorI = errorCommute . mtUnit
 instance (Monad m) => MonadErrorE e (ErrorT e m) where
   errorE :: ErrorT e (ErrorT e m) ~> ErrorT e m
-  errorE = mtCounit . errorCommute
+  errorE = mtJoin . errorCommute
 instance (Monad m) => MonadError e (ErrorT e m) where
 
 -- }}}
@@ -176,8 +183,8 @@ instance (Bind m) => Bind (ReaderT r m) where
 instance (Monad m) => Monad (ReaderT r m) where
 instance MonadUnit (ReaderT r) where
   mtUnit = ReaderT . const
-instance MonadCounit (ReaderT r) where
-  mtCounit aMM = ReaderT $ \ r -> runReaderT r $ runReaderT r aMM
+instance MonadJoin (ReaderT r) where
+  mtJoin aMM = ReaderT $ \ r -> runReaderT r $ runReaderT r aMM
 instance MonadFunctor (ReaderT r) where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> (ReaderT r m ~> ReaderT r n)
   mtMap f aM = ReaderT $ \ r -> f $ runReaderT r aM
@@ -187,7 +194,7 @@ instance (Monad m) => MonadReaderI r (ReaderT r m) where
   readerI = readerCommute . mtUnit
 instance (Monad m) => MonadReaderE r (ReaderT r m) where
   readerE :: ReaderT r (ReaderT r m) ~> ReaderT r m
-  readerE = mtCounit . readerCommute
+  readerE = mtJoin . readerCommute
 instance (Monad m) => MonadReader r (ReaderT r m) where
 
 instance (MonadZero m) => MonadZero (ReaderT r m) where
@@ -229,8 +236,8 @@ instance (Monad m, Monoid o) => Bind (WriterT o m) where
 instance (Monad m, Monoid o) => Monad (WriterT o m) where
 instance (Monoid w) => MonadUnit (WriterT w) where
   mtUnit = WriterT .^ (,null)
-instance MonadCounit (WriterT w) where
-  mtCounit = fst ^. runWriterT
+instance MonadJoin (WriterT w) where
+  mtJoin = fst ^. runWriterT
 instance MonadFunctor (WriterT w) where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> (WriterT w m ~> WriterT w n)
   mtMap f aM = WriterT $ f $ runWriterT aM
@@ -240,7 +247,7 @@ instance (Monad m, Monoid o) => MonadWriterI o (WriterT o m) where
   writerI = writerCommute . mtUnit
 instance (Monad m, Monoid o) => MonadWriterE o (WriterT o m) where
   writerE :: WriterT o (WriterT o m) ~> WriterT o m
-  writerE = mtCounit . writerCommute
+  writerE = mtJoin . writerCommute
 instance (Monad m, Monoid o) => MonadWriter o (WriterT o m) where
 
 instance (MonadZero m, Monoid o) => MonadZero (WriterT o m) where
@@ -296,36 +303,47 @@ instance (Bind m) => Bind (StateT s m) where
 instance (Monad m) => Monad (StateT s m) where
 instance MonadUnit (StateT s) where
   mtUnit aM = StateT $ \ s -> (,s) ^$ aM
-instance MonadCounit (StateT s) where
-  mtCounit aMM = StateT $ \ s -> runStateT s $ fst ^$ runStateT s aMM
+instance MonadJoin (StateT s) where
+  mtJoin aMM = StateT $ \ s -> runStateT s $ fst ^$ runStateT s aMM
 instance MonadFunctor (StateT s) where
   mtMap :: (Monad m, Monad n) => (m ~> n) -> StateT s m ~> StateT s n
   mtMap f aM = StateT $ f . unStateT aM
-
-instance (Monad m) => MonadStateI s (StateT s m) where
-  stateI :: StateT s m ~> StateT s (StateT s m) 
-  stateI = stateCommute . mtUnit
-instance (Monad m) => MonadStateE s (StateT s m) where
-  stateE :: StateT s (StateT s m) ~> StateT s m
-  stateE = mtCounit . stateCommute
-instance (Monad m) => MonadState s (StateT s m) where
 
 instance (MonadZero m) => MonadZero (StateT s m) where
   mzero = StateT $ const mzero
 instance (MonadPlus m) => MonadPlus (StateT s m) where
   aM1 <+> aM2 = StateT $ \ s -> unStateT aM1 s <+> unStateT aM2 s
+instance (MonadMonoid m) => MonadMonoid (StateT s m) where
+  aM1 <++> aM2 = StateT $ \ s -> unStateT aM1 s <++> unStateT aM2 s
 
 instance (Functorial HasBot m, HasBot s, HasBot a) => HasBot (StateT s m a) where
   bot :: StateT s m a
   bot = 
     with (functorial :: W (HasBot (m (a, s)))) $
     StateT $ \ _ -> bot
+instance (Functorial Monoid m, Monoid s, Monoid a) => Monoid (StateT s m a) where
+  null =
+    with (functorial :: W (Monoid (m (a, s)))) $
+    StateT $ \ _ -> null
+  aM1 ++ aM2 =
+    with (functorial :: W (Monoid (m (a, s)))) $
+    StateT $ \ s -> unStateT aM1 s ++ unStateT aM2 s
+instance (Functorial Monoid m, Monoid s) => Functorial Monoid (StateT s m) where
+  functorial = W
 instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s, JoinLattice a) => JoinLattice (StateT s m a) where
   aM1 \/ aM2 = 
     with (functorial :: W (JoinLattice (m (a, s)))) $
     StateT $ \ s -> unStateT aM1 s \/ unStateT aM2 s
 instance (Functorial HasBot m, Functorial JoinLattice m, JoinLattice s) => Functorial JoinLattice (StateT s m) where
   functorial = W
+
+instance (Monad m) => MonadStateI s (StateT s m) where
+  stateI :: StateT s m ~> StateT s (StateT s m) 
+  stateI = stateCommute . mtUnit
+instance (Monad m) => MonadStateE s (StateT s m) where
+  stateE :: StateT s (StateT s m) ~> StateT s m
+  stateE = mtJoin . stateCommute
+instance (Monad m) => MonadState s (StateT s m) where
 
 -- }}} --
 
@@ -350,12 +368,12 @@ deriving instance (Monad m, Monoid o) => Bind (RWST r o s m)
 deriving instance (Monad m, Monoid o) => Monad (RWST r o s m)
 instance (Monoid o) => MonadUnit (RWST r o s) where
   mtUnit = RWST . mtUnit . mtUnit . mtUnit
-instance (Monoid o) => MonadCounit (RWST r o s) where
-  mtCounit =
+instance (Monoid o) => MonadJoin (RWST r o s) where
+  mtJoin =
     RWST
-    . mtCounit
-    . mtMap (mtMap mtCounit . writerReaderCommute)
-    . mtMap (mtMap (mtMap (mtMap mtCounit . stateWriterCommute) . stateReaderCommute))
+    . mtJoin
+    . mtMap (mtMap mtJoin . writerReaderCommute)
+    . mtMap (mtMap (mtMap (mtMap mtJoin . stateWriterCommute) . stateReaderCommute))
     . unRWST . mtMap unRWST
 instance (Monoid o) => MonadFunctor (RWST r o s) where
   mtMap f = RWST . mtMap (mtMap (mtMap f)) . unRWST
@@ -374,7 +392,7 @@ instance (Monad m, Monoid o) => MonadRWSI r o s (RWST r o s m) where
   rwsI = rwsCommute . mtUnit
 instance (Monad m, Monoid o) => MonadRWSE r o s (RWST r o s m) where
   rwsE :: RWST r o s (RWST r o s m) ~> RWST r o s m
-  rwsE = mtCounit . rwsCommute
+  rwsE = mtJoin . rwsCommute
 instance (Monad m, Monoid o) => MonadRWS r o s (RWST r o s m) where
 
 deriving instance (MonadZero m, Monoid o) => MonadZero (RWST r o s m)
@@ -384,6 +402,135 @@ deriving instance (MonadMaybe m, Monoid o) => MonadMaybe (RWST r o s m)
 
 -- }}}
 
+-- ListT {{{
+
+listCommute :: (Functor m) => ListT (ListT m) ~> ListT (ListT m)
+listCommute = ListT . ListT . transpose ^. runListT . runListT
+
+instance (Unit m) => Unit (ListT m) where
+  unit = ListT . unit . singleton
+instance (Functor m) => Functor (ListT m) where
+  map f = ListT . f ^^. runListT
+instance (Monad m, Functorial Monoid m) => Product (ListT m) where
+  (<*>) = mpair
+instance (Monad m, Functorial Monoid m) => Applicative (ListT m) where
+  (<@>) = mapply
+instance (Bind m, Functorial Monoid m) => Bind (ListT m) where
+  (>>=) :: forall a b. ListT m a -> (a -> ListT m b) -> ListT m b
+  aM >>= k = ListT $ do
+    xs <- runListT aM
+    runListT $ concat $ k ^$ xs
+instance (Monad m, Functorial Monoid m) => Monad (ListT m) where
+instance FunctorUnit ListT where
+  ftUnit = ListT .^ unit
+instance FunctorJoin ListT where
+  ftJoin = ListT . concat ^. runListT . runListT
+instance FunctorFunctor ListT where
+  ftMap f = ListT . f . runListT
+
+instance (Functorial Monoid m) => Monoid (ListT m a) where
+  null = 
+    with (functorial :: W (Monoid (m [a]))) $
+    ListT null
+  xs ++ ys = 
+    with (functorial :: W (Monoid (m [a]))) $
+    ListT $ runListT xs ++ runListT ys
+instance (Functorial Monoid m) => Functorial Monoid (ListT m) where functorial = W
+instance (Functorial Monoid m) => MonadZero (ListT m) where
+  mzero =  null
+instance (Functorial Monoid m) => MonadMonoid (ListT m) where
+  (<++>) = (++)
+
+instance (Monad m, Functorial Monoid m) => MonadListI (ListT m) where
+  listI :: ListT m ~> ListT (ListT m)
+  listI = listCommute . ftUnit
+instance (Monad m, Functorial Monoid m) => MonadListE (ListT m) where
+  listE :: ListT (ListT m) ~> ListT m
+  listE = ftJoin . listCommute
+instance (Monad m, Functorial Monoid m) => MonadList (ListT m) where
+
+maybeToList :: (Functor m) => MaybeT m a -> ListT m a
+maybeToList aM = ListT $ ff ^$ runMaybeT aM
+  where
+    ff Nothing = []
+    ff (Just a) = [a]
+
+instance (Monad m, Functorial Monoid m) => MonadMaybeE (ListT m) where
+  maybeE :: MaybeT (ListT m) ~> ListT m
+  maybeE = listE . maybeToList
+
+-- }}}
+
+-- ErrorListT {{{
+
+errorListCommute :: (Functor m) => ErrorListT e (ErrorListT e m) ~> ErrorListT e (ErrorListT e m)
+errorListCommute aMM = ErrorListT $ ErrorListT $ errorListTranspose ^$ runErrorListT $ runErrorListT aMM
+
+instance (Unit m) => Unit (ErrorListT e m) where
+  unit = ErrorListT . unit . unit
+instance (Functor m) => Functor (ErrorListT e m) where
+  map f = ErrorListT . f ^^. runErrorListT
+instance (Monad m, Functorial Monoid m) => Product (ErrorListT e m) where
+  (<*>) = mpair
+instance (Monad m, Functorial Monoid m) => Applicative (ErrorListT e m) where
+  (<@>) = mapply
+instance (Bind m, Functorial Monoid m) => Bind (ErrorListT e m) where
+  (>>=) :: forall a b. ErrorListT e m a -> (a -> ErrorListT e m b) -> ErrorListT e m b
+  aM >>= k = ErrorListT $ do
+    xs <- runErrorListT aM
+    runErrorListT $ concat $ k ^$ xs
+instance (Monad m, Functorial Monoid m) => Monad (ErrorListT e m) where
+instance FunctorUnit (ErrorListT e) where
+  ftUnit = ErrorListT .^ unit
+instance FunctorJoin (ErrorListT e) where
+  ftJoin = ErrorListT . errorListConcat ^. runErrorListT . runErrorListT
+instance FunctorFunctor (ErrorListT e) where
+  ftMap f = ErrorListT . f . runErrorListT
+
+instance (Functorial Monoid m) => Monoid (ErrorListT e m a) where
+  null = 
+    with (functorial :: W (Monoid (m (ErrorList e a)))) $
+    ErrorListT null
+  xs ++ ys =
+    with (functorial :: W (Monoid (m (ErrorList e a)))) $
+    ErrorListT $ runErrorListT xs ++ runErrorListT ys
+instance (Functorial Monoid m) => Functorial Monoid (ErrorListT e m) where functorial = W
+instance (Functorial Monoid m) => MonadZero (ErrorListT e m) where
+  mzero = null
+instance (Functorial Monoid m) => MonadMonoid (ErrorListT e m) where
+  (<++>) = (++)
+
+instance (Monad m, Functorial Monoid m) => MonadErrorListI e (ErrorListT e m) where
+  errorListI :: ErrorListT e m ~> ErrorListT e (ErrorListT e m)
+  errorListI = errorListCommute . ftUnit
+instance (Monad m, Functorial Monoid m) => MonadErrorListE e (ErrorListT e m) where
+  errorListE :: ErrorListT e (ErrorListT e m) ~> ErrorListT e m
+  errorListE = ftJoin . errorListCommute
+instance (Monad m, Functorial Monoid m) => MonadErrorList e (ErrorListT e m) where
+
+errorToErrorList :: (Functor m) => ErrorT e m ~> ErrorListT e m
+errorToErrorList aM = ErrorListT $ ff ^$ runErrorT aM
+  where
+    ff (Inl e) = ErrorListFailure [e]
+    ff (Inr a) = ErrorListSuccess a []
+
+-- this might not be right
+errorListToError :: (Monad m, Functorial Monoid m) => ErrorListT e (ErrorListT e m) a -> ErrorT e (ErrorListT e m) a
+errorListToError aM = ErrorT $ mconcat . ff *$ runErrorListT aM
+  where
+    ff (ErrorListFailure e) = map (return . Inl) e
+    ff (ErrorListSuccess x xs) = map (return . Inr) $ x:xs
+
+instance (Monad m, Functorial Monoid m) => MonadErrorE e (ErrorListT e m) where
+  errorE :: ErrorT e (ErrorListT e m) ~> ErrorListT e m
+  errorE = errorListE . errorToErrorList
+-- instance (Monad m, Functorial Monoid m) => MonadErrorI e (ErrorListT e m) where
+--   errorI :: ErrorListT e m ~> ErrorT e (ErrorListT e m)
+--   errorI = errorListToError . errorListI
+-- instance (Monad m, Functorial Monoid m) => MonadError e (ErrorListT e m) where
+
+-- }}}
+ 
 -- ListSetT {{{
 
 listSetCommute :: (Functor m) => ListSetT (ListSetT m) ~> ListSetT (ListSetT m)
@@ -403,7 +550,7 @@ instance (Bind m, Functorial JoinLattice m) => Bind (ListSetT m) where
   (>>=) :: forall a b. ListSetT m a -> (a -> ListSetT m b) -> ListSetT m b
   aM >>= k = ListSetT $ do
     xs <- runListSetT aM
-    runListSetT $ msums $ k ^$ xs
+    runListSetT $ msum $ k ^$ xs
 -- PROOF of: monad laws for (ListSetT m) {{{
 --
 -- ASSUMPTION 1: returnₘ a <+> returnₘ b = returnₘ (a \/ b)
@@ -488,18 +635,10 @@ instance (Bind m, Functorial JoinLattice m) => Bind (ListSetT m) where
 instance (Monad m, Functorial JoinLattice m) => Monad (ListSetT m) where
 instance MonadUnit ListSetT where
   mtUnit = ListSetT .^ unit
-instance MonadCounit ListSetT where
-  mtCounit = ListSetT . concat ^. runListSetT . runListSetT
+instance MonadJoin ListSetT where
+  mtJoin = ListSetT . concat ^. runListSetT . runListSetT
 instance MonadFunctor ListSetT where
   mtMap f = ListSetT . f . runListSetT
-
-instance (Monad m, Functorial JoinLattice m) => MonadListSetI (ListSetT m) where
-  listSetI :: ListSetT m ~> ListSetT (ListSetT m)
-  listSetI = listSetCommute . mtUnit
-instance (Monad m, Functorial JoinLattice m) => MonadListSetE (ListSetT m) where
-  listSetE :: ListSetT (ListSetT m) ~> ListSetT m
-  listSetE = mtCounit . listSetCommute
-instance (Monad m, Functorial JoinLattice m) => MonadListSet (ListSetT m) where
 
 instance (Functorial JoinLattice m) => MonadZero (ListSetT m) where
   mzero :: forall a. ListSetT m a
@@ -511,12 +650,14 @@ instance (Functorial JoinLattice m) => MonadPlus (ListSetT m) where
   aM1 <+> aM2 = 
     with (functorial :: W (JoinLattice (m (ListSet a)))) $
     ListSetT $ runListSetT aM1 \/ runListSetT aM2
--- PROOF of: associativity, commutativity, zero and unit of <+> for (ListSetT m) {{{
---
--- Follows trivially from definition and Lattice/Zero laws for underlying monad.
---
--- (The lattice of the underlying monads must act as a zero for bind.)
--- QED }}}
+
+instance (Monad m, Functorial JoinLattice m) => MonadListSetI (ListSetT m) where
+  listSetI :: ListSetT m ~> ListSetT (ListSetT m)
+  listSetI = listSetCommute . mtUnit
+instance (Monad m, Functorial JoinLattice m) => MonadListSetE (ListSetT m) where
+  listSetE :: ListSetT (ListSetT m) ~> ListSetT m
+  listSetE = mtJoin . listSetCommute
+instance (Monad m, Functorial JoinLattice m) => MonadListSet (ListSetT m) where
 
 -- }}}
 
@@ -541,7 +682,7 @@ instance (CFunctor c m) => CFunctor (Ord ::*:: (c ::.:: Set)) (SetT m) where
 instance (Functorial JoinLattice m, Bind m) => Bind (SetT m) where
   aM >>= k = SetT $ do
     aC <- runSetT aM
-    runSetT $ msums $ k ^$ toList aC
+    runSetT $ msum $ k ^$ toList aC
 instance (Functorial JoinLattice m) => MonadZero (SetT m) where
   mzero :: forall a. SetT m a
   mzero = 
@@ -665,54 +806,6 @@ instance (Monad m, FFIsomorphism (KFun r) (k r)) => MonadKonE r (OpaqueKonT k r 
   konE aMM = makeMetaKonT $ \ (k :: a -> m r) ->
     runMetaKonTWith return $ runKonT aMM $ \ a -> makeMetaKonT $ \ (k' :: r -> m r) -> k' *$ k a
 instance (Monad m, FFIsomorphism (KFun r) (k r)) => MonadKon r (OpaqueKonT k r m) where
-
--- }}}
-
--- StateOpaqueKon {{{
-
-class FFMorph t u where
-  ffmorph' :: t m a x -> u m a x
-class (FFMorph t u, FFMorph u t) => FFIso t u where
-ffto' :: (FFIso t u) => t m a x -> u m a x
-ffto' = ffmorph'
-fffrom' :: (FFIso t u) => u m a x -> t m a x
-fffrom' = ffmorph'
-newtype KK s r a = KK { runKK :: (a, s) -> (r, s) }
-  
-newtype StateOpaqueKon s k r a = StateOpaqueKon { runStateOpaqueKon :: s -> k s r a -> (r, s) }
-makeStateMetaKon :: (FFMorph k KK) => (s -> ((a, s) -> (r, s)) -> (r, s)) -> StateOpaqueKon s k r a
-makeStateMetaKon kk = StateOpaqueKon $ \ s k -> kk s $ runKK $ ffmorph' k
-runStateMetaKon :: (FFMorph KK k) => StateOpaqueKon s k r a -> s -> ((a, s) -> (r, s)) -> (r, s)
-runStateMetaKon aM s k = runStateOpaqueKon aM s $ ffmorph' $ KK k
-
-instance (FFMorph k KK) => Unit (StateOpaqueKon s k r) where
-  unit a = makeStateMetaKon $ \ s (k :: (a, s) -> (r, s)) -> k (a, s)
-instance (FFIso k KK) => Bind (StateOpaqueKon s k r) where
-  aM >>= kM = makeStateMetaKon $ \ s (k :: (b, s) -> (r, s)) ->
-    runStateMetaKon aM s $ \ (a, s') -> runStateMetaKon (kM a) s' k
-instance (FFIso k KK) => Functor (StateOpaqueKon s k r) where map = mmap
-instance (FFIso k KK) => Applicative (StateOpaqueKon s k r) where (<@>) = mapply
-instance (FFIso k KK) => Product (StateOpaqueKon s k r) where (<*>) = mpair
-instance (FFIso k KK) => Monad (StateOpaqueKon s k r) where
-
-instance (FFIso k KK) => MonadStateI s (StateOpaqueKon s k r) where
-  stateI :: StateOpaqueKon s k r ~> StateT s (StateOpaqueKon s k r)
-  stateI aM = StateT $ \ s -> makeStateMetaKon $ \ s' (k :: ((a, s), s) -> (r, s)) ->
-    runStateMetaKon aM s $ \ (axs :: (a, s)) -> k (axs, s')
-instance (FFIso k KK) => MonadStateE s (StateOpaqueKon s k r) where
-  stateE :: StateT s (StateOpaqueKon s k r) ~> StateOpaqueKon s k r
-  stateE aMM = makeStateMetaKon $ \ s (k :: (a, s) -> (r, s)) ->
-    runStateMetaKon (runStateT s aMM) s $ \ axss -> k $ fst axss
-instance (FFIso k KK) => MonadKonI r (StateOpaqueKon s k r) where
-  konI :: StateOpaqueKon s k r ~> KonT r (StateOpaqueKon s k r)
-  konI aM = KonT $ \ (k1 :: a -> StateOpaqueKon s k r r) -> makeStateMetaKon $ \ s (k2 :: (r, s) -> (r, s)) -> 
-    k2 $ runStateMetaKon aM s $ \ (a, s') -> runStateMetaKon (k1 a) s' id
-instance (FFIso k KK) => MonadKonE r (StateOpaqueKon s k r) where
-  konE :: KonT r (StateOpaqueKon s k r) ~> StateOpaqueKon s k r
-  konE aMM = makeStateMetaKon $ \ s (k1 :: (a, s) -> (r, s)) -> 
-    let aM :: StateOpaqueKon s k r r
-        aM = runKonT aMM $ \ a -> makeStateMetaKon $ \ s' (k2 :: (r, s) -> (r, s)) -> k2 $ k1 (a, s')
-    in runStateMetaKon aM s id
 
 -- }}}
 
@@ -844,6 +937,40 @@ instance (MonadError e m) => MonadError e (ReaderT r m) where
 
 -- }}}
 
+-- Error // State {{{
+
+errorStateCommute :: (Monad m) => ErrorT e (StateT s m) ~> StateT s (ErrorT e m)
+errorStateCommute aMRM = StateT $ \ s -> ErrorT $ ff ^$ runStateT s $ runErrorT aMRM
+  where
+    ff :: (e :+: a, s) -> e :+: (a, s)
+    ff (Inl e, _) = Inl e
+    ff (Inr a, s) = Inr $ (a, s)
+
+stateErrorCommute :: (Monad m) => StateT s (ErrorT e m) ~> ErrorT e (StateT s m)
+stateErrorCommute aRMM = ErrorT $ StateT $ \ s -> ff s ^$ runErrorT $ runStateT s aRMM
+  where
+    ff :: s -> e :+: (a, s) -> (e :+: a, s)
+    ff s (Inl e) = (Inl e, s)
+    ff _ (Inr (a, s)) = (Inr a, s)
+
+instance (MonadStateI s m) => MonadStateI s (ErrorT e m) where
+  stateI :: ErrorT e m ~> StateT s (ErrorT e m)
+  stateI = errorStateCommute . mtMap stateI
+instance (MonadStateE s m) => MonadStateE s (ErrorT e m) where
+  stateE :: StateT s (ErrorT e m) ~> ErrorT e m
+  stateE = mtMap stateE . stateErrorCommute
+instance (MonadState s m) => MonadState s (ErrorT e m) where
+
+instance (MonadErrorI e m) => MonadErrorI e (StateT s m) where
+  errorI :: StateT s m ~> ErrorT e (StateT s m)
+  errorI = stateErrorCommute . mtMap errorI
+instance (MonadErrorE e m) => MonadErrorE e (StateT s m) where
+  errorE :: ErrorT e (StateT s m) ~> StateT s m
+  errorE = mtMap errorE . errorStateCommute
+instance (MonadError e m) => MonadError e (StateT s m) where
+
+-- }}}
+
 -- Reader // * --
 
 -- Reader // Writer // FULL COMMUTE {{{
@@ -900,7 +1027,7 @@ instance (MonadReader r m) => MonadReader r (StateT s m) where
 
 -- }}}
 
--- Reader // RWST {{{
+-- Reader // RWS {{{
 
 readerRWSCommute :: (Monad m, Monoid o) => ReaderT r1 (RWST r2 o s m) ~> RWST r2 o s (ReaderT r1 m)
 readerRWSCommute =
@@ -956,7 +1083,7 @@ instance (Monoid w, MonadWriter w m) => MonadWriter w (StateT s m) where
 
 -- }}}
 
--- Writer // RWST {{{
+-- Writer // RWS {{{
 
 writerRWSCommute :: (Monad m, Monoid o1, Monoid o2) => WriterT o1 (RWST r o2 s m) ~> RWST r o2 s (WriterT o1 m)
 writerRWSCommute =
@@ -982,7 +1109,7 @@ rwsWriterCommute =
 
 -- State // * --
 
--- State // RWST {{{
+-- State // RWS {{{
 
 stateRWSCommute :: (Monad m, Monoid o) => StateT s1 (RWST r o s2 m) ~> RWST r o s2 (StateT s1 m)
 stateRWSCommute =
@@ -1003,6 +1130,38 @@ rwsStateCommute =
     . mtMap stateCommute
     )
   . unRWST
+
+-- }}}
+
+-- State // List {{{
+
+-- (s -> m [a, s]) -> (s -> m ([a], s))
+
+stateListCommute :: (Functor m, Monoid s) => StateT s (ListT m) ~> ListT (StateT s m)
+stateListCommute aMM = ListT $ StateT $ \ s -> ff ^$ runListT $ runStateT s aMM
+  where
+    ff asL = (fst ^$ asL, concat $ snd ^$ asL)
+
+listStateCommute :: (Functor m) => ListT (StateT s m) ~> StateT s (ListT m)
+listStateCommute aMM = StateT $ \ s -> ListT $ ff ^$ runStateT s $ runListT aMM
+  where
+    ff (xs, s) = (,s) ^$ xs
+
+instance (MonadListI m, Functorial Monoid m, Monoid s) => MonadListI (StateT s m) where
+  listI :: StateT s m ~> ListT (StateT s m)
+  listI = stateListCommute . mtMap listI
+instance (MonadListE m, Functorial Monoid m) => MonadListE (StateT s m) where
+  listE :: ListT (StateT s m) ~> StateT s m
+  listE = mtMap listE . listStateCommute
+instance (MonadList m, Functorial Monoid m, Monoid s) => MonadList (StateT s m) where
+
+instance (MonadStateI s m, Functorial Monoid m) => MonadStateI s (ListT m) where
+  stateI :: ListT m ~> StateT s (ListT m)
+  stateI = listStateCommute . ftMap stateI
+instance (MonadStateE s m, Functorial Monoid m, Monoid s) => MonadStateE s (ListT m) where
+  stateE :: StateT s (ListT m) ~> ListT m
+  stateE = ftMap stateE . stateListCommute
+instance (MonadState s m, Functorial Monoid m, Monoid s) => MonadState s (ListT m) where
 
 -- }}}
 
@@ -1036,7 +1195,37 @@ instance (MonadState s m, Functorial JoinLattice m, JoinLattice s) => MonadState
 
 -- }}}
 
--- State // KonT {{{
+-- State // ErrorList {{{
+
+stateErrorListCommute :: (Functor m, Monoid s) => StateT s (ErrorListT e m) ~> ErrorListT e (StateT s m)
+stateErrorListCommute aMM = ErrorListT $ StateT $ \ s -> ff ^$ runErrorListT $ runStateT s aMM
+  where
+    ff asL = (fst ^$ asL, concat $ snd ^$ asL)
+
+errorListStateCommute :: (Functor m) => ErrorListT e (StateT s m) ~> StateT s (ErrorListT e m)
+errorListStateCommute aMM = StateT $ \ s -> ErrorListT $ ff ^$ runStateT s $ runErrorListT aMM
+  where
+    ff (xs, s) = (,s) ^$ xs
+
+instance (MonadErrorListI e m, Functorial Monoid m, Monoid s) => MonadErrorListI e (StateT s m) where
+  errorListI :: StateT s m ~> ErrorListT e (StateT s m)
+  errorListI = stateErrorListCommute . mtMap errorListI
+instance (MonadErrorListE e m, Functorial Monoid m) => MonadErrorListE e (StateT s m) where
+  errorListE :: ErrorListT e (StateT s m) ~> StateT s m
+  errorListE = mtMap errorListE . errorListStateCommute
+instance (MonadErrorList e m, Functorial Monoid m, Monoid s) => MonadErrorList e (StateT s m) where
+
+instance (MonadStateI s m, Functorial Monoid m) => MonadStateI s (ErrorListT e m) where
+  stateI :: ErrorListT e m ~> StateT s (ErrorListT e m)
+  stateI = errorListStateCommute . ftMap stateI
+instance (MonadStateE s m, Functorial Monoid m, Monoid s) => MonadStateE s (ErrorListT e m) where
+  stateE :: StateT s (ErrorListT e m) ~> ErrorListT e m
+  stateE = ftMap stateE . stateErrorListCommute
+instance (MonadState s m, Functorial Monoid m, Monoid s) => MonadState s (ErrorListT e m) where
+
+-- }}}
+
+-- State // Kon {{{
 
 stateKonCommute :: StateT s (KonT (r, s) m) ~> KonT r (StateT s m)
 stateKonCommute aSK = KonT $ \ (k :: a -> StateT s m r) -> StateT $ \ s ->
@@ -1065,7 +1254,7 @@ instance (MonadState s m) => MonadStateE s (KonT r m) where
 
 -- }}}
 
--- State // OpaqueKonT {{{
+-- State // OpaqueKon {{{
 
 instance (MonadState s m, FFIsomorphism (KFun r) (k r)) => MonadStateI s (OpaqueKonT k r m) where
   stateI :: OpaqueKonT k r m ~> StateT s (OpaqueKonT k r m)
@@ -1082,4 +1271,3 @@ instance (MonadState s m, FFIsomorphism (KFun r) (k r)) => MonadStateE s (Opaque
 instance (MonadState s m, FFIsomorphism (KFun r) (k r)) => MonadState s (OpaqueKonT k r m) where
 
 -- }}}
-

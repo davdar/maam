@@ -82,10 +82,10 @@ atom δ μ m createClo (Stamped i a) = case a of
   LamK x c -> lam δ μ m createClo i [x] c
 
 elimBoolM :: (Analysis δ μ m) => P δ -> Val δ μ -> m δ μ Bool
-elimBoolM = msum .: elimBool
+elimBoolM = msumVals .: elimBool
 
 elimCloM :: (Analysis δ μ m) => P δ -> Val δ μ -> m δ μ (Clo μ)
-elimCloM = msum .: elimClo
+elimCloM = msumVals .: elimClo
 
 tickLexical :: (Analysis δ μ m) => P δ -> μ -> LocNum -> m δ μ ()
 tickLexical _ μ cid = modifyL (lexicalTimeL μ ψ) $ tick (lexical μ) cid
@@ -194,6 +194,8 @@ linkClo _ μ _ cid xs c = do
   ρ <- getP $ envP μ
   lτ <- getP $ lexicalTimeP μ ψ
   return $ Clo cid xs c ρ lτ
+
+-- think about linked but gc'd for unused
 
 copyClo :: PolyCreateClo
 copyClo δ μ m cid xs c = do

@@ -102,7 +102,7 @@ instance Delta Aδ where
   op :: forall μ. (Δ Aδ μ) => P Aδ -> Op -> Val Aδ μ -> Val Aδ μ
   op P Add1     = update runSetAValL $ cmap (const IA) . extend (cuseMaybeZero . coerceIOrIntA)
   op P Sub1     = update runSetAValL $ cmap (const IA) . extend (cuseMaybeZero . coerceIOrIntA)
-  op P IsNonNeg = update runSetAValL $ extend $ mfsums
+  op P IsNonNeg = update runSetAValL $ extend $ mfsum
     [ cmap (LitA . B . (>=0)) . cuseMaybeZero . coerceI *. coerceLitA
     , cmap (LitA . B) . extend (const $ fromList [True, False]) . cuseMaybeZero . coerceIA
     ]

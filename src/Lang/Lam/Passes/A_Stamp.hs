@@ -26,7 +26,7 @@ type M m = (MonadStateE St m, MonadReader Env m)
 
 lookupName :: (M m) => Name -> m SName
 lookupName x = do
-  xi <- maybe return (nextL bdrIDL) *$ lookup x ^$ askL bdrEnvL
+  xi <- maybe (nextL bdrIDL) return *$ lookup x ^$ askL bdrEnvL
   return $ Stamped xi x
 
 stampM :: (M m) => Exp -> m SExp
