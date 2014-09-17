@@ -237,13 +237,13 @@ The common interface for each variation in abstract control is a functor ℳ  �
 Set → Set such that ℳ :
 
 * Is a monad
-  * return : ∀ (α : Set), α → ℳ  α
-  * extend : ∀ (α β : Set), (α → ℳ  β) → (ℳ  α → ℳ  β)
+  * return : ∀ (A : Set), A → ℳ  A
+  * extend : ∀ (A β : Set), (A → ℳ  β) → (ℳ  A → ℳ  β)
 * Is a state monad algebra on ^Store^
   * get : ℳ  ^Store^
   * put : ^Store^ → ℳ  1
 * Is a monad plus
-  * _+ₘ_ : ∀ (α : Set), ℳ  α → ℳ  α → ℳ  α
+  * _+ₘ_ : ∀ (A : Set), ℳ  A → ℳ  A → ℳ  A
 
 We abreviate the conjunction of the above properties holding on some ℳ  as
 (Analysis ℳ ).
@@ -290,31 +290,43 @@ Our monadic abstraction is a proper abstraction in that it mediates between two
 parties--the framework and the analysis designer--and gives guarantees to both
 sides conditioned on assumptions being met.
 
+We show that language-independent monads exist for instantiating a semantics to
+flow-sensitive and path-sensitive analyses.
+
 In the core analysis framework we prove:
 
 * SetT and StateT are monad transformers and compose in both directions.
-* Monadic actions (α → ℳ  β) in SetT and StateT form galois connections with
-  abstract state machine transitions (𝒮𝒮ₘ α → 𝒮𝒮ₘ β).
+* Monadic actions (A → ℳ  β) in SetT and StateT form galois connections with
+  abstract state machine transitions (𝒮𝒮ₘ A → 𝒮𝒮ₘ β).
 * One composition of SetT and StateT is in (⊑) relation with the other.
-* For one interleaving of SetT and StateT, two different galois connections to
-  abstract machine transitions exist and are in (⊑) relation with one another.
-* Language-independent monads exist for instantiating a semantics to
-  flow-sensitive and path-sensitive analyses.
+* For (SetT ∘ StateT), one choice of state machine 𝒮𝒮ₘ is in (⊑) relation with
+  the other.
 
 The analysis designer must then prove:
 
-* The semantic step function 𝒞ₘ (which calls 𝒜 ₘ) is monotonic.
+* The semantic step function 𝒞ₘ (which calls 𝒜 ₘ) is monotonic, including the
+  choice of 𝓂 .
 * The semantics as written, including intensional optimizations, are correct.
 
 Given proofs from both sides of the interface we can conclude:
 
-*   flow-insensitive 0-cfa 
-  ⊑ flow-sensitive path-insensitive 0-cfa 
-  ⊑ flow-sensitive 0-cfa
-  ⊑ concrete cfa
+flow-insensitive 0-cfa 
+ ⊑ 
+flow-sensitive path-insensitive 0-cfa 
+ ⊑ 
+flow-sensitive 0-cfa
+ ⊑ 
+concrete cfa
 
 This proof technique is maximally modular, and greatly reduces the proof burden
-on the analysis designer as she developes new languages and analyses.
+on the analysis designer as new languages and analyses are developed.
+
+When adding the rest of the analysis tuning knobs like abstract domain, context
+sensitivity, intensional optimizations and object sensitivity, the monotonicity
+of 𝒞ₘ must be re-established.  However, like for abstract control, galois
+connections can be built between these choices independent of their
+instantiation in 𝒞ₘ. Our implementation supports each of these axis in full.
+
 
 }}}
 
@@ -322,17 +334,38 @@ on the analysis designer as she developes new languages and analyses.
 
 Setup {{{
 
-PartialOrder(α : Set) :=
-  _⊑_ : α → α → Prop
+PartialOrder(A : Set) :=
+  operators
+    _⊑_ : A → A → Prop
   laws
     reflexivity : x ⊑ x
     antisymmetry : x ⊑ y ⇒  y ⊑ x ⇒  x = y
     transitivity : x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z
 
-JoinSemilattice(α : Set) :=
-  PartialOrder(α)
-  ⊥ : α
-  _⊔_ : α → α → α
+Monotonic(𝑓 : A → β) := 
+  require
+    PartialOrder(A)
+    PartialOrder(β)
+    ∀ (x y : A), x ⊑ y ⇒  f(x) ⊑ f(y)
+
+(C : Set) α⇄ γ (A : Set) :=
+  require
+    PartialOrder(C)
+    PartialOrder(A)
+  operators
+    α : C → A
+    γ : A → C
+  laws
+    Monotonic(α)
+    Monotonic(γ)
+    α ∘ γ ⊑ id ⊑ γ ∘ α
+
+JoinSemilattice(A : Set) :=
+  require
+    PartialOrder(A)
+  operators
+    ⊥ : A
+    _⊔_ : A → A → A
   laws
     left-unit : ⊥ ⊔ x = x
     right-unit : x ⊔ ⊥ = x
@@ -340,76 +373,82 @@ JoinSemilattice(α : Set) :=
     commutativity : x ⊔ y = y ⊔ x
 
 Monad(𝓂  : Set → Set) :=
-  return : ∀ (α : Set) → α → 𝓂 (α)
-  extend : ∀ (α β : Set) → (α → 𝓂 (β)) → (𝓂 (α) → 𝓂 (β))
+  operators
+    return : ∀ (A : Set) → A → 𝓂 (A)
+    extend : ∀ (A β : Set) → (A → 𝓂 (β)) → (𝓂 (A) → 𝓂 (β))
   laws
     left-unit : extend(return) = id
-    right-unit : extend(k)(return(α)) = k(α)
-    associativity : extend(k₂)(extend(k₁)(αM)) = extend(λ x → extend(k₂)(k₁(x)))(α)
+    right-unit : extend(k)(return(A)) = k(A)
+    associativity : extend(k₂)(extend(k₁)(aM)) = extend(λ x → extend(k₂)(k₁(x)))(A)
 
 Transformer(𝒯 : (Set → Set) → (Set → Set)) :=
-  trans : ∀ (𝓂  : Set), Monad(𝓂 ) → Monad(𝒯(𝓂 ))
-  lift : ∀ (𝓂  : Set), 𝓂 (α) → 𝒯(𝓂 )(α)
+  require
+    ∀ (𝓂  : Set), Monad(𝓂 ) ⇒  Monad(𝒯(𝓂 ))
+  operators
+    lift : ∀ (𝓂  : Set), 𝓂 (A) → 𝒯(𝓂 )(A)
   laws
     unit : lift(return) = return
 
 MonadState(𝓈 : Set)(𝓂  : Set → Set) :=
-  get : 𝓂  𝓈
-  put : 𝓈 → 𝓂  1
+  operators
+    get : 𝓂  𝓈
+    put : 𝓈 → 𝓂  1
 
 MonadPlus(𝓂  : Set → Set) := 
-  ∀ (α : Set), JoinSemilattice(𝓂 (α))
+  require
+    ∀ (A : Set), JoinSemilattice(𝓂 (A))
   laws
     left-zero : extend(k)(⊥) = ⊥
-    right-zero : extend(const(⊥))(αM) = ⊥
-    distributivity : extend(k)(αM₁ ⊔ αM₂) = extend(k)(αM₁) ⊔ extend(k)(αM₂)
+    right-zero : extend(const(⊥))(aM) = ⊥
+    distributivity : extend(k)(aM₁ ⊔ aM₂) = extend(k)(aM₁) ⊔ extend(k)(aM₂)
 
 Functorial(ℭ : Set → Prop)(𝓂  : Set → Set) := 
-  ∀ (α : Set), ℭ (α) → ℭ (𝓂 (α))
+  require
+    ∀ (A : Set), ℭ (A) → ℭ (𝓂 (A))
+
+Pointed(𝓂  : Set → Set) :=
+  unit : ∀ (A : Set) → A → 𝓂 (A)
 
 MonadSmallStep(𝓂  : Set → Set)(𝒮𝒮 : Set → Set) := 
-  ∀ (α β : Set), (α → 𝓂 (β)) α⇄ γ (𝒮𝒮(α) → 𝒮𝒮(β))
-
-Galois(C : Set)(A : Set) := C α⇄ γ A :=
-  PartialOrder(C)
-  PartialOrder(A)
-  α : C → A
-  γ : A → C
-  laws
-    Monotonic(α)
-    Monotonic(γ)
-    α ∘ γ ⊑ id ⊑ γ ∘ α
+  require
+    ∀ (A β : Set), (A → 𝓂 (β)) α⇄ γ (𝒮𝒮(A) → 𝒮𝒮(β))
 
 }}}
 
 SetT {{{
 
 SetT : (Set → Set) → (Set → Set)
-SetT(𝓂 )(α) := 𝓂 (𝒫 (α))
+SetT(𝓂 )(A) := 𝓂 (𝒫 (A))
 
-[Transformer(SetT)]
+-----------------
+Transformer(SetT)
 
-lift : ∀ (𝓂  : Set → Set) (α : Set), 𝓂 (α) → SetT(𝓂 )(α)
+lift : ∀ (𝓂  : Set → Set) (A : Set), 𝓂 (A) → SetT(𝓂 )(A)
 lift := map (λ x → { x })
 
-[Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 ) → Monad(SetT(𝓂 ))]
+Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 )
+-------------------------------------------
+Monad(SetT(𝓂 ))
 
-return : ∀ (α : Set), α → SetT 𝓂  α
+return : ∀ (A : Set), A → SetT 𝓂  A
 return := lift ∘ returnₘ
 
-extend : ∀ (α β : Set), (α → SetT(𝓂 )(β)) → (SetT(𝓂 )(α) → SetT(𝓂 )(β))
+extend : ∀ (A β : Set), (A → SetT(𝓂 )(β)) → (SetT(𝓂 )(A) → SetT(𝓂 )(β))
 extend(k) := joinₘ ∘ mapₘ (joins ∘ mapₚ k)
 
-[Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 ) → MonadPlus(SetT(𝓂 ))]
+Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 )
+-------------------------------------------
+MonadPlus(SetT(𝓂 ))
 
-m0 : ∀ (α : Set), SetT 𝓂  α
+m0 : ∀ (A : Set), SetT 𝓂  A
 m0 = ⊥ ₘ
 
-_<+>_ : ∀ (α : Set) → SetT 𝓂  α → SetT 𝓂  α → SetT 𝓂  α
+_<+>_ : ∀ (A : Set) → SetT 𝓂  A → SetT 𝓂  A → SetT 𝓂  A
 _<+>_ := _⊔_
 
-
-[Monad(𝓂 ) ∧ MonadState(𝓈)(𝓂 ) → MonadState(𝓈)(𝓂 )]
+Monad(𝓂 ) ∧ MonadState(𝓈)(𝓂 )
+-----------------------------
+MonadState(𝓈)(𝓂 )
 
 get : SetT 𝓂  𝓈
 get = lift getₘ
@@ -417,46 +456,101 @@ get = lift getₘ
 put : 𝓈 → SetT 𝓂  1
 put = lift ∘ putₘ
 
-}}}
+MonadSmallStep(𝓂 )(𝒮𝒮) ∧ Functorial(JoinSemilattice)(𝓂 ) ∧ Functor(𝒮𝒮)
+-------------------------------
+MonadSmallStep(SetT 𝓂 )(𝒮𝒮 ∘ 𝒫)
 
+α : ∀ (A β : Set), (A → SetT(𝓂 )(β)) → (𝒮𝒮(𝒫 (A)) → 𝒮𝒮(𝒫 (β)))
+α(f) = αₘ(joinsₘ ∘ mapₚ(f))
+
+γ : ∀ (A β : Set), (𝒮𝒮(𝒫 (A)) → 𝒮𝒮(𝒫 (β))) → (A → SetT(𝓂 )(β))
+γ(f) = γₘ(f ∘ mapₛₛ(unitₚ))
+
+MonadSmallStep(𝓂 )(𝒮𝒮) ∧ (𝒫 ∘ 𝒮𝒮) α⇄ γ (𝒮𝒮 ∘ 𝒫 )
+-------------------------------------
+MonadSmallStep(SetT 𝓂 )(𝒫 ∘ 𝒮)
+
+α : ∀ (A β : Set), (A → SetT(𝓂 )(β)) → (𝒫 (𝒮𝒮(A) → 𝒫 (𝒮𝒮(β))))
+α(f) = extendₚ(α ∘ αₘ(f))
+
+γ : ∀ (A β : Set), (𝒫 (𝒮𝒮(A) → 𝒫 (𝒮𝒮(β)))) → (A → SetT(𝓂 )(β))
+γ(f) = extendₚ(γ ∘ γₘ(f))
+
+}}}
 
 StateT {{{
 
 StateT : Set → (Set → Set) → (Set → Set)
-StateT(𝓈)(𝓂 )(α) := 𝓈 → 𝓂  (α × 𝓈)
+StateT(𝓈)(𝓂 )(A) := 𝓈 → 𝓂  (A × 𝓈)
 
-[Transformer(StateT(𝓈))]
+Transformer(StateT(𝓈))
+----------------------
 
-lift : ∀ (𝓂  : Set → Set) (α : Set), 𝓂  a → StateT(𝓈)(𝓂 )(α)
+lift : ∀ (𝓂  : Set → Set) (A : Set), 𝓂  a → StateT(𝓈)(𝓂 )(A)
 lift aM := λ 𝓈 → mapₘ (,𝓈) aM
 
-[Monad(𝓂 ) → Monad(StateT(𝓈)(𝓂 ))]
+Monad(𝓂 )
+--------------------
+Monad(StateT(𝓈)(𝓂 ))
 
-return : ∀ (α : Set), α → StateT(𝓈)(𝓂 )(α)
+return : ∀ (A : Set), A → StateT(𝓈)(𝓂 )(A)
 return := lift ∘ returnₘ
 
-extend : ∀ (α β : Set), (α → StateT(𝓈)(𝓂 )(β)) → (StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(β))
-extend(k)(αM) := λ 𝓈 → doₘ
-  (α,𝓈') ← aM(𝓈)
-  k(α)(𝓈')
+extend : ∀ (A β : Set), (A → StateT(𝓈)(𝓂 )(β)) → (StateT(𝓈)(𝓂 )(A) → StateT(𝓈)(𝓂 )(β))
+extend(k)(aM) := λ 𝓈 → doₘ
+  (a,𝓈') ← aM(𝓈)
+  k(a)(𝓈')
 
-[JoinSemilattice(𝓈) ∧ Monad(𝓂 ) ⇒ Functorial(JoinSemilattice)(StateT(𝓈)(𝓂 ))]
+JoinSemilattice(𝓈) ∧ Monad(𝓂 )
+------------------------------------------
+Functorial(JoinSemilattice)(StateT(𝓈)(𝓂 ))
 
-bot : StateT(𝓈)(𝓂 )(α)
+bot : StateT(𝓈)(𝓂 )(A)
 bot = λ _ → (⊥ ₛ, ⊥ ₐ)
 
-_⊔_ : StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(α)
-αM₁ ⊔ αM₂ := λ 𝓈 → doₘ
-  (α₁,𝓈₁) ← aM₁
-  (α₂,𝓈₂) ← aM₂
-  return (α₁ ⊔ α₂, 𝓈₁ ⊔ 𝓈₂)
+_⊔_ : StateT(𝓈)(𝓂 )(A) → StateT(𝓈)(𝓂 )(A) → StateT(𝓈)(𝓂 )(A)
+aM₁ ⊔ aM₂ := λ 𝓈 → doₘ
+  (a₁,𝓈₁) ← aM₁
+  (a₂,𝓈₂) ← aM₂
+  return (a₁ ⊔ a₂, 𝓈₁ ⊔ 𝓈₂)
 
-[MonadPlus(𝓂 ) ⇒ MonadPlus(StateT(𝓈)(𝓂 ))]
+MonadPlus(𝓂 )
+------------------------
+MonadPlus(StateT(𝓈)(𝓂 ))
 
-⊥ : ∀ (α : Set), StateT(𝓈)(𝓂 )(α)
+⊥ : ∀ (A : Set), StateT(𝓈)(𝓂 )(A)
 ⊥ := lift ⊥ ₘ
 
-_⊔_ : ∀ (α : Set), StateT(𝓈)(𝓂 )(α)
-αM₁ ⊔ αM₂ := λ 𝓈 → αM₁(𝓈) <+> αM₂(𝓈)
+_⊔_ : ∀ (A : Set), StateT(𝓈)(𝓂 )(A)
+aM₁ ⊔ aM₂ := λ 𝓈 → aM₁(𝓈) <+> aM₂(𝓈)
+
+Monad(𝓂 )
+----------------------------
+MonadState(𝓈)(StateT(𝓈)(𝓂 ))
+
+get : StateT 𝓈 𝓂  𝓈
+get = λ 𝓈 → return (𝓈,𝓈)
+
+put : 𝓈 → StateT 𝓈 𝓂  1
+put 𝓈 = λ _ → return (∙,𝓈)
+
+MonadSmallStep(𝓂 )(𝒮𝒮)
+--------------------------------------
+MonadSmallStep(StateT(𝓈)(𝓂 ))(𝒮𝒮(_ × 𝓈))
+
+α : ∀ (A B : Set), (A → StateT(𝓈)(𝓂 )(B)) → (𝒮𝒮(A × 𝓈) → 𝒮𝒮(B × 𝓈))
+α(f) = αₘ (λ (a,𝓈) → f(a)(𝓈))
+
+γ : ∀ (A B : Set), (𝒮𝒮(A × 𝓈) → 𝒮𝒮(B × 𝓈)) → (A → StateT(𝓈)(𝓂 )(B))
+γ(f) = λ a 𝓈 → γₘ (f)(a,s)
+
+}}}
+
+Propositions {{{
+
+* SetT and StateT are Galois Functors.
+* 𝒜 ₘ and 𝒞ₘ are monotonic (including in 𝓂 ).
+
+}}}
 
 }}}
