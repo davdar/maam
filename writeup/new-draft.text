@@ -1,0 +1,462 @@
+A fully modular framework for AAM.
+=================================
+
+Outline:
+
+* AAM in Monadic Style
+* Recovering Variations in Abstract Control
+* Independent Intensional Optimizations
+* Correctness and Proofs
+
+!! Introduction {{{
+
+
+Static analyses have two components: 
+
+* A _computational_ artifact which computes a set of facts about the
+  execution of a program.
+* A _proof of correctness_ about the computational artifact.
+
+We are motivated by static analysis techniques which are:
+
+* Compartmental: Various aspects of the analysis have been separated from each
+  other and are understood in isolation.
+* Modular: Design choices in one aspect of the analysis do not restrict design
+  choices of another.  This property is important for both computational and
+  correctness components of an analysis.
+* Language Agnostic: A given analysis technique can be seamlessly transfered
+  from one semantics to another.
+* Correct: The proof of correctness should exist, and there should be a
+  framework for establishing it.
+* Derived: Either the computational artifact or the correctness proof should be
+  obtained "for free" from the other.
+
+Our framework compartmentalizes:
+
+* Abstract domain a la Cousot.
+* Abstract time and address a la Van Horne and Might.
+* Intensional optimizations a la Van Horne and Might. 
+* Object-sensitivity a la Smaragdakis.
+* Analysis control properties.
+
+Our framework is:
+
+* Compartmental: Each of the above concerns are separated and independent.
+* Modular: Design choices in one axis is completely independent of others
+* Language Agnostic: All axis other than abstract domain are fully language
+  agnostic.
+* Correct: A correctness framework is described and each axis is proven correct
+  in isolation.
+* Derived: The correctness of an analysis using our framework comes for free.
+
+Analysis control properties are the primary topic of this work.  We merely note
+that the other axis in the design space are implemented in our framework using
+existing techniques.
+
+Contributions:
+
+* Computational artifacts and correctness proofs for the axis of abstract
+  control, which captures the choice of flow and path sensitivity.
+* Computational artifacts and correctness proofs for intensional optimizations
+  (gargabe collection and mcfa) independent of abstract control.
+* Language independent proofs of refinement for flow-sensitivity and
+  path-sensitivity choices using the monadic abstraction.
+
+
+}}}
+
+!! AAM in Monadic Style {{{
+
+
+Monadic AI (Sergey et al. PLDI 2013) showed that computational modularity for
+abstract interpreters can be achieved through a monadic abstraction.  We build
+directly on this work at the level of intuition--monads serve as our
+pivot-point for generalizing abstract control. However, in our pursuit of an
+axis-independent correctness framework, our approach deviates greatly from this
+work in the specific monadic interfaces used.
+
+We use CPS to simplify presentation, although our implementation supports a
+larger scheme-like language.
+
+First we demonstrate a simple, fully instantiated instance of our framework
+_without_ monads. This example is the instantiation of:
+
+* A simple abstract domain which tracks control flow, booleans and integer
+  constants.
+* 0-cfa
+* No abstract garbage collection or copied closurse (see mcfa)
+* Fully flow- and path-sensitive, which is in some sense the most natural
+  structural abstraction of the concrete state space (see AAM).
+
+x,y,k : Var  ::= ..variables..
+b,i,l : Lit  ::= ℤ ⋃ 𝔹
+a     : Atom ::= x | l | op a | λ x . c | λ x k . c
+op    : Op   ::= add1 | sub1 | gez
+c     : Call ::= if(a){c}{c} | a(a) | a(a,a) | halt(a)
+
+v  : ^Val^ ::= INT | l | <λ x . c> | <λ x k . c>
+
+σ  : ^Store^ := Var ⇀  𝒫 (^Val^)
+
+𝒜 [_](_) : (^Store^ × Atom) ⇀  𝒫 (^Val^)
+𝒜 [σ](x)                      := σ(x)
+𝒜 [σ](l)                      := { l }
+𝒜 [σ](add1 a) | 𝒜 [ρ,σ] ⊑ INT := { INT }
+𝒜 [σ](sub1 a) | 𝒜 [ρ,σ] ⊑ INT := { INT }
+𝒜 [σ](gez a)  | 𝒜 [ρ,σ] ⊑ INT := { T , F }
+𝒜 [σ](λ x k . c)              := { <λ x k . c> }
+
+(this is often stated as a relation in the general setting of small-step
+relational semantics.)
+
+𝒞 <_,_> : (Call × ^Store^) ⇀  𝒫 (Call × ^Store^)
+𝒞 <if(a){c₁}{c₂},σ> := { <c,σ> |  c  ∈ ⋃ [ { c1 } if T ∈ 𝒜 [σ](a), { c2 } if F ∈ 𝒜 [σ](a) ] }
+𝒞 <a₁(a₂,a₃),σ>     := { <c,σ'> 
+                       | <λ x k . c>  ∈ 𝒜 [σ](a₁)
+                       |          v₂  ∈ 𝒜 [σ](a₂)
+                       |          v₃  ∈ 𝒜 [σ](a₃)
+                       |          σ' := σ ⊔ [x ↦ v₂] ⊔ [k ↦ v₃]
+                       }
+
+The complete analysis of a program c is defined as:
+
+μ(Σ) . {<c,⊥>} ⊔ Σ ⊔ 𝒞*(Σ)
+
+where
+
+𝒞* : 𝒫 (Call × ^Store^) → 𝒫 (Call × ^Store)
+𝒞*(Σ) = ⋃ [ 𝒞 <c,σ> | <c,σ> ∈ Σ ]
+
+The monadic conversion of the above analysis is:
+
+ℳ  : Set → Set
+ℳ  a := StateT ^Store^ List a
+ℳ  a := ^Store^ → 𝒫 (a × ^Store^)
+
+𝒜 ₘ : Atom → ℳ (^Val^)
+𝒜 ₘ(x) = do
+  σ ← get-σ
+  return σ(x)
+𝒜 ₘ(l) = return {l}
+𝒜 ₘ(add1 a) = do
+  vD ← 𝒜 ₘ (a)
+  return {INT | ∃ i ⊑ INT ∈ vD}
+𝒜 ₘ(sub1 a) = do
+  vD ← 𝒜 ₘ (a)
+  return {INT | ∃ i ⊑ INT ∈ vD}
+𝒜 ₘ(gez a) = do
+  vD ← 𝒜 ₘ (a)
+  return {T, F | ∃ i ⊑ INT ∈ vD}
+𝒜 ₘ(λ x k . c) = return <λ x k . c>
+
+𝒞ₘ : Call → ℳ (Call)
+𝒞ₘ(if(a){c₁}{c₂}) := do
+  vD ← 𝒜 ₘ (a)
+  v ← lift𝒫 (vD)
+  b ← coerce𝔹 (v)
+  return { c₁ if b | c₂ if ¬b }
+𝒞ₘ(a₁(a₂,a₃)) := do
+  vD ← 𝒜 ₘ (a₁)
+  v ← lift𝒫 (vD)
+  <λ x k . c> <- coerceλ₂ v
+  vD₂ ← 𝒜 ₘ (a₂)
+  vD₃ ← 𝒜 ₘ (a₃)
+  v₂ ← lift𝒫 vD₂
+  v₃ ← lift𝒫 vD₃
+  modify-σ (λ σ . σ ⊔ [x ↦ v₂] ⊔ [k ↦ v₃])
+  return c
+
+The monadic abstraction provides a nice way to simplify the implementation of
+the analysis.  In particular, cases which do not modify the store or only
+return one result--both of which are instances of having "no effect"--need not
+mentioned all members of the state machine.  (Credit Sergey et. al.)
+
+The complete analysis is defined as before where
+
+𝒞ₘ* : 𝒫 (Call × ^Store^) → 𝒫 (Call × ^Store^)
+𝒞ₘ*(Σ) = ⋃ [ (𝒞ₘ c)(σ) | <c,σ> ∈ Σ ]
+
+The exact abstract interpreter written directly is recovered through the
+definition of ℳ .  Our insight is twofold:
+
+* ℳ  can be _axiomatized_, such that different definitions for ℳ  give rise to
+  different control abstractions for the analysis.
+* The axiomatized monadic abstraction provides for a modular proof framework
+  for the correctness of a range of analyses.
+
+
+}}}
+
+!! Recovering Variations in Abstract Control {{{
+
+
+The current instantiation of ℳ  yields a flow-sensitive path-sensitive
+analysis.  Consider a reordering of the List and State monad transformers:
+
+ℳ  : Set → Set
+ℳ  a := SetT (State ^Store^) a
+ℳ  a := ^Store^ → 𝒫 (a) × ^Store^
+
+[Note: The definition of SetT we use is non-traditional.  However, our
+definition for SetT is actually a monad, whereas traditional definitions are
+not.  Our definition of SetT and proofs of monad laws are in the
+correctness/proofs section.]
+
+As before, we must convert between monadic actions and abstract state space
+transitions to achieve an analysis:
+
+𝒞ₘ* : 𝒫 (Call) × ^Store^ → 𝒫 (Call) × ^Store^
+𝒞ₘ*(c𝒫,σ) = <{c' | c' ∈ π₁(𝒞ₘ c)(σ) | c ∈ c𝒫 }, ⋃ [ π₂(𝒞ₘ c)(σ) | c ∈ c𝒫 ]>
+
+This instantiation of ℳ  and 𝒞ₘ* yields a flow-insensitive analysis.
+
+For the same monad ℳ , we can change the definition of 𝒞ₘ* to achieve a
+flow-sensitive path-insensitive analysis:
+
+𝒞ₘ* : 𝒫 (Call × ^Store^) → 𝒫 (Call × ^Store^)
+𝒞ₘ*(Σ) = { <c',π₂(𝒞 ₘ c)(σ)> | c' ∈ π₁(𝒞ₘ c)(σ) | c ∈ c𝒫 }
+
+In the correctness framework, the flow-sensitive path-sensitive analysis and
+flow-insensitive analyses are justified through isomorphisms between monadic
+actions and abstract state space transitions.  The flow-sensitive
+path-insensitive variant is recovered by weakening this isomorphism to a galois
+connection.
+
+
+}}}
+
+!! Independent Intensional Optimizations {{{
+
+
+We have now factored the abstract control properties of static analysis behind
+a common interface.  Now we show how to implement two intentional
+optimizations, abstract garbage collection and mcfa, in a completely general
+setting.
+
+The common interface for each variation in abstract control is a functor ℳ  ∈
+Set → Set such that ℳ :
+
+* Is a monad
+  * return : ∀ (α : Set), α → ℳ  α
+  * extend : ∀ (α β : Set), (α → ℳ  β) → (ℳ  α → ℳ  β)
+* Is a state monad algebra on ^Store^
+  * get : ℳ  ^Store^
+  * put : ^Store^ → ℳ  1
+* Is a monad plus
+  * _+ₘ_ : ∀ (α : Set), ℳ  α → ℳ  α → ℳ  α
+
+We abreviate the conjunction of the above properties holding on some ℳ  as
+(Analysis ℳ ).
+
+Abstract garbage collection can now be written once, generic to this interface:
+
+gc : Call → ℳ  1
+gc(c) = do
+  σ ← get-σ
+  touched₀ ← touched-𝒞(c)
+  let touched := collect(touched-var)(touched₀)
+  modify-σ (λ σ . ⋃ [ {x ↦ v} | σ(x) = v ∧ x ∈ touched ])
+
+The mcfa optimization of copying rather than linking closures also enjoys a
+fully generic implementation:
+
+clo-copy : ([Var] × Call) → ℳ  Lam
+clo-copy(xs,c) = do
+  let ys := free-vars(c)
+  σ ← get-σ
+  vs ← map* σ(_) ys
+  ρ ← { y ↦* v | (y,v) ∈ zip(ys, vs) }
+  return <xs,c,ρ>
+
+Using existing techniques, these optimizations must be proved correct for each
+instantiation of abstract control.  Our generalization over abstract control
+allows us to implement each of these optimizations once, and more importantly,
+the proof about these optimizations also transfer to their instantiations for
+free.
+
+
+}}}
+
+!! Correctness and Proofs {{{
+
+
+The key advantage to our formulation of monadic abstract interpretation--both
+over non-monadic approaches like AAM, and the monadic approach described by
+Sergey et al. (PLDI 2013)--is that the proofs of correctness for the
+constructed analyses can be derived automatically alongside the computational
+artifact.
+
+Our monadic abstraction is a proper abstraction in that it mediates between two
+parties--the framework and the analysis designer--and gives guarantees to both
+sides conditioned on assumptions being met.
+
+In the core analysis framework we prove:
+
+* SetT and StateT are monad transformers and compose in both directions.
+* Monadic actions (α → ℳ  β) in SetT and StateT form galois connections with
+  abstract state machine transitions (𝒮𝒮ₘ α → 𝒮𝒮ₘ β).
+* One composition of SetT and StateT is in (⊑) relation with the other.
+* For one interleaving of SetT and StateT, two different galois connections to
+  abstract machine transitions exist and are in (⊑) relation with one another.
+* Language-independent monads exist for instantiating a semantics to
+  flow-sensitive and path-sensitive analyses.
+
+The analysis designer must then prove:
+
+* The semantic step function 𝒞ₘ (which calls 𝒜 ₘ) is monotonic.
+* The semantics as written, including intensional optimizations, are correct.
+
+Given proofs from both sides of the interface we can conclude:
+
+*   flow-insensitive 0-cfa 
+  ⊑ flow-sensitive path-insensitive 0-cfa 
+  ⊑ flow-sensitive 0-cfa
+  ⊑ concrete cfa
+
+This proof technique is maximally modular, and greatly reduces the proof burden
+on the analysis designer as she developes new languages and analyses.
+
+}}}
+
+!! Definitions {{{
+
+Setup {{{
+
+PartialOrder(α : Set) :=
+  _⊑_ : α → α → Prop
+  laws
+    reflexivity : x ⊑ x
+    antisymmetry : x ⊑ y ⇒  y ⊑ x ⇒  x = y
+    transitivity : x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z
+
+JoinSemilattice(α : Set) :=
+  PartialOrder(α)
+  ⊥ : α
+  _⊔_ : α → α → α
+  laws
+    left-unit : ⊥ ⊔ x = x
+    right-unit : x ⊔ ⊥ = x
+    associativity : x ⊔ (y ⊔ z) = (x ⊔ y) ⊔ z
+    commutativity : x ⊔ y = y ⊔ x
+
+Monad(𝓂  : Set → Set) :=
+  return : ∀ (α : Set) → α → 𝓂 (α)
+  extend : ∀ (α β : Set) → (α → 𝓂 (β)) → (𝓂 (α) → 𝓂 (β))
+  laws
+    left-unit : extend(return) = id
+    right-unit : extend(k)(return(α)) = k(α)
+    associativity : extend(k₂)(extend(k₁)(αM)) = extend(λ x → extend(k₂)(k₁(x)))(α)
+
+Transformer(𝒯 : (Set → Set) → (Set → Set)) :=
+  trans : ∀ (𝓂  : Set), Monad(𝓂 ) → Monad(𝒯(𝓂 ))
+  lift : ∀ (𝓂  : Set), 𝓂 (α) → 𝒯(𝓂 )(α)
+  laws
+    unit : lift(return) = return
+
+MonadState(𝓈 : Set)(𝓂  : Set → Set) :=
+  get : 𝓂  𝓈
+  put : 𝓈 → 𝓂  1
+
+MonadPlus(𝓂  : Set → Set) := 
+  ∀ (α : Set), JoinSemilattice(𝓂 (α))
+  laws
+    left-zero : extend(k)(⊥) = ⊥
+    right-zero : extend(const(⊥))(αM) = ⊥
+    distributivity : extend(k)(αM₁ ⊔ αM₂) = extend(k)(αM₁) ⊔ extend(k)(αM₂)
+
+Functorial(ℭ : Set → Prop)(𝓂  : Set → Set) := 
+  ∀ (α : Set), ℭ (α) → ℭ (𝓂 (α))
+
+MonadSmallStep(𝓂  : Set → Set)(𝒮𝒮 : Set → Set) := 
+  ∀ (α β : Set), (α → 𝓂 (β)) α⇄ γ (𝒮𝒮(α) → 𝒮𝒮(β))
+
+Galois(C : Set)(A : Set) := C α⇄ γ A :=
+  PartialOrder(C)
+  PartialOrder(A)
+  α : C → A
+  γ : A → C
+  laws
+    Monotonic(α)
+    Monotonic(γ)
+    α ∘ γ ⊑ id ⊑ γ ∘ α
+
+}}}
+
+SetT {{{
+
+SetT : (Set → Set) → (Set → Set)
+SetT(𝓂 )(α) := 𝓂 (𝒫 (α))
+
+[Transformer(SetT)]
+
+lift : ∀ (𝓂  : Set → Set) (α : Set), 𝓂 (α) → SetT(𝓂 )(α)
+lift := map (λ x → { x })
+
+[Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 ) → Monad(SetT(𝓂 ))]
+
+return : ∀ (α : Set), α → SetT 𝓂  α
+return := lift ∘ returnₘ
+
+extend : ∀ (α β : Set), (α → SetT(𝓂 )(β)) → (SetT(𝓂 )(α) → SetT(𝓂 )(β))
+extend(k) := joinₘ ∘ mapₘ (joins ∘ mapₚ k)
+
+[Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 ) → MonadPlus(SetT(𝓂 ))]
+
+m0 : ∀ (α : Set), SetT 𝓂  α
+m0 = ⊥ ₘ
+
+_<+>_ : ∀ (α : Set) → SetT 𝓂  α → SetT 𝓂  α → SetT 𝓂  α
+_<+>_ := _⊔_
+
+
+[Monad(𝓂 ) ∧ MonadState(𝓈)(𝓂 ) → MonadState(𝓈)(𝓂 )]
+
+get : SetT 𝓂  𝓈
+get = lift getₘ
+
+put : 𝓈 → SetT 𝓂  1
+put = lift ∘ putₘ
+
+}}}
+
+
+StateT {{{
+
+StateT : Set → (Set → Set) → (Set → Set)
+StateT(𝓈)(𝓂 )(α) := 𝓈 → 𝓂  (α × 𝓈)
+
+[Transformer(StateT(𝓈))]
+
+lift : ∀ (𝓂  : Set → Set) (α : Set), 𝓂  a → StateT(𝓈)(𝓂 )(α)
+lift aM := λ 𝓈 → mapₘ (,𝓈) aM
+
+[Monad(𝓂 ) → Monad(StateT(𝓈)(𝓂 ))]
+
+return : ∀ (α : Set), α → StateT(𝓈)(𝓂 )(α)
+return := lift ∘ returnₘ
+
+extend : ∀ (α β : Set), (α → StateT(𝓈)(𝓂 )(β)) → (StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(β))
+extend(k)(αM) := λ 𝓈 → doₘ
+  (α,𝓈') ← aM(𝓈)
+  k(α)(𝓈')
+
+[JoinSemilattice(𝓈) ∧ Monad(𝓂 ) ⇒ Functorial(JoinSemilattice)(StateT(𝓈)(𝓂 ))]
+
+bot : StateT(𝓈)(𝓂 )(α)
+bot = λ _ → (⊥ ₛ, ⊥ ₐ)
+
+_⊔_ : StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(α) → StateT(𝓈)(𝓂 )(α)
+αM₁ ⊔ αM₂ := λ 𝓈 → doₘ
+  (α₁,𝓈₁) ← aM₁
+  (α₂,𝓈₂) ← aM₂
+  return (α₁ ⊔ α₂, 𝓈₁ ⊔ 𝓈₂)
+
+[MonadPlus(𝓂 ) ⇒ MonadPlus(StateT(𝓈)(𝓂 ))]
+
+⊥ : ∀ (α : Set), StateT(𝓈)(𝓂 )(α)
+⊥ := lift ⊥ ₘ
+
+_⊔_ : ∀ (α : Set), StateT(𝓈)(𝓂 )(α)
+αM₁ ⊔ αM₂ := λ 𝓈 → αM₁(𝓈) <+> αM₂(𝓈)
+
+}}}

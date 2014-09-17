@@ -1,13 +1,13 @@
-all: src
+all: writeup
 
 src:
 	cabal configure --enable-library-profiling --enable-executable-profiling && cabal build
 
-tex:
-	make -C tex
+writeup:
+	make -C writeup
 
 toc:
-	make -C tex toc.pdf
+	make -C writeup toc.pdf
 
 clean:
 	cabal clean

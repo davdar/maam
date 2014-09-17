@@ -9,3 +9,4 @@
 *.exrc
 *.dtx
 *.ins
+.DS_Store
