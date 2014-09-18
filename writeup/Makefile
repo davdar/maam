@@ -1,6 +1,6 @@
 pdf: darais-quals.pdf
 
-darais-quals.pdf: darais-quals.tex darais-quals.bbl $(wildcard sections/*) $(wildcard sections/*/*) $(wildcard sections/*/*/*) $(wildcard lib/*.tex)
+darais-quals.pdf: darais-quals.tex darais-quals.bbl
 	xelatex -shell-escape darais-quals.tex
 
 toc.pdf: darais-quals.toc toc.tex

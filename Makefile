@@ -13,4 +13,4 @@ clean:
 	cabal clean
 	make -C tex clean
 
-.PHONY: all src tex toc clean
+.PHONY: all src writeup toc clean
