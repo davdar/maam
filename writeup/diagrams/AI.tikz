@@ -1,0 +1,31 @@
+\begin{donotbreak}\begin{center}\begin{tikzpicture}
+
+\matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+{ (\Ce : \C) & (\Ce' : \C) \\
+  (\Ae : \A) & (\Ae' : \A) \\
+} ;
+\path
+
+(m-1-1) 
+edge [white]
+node [black] {$\Csteps$} 
+(m-1-2)
+
+(m-2-1) 
+edge [white]
+node [black] {$\Asteps$}
+(m-2-2)
+
+(m-1-1) 
+edge
+node [left] {$R$} 
+(m-2-1)
+
+(m-1-2) 
+edge
+node [left] {$R$} 
+(m-2-2)
+
+;
+
+\end{tikzpicture}\end{center}\end{donotbreak}

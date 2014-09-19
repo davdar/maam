@@ -1,11 +1,50 @@
-% \usepackage{amsmath}
+\usepackage{amsmath}
+\usepackage{unicode-math}
+\setmainfont{XITS}
+\setmathfont{XITS Math}
+\usepackage{tikz}
+\usetikzlibrary{matrix}
+\usepackage{newunicodechar}
+\usepackage{galois}
+
+% \newunicodechar{λ}{\lambda}
+% \newunicodechar{→}{\rightarrow}
+% \newunicodechar{𝒯}{\mathcal{T}}
+% \newunicodechar{∀}{\forall}
+% \newunicodechar{∘}{\circ}
+% \newunicodechar{𝒫}{𝒫\ }
+
+
+\newcommand{\llet}{\underline{\text{let}}}
+\newcommand{\case}{\ \underline{\text{case}}}
+
+\newcommand{\C}{L}
+\newcommand{\A}{\widehat{L}}
+
+\newcommand{\Csteps}{↦}
+\newcommand{\Asteps}{\ \widehat{↦}\ }
+
+\newcommand{\Ce}{e}
+\newcommand{\Ae}{\widehat{e}}
+
+\newcommand{\AStore}{\widehat{Store}}
+\newcommand{\AVal}{\widehat{Val}}
+
+\newcommand{\PM}{𝒫\ }
+\newcommand{\PT}{𝒫_T\ }
+
+\newcommand{\SM}{State}
+\newcommand{\ST}{State_T}
+
+\newenvironment{donotbreak}
+{\\[0.5\baselineskip]\begin{minipage}{\linewidth}}
+{\end{minipage}\\[0.5\baselineskip]}
+
 % \usepackage{amssymb}
 % \usepackage{listings}
 % \usepackage{stmaryrd}
 % \usepackage{wasysym}
 % \usepackage{multicol}
-% \usepackage{galois}
-% \usepackage{tikz}
 % \usepackage{cite}
 % \usepackage{pgfplots}
 % \usepackage{minted}
@@ -14,7 +53,6 @@
 % \usepackage{fontspec}
 % \usepackage{amsthm}
 % \setmonofont{Inconsolata}
-% \usetikzlibrary{matrix}
 % % \usepackage{hyperref}
 % 
 % \lstset{basicstyle=\footnotesize\ttfamily,language=haskell}
@@ -28,9 +66,6 @@
 % {\\[0.5\baselineskip]\begin{minipage}{\linewidth}\begin{itemize}}
 % {\end{itemize}\end{minipage}\\[0.5\baselineskip]}
 % 
-% \newenvironment{donotbreak}
-% {\\[0.5\baselineskip]\begin{minipage}{\linewidth}}
-% {\end{minipage}\\[0.5\baselineskip]}
 % 
 % \newcommand{\DSS}{\text{\lstinline|SS|}}
 % \newcommand{\DSSAbs}{\widehat{\text{\lstinline|SS|}}}

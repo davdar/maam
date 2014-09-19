@@ -1,6 +1,6 @@
 pdf: darais-quals.pdf
 
-darais-quals.pdf: darais-quals.tex darais-quals.bbl
+darais-quals.pdf: darais-quals.tex setup.tex diagrams/AI.tikz diagrams/AIGC.tikz
 	xelatex -shell-escape darais-quals.tex
 
 toc.pdf: darais-quals.toc toc.tex
