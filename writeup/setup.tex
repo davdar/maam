@@ -6,6 +6,7 @@
 \usetikzlibrary{matrix}
 \usepackage{newunicodechar}
 \usepackage{galois}
+% \usepackage{multicol}
 
 % \newunicodechar{λ}{\lambda}
 % \newunicodechar{→}{\rightarrow}
@@ -15,8 +16,27 @@
 % \newunicodechar{𝒫}{𝒫\ }
 
 
-\newcommand{\llet}{\underline{\text{let}}}
-\newcommand{\case}{\ \underline{\text{case}}}
+\newcommand{\iif}{\underline{\text{if}}}
+\newcommand{\case}{\underline{\text{case}}}
+\newcommand{\halt}{\underline{\text{halt}}}
+\newcommand{\lam}{\underline{\text{λ}}}
+\newcommand{\add}{\text{add1}}
+\newcommand{\sub}{\text{sub1}}
+\newcommand{\gez}{\text{gez}}
+\newcommand{\INT}{\text{INT}}
+\newcommand{\TRUE}{\text{TRUE}}
+\newcommand{\FALSE}{\text{FALSE}}
+\newcommand{\ddo}{\operatorname{do}}
+\newcommand{\llet}{\operatorname{let}}
+\newcommand{\return}{\operatorname{return}}
+\newcommand{\getstore}{\operatorname{get-σ}}
+\newcommand{\modifystore}{\operatorname{modify-σ}}
+\newcommand{\coercebool}{\operatorname{↓𝔹}}
+\newcommand{\coercekon}{\operatorname{↓λ₁}}
+\newcommand{\coercefun}{\operatorname{↓λ₂}}
+\newcommand{\liftpowerset}{\operatorname{↑𝒫}}
+\newcommand{\touchedcall}{\operatorname{𝓉𝒞}}
+\newcommand{\touchedvar}{\operatorname{𝓉Var}}
 
 \newcommand{\C}{L}
 \newcommand{\A}{\widehat{L}}
@@ -44,7 +64,6 @@
 % \usepackage{listings}
 % \usepackage{stmaryrd}
 % \usepackage{wasysym}
-% \usepackage{multicol}
 % \usepackage{cite}
 % \usepackage{pgfplots}
 % \usepackage{minted}

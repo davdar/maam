@@ -1,6 +1,6 @@
 pdf: darais-quals.pdf
 
-darais-quals.pdf: darais-quals.tex setup.tex diagrams/AI.tikz diagrams/AIGC.tikz
+darais-quals.pdf: darais-quals.tex setup.tex $(wildcard diagrams/*.tikz) $(wildcard snips/*.tex)
 	xelatex -shell-escape darais-quals.tex
 
 toc.pdf: darais-quals.toc toc.tex
@@ -18,7 +18,7 @@ open: darais-quals.pdf
 	open ./darais-quals.pdf
 
 clean:
-	rm *.aux *.log *.bbl *.blg *.bib *.pyg darais-quals.pdf
+	rm *.aux *.log *.bbl *.blg *.bib *.pyg *.toc darais-quals.pdf
 
 touch:
 	touch darais-quals.tex

@@ -1,0 +1,9 @@
+\begin{align*}
+x,y,k : Var  &⩴ ..variables..                                            \\
+b,i,l : Lit  &⩴ ℤ ∪ 𝔹                                                    \\
+f,g   : Lam  &⩴ \lam(x) → c \;|\; \lam(x,k) → c                          \\
+a     : Atom &⩴ x \;|\; l \;|\; f \;|\; op(a)                            \\
+op    : Op   &⩴ \add \;|\; \sub \;|\; \gez                               \\
+c     : Call &⩴ \iif(a)\{c\}\{c\} \;|\; a(a) \;|\; a(a,a) \;|\; \halt(a) \\
+\end{align*}
+

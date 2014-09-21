@@ -1,0 +1,46 @@
+\begin{donotbreak}
+\begin{center}
+
+\begin{tikzpicture}[ampersand replacement=\&]
+\matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+{ (γ(\Ae) : \C) \& (\Ce : \C) \&                \\
+  (\Ae : \A)    \& (\Ae' : \A) \& (α(\Ce) : \C) \\
+} ;
+\path [-stealth]
+
+(m-2-1) 
+edge
+node [right] {$γ$} 
+(m-1-1)
+
+(m-1-1) 
+edge [white]
+node [black] {$\Csteps$}
+(m-1-2)
+
+(m-1-2)
+edge
+node [above] {$α$} 
+(m-2-3) 
+
+(m-2-1) 
+edge [white]
+node [black] {$\Asteps$} 
+(m-2-2)
+
+;
+
+\path
+
+(m-2-2)
+edge
+node [above] {$α(\Ce) ⊑ \Ae'$}
+(m-2-3)
+
+;
+\end{tikzpicture}
+
+\end{center}
+\end{donotbreak}
+
+

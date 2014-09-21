@@ -1,8 +1,8 @@
-\begin{donotbreak}\begin{center}\begin{tikzpicture}
+\begin{donotbreak}\begin{center}\begin{tikzpicture}[ampersand replacement=\&]
 
 \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
-{ (\Ce : \C) & (\Ce' : \C) \\
-  (\Ae : \A) & (\Ae' : \A) \\
+{ (\Ce : \C) \& (\Ce' : \C) \\
+  (\Ae : \A) \& (\Ae' : \A) \\
 } ;
 \path
 
