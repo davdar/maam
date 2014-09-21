@@ -104,9 +104,9 @@ A basic familiarity with the concept of monads will be necessary for understandi
 Some find it useful to review the concept of functor before learning about monads. 
 We adopt this approach for our brief explanation of monads.
 
-A type $(𝒯 : Set → Set)$ is called a \emph{functor} if one can:
+A type $(F : Set → Set)$ is called a \emph{functor} if one can:
 \begin{itemize}
-\item Define $map : ∀ (A, B : Set), (A → B) → (𝒯(A) → 𝒯(B))$
+\item Define $map : ∀ (A, B : Set), (A → B) → (F(A) → F(B))$
 \item Prove $map(id) = id$, where $id$ is the identity function $(λ(x) → x)$
 \item Prove $map (g ∘ f) = map(g) ∘ map(f)$
 \end{itemize}
@@ -121,13 +121,13 @@ Lists are functors, where $map$ is defined:
 
 \paragraph{Example:} $map(isEven)([1, 2, 3, 4]) = [False, True, False, True]$
 
-Likewise a type $(𝒯 : Set → Set)$ is called a \emph{monad} if one can:
+Likewise a type $(ℳ  : Set → Set)$ is called a \emph{monad} if one can:
 \begin{itemize}
-\item Define $extend : ∀ (A, B : Set), (A → 𝒯(B)) → (𝒯(A) → 𝒯(B))$
+\item Define $extend : ∀ (A, B : Set), (A → ℳ (B)) → (ℳ (A) → ℳ (B))$
 \item Prove unit and associativity laws (not mentioned here).
 \end{itemize}
 The only difference from the definition of functor is in the the first argument.
-For monads, this argument is allowed to be a \emph{monadic} $(A → 𝒯(B))$, rather than a pure function $(A → B)$.
+For monads, this argument is allowed to be a \emph{monadic} $(A → ℳ (B))$, rather than a pure function $(A → B)$.
 
 \paragraph{Example:} Lists are monads, where $extend$ is defined:
 \begin{align*}
@@ -148,7 +148,7 @@ extend(f)([10, 100]) &= concat(map(f)([10, 100]))    \\
 \end{align*}
 For all monads, it is equivalent to define $return$, $map$ and $join$, where:
 \begin{equation*}
-join : ∀ (A : Set), 𝒯(𝒯(A)) → 𝒯(A)
+join : ∀ (A : Set), ℳ (ℳ (A)) → ℳ (A)
 \end{equation*}
 As we have just seen, $join$ for the list monad is just $concat$.
 
@@ -159,19 +159,19 @@ As we have just seen, $join$ for the list monad is just $concat$.
 \label{section:Background:MonadTransformers}
 
 Monad transformers are functions between monads.
-Where a monad $𝒯$ will have type $Set → Set$, a monad transformer will have type $(Set → Set) → (Set → Set)$.
+Where a monad $ℳ $ will have type $Set → Set$, a monad transformer $𝒯$ will have type $(Set → Set) → (Set → Set)$.
 
 Monad transformers are used to extend an existing monad to support another effect.
 The three monads used in this work are the state monad, powerset monad, and the identity monad.
 The state monad is notated $\SM(𝓈)$ (carrying a single cell of type $𝓈$), the powerset monad is notated $\PM$, and the identity is notated $ID$.
-The state and powerset monad transformer equivalents are notated $\ST(𝓈)(𝓂 )$ and $\PT(𝓂 )$ where $𝓂 $ is the underlying monad.
+The state and powerset monad transformer equivalents are notated $\ST(𝓈)(ℳ )$ and $\PT(ℳ )$ where $ℳ $ is the underlying monad.
 The state monad has $get$ and $put$ effects, whereas the powerset monad has a $nondeterminism$ effect.
 The transformer versions of both of these monads allow you to combine effects piecewise.
 
 \paragraph{Example:}
 $\ST(ℤ)(\PT(ID))$ is a monad which has $get$ and $put$ effects for a single cell of integer state, in addition to nondeterminism effects.
 
-The definitions, details and proofs of all monads used in our work are given in section \ref{section:Proofs+Definitions}.
+The definitions, details and proofs of all monads used in our work are given in section \ref{section:Proofs}.
 
 % }}}
 
@@ -436,7 +436,7 @@ At this point, the monad “trick” is nothing more than a technique to simplif
 This simplification is similar to how a functional programmer would use a state monad in place of state passing style.
 
 We wll use a powerset monad and state monad transformer to write the analysis in monadic style.
-The full definitions of the monads (and their proofs) used throughout this paper are defered to section \ref{section:Proofs+Definitions}.
+The full definitions of the monads (and their proofs) used throughout this paper are defered to section \ref{section:Proofs}.
 Because monad transformers are just fancy names for simple types, we write the equivalent simple type underneath definitions which reference monad transformer.
 The monadic conversion of the above analysis is as follows.
 \begin{align*}
@@ -510,7 +510,7 @@ The current instantiation of ℳ  yields a flow-sensitive path-sensitive analysi
 Consider a reordering of the powerset\footnote{
   The definition of $\PT$ we use is non-traditional.  However, our definition
   for $\PT$ is actually a monad, whereas traditional definitions are not.  Our
-  definition and proofs for $\PT$ are given in section \ref{section:Proofs+Definitions}.
+  definition and proofs for $\PT$ are given in section \ref{section:Proofs}.
 }
 and state monad transformers:
 \begin{align*}
@@ -653,154 +653,305 @@ This is only possible because all proofs have been decomposed to the unit of mon
 
 % }}}
 
-% Proofs and Definitions {{{
+% Proofs {{{
 
-\section{Proofs and Definitions}
-\label{section:Proofs+Definitions}
+\section{Proofs}
+\label{section:Proofs}
 
-This section details all structures used in this paper and their proofs.
+% Basic Definitions {{{
+\subsection{Basic Definitions}
+\label{section:Proofs:BasicDefinitions}
 
-% Setup {{{
+\begin{definition}
+For a type $(A : Set)$, a \emph{partial order} structure on $A$ contains an operator:
+\begin{align*}
+\_⊑\_ : A → A → Prop
+\end{align*}
+which respect the following properties:
+\begin{align*}
+ \operatorname{reflexivity} &: x ⊑ x                   \\
+\operatorname{antisymmetry} &: x ⊑ y ⇒  y ⊑ x ⇒  x = y \\
+\operatorname{transitivity} &: x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z \\
+\end{align*}
+\end{definition}
 
-\subsection{Setup}
-\label{section:Proofs+Definitions:Setup}
+\begin{definition}
+For types $(A, B : Set)$ which both have partial orders, a function $(f : A → B)$ is called \emph{monotonic} if:
+\begin{align*}
+∀ (x, y : A), x ⊑ y ⇒  f(x) ⊑ f(y)
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-PartialOrder(A : Set) ≔
-  operators
-    ⊑ : A → A → Prop
-  laws
-    reflexivity : x ⊑ x
-    antisymmetry : x ⊑ y ⇒  y ⊑ x ⇒  x = y
-    transitivity : x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z
-\end{verbatim}
+\begin{lemma}
+For types $(A, B : Set)$ which both have partial orders, there exists a partial order on the \emph{monotonic} function space $(A →^{mon} B : Set)$ with operator:
+\begin{align*}
+f ⊑ g ≔ ∀ (x, y : A), x ⊑ y → f(x) ⊑ g(y)
+\end{align*}
+\begin{proof}
+Reflexivity is justified by monotonicity.  
+Antisymmetry and transitivity are justified through the partial orders on $A$ and $B$.
+\end{proof}
+\end{lemma}
 
-\begin{verbatim}
-Monotonic(𝑓 : A → B) ≔ 
-  require
-    PartialOrder(A)
-    PartialOrder(B)
-    ∀ (x y : A), x ⊑ y ⇒  f(x) ⊑ f(y)
-\end{verbatim}
+\begin{definition}
+For types $(C, A : Set)$ which both have partial orders, a \emph{galois connection} between $C$ and $A$, written $C\galois{α}{γ}A$, contains two operators:
+\begin{align*}
+α &: C → A \\
+γ &: A → C \\
+\end{align*}
+which respect the following properties:
+\begin{align*}
+                           &α \text{is monotonic} \\
+                           &γ \text{is monotonic} \\
+\operatorname{contractive} &: α ∘ γ ⊑ id          \\
+  \operatorname{expansive} &: id ⊑ γ ∘ α          \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-(C : Set) α⇄ γ (A : Set) ≔
-  require
-    PartialOrder(C)
-    PartialOrder(A)
-  operators
-    α : C → A
-    γ : A → C
-  laws
-    Monotonic(α)
-    Monotonic(γ)
-    α ∘ γ ⊑ id ⊑ γ ∘ α
-\end{verbatim}
+\begin{definition}
+For a type $(A : Set)$, we call $A$ a \emph{join semilattice}, written $JoinSemilattice(A)$, if one can define two operators:
+\begin{align*}
+    ⊥ &: A         \\
+\_⊔\_ &: A → A → A \\
+\end{align*}
+which respect the following properties:
+\begin{align*}
+    \operatorname{left-unit} &: ⊥ ⊔ x = x                  \\
+   \operatorname{right-unit} &: x ⊔ bot = x                \\
+\operatorname{associativity} &: x ⊔ (y ⊔ z) = (x ⊔ y) ⊔ z  \\
+\operatorname{commutativity} &: x ⊔ y = y ⊔ x              \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-JoinSemilattice(A : Set) ≔
-  require
-    PartialOrder(A)
-  operators
-    ⊥ : A
-    ⊔ : A → A → A
-  laws
-    left-unit : ⊥ ⊔ x = x
-    right-unit : x ⊔ ⊥ = x
-    associativity : x ⊔ (y ⊔ z) = (x ⊔ y) ⊔ z
-    commutativity : x ⊔ y = y ⊔ x
-\end{verbatim}
+\begin{definition}
+For a type $(F : Set → Set)$, we call $F$ a \emph{functor}, written $Functor(F)$, if one can define the operator:
+\begin{align*}
+\operatorname{map} : ∀ (A , B : Set), (A → B) → (F(A) → F(B))
+\end{align*}
+which respects the following properties:
+\begin{align*}
+          unit &: map(id) = id                  \\
+distributivity &: map(g ∘ f) = map(g) ∘ map(f)  \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-Monad(𝓂  : Set → Set) ≔
-  operators
-    return : ∀ (A : Set) → A → 𝓂 (A)
-    extend : ∀ (A B : Set) → (A → 𝓂 (B)) → (𝓂 (A) → 𝓂 (B))
-  laws
-    left-unit : extend(return) = id
-    right-unit : extend(k)(return(A)) = k(A)
-    associativity : extend(k₂)(extend(k₁)(aM)) = extend(λ x → extend(k₂)(k₁(x)))(A)
-\end{verbatim}
+\begin{definition}
+For a type $(ℳ  : Set → Set)$, we call $ℳ $ a \emph{monad}, written $Monad(ℳ )$, if one can define two operators:
+\begin{align*}
+\operatorname{return} &: ∀ (A : Set), A → ℳ (A)                          \\
+\operatorname{extend} &: ∀ (A, B : Set), (A → ℳ (B)) → (ℳ (A) → (ℳ (B))) \\
+\end{align*}
+which respect the following properties:
+\begin{align*}
+    \operatorname{left-unit} &: extend(return) = id                               \\
+   \operatorname{right-unit} &: extend(k) ∘ return = k                            \\
+\operatorname{associativity} &: extend(k₂) ∘ extend(k₁) = extend(extend(k₂) ∘ k₁) \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-Transformer(𝒯 : (Set → Set) → (Set → Set)) ≔
-  require
-    ∀ (𝓂  : Set), Monad(𝓂 ) ⇒  Monad(𝒯(𝓂 ))
-  operators
-    lift : ∀ (𝓂  : Set), 𝓂 (A) → 𝒯(𝓂 )(A)
-  laws
-    unit : lift(return) = return
-\end{verbatim}
+\begin{corrolary}
+All monads are functors.
+\end{corrolary}
 
-\begin{verbatim}
-MonadState(𝓈 : Set)(𝓂  : Set → Set) ≔
-  operators
-    get : 𝓂  𝓈
-    put : 𝓈 → 𝓂  1
-\end{verbatim}
+\begin{definition}
+For a type $(𝒯 : (Set → Set) → (Set → Set))$, we call $𝒯$ a \emph{monad transformer}, written $Transformer(𝒯)$, if one can define a single operator:
+\begin{align*}
+lift : ∀ (ℳ  : Set → Set) (A : Set), ℳ (A) → 𝒯(ℳ )(A)
+\end{align*}
+and the following property holds:
+\begin{align*}
+∀ (ℳ  : Set → Set), Monad(ℳ ) ⇒  Monad(𝒯(ℳ ))
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-MonadPlus(𝓂  : Set → Set) ≔ 
-  require
-    ∀ (A : Set), JoinSemilattice(𝓂 (A))
-  laws
-    left-zero : extend(k)(⊥) = ⊥
-    right-zero : extend(const(⊥))(aM) = ⊥
-    distributivity : extend(k)(aM₁ ⊔ aM₂) = extend(k)(aM₁) ⊔ extend(k)(aM₂)
-\end{verbatim}
+\begin{definition}
+For types $(𝓈 : Set)$ and $(ℳ  : Set → Set)$, we call $ℳ $ a \emph{monad state over $𝓈$}, written $MonadState(𝓈)(ℳ )$, if one can define operators:
+\begin{align*}
+\operatorname{get} &: ℳ (𝓈)     \\
+\operatorname{put} &: 𝓈 → ℳ (1) \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-Functorial(ℭ : Set → Prop)(𝓂  : Set → Set) ≔ 
-  require
-    ∀ (A : Set), ℭ (A) → ℭ (𝓂 (A))
-\end{verbatim}
+\begin{definition}
+For a type $(ℳ  : Set → Set)$, we call $ℳ $ a \emph{monad plus}, written $MonadPlus(ℳ )$, if the following property holds:
+\begin{align*}
+∀ (A : Set), JoinSemilattice(ℳ (A))
+\end{align*}
+and the following additional properties hold:
+\begin{align*}
+     \operatorname{left-zero} &: extend(k)(⊥) = ⊥                               \\
+    \operatorname{right-zero} &: extend(const(⊥))(x) = ⊥                        \\
+\operatorname{distributivity} &: extend(k)(x ⊔ y) = extend(k)(x) ⊔ extend(k)(y) \\
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-Pointed(𝓂  : Set → Set) ≔
-  unit : ∀ (A : Set) → A → 𝓂 (A)
-\end{verbatim}
+\begin{definition}
+For types $(ℳ  , 𝒮𝒮 : Set → Set)$, we call $ℳ $ a \emph{small step monad with state space $𝒮𝒮$}, written $MonadSmallStep(𝒮𝒮)(ℳ )$, if one can define:
+\begin{align*}
+∀ (A, B : Set), (A → ℳ (B)) \galois{α}{γ} (𝒮𝒮(A) → 𝒮𝒮(B))
+\end{align*}
+\end{definition}
 
-\begin{verbatim}
-MonadSmallStep(𝓂  : Set → Set)(𝒮𝒮 : Set → Set) ≔ 
-  require
-    ∀ (A B : Set), (A → 𝓂 (B)) α⇄ γ (𝒮𝒮(A) → 𝒮𝒮(B))
-\end{verbatim}
+\begin{definition}
+For a type $(F : Set → Set)$ and property $(P : Set → Prop)$, we call $F$ \emph{functorial in $P$}, written $Functorial(P)(F)$, if the following property holds:
+\begin{align*}
+∀ (A : Set), P(A) ⇒ P (F(A))
+\end{align*}
+and all operations in $P$ distribute through monadic operations in $F$.
+\end{definition}
+
+\begin{example}
+For a type $(F : Set → Set)$ to be \emph{functorial in $JoinSemilattice$}, the following additional laws must hold:
+\begin{align*}
+return (x ⊔ y) = return(x) ⊔ return(y)
+\end{align*}
+\end{example}
+
+% }}}
+
+% ID {{{
+\subsection{ID}
+\label{section:Proofs:ID}
+
+\begin{definition}
+The \emph{identity monad}, written $ID$, is defined:
+\begin{align*}
+   ID &: Set → Set \\
+ID(A) &≔ A         \\
+\end{align*}
+\end{definition}
+
+\begin{lemma}
+The identity monad is a monad with operators:
+\begin{align*}
+return &≔ id \\
+extend &≔ id \\
+\end{align*}
+\begin{proof}
+Unit and associativity laws are established trivially by definition.
+\end{proof}
+\end{lemma}
+
+\begin{lemma}
+The identity monad is \emph{functorial in all structures}.
+\begin{proof}
+Holds by definition of $ID$.
+\end{proof}
+\end{lemma}
 
 % }}}
 
 % SetT {{{
 \subsection{$\PT$}
-\label{section:Proofs+Definitions:SetT}
+\label{section:Proofs:SetT}
+
+\begin{definition}
+The \emph{set monad transformer}, written $\PT$, is defined:
+\begin{align*}
+\PT(ℳ )(A) ≔ ℳ (\PM(A))
+\end{align*}
+\end{definition}
+
+\begin{lemma}
+For a given $(ℳ  : Set → Set)$ where:
+\begin{itemize}
+\item $ℳ $ is a monad.
+\item $ℳ $ is functorial in JoinSemilattice.
+\end{itemize}
+then $\PT(ℳ )$ is a monad plus.
+\begin{proof}
+By applying functoriality of $ℳ $ to the semilattice $\PM$.
+\end{proof}
+\end{lemma}
+
+\begin{lemma}
+For a given $(ℳ  : Set → Set)$ where:
+\begin{itemize}
+\item $ℳ $ is a monad.
+\item $ℳ $ is functorial in JoinSemilattice.
+\end{itemize}
+then $\PT(ℳ )$ is a monad with operators:
+\begin{align*}
+   return &≔ return_{ℳ } ∘ singleton \\
+extend(k) &≔ extend_{ℳ }(joins ∘ map_{\PM}(k))  \\
+\end{align*}
+\begin{proof}
+\begin{align*}
+\operatorname{left-unit} &: extend(return) = id                                                                                        \\
+                                                                                                                                       \\
+extend(return) &= extend_{ℳ }(joins ∘ map_{\PM}(return_{ℳ } ∘ singleton_{\PM}))            \tag{definition of extend and join}         \\
+               &= extend_{ℳ }(λ(xs) → ⋃ \{ return_{ℳ } (singleton_{\PM}(x)) \;|\; x ∈ xs \}) \tag{definition of joins}                 \\
+               &= extend_{ℳ }(λ(xs) → return_{ℳ } (⋃ \{ singleton_{\PM}(x) \;|\; x ∈ xs \})) \tag{functorality of semilattice in $ℳ $} \\
+               &= extend_{ℳ }(λ(xs) → return_{ℳ }(xs))                                       \tag{join identity for $\PM$}             \\
+               &= extend_{ℳ }(return_{ℳ })                                                 \tag{η reduction for λ}                     \\
+               &= id                                                                       \tag{left unit monad law for $ℳ $}          \\
+\end{align*}
+\end{proof}
+\begin{proof}
+\begin{align*}
+\operatorname{right-unit} &: extend(k)(return(x)) = k(x)                                                                                 \\
+                                                                                                                                         \\
+extend(k)(return(x)) &= extend_{ℳ }(joins ∘ map_{\PM}(k))(return_{ℳ }(singleton_{\PM}(x))) \tag{definition of extend and join}           \\
+                     &= joins(map_{\PM}(k)(return_{ℳ }(singleton_{\PM}(x))))               \tag{right unit monad law for $ℳ $}           \\
+                     &= joins(return_{ℳ }(singleton_{\PM}(k(x))))                          \tag{map distribution law for $ℳ $ and $\PM$} \\
+                     &= k(x)                                                               \tag{definition of joins}                     \\
+\end{align*}
+\end{proof}
+\begin{proof}
+\begin{align*}
+\operatorname{associativity} &: extend(k₂) ∘ extend(k₁) = extend(extend(k₂) ∘ k₁)                                                              \\
+                                                                                                                                               \\
+extend(k₂)∘ extend(k₁) &= extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ extend_{ℳ }(joins ∘ map_{\PM}(k₁)) \tag{definition of $extend$}                 \\
+                       &= extend_{ℳ }(extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ joins ∘ map_{\PM}(k₁)) \tag{associativity law for $ℳ $}             \\
+                       &= extend_{ℳ }(extend(k₂) ∘ joins ∘ map_{\PM}(k₁))                         \tag{definition of $extend$}                 \\
+                       &= extend_{ℳ }(λ(xs) → extend(k₂) (⋃ \{ k₁(x) \;|\; x ∈ xs\}))                   \tag{definitions of $joins$ and $map_{\PM}$} \\
+                       &= extend_{ℳ }(λ(xs) → ⋃ \{ extend(k₂)(k₁(x)) \;|\; x ∈ xs\})                    \tag{distributivity of $∪$ for $ℳ $}         \\
+                       &= extend_{ℳ }(joins ∘ map_{\PM}(extend(k₂) ∘ k₁))                         \tag{definition of $map_{\PM}$}              \\
+                       &= extend(extend(k₂) ∘ k₁)                                                 \tag{definition of $extend$}                 \\
+%                        = extend_m(λ(xs) → extend_m(joins ∘ map_P(k2)) (joins { k1(x) | x ∈ xs}))
+%                        = extend_m(λ(xs) → joins { extend_m(joins ∘ map_P(k2))(k1(x)) | x ∈ xs })
+%                        = extend_m(λ(xs) → joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1)(xs))
+% 
+%                            = do
+%                             y <- x
+%                             z <- joins (map(k1(y)))
+%                             joins(map(k2(z))
+% 
+% 
+% 
+%                            = do
+%                           {y1..yn} <- x
+%                           ⋃ {do
+%                                {z1..zn} <- k1(y1)
+%                                ∪ {k2(z1)..k2(zn)}
+%                                ..
+%                              do
+%                                {z1..zn} <- k1(yn)
+%                                ∪ {k2(z1)..k2(zn)}}
+% 
+% 
+%                           ⋃
+%                           { x | x ∈ map (\ a -> do
+%                                   z <- k1 a
+%                                   joins (map k2 z)) y }
+%                              
+% 
+%                           = extend_m(extend_m(joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1)) ∘ return)
+% 
+% 
+% 
+% 
+%                           = extend(extend(k2) ∘ k1)
+%                           = extend_m(joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1))
+%                           = extend_m(λ(xs) → joins { extend_m(joins ∘ map_P(k2)) (k1(x)) | x ∈ xs }
+%                           = extend_m(λ(x) → extend_m(joins ∘ map_P(k2))(joins { k1(x) | x ∈ xs }))
+%                           = extend_m(extend_m(joins ∘ map_P(k2)) ∘ joins ∘ map(k1))
+% 
+\end{align*}
+\end{proof}
+\end{lemma}
 
 \begin{verbatim}
-\ST : (Set → Set) → (Set → Set)
-\ST(𝓂 )(A) ≔ 𝓂 (\PM(A))
-
------------------
-Transformer(\ST)
-
-lift : ∀ (𝓂  : Set → Set) (A : Set), 𝓂 (A) → \ST(𝓂 )(A)
-lift ≔ map (λ x → \{ x \})
-
-Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 )
--------------------------------------------
-Monad(\ST(𝓂 ))
-
-return : ∀ (A : Set), A → \ST 𝓂  A
-return ≔ lift ∘ returnₘ
-
-extend : ∀ (A B : Set), (A → \ST(𝓂 )(B)) → (\ST(𝓂 )(A) → \ST(𝓂 )(B))
-extend(k) ≔ joinₘ ∘ mapₘ (joins ∘ mapₚ k)
-
-Monad(𝓂 ) ∧ Functorial(JoinSemilattice)(𝓂 )
--------------------------------------------
-MonadPlus(\ST(𝓂 ))
-
-m0 : ∀ (A : Set), \ST 𝓂  A
-m0 ≔ ⊥ ₘ
-
-<+> : ∀ (A : Set) → \ST 𝓂  A → \ST 𝓂  A → \ST 𝓂  A
-<+> ≔ ⊔
 
 Monad(𝓂 ) ∧ MonadState(𝓈)(𝓂 )
 -----------------------------
@@ -838,7 +989,7 @@ MonadSmallStep(\ST 𝓂 )(\PM ∘ 𝒮)
 % StateT {{{
 
 \subsection{$\ST$}
-\label{section:Proofs+Definitions:StateT}
+\label{section:Proofs:StateT}
 
 \begin{verbatim}
 \ST : Set → (Set → Set) → (Set → Set)
@@ -911,7 +1062,7 @@ MonadSmallStep(\ST(𝓈)(𝓂 ))(𝒮𝒮(\_ × 𝓈))
 % Propositions {{{
 
 \section{Propositions}
-\label{section:Proofs+Definitions:Propositions}
+\label{section:Proofs:Propositions}
 
 \begin{itemize}
 \item $\PT$ and $\ST$ are Galois Functors.

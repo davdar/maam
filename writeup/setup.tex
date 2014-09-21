@@ -6,15 +6,16 @@
 \usetikzlibrary{matrix}
 \usepackage{newunicodechar}
 \usepackage{galois}
-% \usepackage{multicol}
+\usepackage{amsthm}
 
-% \newunicodechar{λ}{\lambda}
-% \newunicodechar{→}{\rightarrow}
-% \newunicodechar{𝒯}{\mathcal{T}}
-% \newunicodechar{∀}{\forall}
-% \newunicodechar{∘}{\circ}
-% \newunicodechar{𝒫}{𝒫\ }
+\theoremstyle{definition}
+\newtheorem*{definition}{Definition}
+\newtheorem*{example}{Example}
 
+\theoremstyle{plain}
+\newtheorem*{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corrolary}{Corrolary}
 
 \newcommand{\iif}{\underline{\text{if}}}
 \newcommand{\case}{\underline{\text{case}}}
@@ -60,6 +61,16 @@
 {\\[0.5\baselineskip]\begin{minipage}{\linewidth}}
 {\end{minipage}\\[0.5\baselineskip]}
 
+% \usepackage{multicol}
+
+% \newunicodechar{λ}{\lambda}
+% \newunicodechar{→}{\rightarrow}
+% \newunicodechar{𝒯}{\mathcal{T}}
+% \newunicodechar{∀}{\forall}
+% \newunicodechar{∘}{\circ}
+% \newunicodechar{𝒫}{𝒫\ }
+
+
 % \usepackage{amssymb}
 % \usepackage{listings}
 % \usepackage{stmaryrd}
@@ -70,7 +81,6 @@
 % \usepackage{float}
 % \usepackage{caption}
 % \usepackage{fontspec}
-% \usepackage{amsthm}
 % \setmonofont{Inconsolata}
 % % \usepackage{hyperref}
 % 
