@@ -4,7 +4,7 @@
 
 \input{setup.tex}
 
-\title{Abstract Control in Static Analysis}
+\title{Abstract Control in Static Analysis (Draft)}
 \author{David Darais}
 \date{\today}
 
@@ -15,6 +15,22 @@
 
 % Abstract {{{
 \begin{abstract}
+
+The field of static analysis offers many techniques for automatically discovering facts about programs.
+For example, a static analysis might be used to verify that a program is memory safe, or that it obeys a privacy policy.
+Techniques based on abstract interpretation allow the analysis designer to vary some properties of an analysis.
+However, features like context, object, and flow sensitivity are often hard-coded into a given analysis framework.
+One option for altering such features is to redesign an analysis from scratch.
+Unfortunately, designing new analyses is a difficult and error-prone process.
+Abstracting Abstract Machines (AAM) is a methodology for building analyses which simplifies this process by adhering to a restricted design philosophy.
+However, AAM lacks reusable tools for building analyses, and not all analysis features fit nicely into the framework.
+
+We propose a new framework which gives the analysis designer compositional building blocks for designing analyses, and which supports one key feature missing in AAM: abstract control.
+We achieve compositionality by refactoring AAM into monad transformers which can be related back to abstract state machines.
+When put together, these monad transformers form analyses which are correct by construction.
+Using these building blocks we are able to uncover a new tuning knob for static analyses which we call abstract control.
+Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
+
 \end{abstract}
 % }}}
 
@@ -214,7 +230,7 @@ In the AI framework, an analysis for $\Ce$ is:
   A relationship between $\C$ and $\A$ that defines when some $(\Ce' : \C)$ and $(\Ae' : \A)$ are related.
   This often takes the form of projecting $\A$ to $\PM(\C)$ and using the subset relation.
 \item 
-  An abstract version of our concrete program $\Ce$: $(\Ae : \A)$.
+  An abstract version of $\Ce$ our concrete program: $(\Ae : \A)$.
 \item 
   An abstract version of the $\Csteps$ relation: $(\Asteps : \A × \A → Prop)$
 \item 
@@ -226,13 +242,14 @@ The overall approach is summarized in the following picture:
 \input{diagrams/AI.tikz}
 This picture takes place at some point in the analysis process.
 $\Ce$ is the current program (possibly the result of running the base program for a little while).
-$\Ae$ is a valid abstraction of $\Ce$, where this validity is expressed some relation $R$ holding between $\Ce$ and $\Ae$.
+$\Ae$ is a valid abstraction of $\Ce$, where this validity is expressed by some relation $R$ holding between $\Ce$ and $\Ae$.
 $\Ce'$ is some next state of execution of $\Ce$, and likewise for $\Ae$/$\Ae'$.
 In order to be a correct analysis, it must be guaranteed that $\Ce'$ and $\Ae'$ will be related.
 The logical structure of the picture, which states the correctness of the analysis, is given by:
 \begin{equation*}
 ∀ (\Ce,\Ce' : \C ) (\Ae,\Ae' : \A), (\Ce R \Ae) ∧ (\Ce \Csteps \Ce') ∧ (\Ae \Asteps \Ae') ⇒  (\Ce' R \Ae')
 \end{equation*}
+The \emph{meaning} of the analysis is entirely subject to the relation $R$ which relates the abstract to the concrete.
 
 % }}}
 
@@ -254,6 +271,10 @@ The last two properties can be succinctly stated as $(α ∘ γ ⊑ id ⊑ γ �
   This uses the logical monotonicity relation $f ⊑ g ⇔  (x ⊑ y ⇒  f(x) ⊑ g(y))$ for the function space.
 }.
 Equivalent to all four properties is the property $x ⊑ γ(y) ⇔  α(x) ⊑ y$.
+
+The expansive property corresponds to \emph{soundness}, and the contractive property corresponds to \emph{tightness}.
+A sound analysis gives results you can trust.  
+A tight analysis promises to be the “best” analysis possible.
 
 \paragraph{Example:}
 Given a galois connection $\C\galois{α}{γ}\A$, there exists a galois connection $(\C → \C)\galois{α'}{γ'}(\A → \A)$ where:
@@ -297,7 +318,7 @@ As before, the logical structure of the picture is given by:
 The statement of this property can be simplified further as $\Csteps ⊑ γ(\Asteps)$.
 This uses the definition of galois connections for function spaces shown in a previous example.
 
-Using a galois connection $\C\galois{α}{γ}\A$ and abstract step function $\Asteps ⊑ γ(\Csteps)$, the analysis process becomes more specific:
+Using a galois connection $\C\galois{α}{γ}\A$ and abstract step function $\Asteps ⊑ γ(\Csteps)$, the analysis story becomes simplified even further:
 \begin{itemize}
 \item Translate $(\Ce : \C)$ to $(α(\Ce) : \A)$
 \item Explore all abstract states $\Ae'$ states reachable from $α(\Ce)$.
@@ -305,7 +326,7 @@ Using a galois connection $\C\galois{α}{γ}\A$ and abstract step function $\Ast
 \end{itemize}
 
 The galois connection framework simultaneously guarantees the \emph{soundness} and \emph{tightness} of this method.
-Soundness tells us that if we abstract, take an abstract step, and then concretize, that the result is an approximation of taking a concrete step.
+Soundness tells us that if we abstract, take an abstract step, and then concretize, then the result is an approximation of taking a concrete step.
 Soundness tells us that we can trust the results of the analysis.
 \input{diagrams/GCSoundness.tikz}
 Tightness tells us that if we concretize, take a concrete step, and then abstract, then the result must be just as precise as taking an abstract step.
@@ -605,7 +626,7 @@ More importantly, the correctness of these optimizations can be established gene
 The key advantage to our framework is that the proofs of correctness for constructed analyses are derived automatically.
 To establish the correctness of the monadic approach, we do not merely inline the definitions and resort to reasoning about fully instantiated instances of monadic definitions.
 Instead, we relate monadic actions directly to abstract state space transitions for each monad transformer combination.
-Given these proofs, along with an argument about monotonicity of the monadic semantics, we can establish a proof of galois connection between concrete and abstract interpreters.
+Given these proofs, along with an argument about monotonicity of the monadic semantics, we can establish a proof of galois connection for any given interpreter instantiation.
 
 To relate back to small step semantics, we establish a galois connection between monadic actions in $ℳ $ and transitions functions for \emph{some} abstract state space $𝒮𝒮$.
 This abstract state space is constructed from the monad transformer stack, although some transformer stacks support multiple abstract state spaces.
@@ -622,7 +643,7 @@ These monad interleavings correspond to path-sensitivity and path-insensitivity 
 For the $\PT(\SM(𝓈))$ monad, we show two galois connections are possible to the state space $\PM(\_ × 𝓈)$.
 These choices for galois connection correspond to flow-sensitivity and flow-insensitivity respectively.
 
-Independent of language or application, we can now conclude abstractly (yet precisely):
+Independent of language or application we have proven:
 \begin{align*}
 flow-insensitive ⊑ flow-sensitive path-insensitive ⊑ flow-sensitive 
 \end{align*}
@@ -632,15 +653,14 @@ We can use this bridge to construct a galois connection between concrete and a f
 
 When using our framework, the analysis designer need only prove prove:
 \begin{itemize}
-\item The semantic step function 𝒞 (which calls 𝒜 ) is monotonic.
+\item The semantic step function $𝒞$ is monotonic.
 \item The semantics as written, including intensional optimizations, are correct.
 \end{itemize}
 After supplying these proofs, the analysis designer enjoys:
 \begin{itemize}
 \item An automatically derived analysis for their language with their choice of abstract control.
-\item A proof-by-construction of correctness for the derived analysis.
-\item 
-  Seamless extensions to AAM and intensional optimizations (like gc or mcfa), which we demonstrate in our implementation.
+\item A proof-by-construction of galois connection (soundness and tightness) for the derived analysis.
+\item Seamless extensions to AAM and intensional optimizations (like gc or mcfa), which we demonstrate in our implementation.
 \end{itemize}
 
 Our proof technique is maximally modular in that new monads can be composed seamlessly into the framework with disruption.
@@ -875,7 +895,7 @@ then $\PT(ℳ )$ is a monad with operators:
    return &≔ return_{ℳ } ∘ singleton \\
 extend(k) &≔ extend_{ℳ }(joins ∘ map_{\PM}(k))  \\
 \end{align*}
-\begin{proof}
+\begin{proof} of left unit.
 \begin{align*}
 \operatorname{left-unit} &: extend(return) = id                                                                                        \\
                                                                                                                                        \\
@@ -887,7 +907,7 @@ extend(return) &= extend_{ℳ }(joins ∘ map_{\PM}(return_{ℳ } ∘ singleton_
                &= id                                                                       \tag{left unit monad law for $ℳ $}          \\
 \end{align*}
 \end{proof}
-\begin{proof}
+\begin{proof} of right unit.
 \begin{align*}
 \operatorname{right-unit} &: extend(k)(return(x)) = k(x)                                                                                 \\
                                                                                                                                          \\
@@ -897,81 +917,68 @@ extend(k)(return(x)) &= extend_{ℳ }(joins ∘ map_{\PM}(k))(return_{ℳ }(sing
                      &= k(x)                                                               \tag{definition of joins}                     \\
 \end{align*}
 \end{proof}
-\begin{proof}
+\begin{proof} of associativity.
 \begin{align*}
 \operatorname{associativity} &: extend(k₂) ∘ extend(k₁) = extend(extend(k₂) ∘ k₁)                                                              \\
                                                                                                                                                \\
 extend(k₂)∘ extend(k₁) &= extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ extend_{ℳ }(joins ∘ map_{\PM}(k₁)) \tag{definition of $extend$}                 \\
                        &= extend_{ℳ }(extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ joins ∘ map_{\PM}(k₁)) \tag{associativity law for $ℳ $}             \\
                        &= extend_{ℳ }(extend(k₂) ∘ joins ∘ map_{\PM}(k₁))                         \tag{definition of $extend$}                 \\
-                       &= extend_{ℳ }(λ(xs) → extend(k₂) (⋃ \{ k₁(x) \;|\; x ∈ xs\}))                   \tag{definitions of $joins$ and $map_{\PM}$} \\
-                       &= extend_{ℳ }(λ(xs) → ⋃ \{ extend(k₂)(k₁(x)) \;|\; x ∈ xs\})                    \tag{distributivity of $∪$ for $ℳ $}         \\
+                       &= extend_{ℳ }(λ(xs) → extend(k₂) (⋃ \{ k₁(x) \;|\; x ∈ xs\}))             \tag{definitions of $joins$ and $map_{\PM}$} \\
+                       &= extend_{ℳ }(λ(xs) → ⋃ \{ extend(k₂)(k₁(x)) \;|\; x ∈ xs\})              \tag{distributivity of $∪$ for $ℳ $}         \\
                        &= extend_{ℳ }(joins ∘ map_{\PM}(extend(k₂) ∘ k₁))                         \tag{definition of $map_{\PM}$}              \\
                        &= extend(extend(k₂) ∘ k₁)                                                 \tag{definition of $extend$}                 \\
-%                        = extend_m(λ(xs) → extend_m(joins ∘ map_P(k2)) (joins { k1(x) | x ∈ xs}))
-%                        = extend_m(λ(xs) → joins { extend_m(joins ∘ map_P(k2))(k1(x)) | x ∈ xs })
-%                        = extend_m(λ(xs) → joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1)(xs))
-% 
-%                            = do
-%                             y <- x
-%                             z <- joins (map(k1(y)))
-%                             joins(map(k2(z))
-% 
-% 
-% 
-%                            = do
-%                           {y1..yn} <- x
-%                           ⋃ {do
-%                                {z1..zn} <- k1(y1)
-%                                ∪ {k2(z1)..k2(zn)}
-%                                ..
-%                              do
-%                                {z1..zn} <- k1(yn)
-%                                ∪ {k2(z1)..k2(zn)}}
-% 
-% 
-%                           ⋃
-%                           { x | x ∈ map (\ a -> do
-%                                   z <- k1 a
-%                                   joins (map k2 z)) y }
-%                              
-% 
-%                           = extend_m(extend_m(joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1)) ∘ return)
-% 
-% 
-% 
-% 
-%                           = extend(extend(k2) ∘ k1)
-%                           = extend_m(joins ∘ map_P(extend_m(joins ∘ map_P(k2)) ∘ k1))
-%                           = extend_m(λ(xs) → joins { extend_m(joins ∘ map_P(k2)) (k1(x)) | x ∈ xs }
-%                           = extend_m(λ(x) → extend_m(joins ∘ map_P(k2))(joins { k1(x) | x ∈ xs }))
-%                           = extend_m(extend_m(joins ∘ map_P(k2)) ∘ joins ∘ map(k1))
-% 
 \end{align*}
 \end{proof}
 \end{lemma}
 
+\begin{lemma}
+For a given $(ℳ  : Set → Set)$ and $(𝓈 : Set)$ where:
+\begin{itemize}
+\item $ℳ $ is a monad.
+\item $ℳ $ is a monad state over $𝓈$.
+\item $ℳ $ is functorial in JoinSemilattice.
+\end{itemize}
+then $\PT(ℳ )$ is a monad state over $𝓈$ with operators:
+\begin{align*}
+   get    &≔ map_{ℳ }(singleton)(get_{ℳ })    \\
+   put(𝓈) &≔ map_{ℳ }(singleton)(put_{ℳ }(𝓈)) \\
+\end{align*}
+\end{lemma}
+
+\begin{lemma}
+For a given $(ℳ  : Set → Set)$ and $(𝒮𝒮 : Set → Set)$ where:
+\begin{itemize}
+\item $ℳ $ is a monad.
+\item $ℳ $ is a small-step monad over $𝒮𝒮$.
+\item $ℳ $ is functorial in join semilattice.
+\item $𝒮𝒮$ is a functor.
+\end{itemize}
+then $\PT(ℳ )$ is a small step monad over $(𝒮𝒮 ∘ \PM)$ with galois connection maps:
+\begin{align*}
+   α &: ∀ (A, B : Set), (A → \PT(ℳ )(B)) → (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B))) \\
+α(f) &≔ α_{ℳ }(joins ∘ map_{\PM}(f))                                 \\
+                                                                     \\
+   γ &: ∀ (A, B : Set), (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B))) → (A → \PT(ℳ )(B)) \\
+γ(f) &≔ γ_{ℳ }(f ∘ map_{𝒮𝒮}(return_{\PM}))                           \\
+\end{align*}
+\begin{proof} of contractivity.
+\begin{align*}
+α ∘ γ &⊑ id                                                                   \\
+                                                                              \\
+(α ∘ γ)(f) &= α_{ℳ }(joins ∘ map_{\PM}(γ_{ℳ }(f ∘ map_{𝒮 𝒮 }(return_{\PM})))) \\
+\end{align*}
+TODO.
+(Requires $α(1) = 1$ and $α(g ∘ f) = α(g) ∘ α(f)$ (maybe $⊑$?), and likewise for $γ$.)
+\end{proof}
+\begin{proof} of expansivity.
+\begin{align*}
+\end{align*}
+TODO.
+\end{proof}
+\end{lemma}
+
 \begin{verbatim}
-
-Monad(𝓂 ) ∧ MonadState(𝓈)(𝓂 )
------------------------------
-MonadState(𝓈)(𝓂 )
-
-get : \ST 𝓂  𝓈
-get ≔ lift getₘ
-
-put : 𝓈 → \ST 𝓂  1
-put ≔ lift ∘ putₘ
-
-MonadSmallStep(𝓂 )(𝒮𝒮) ∧ Functorial(JoinSemilattice)(𝓂 ) ∧ Functor(𝒮𝒮)
--------------------------------
-MonadSmallStep(\ST 𝓂 )(𝒮𝒮 ∘ \PM)
-
-α : ∀ (A B : Set), (A → \ST(𝓂 )(B)) → (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B)))
-α(f) ≔ αₘ(joinsₘ ∘ mapₚ(f))
-
-γ : ∀ (A B : Set), (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B))) → (A → \ST(𝓂 )(B))
-γ(f) ≔ γₘ(f ∘ mapₛₛ(unitₚ))
 
 MonadSmallStep(𝓂 )(𝒮𝒮) ∧ (\PM ∘ 𝒮𝒮) α⇄ γ (𝒮𝒮 ∘ \PM)
 -------------------------------------
@@ -1056,19 +1063,6 @@ MonadSmallStep(\ST(𝓈)(𝓂 ))(𝒮𝒮(\_ × 𝓈))
 γ : ∀ (A B : Set), (𝒮𝒮(A × 𝓈) → 𝒮𝒮(B × 𝓈)) → (A → \ST(𝓈)(𝓂 )(B))
 γ(f) ≔ λ(a,𝓈) → γₘ (f)(a,s)
 \end{verbatim}
-
-% }}}
-
-% Propositions {{{
-
-\section{Propositions}
-\label{section:Proofs:Propositions}
-
-\begin{itemize}
-\item $\PT$ and $\ST$ are Galois Functors.
-\item $\PT$ and $\ST$ are MonadStep Functors.
-\item 𝒜  and 𝒞 are monotonic (including in 𝓂 ).
-\end{itemize}
 
 % }}}
 
