@@ -18,17 +18,15 @@
 
 The field of static analysis offers many techniques for automatically discovering facts about programs.
 For example, a static analysis might be used to verify that a program is memory safe, or that it obeys a privacy policy.
-Techniques based on abstract interpretation allow the analysis designer to vary some properties of an analysis.
-However, features like context, object, and flow sensitivity are often hard-coded into a given analysis framework.
-One option for altering such features is to redesign an analysis from scratch.
-Unfortunately, designing new analyses is a difficult and error-prone process.
-Abstracting Abstract Machines (AAM) is a methodology for building analyses which simplifies this process by adhering to a restricted design philosophy.
-However, AAM lacks reusable tools for building analyses, and not all analysis features fit nicely into the framework.
+Techniques based on Abstract Interpretation (AI) allow the analysis designer to vary some properties of an analysis.
+However, features like context, object, and flow sensitivity must be hard-coded into an analysis based on classic AI.
+Abstracting Abstract Machines (AAM) is one design methodology for analysis which exposes more of these features as tuning knobs.
+Unfortunately, AAM lacks reusable tools for building analyses, and not all analysis features fit nicely into the framework.
 
-We propose a new framework which gives the analysis designer compositional building blocks for designing analyses, and which supports one key feature missing in AAM: abstract control.
-We achieve compositionality by refactoring AAM into monad transformers which can be related back to abstract state machines.
+We propose a new compositional framework for designing analyses, and one which supports a tuning knob missing from AAM: abstract control.
+We achieve compositionality by refactoring AAM into monad transformers, each of which we relate back to abstract state machines.
 When put together, these monad transformers form analyses which are correct by construction.
-Using these building blocks we are able to uncover a new tuning knob for static analyses which we call abstract control.
+Furthermore, the monadic abstraction allows us to recover a tuning knob for abstract control when designing analyses.
 Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
 
 \end{abstract}
@@ -40,157 +38,73 @@ Abstract control allows one to adjust the flow and path sensitivity of an analys
 \section{Introduction}
 \label{section:Introduction}
 
-% A static analysis has two components: 
-% \begin{itemize}
-% \item A \emph{computation} which computes some set of facts about the execution of a program.
-% \item A \emph{proof of correctness} about the computation.
-% \end{itemize}
-% 
-% We are motivated by static analysis techniques which are:
-% \begin{itemize}
-% \item Compartmental: Various aspects of the analysis have been separated from each other and are understood in isolation.
-% \item Modular: Design choices in one aspect of the analysis do not restrict design choices of another.  
-%       This property is important for both computational and correctness components of an analysis.
-% \item Language Agnostic: A given analysis technique can be seamlessly transfered from one semantics to another.
-% \item Correct: The proof of correctness should exist, and there should be a framework for establishing it.
-% \item Derived: Either the computational artifact or the correctness proof should be obtained "for free" from the other.
-% \end{itemize}
-% 
-% Our framework compartmentalizes:
-% \begin{itemize}
-% \item Abstract domain a la Cousot.
-% \item Abstract time and address a la Van Horn and Might.
-% \item Intensional optimizations a la Van Horn and Might. 
-% \item Object-sensitivity a la Smaragdakis.
-% \item Analysis control properties.
-% \end{itemize}
-% 
-% Our framework is:
-% \begin{itemize}
-% \item Compartmental: Each of the above concerns are separated and independent.
-% \item Modular: Design choices in one axis is completely independent of others
-% \item Language Agnostic: All axis other than abstract domain are fully language agnostic.
-% \item Correct: A correctness framework is described and each axis is proven correct in isolation.
-% \item Derived: The correctness of an analysis using our framework comes for free.
-% \end{itemize}
-% 
-% Analysis control properties are the primary topic of this work.
-% We merely note that the other axis in the design space are implemented in our framework using existing techniques.
-% 
-% Contributions:
-% \begin{itemize}
-% \item Computational artifacts and correctness proofs for the axis of abstract control, which captures the choice of flow and path sensitivity.
-% \item Computational artifacts and correctness proofs for intensional optimizations (gargabe collection and mcfa) independent of abstract control.
-% \item Language independent proofs of refinement for flow-sensitivity and path-sensitivity choices using the monadic abstraction.
-% \end{itemize}
- 
+Static analysis is useful for many different situations.
+A software developer might use an analysis to find bugs in a program.
+A software merchant might use an analysis to detect malware or other security vulnerabilities in software hosted by their app store.
+A manufacturer might use an analysis to establish high assurance in the reliability of control software for a car or airplane.
+Each of these situations requires a different type of analysis.
+To meet the needs of a given problem, an analysis designer has two options: retrofit an existing analysis or design one from scratch.
+However, retrofitting an existing analysis might be insufficient because the tension between precision and performance is often too high.
+Getting an analysis right might require more modification than an existing analysis was designed to support.
+Because of this, complex analyses often need to be designed from scratch, and analysis designer need tools to help them with this process.
+
+Designing a static analysis is hard.
+Designing \emph{the right} static analysis is even more difficult.
+One possible process for arriving at the right static analysis is:
+\begin{enumerate}
+\item Describe the semantics of your language.
+\item Design an analysis \emph{which might have the right properties}.
+\item Exercise the analysis.
+\item If the analysis is too slow or imprecise: repeat from 2.
+\end{enumerate}
+To get a complex analysis right this process must be repeated multiple times.
+Iterating quickly between the design and exercise of an analysis is the key to getting the analysis you wanted without too much pain.
+
+One methodology which aims to ease the design process for static analysis is the Abstracting Abstract Machines (AAM) framework\cite{AAM}.
+AAM separates two design steps which are traditionally tightly coupled: describing features of interest and abstracting those features.
+Furthermore, AAM shows that the abstraction step is systematic, freeing the analysis designer to spend effort in designing features of interest.
+However, AAM doesn't provide reusable tools for the design process; the analysis designer must describe their state space transition from scratch.
+Additionally, some analysis features like flow and path sensitivity don't fit nicely into the AAM framework.
+
+We propose a new compositional framework for designing analyses, and one which supports a tuning knob missing from AAM: abstract control.
+To achieve this we refactor AAM into monad transformers.
+Using monad transformers, the analysis designer can easily add and remove features from their semantics independently of other features.
+The monadic abstraction also allows us to recover a tuning knob for abstract control.
+Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
+
+To justify the soundness of the approach, we show that the monad transformers we use are also galois connection transformers.
+This means that any combination of our monad transformers will yield a sound approximation of a state machine semantics.
+
+Our contributions in this work are:
+\begin{enumerate}
+\item A monadic formulation of AAM which exposes abstract control as a tuning knob.
+\item A compositional \emph{implementation} framework for building AAM machines using monad transformers.
+\item A compositional \emph{proof} framework for justifying the correctness off AAM machines using galois connection transformers.
+\item A new monad transformer for nondeterminism which satisfies the compositional interface of our framework.
+\end{enumerate}
+
+The rest of the paper is structured as follows:
+Section \section{Background} covers necessary background material in semantics, analysis, and the CPS language which we use for examples.
+Section \section{MAAM} demonstrates a monadic variant of AAM which supports defining compositional interpreters for analysis.
+Section \section{AbstractControl} discusses abstract control and how we exploit the monadic abstraction to allow tuning it.
+Section \section{Optimizations} gives two examples of analysis optimizations and how they adapt seamlessly to variations in abstract control.
+Section \section{Correctness} discusses the correctness framework and what key lemmas are involved.
+Section \section{Proofs} shows proof steps in more detail for the arguments made in section \section{Correctness}.
+Sections \section{FutureWork} and \section{RelatedWork} discuss future and related work, and \section{Conclusion} concludes.
+
 % }}}
 
 % Background {{{
 \section{Background}
 \label{section:Background}
+% * Background
+%   - Small Step Semantics
+%     - CPS Language
+%   - Abstract Interpretation (Galois Connections)
+%     - Control Flow Analysis
+%   - AAM
+%   - Monads and Monad Transformers
  
-% Notation {{{
-\subsection{Notation}
-\label{section:Background:Notation}
-
-We use traditional notation for function definitions and applications rather than lambda calculus notation.
-For example, we will write:
-\begin{equation*}
-compose(g, f, x) ≔ g(f(x))
-\end{equation*}
-rather than:
-\begin{equation*}
-compose\; g\; f\; x ≔ g\; (f\; x)
-\end{equation*}
-
-We use lambda notation for anonymous functions.
-For example, the anonymous composition function is written:
-\begin{equation*}
-λ(g, f, x) → g(f(x))
-\end{equation*}
-
-% }}}
-
-% Monads {{{
-\subsection{Monads}
-\label{section:Background:Monads}
-
-A basic familiarity with the concept of monads will be necessary for understanding this paper.
-Some find it useful to review the concept of functor before learning about monads. 
-We adopt this approach for our brief explanation of monads.
-
-A type $(F : Set → Set)$ is called a \emph{functor} if one can:
-\begin{itemize}
-\item Define $map : ∀ (A, B : Set), (A → B) → (F(A) → F(B))$
-\item Prove $map(id) = id$, where $id$ is the identity function $(λ(x) → x)$
-\item Prove $map (g ∘ f) = map(g) ∘ map(f)$
-\end{itemize}
-
-\paragraph{Example:} 
-Lists are functors, where $map$ is defined:
-\begin{align*}
-    map(f)(xs) ≔ &\case(xs):           \\
-          Nil    &→ Nil                \\
-         x ∷ xs' &→ f(x) ∷ map(f)(xs') \\
-\end{align*}
-
-\paragraph{Example:} $map(isEven)([1, 2, 3, 4]) = [False, True, False, True]$
-
-Likewise a type $(ℳ  : Set → Set)$ is called a \emph{monad} if one can:
-\begin{itemize}
-\item Define $extend : ∀ (A, B : Set), (A → ℳ (B)) → (ℳ (A) → ℳ (B))$
-\item Prove unit and associativity laws (not mentioned here).
-\end{itemize}
-The only difference from the definition of functor is in the the first argument.
-For monads, this argument is allowed to be a \emph{monadic} $(A → ℳ (B))$, rather than a pure function $(A → B)$.
-
-\paragraph{Example:} Lists are monads, where $extend$ is defined:
-\begin{align*}
-    extend(f)(xs) ≔ &\case(xs):              \\
-                Nil &→ Nil                   \\
-            x ∷ xs' &→ f(x) ⧺ extend(f)(xs') \\
-\end{align*}
-
-\paragraph{Example:} 
-$extend(λ(x) → [x + 1, x - 1])([10, 100]) = [9, 11, 99, 101]$
-
-$extend$ for lists can also be understood as $concat$ followed by $map$:
-\paragraph{Example:} 
-\begin{align*}
-extend(f)([10, 100]) &= concat(map(f)([10, 100]))    \\
-                     &= concat([[9, 11], [99, 101]]) \\
-                     &= [9, 11, 99, 101]             \\
-\end{align*}
-For all monads, it is equivalent to define $return$, $map$ and $join$, where:
-\begin{equation*}
-join : ∀ (A : Set), ℳ (ℳ (A)) → ℳ (A)
-\end{equation*}
-As we have just seen, $join$ for the list monad is just $concat$.
-
-% }}}
-
-% Monad Transformers {{{
-\subsection{Monad Transformers}
-\label{section:Background:MonadTransformers}
-
-Monad transformers are functions between monads.
-Where a monad $ℳ $ will have type $Set → Set$, a monad transformer $𝒯$ will have type $(Set → Set) → (Set → Set)$.
-
-Monad transformers are used to extend an existing monad to support another effect.
-The three monads used in this work are the state monad, powerset monad, and the identity monad.
-The state monad is notated $\SM(𝓈)$ (carrying a single cell of type $𝓈$), the powerset monad is notated $\PM$, and the identity is notated $ID$.
-The state and powerset monad transformer equivalents are notated $\ST(𝓈)(ℳ )$ and $\PT(ℳ )$ where $ℳ $ is the underlying monad.
-The state monad has $get$ and $put$ effects, whereas the powerset monad has a $nondeterminism$ effect.
-The transformer versions of both of these monads allow you to combine effects piecewise.
-
-\paragraph{Example:}
-$\ST(ℤ)(\PT(ID))$ is a monad which has $get$ and $put$ effects for a single cell of integer state, in addition to nondeterminism effects.
-
-The definitions, details and proofs of all monads used in our work are given in section \ref{section:Proofs}.
-
-% }}}
-
 % Small Step Semantics {{{
 \subsection{Small-Step Semantics}
 \label{section:Background:SmallStepSemantics}
@@ -205,6 +119,29 @@ Small-step operational methods side-step the need for such machinery.
 
 The small-step operation framework supports arbitrary step relations $e ↦ e'$.  
 However for our purposes $↦$ will be always be a function-like form of \emph{decidable} relation, i.e. a multifunction.
+
+% }}}
+
+% CPS {{{
+\subsection{Continuation Passing Style}
+\label{section:Background:ContinuationPassingStyle}
+
+We use CPS-IF as an example language to demonstrate the benefits of our framework.
+CPS is a syntactically restricted version of the lambda calculus.
+CPS-IF is an extension of CPS with conditionals.
+We choose CPS because the state machine for the semantics of CPS requires no call stack.
+We add conditionals to make things slightly more interesting.
+
+We define the CPS-IF language as follows:
+\input{snips/CPS-IF.tex}
+
+CPS-IF supports integer and boolean literals, addition and subtraction by 1, and testing if an integer is greater than or equal to zero.
+The essence of CPS is in the syntactic restriction on application forms $a(a)$ and $a(a,a)$.  
+Because $a$ cannot be a nested call expression, evaluating a $Call$ requires no evaluation stack.
+
+All lambda calculus terms can be translated to CPS terms through CPS-conversion.
+However, because lambda calculus terms are much easier to read, we will use lambda calculus terms for examples.
+We display the CPS-converted version of examples where appropriate.
 
 % }}}
 
@@ -335,29 +272,6 @@ Tightness tells us that our abstract step function isn't losing precision unnece
 
 % }}}
 
-% CPS {{{
-\subsection{Continuation Passing Style}
-\label{section:Background:ContinuationPassingStyle}
-
-We use CPS-IF as an example language to demonstrate the benefits of our framework.
-CPS is a syntactically restricted version of the lambda calculus.
-CPS-IF is an extension of CPS with conditionals.
-We choose CPS because the state machine for the semantics of CPS requires no call stack.
-We add conditionals to make things slightly more interesting.
-
-We define the CPS-IF language as follows:
-\input{snips/CPS-IF.tex}
-
-CPS-IF supports integer and boolean literals, addition and subtraction by 1, and testing if an integer is greater than or equal to zero.
-The essence of CPS is in the syntactic restriction on application forms $a(a)$ and $a(a,a)$.  
-Because $a$ cannot be a nested call expression, evaluating a $Call$ requires no evaluation stack.
-
-All lambda calculus terms can be translated to CPS terms through CPS-conversion.
-However, because lambda calculus terms are much easier to read, we will use lambda calculus terms for examples.
-We display the CPS-converted version of examples where appropriate.
-
-% }}}
-
 % Control Flow Analysis {{{
 \subsection{Control Flow Analysis}
 \label{section:Background:ControlFlowAnalysis}
@@ -386,12 +300,96 @@ However our framework, and our implementation of it, scale to the full range of 
 
 % }}}
 
+% Monads {{{
+\subsection{Monads}
+\label{section:Background:Monads}
+
+A basic familiarity with the concept of monads will be necessary for understanding this paper.
+Some find it useful to review the concept of functor before learning about monads. 
+We adopt this approach for our brief explanation of monads.
+
+A type $(F : Set → Set)$ is called a \emph{functor} if one can:
+\begin{itemize}
+\item Define $map : ∀ (A, B : Set), (A → B) → (F(A) → F(B))$
+\item Prove $map(id) = id$, where $id$ is the identity function $(λ(x) → x)$
+\item Prove $map (g ∘ f) = map(g) ∘ map(f)$
+\end{itemize}
+
+\paragraph{Example:} 
+Lists are functors, where $map$ is defined:
+\begin{align*}
+    map(f)(xs) ≔ &\case(xs):           \\
+          Nil    &→ Nil                \\
+         x ∷ xs' &→ f(x) ∷ map(f)(xs') \\
+\end{align*}
+
+\paragraph{Example:} $map(isEven)([1, 2, 3, 4]) = [False, True, False, True]$
+
+Likewise a type $(ℳ  : Set → Set)$ is called a \emph{monad} if one can:
+\begin{itemize}
+\item Define $extend : ∀ (A, B : Set), (A → ℳ (B)) → (ℳ (A) → ℳ (B))$
+\item Prove unit and associativity laws (not mentioned here).
+\end{itemize}
+The only difference from the definition of functor is in the the first argument.
+For monads, this argument is allowed to be a \emph{monadic} $(A → ℳ (B))$, rather than a pure function $(A → B)$.
+
+\paragraph{Example:} Lists are monads, where $extend$ is defined:
+\begin{align*}
+    extend(f)(xs) ≔ &\case(xs):              \\
+                Nil &→ Nil                   \\
+            x ∷ xs' &→ f(x) ⧺ extend(f)(xs') \\
+\end{align*}
+
+\paragraph{Example:} 
+$extend(λ(x) → [x + 1, x - 1])([10, 100]) = [9, 11, 99, 101]$
+
+$extend$ for lists can also be understood as $concat$ followed by $map$:
+\paragraph{Example:} 
+\begin{align*}
+extend(f)([10, 100]) &= concat(map(f)([10, 100]))    \\
+                     &= concat([[9, 11], [99, 101]]) \\
+                     &= [9, 11, 99, 101]             \\
+\end{align*}
+For all monads, it is equivalent to define $return$, $map$ and $join$, where:
+\begin{equation*}
+join : ∀ (A : Set), ℳ (ℳ (A)) → ℳ (A)
+\end{equation*}
+As we have just seen, $join$ for the list monad is just $concat$.
+
+% }}}
+
+% Monad Transformers {{{
+\subsection{Monad Transformers}
+\label{section:Background:MonadTransformers}
+
+Monad transformers are functions between monads.
+Where a monad $ℳ $ will have type $Set → Set$, a monad transformer $𝒯$ will have type $(Set → Set) → (Set → Set)$.
+
+Monad transformers are used to extend an existing monad to support another effect.
+The three monads used in this work are the state monad, powerset monad, and the identity monad.
+The state monad is notated $\SM(𝓈)$ (carrying a single cell of type $𝓈$), the powerset monad is notated $\PM$, and the identity is notated $ID$.
+The state and powerset monad transformer equivalents are notated $\ST(𝓈)(ℳ )$ and $\PT(ℳ )$ where $ℳ $ is the underlying monad.
+The state monad has $get$ and $put$ effects, whereas the powerset monad has a $nondeterminism$ effect.
+The transformer versions of both of these monads allow you to combine effects piecewise.
+
+\paragraph{Example:}
+$\ST(ℤ)(\PT(ID))$ is a monad which has $get$ and $put$ effects for a single cell of integer state, in addition to nondeterminism effects.
+
+The definitions, details and proofs of all monads used in our work are given in section \ref{section:Proofs}.
+
+% }}}
+
 % }}}
 
 % Monadic AAM {{{
 
 \section{Monadic AAM}
 \label{section:MonadicAAM}
+%* Monadic AAM
+%  - 0CFA Before Monads
+%  - 0CFA After Monads
+%  - Recovering the Previous Analysis
+
 
 Monadic abstract interpretation[Sergey et al. PLDI 2013] demonstrated that abstract interpreters can be built modularly using a monadic abstraction.
 We build directly on this work at the level of intuition—monads serve as our pivot-point for achieving modularity.
@@ -526,6 +524,11 @@ On top of the convenience of writing things monadically, our insight and contrib
 % Abstract Control {{{
 \section{Abstract Control}
 \label{section:AbstractControl}
+%* Abstract Control
+%  - Axiomatize monadic interface
+%  - Build interface from legos
+%  - Swapping the legos gives you PS - FS - FI
+
 
 The current instantiation of ℳ  yields a flow-sensitive path-sensitive analysis.  
 Consider a reordering of the powerset\footnote{
@@ -559,9 +562,12 @@ The flow-sensitive path-insensitive variant is recovered by weakening this isomo
 % }}}
 
 % Intensional Optimizations {{{
-
 \section{Intensional Optimizations}
 \label{section:IntensionalOptimizations}
+% * Intensional Optimizations
+%   - Garbage Collection
+%   - MCFA
+
 
 Up to this point we have factored the abstract control properties of static analysis behind a common interface.  
 Now we show how to implement two intentional optimizations, abstract garbage collection and mcfa, in a completely general setting.
@@ -618,10 +624,16 @@ More importantly, the correctness of these optimizations can be established gene
 
 % }}}
 
-% Correctness Framework {{{
+% Correctness {{{
 
 \section{Correctness}
 \label{section:Correctness}
+% * Correctness
+%   - All Legos give correct analyses
+%   - Nondeterminism MT
+%   - Monad Transformers relate to state machine functors.
+%   - Galois connections with functors for α γ maps
+
 
 The key advantage to our framework is that the proofs of correctness for constructed analyses are derived automatically.
 To establish the correctness of the monadic approach, we do not merely inline the definitions and resort to reasoning about fully instantiated instances of monadic definitions.
@@ -673,8 +685,49 @@ This is only possible because all proofs have been decomposed to the unit of mon
 
 % }}}
 
-% Proofs {{{
+% Future Work {{{
+\section{Future Work}
+\label{FutureWork}
+% * Future Work:
+%   - Verified compilation:
+%     + CompCert, but whole program analysis, functional languages.
+%     + Requires embedding whole framework in proof assistant.
+%     + Mechanizing galois connections is hard, because of calculation.
+%   - More knobs for analysis:
+%     + Lexical Time
+%     + Object sensitivity for functional languages.
+%   - Denotational variants of MAAM
+%     + Picking small-step semantics has consequences.
+%     + Add MonadFix to effects, show a memoizing fixpoint is an abstraction of Y.
 
+% }}}
+
+% Related Work {{{
+\section{Related Work}
+\label{RelatedWork}
+% * Abstract Control:
+%   - Johnson and Van Horn. 2014. Abstracting Abstract Control.
+%     + Discusses push-down as the missing knob.
+%     + Different knob settings for the same knob; hopefully they can be combined.
+% * Compositional Analysis Design: Calculational AI:
+%   - Cousot. 1999. The calculational design of a generic abstract interpreter.
+%     + Works for anything in principle, but hasn't been demonstrated.
+%   - Midgaard and Jensen. 2008. A Calculational Approach to Control-flow Analysis by Abstract Interpretation.
+%     + Calculation is hard; maybe proof assistants can help with this.
+% * New knobs: object sensitivity:
+%   - Kastrinis and Smaragdakis. 2013. Hybrid Context-Sensitivity for Points-To Analysis.
+% * Using Path Sensitivity: 
+%   - Das et al. 2002. ESP: Path-Sensitive Program Verification in Polynomial Time.
+
+% }}}
+
+% Conclusion {{{
+\section{Conclusion}
+\label{Conclusion}
+
+% }}}
+
+% Proofs {{{
 \section{Proofs}
 \label{section:Proofs}
 

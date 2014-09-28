@@ -18,7 +18,7 @@ open: darais-quals.pdf
 	open ./darais-quals.pdf
 
 clean:
-	rm *.aux *.log *.bbl *.blg *.bib *.pyg *.toc darais-quals.pdf
+	rm -f *.aux *.log *.bbl *.blg *.bib *.pyg *.toc darais-quals.pdf
 
 touch:
 	touch darais-quals.tex
