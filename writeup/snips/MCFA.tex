@@ -1,0 +1,8 @@
+\begin{align*}
+clo-copy    &: Lam → ℳ (Clo)                               \\
+clo-copy(l) &≔ \ddo                                        \\
+            &\llet ys ≔ \operatorname{free-vars}(l)        \\
+            &vs ← map^{⋆}(lookup)(ys)                      \\
+            &ρ ← \{ y ↦^{⋆} v \;|\; (y,v) ∈ zip(ys, vs) \} \\
+            &\return(<l,ρ>)                                \\
+\end{align*}

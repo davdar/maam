@@ -23,9 +23,9 @@ However, features like context, object, and flow sensitivity must be hard-coded 
 Abstracting Abstract Machines (AAM) is one design methodology for analysis which exposes more of these features as tuning knobs.
 Unfortunately, AAM lacks reusable tools for building analyses, and not all analysis features fit nicely into the framework.
 
-We propose a new compositional framework for designing analyses, and one which supports a tuning knob missing from AAM: abstract control.
+We propose a new compositional framework for designing analyses which supports a tuning knob missing from AAM: abstract control.
 We achieve compositionality by refactoring AAM into monad transformers, each of which we relate back to abstract state machines.
-When put together, these monad transformers form analyses which are correct by construction.
+When put together, these monad transformers build analyses which are correct by construction.
 Furthermore, the monadic abstraction allows us to recover a tuning knob for abstract control when designing analyses.
 Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
 
@@ -44,7 +44,7 @@ A software merchant might use an analysis to detect malware or other security vu
 A manufacturer might use an analysis to establish high assurance in the reliability of control software for a car or airplane.
 Each of these situations requires a different type of analysis.
 To meet the needs of a given problem, an analysis designer has two options: retrofit an existing analysis or design one from scratch.
-However, retrofitting an existing analysis might be insufficient because the tension between precision and performance is often too high.
+Retrofitting an existing analysis can be insufficient because the tension between precision and performance is often too high.
 Getting an analysis right might require more modification than an existing analysis was designed to support.
 Because of this, complex analyses often need to be designed from scratch, and analysis designer need tools to help them with this process.
 
@@ -53,7 +53,7 @@ Designing \emph{the right} static analysis is even more difficult.
 One possible process for arriving at the right static analysis is:
 \begin{enumerate}
 \item Describe the semantics of your language.
-\item Design an analysis \emph{which might have the right properties}.
+\item Design an analysis which you hope has right properties.
 \item Exercise the analysis.
 \item If the analysis is too slow or imprecise: repeat from 2.
 \end{enumerate}
@@ -63,13 +63,13 @@ Iterating quickly between the design and exercise of an analysis is the key to g
 One methodology which aims to ease the design process for static analysis is the Abstracting Abstract Machines (AAM) framework\cite{AAM}.
 AAM separates two design steps which are traditionally tightly coupled: describing features of interest and abstracting those features.
 Furthermore, AAM shows that the abstraction step is systematic, freeing the analysis designer to spend effort in designing features of interest.
-However, AAM doesn't provide reusable tools for the design process; the analysis designer must describe their state space transition from scratch.
+However, AAM doesn't provide reusable tools for the design process; the analysis designer must describe their state machine transition from scratch.
 Additionally, some analysis features like flow and path sensitivity don't fit nicely into the AAM framework.
 
-We propose a new compositional framework for designing analyses, and one which supports a tuning knob missing from AAM: abstract control.
+We propose a new compositional framework for designing analyses which supports a tuning knob missing from AAM: abstract control.
 To achieve this we refactor AAM into monad transformers.
 Using monad transformers, the analysis designer can easily add and remove features from their semantics independently of other features.
-The monadic abstraction also allows us to recover a tuning knob for abstract control.
+The monadic abstraction additionaly exposes a new tuning knob for analyses which we call abstract control.
 Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
 
 To justify the soundness of the approach, we show that the monad transformers we use are also galois connection transformers.
@@ -78,19 +78,19 @@ This means that any combination of our monad transformers will yield a sound app
 Our contributions in this work are:
 \begin{enumerate}
 \item A monadic formulation of AAM which exposes abstract control as a tuning knob.
-\item A compositional \emph{implementation} framework for building AAM machines using monad transformers.
-\item A compositional \emph{proof} framework for justifying the correctness off AAM machines using galois connection transformers.
-\item A new monad transformer for nondeterminism which satisfies the compositional interface of our framework.
+\item A compositional analysis \emph{implementation} framework for building abstract state machines using monad transformers.
+\item A compositional analysis \emph{proof} framework for justifying the correctness of abstract state machines using galois connection transformers.
+\item A new monad transformer for nondeterminism which is the key to recovering abstract control as a tuning knob.
 \end{enumerate}
 
 The rest of the paper is structured as follows:
-Section \section{Background} covers necessary background material in semantics, analysis, and the CPS language which we use for examples.
-Section \section{MAAM} demonstrates a monadic variant of AAM which supports defining compositional interpreters for analysis.
-Section \section{AbstractControl} discusses abstract control and how we exploit the monadic abstraction to allow tuning it.
-Section \section{Optimizations} gives two examples of analysis optimizations and how they adapt seamlessly to variations in abstract control.
-Section \section{Correctness} discusses the correctness framework and what key lemmas are involved.
-Section \section{Proofs} shows proof steps in more detail for the arguments made in section \section{Correctness}.
-Sections \section{FutureWork} and \section{RelatedWork} discuss future and related work, and \section{Conclusion} concludes.
+Section \ref{Background} covers necessary background material in semantics, analysis, and the CPS language which we use for examples.
+Section \ref{MAAM} demonstrates a monadic variant of AAM which supports defining compositional interpreters for analysis.
+Section \ref{AbstractControl} discusses abstract control and how we exploit the monadic abstraction to expose a tuning knob for it.
+Section \ref{Optimizations} gives two examples of analysis optimizations and how they adapt seamlessly to variations in abstract control.
+Section \ref{Correctness} discusses the correctness framework and what key lemmas are involved.
+Section \ref{Proofs} shows proof steps in more detail for the arguments made in section \ref{Correctness}.
+Sections \ref{RelatedWork} and \ref{FutureWork} discuss relate and future work, and section \ref{Conclusion} concludes.
 
 % }}}
 
@@ -391,132 +391,78 @@ The definitions, details and proofs of all monads used in our work are given in 
 %  - Recovering the Previous Analysis
 
 
-Monadic abstract interpretation[Sergey et al. PLDI 2013] demonstrated that abstract interpreters can be built modularly using a monadic abstraction.
-We build directly on this work at the level of intuition—monads serve as our pivot-point for achieving modularity.
-However, in our pursuit of a modular correctness framework, our approach deviates greatly from prior work in the specific interfaces used.
+Monadic abstract interpretation[Sergey et al. PLDI 2013] demonstrated that abstract interpreters can be built using a monadic abstraction.
+We build directly on the intuition of this work: monadic interpreters are easier to develop than state machines.
+However, our approach takes this idea further in pursuit of a more compositional framework.
 
-First we demonstrate a simple 0CFA analysis on CPS-IF which doesn't use our framework.
-The CPS-IF language is introduced in section \ref{section:Background:ContinuationPassingStyle}.
+First we demonstrate a simple 0CFA analysis on CPS-IF using classic AAM.
+The CPS-IF language is introduced in section \ref{CPS}.
 We repeat the definition here for convenience.
 \input{snips/CPS-IF.tex}
 
-Our abstract semantics of 0CFA will track literals (including lambdas) that appear in the program text.
+The abstract semantics of 0CFA will track literals (including lambdas) that appear in the program text.
 For integers that do not appear in the program text, the analysis uses a single token $INT$ which conservatively approximates any possible integer.
+We note that many more abstractions of integers are possible, like range analysis or relational integer analysis.
+These decisions do not interfere with AAM or abstract control, so we do not discuss them for simplicity.
+
 Formally, the state space $Σ$ for the abstract machine of the abstract semantics is defined as:
-\begin{align*}
-v : \AVal   &⩴ \INT \;|\; l \;|\; \lam(x) → c \;|\; \lam(x,k) → c \\
-σ : \AStore &≔ Var → \PM(\AVal)                                   \\
-Σ           &≔ \PM(Call × \AStore)                                \\
-\end{align*}
-Because there are a finite many literals in the program text, we can claim there are a finite number of possible abstract values.
+\input{snips/CPS-IF-Sigma.tex}
+Because there are finite many literals in the program text, we can claim that $\AVal$ and $\AStore$ are finite.
 
 The abstract semantics for $Σ$ comes in two parts.  
 First we define a \emph{denotation function} $𝒜 $ for $Atom$ expressions.
-\begin{align*}
-𝒜                            &: \AStore × Atom → \PM(\AVal) \\
-𝒜 (σ,x)                      &≔ σ(x)                        \\
-𝒜 (σ,l)                      &≔ \{ l \}                     \\
-𝒜 (σ,\add a) | 𝒜 (σ,a) ⊑ INT &≔ \{ \INT \}                  \\
-𝒜 (σ,\sub a) | 𝒜 (σ,a) ⊑ INT &≔ \{ \INT \}                  \\
-𝒜 (σ,\gez a) | 𝒜 (σ,a) ⊑ INT &≔ \{ \TRUE , \FALSE \}        \\
-𝒜 (σ,\lam(x) → c)            &≔ \{ \lam(x) → c \}           \\
-𝒜 (σ,\lam(x)(k) → c)         &≔ \{ \lam(x)(k) → c \}        \\
-\end{align*}
+\input{snips/CPS-IF-A.tex}
 
 Second we define a \emph{step relation} (as a function) $𝒞$ for $Call$ expressions.
-\begin{align*}
-𝒞                        : &Call × \AStore → \PM(Call × \AStore)                                              \\
-𝒞(\iif(a)\{c₁\}\{c₂\},σ) ≔ &\{ (c,σ)                                                                          \\
-                           &|\; c ∈ ⋃ \{ \{ c₁ \;|\; \TRUE ∈ 𝒜 (σ,a) \}, \{ c₂ \;|\; \FALSE ∈ 𝒜 (σ,a) \} \} \\
-                           &\}                                                                                \\
-𝒞(a₁(a₂,a₃),σ)           ≔ &\{ (c,σ')                                                                         \\
-                           &|\; (\lam(x)(k) → c) ∈ 𝒜 (σ,a₁)                                                   \\
-                           &|\;             v₂ ∈ 𝒜 (σ,a₂)                                                     \\
-                           &|\;             v₃ ∈ 𝒜 (σ,a₃)                                                     \\
-                           &|\;             σ' ≔ σ ⊔ [x ↦ v₂] ⊔ [k ↦ v₃]                                      \\
-                           &\}                                                                                \\
-𝒞(\halt(a),σ)            ≔ &\{ (\halt(a),σ) \}                                                                \\
-\end{align*}
+\input{snips/CPS-IF-C.tex}
 (We omit the $(a₁(a₂))$ case. It is directly analogous to $(a₁(a₂,a₃))$).
 
-The complete analysis of a program $c$ is defined as the least fixed point of a \emph{collection semantics} for the relation $𝒞$:
+The complete analysis of an expression $e$ is defined as the least fixed point of a \emph{collection semantics} for the relation $𝒞$:
 \begin{align*}
-\text{analysis} ≔ μ(Σ) → \{(c,⊥)\} ⊔ 𝒞^{⋆}(Σ)
+\text{analysis} ≔ μ(Σ) → \{(e,⊥)\} ⊔ 𝒞^{⋆}(Σ)
 \end{align*}
 where
 \begin{align*}
 𝒞^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore) \\
-𝒞^{⋆}(Σ) &≔ ⋃ \{ 𝒞(c,σ) | (c,σ) ∈ Σ \}                  \\
+𝒞^{⋆}(Σ) &≔ ⋃ \{ 𝒞(e,σ) | (e,σ) ∈ Σ \}                  \\
 \end{align*}
 The collecting semantics tracks all states that the program could be in rather than just the final states.
 
-The first insight in monadic static analysis is to abbreviate the definitions of $𝒜 $ and $𝒞$ using a monad.
+The first insight in monadic abstract interpretation is to abbreviate the definitions of $𝒜 $ and $𝒞$ monadic state rather than explicit state-passing-style.
 At this point, the monad “trick” is nothing more than a technique to simplify the definition of $𝒜 $ and $𝒞$.
-This simplification is similar to how a functional programmer would use a state monad in place of state passing style.
 
-We wll use a powerset monad and state monad transformer to write the analysis in monadic style.
-The full definitions of the monads (and their proofs) used throughout this paper are defered to section \ref{section:Proofs}.
-Because monad transformers are just fancy names for simple types, we write the equivalent simple type underneath definitions which reference monad transformer.
-The monadic conversion of the above analysis is as follows.
-\begin{align*}
-ℳ     &: Set → Set                  \\
-ℳ (a) &≔ \ST(\AStore)(\PM)(a)       \\
-ℳ (a) &≔ \AStore → \PM(a × \AStore) \\
-\end{align*}
+We use a powerset monad underneath a state monad transformer to write the analysis in monadic style.
+\input{snips/CPS-IF-M.tex}
+The full definitions of the monads (and their proofs) used throughout this paper are defered to section \ref{Proofs}.
+Because monad transformers are just fancy names for simple types, we write the equivalent simple type underneath definitions which use monad transformer.
 
-\begin{align*}
-𝒜                &: Atom → ℳ (\PM(\AVal))                    \\
-𝒜 (x)            &≔ \ddo                                     \\
-                 &σ ← \getstore                              \\
-                 &\return(σ(x))                               \\
-𝒜 (l)            &≔ \return(\{l\})                              \\
-𝒜 ₘ(add1(a))     &≔ \ddo                                       \\
-                 &v ← 𝒜 (a)                                  \\
-                 &\return(\{\INT \;|\; ∃ i ⊑ \INT ∈ v\})              \\
-𝒜 ₘ(sub1(a))     &≔ \ddo                                       \\
-                 &v ← 𝒜 (a)                                  \\
-                 &\return(\{\INT \;|\; ∃ i ⊑ \INT ∈ v\})              \\
-𝒜 ₘ(gez(a))      &≔ \ddo                                       \\
-                 &v ← 𝒜 (a)                                  \\
-                 &\return(\{\TRUE, \FALSE \;|\; ∃ i ⊑ \INT ∈ v\})      \\
-𝒜 ₘ(\lam(x)(k) → c) &≔ \return(\{\lam(x)(k) → c\})                    \\
-\end{align*}
+The monadic conversion of $𝒜 $ interacts with the store $σ$ using get and put operations.
+\input{snips/CPS-IF-Am.tex}
 
-\begin{align*}
-𝒞                 &: Call → ℳ (Call)                         \\
-𝒞 (\iif(a)\{c₁\}\{c₂\}) &≔ \ddo                                      \\
-                  &vP ← 𝒜 (a)                                \\
-                  &v ← \liftpowerset(vP)                           \\
-                  &b ← \coercebool(v)                            \\
-                  &\return(\{ \text{if}\; b\; \text{then}\; c₁\; \text{else}\; c₂ \}) \\
-𝒞ₘ(a₁(a₂,a₃))     &≔ \ddo                                      \\
-                  &vP ← 𝒜 (a₁)                               \\
-                  &v ← \liftpowerset(vP)                           \\
-                  &(\lam(x)(k) → c) ← \coercefun(v)               \\
-                  &vP₂ ← 𝒜 (a₂)                              \\
-                  &vP₃ ← 𝒜 (a₃)                              \\
-                  &v₂ ← \liftpowerset(vP₂)                         \\
-                  &v₃ ← \liftpowerset(vP₃)                         \\
-                  &\modifystore(λ(σ) → σ ⊔ [x ↦ v₂] ⊔ [k ↦ v₃]) \\
-                  &\return(c)                                    \\
-\end{align*}
+The monadic conversion of $𝒞$ doesn't use monadic actions directly.
+\input{snips/CPS-IF-Cm.tex}
+The “effects” in $𝒞_{m}$ happen in its calls to $𝒜_{m}$, $\liftpowerset$, $\coercebool$ and $\coercefun$.
+$𝒜_{m}$ will have state effects and $\liftpowerset$, $\coercebool$ and $\coercefun$ will have nondeterminism effects.
 
-The monadic abstraction provides a nice way to simplify the implementation of the analysis.  
-In particular, cases which do not modify the store or only return one result.
-Both of these cases are instances of having "no effect", and they need not mentioned all members of the state machine.  
-(This was observed in Sergey et. al. PLDI 2013.)
+$\liftpowerset$, $\coercebool$ and $\coercefun$ use the nondeterminism monadic effect and are defined as follows:
+\input{snips/CPS-IF-P.tex}
+
+The monadic abstraction leads to a simplified definition of the analysis.
+This simplification becomes much more apparent as a state space grows to have more than two states.
+Metafunctions which interact with only one state component can be written generically to support any state space which has that component.
 
 As before, we must complete the analysis by building an abstract machine transition function:
 \begin{align*}
-𝒞^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore) \\
-𝒞^{⋆}(Σ) &≔ ⋃ \{ 𝒞(c)(σ) \;|\; (c,σ) ∈ Σ \}             \\
+𝒞_{m}^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore) \\
+𝒞_{m}^{⋆}(Σ) &≔ ⋃ \{ 𝒞_{m}(e)(σ) \;|\; (e,σ) ∈ Σ \}          \\
 \end{align*}
 
-Our current definition of $ℳ $ used recovers exactly the analysis we wrote before.
+Our current definition of $ℳ $ recovers exactly the analysis we wrote before.
 On top of the convenience of writing things monadically, our insight and contribution is twofold:
 \begin{itemize}
-\item $ℳ $ can be \emph{axiomatized}, such that different definitions for $ℳ $ give rise to different control abstractions for the analysis.
-\item The monadic abstraction provides for a modular proof framework for establishing the correctness of the analysis.
+\item State spaces $Σ$ can be defined and proven correct compositionally using monad transformers.
+\item $𝒞_{m}$ can be written generic to a monadic effect signature, rather than a specific monad.
+      Multiple different monads can be shown to meet this signature, and swapping the monad allows one to tune the flow and path sensitivity of an analysis.
 \end{itemize}
 
 % }}}
@@ -529,35 +475,28 @@ On top of the convenience of writing things monadically, our insight and contrib
 %  - Build interface from legos
 %  - Swapping the legos gives you PS - FS - FI
 
-
-The current instantiation of ℳ  yields a flow-sensitive path-sensitive analysis.  
-Consider a reordering of the powerset\footnote{
-  The definition of $\PT$ we use is non-traditional.  However, our definition
-  for $\PT$ is actually a monad, whereas traditional definitions are not.  Our
-  definition and proofs for $\PT$ are given in section \ref{section:Proofs}.
-}
-and state monad transformers:
+The current instantiation of ℳ  in our example happens to give a flow-sensitive path-sensitive analysis.
+Consider a reordering of powerset and state monad transformers:
 \begin{align*}
 ℳ     &: Set → Set                  \\
 ℳ (a) &≔ \PT(\SM(\AStore))(a)       \\
 ℳ (a) &≔ \AStore → \PM(a) × \AStore \\
 \end{align*}
-
 As before, we must convert between monadic actions and abstract state space transitions to achieve an analysis:
 \begin{align*}
-𝒞^{⋆}       &: \PM(Call) × \AStore → \PM(Call) × \AStore                                         \\
-𝒞^{⋆}(cP,σ) &≔ (\{ c' \;|\; c' ∈ π₁(𝒞(c))(σ) \;|\; c ∈ c\PM \}, ⋃ \{ π₂(𝒞(c))(σ) \;|\; c ∈ cP \}) \\
+𝒞_{m}^{⋆}       &: \PM(Call) × \AStore → \PM(Call) × \AStore                                              \\
+𝒞_{m}^{⋆}(cP,σ) &≔ (\{ e' \;|\; e' ∈ π₁(𝒞_{m}(e))(σ) \;|\; e ∈ e\PM \}, ⋃ \{ π₂(𝒞(e))(σ) \;|\; e ∈ cP \}) \\
 \end{align*}
-This instantiation of $ℳ $ and $𝒞*$ yields a flow-insensitive analysis.
-
-For the same monad $ℳ $, we can change the definition of $𝒞*$ to achieve a flow-sensitive path-insensitive analysis:
+This instantiation of $ℳ $ and $𝒞_{m}^{⋆}$ yields a flow-insensitive path-insensitive analysis.
+For the same monad $ℳ $, we can change the definition of $𝒞_{m}^{⋆}$ to achieve a flow-sensitive path-insensitive analysis:
 \begin{align*}
-𝒞^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore)             \\
-𝒞^{⋆}(Σ) &≔ \{ (c',π₂(𝒞(c))(σ)) \;|\; c' ∈ π₁(𝒞(c))(σ) \;|\; (c,σ) ∈ Σ \} \\
+𝒞_{m}^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore)                             \\
+𝒞_{m}^{⋆}(Σ) &≔ \{ (e',π₂(𝒞_{m}(e))(σ)) \;|\; e' ∈ π₁(𝒞_{m}(e))(σ) \;|\; (e,σ) ∈ Σ \} \\
 \end{align*}
+By altering the monad behind the abstraction, we are able to tune the path sensitivity of the analysis.
+For the path-insensitive monad, we were able to further alter the resulting state space $Σ$ to tune the flow sensitivity of the analysis.
 
-In the correctness framework, both the flow-sensitive path-sensitive analysis and flow-insensitive analyses are justified through isomorphisms between monadic actions and abstract state space transitions.  
-The flow-sensitive path-insensitive variant is recovered by weakening this isomorphism to a galois connection.
+% Talk about monad transformers as building blocks.  How these computations (and their proofs) fall out fully compositional components.
 
 % }}}
 
@@ -568,59 +507,105 @@ The flow-sensitive path-insensitive variant is recovered by weakening this isomo
 %   - Garbage Collection
 %   - MCFA
 
-
 Up to this point we have factored the abstract control properties of static analysis behind a common interface.  
 Now we show how to implement two intentional optimizations, abstract garbage collection and mcfa, in a completely general setting.
 
 \paragraph{Abstract Garbage Collection}
-Abstract garbage collection is a technique in abstract interpretation where unreachable abstract addresses are pruned from the state space.
+Abstract garbage collection is an optimization technique in abstract interpretation where unreachable abstract addresses are pruned from the state space.
 This is analagous to “real” garbage collection, where unreachable pointers are reclaimed for space efficiency.
-However, in abstract semantics, addresses are \emph{re-used} to soundly and finitely aproximate an infinite address space.
-Impreceision in control flow analyses arise when an abstract address present in the current store must be used for allocation.
-Abstract garbage collection is a purely precision and performance improving optimization which removes unreachable abstract addresses.
+However, in abstract semantics, live addresses are \emph{re-used} as part of the sound and finite approximation of an infinite address space.
+When a live address present in the heap must be used for allocation, a static analysis is forced to lose precision.
+Abstract garbage collection exploits the realization that these live addresses can be collected before they are reallocated, resulting in no loss of precision.
 
 For a generic implementation of garbage collection we assume an arbitrary $ℳ $ that has $get$, $put$ and nondeterminism effects.
-Using this axiomatized interface for $ℳ $, abstract garbage collection can be implemented once in a purely generic way.
-\begin{align*}
-gc    &: Call → ℳ (1)                                        \\
-gc(c) &≔ \ddo                                                  \\
-      &σ ← \getstore                                             \\
-      &𝓉₀ ← \touchedcall(c)                                           \\
-      &\llet 𝓉 ≔ μ(𝓉) → 𝓉 ⊔ \touchedvar(𝓉)                           \\
-      &\modifystore (λ(σ) → ⋃ \{ [x ↦ v] | x ∈ 𝓉 ∧ σ(x) = v \} ) \\
-\end{align*}
-This is literally the implementation of \emph{concrete} garbage collection.
-However, because we have not yet committed to the underlying monad, it seamlessly becomes abstract garbage collection when instantiated with the appropriate monad.
+This allows us to change the flow and path sensitivity of the garbage collection without having to reimplement that analysis.
+\input{snips/GC.tex}
+This is literally the implementation of \emph{concrete} garbage collection, but with control properties abstracted behind a monad.
+When instantiated with path-sensitive, flow-sensitive or flow insensitive monads, we can recover the appropriate version of control for abstract garbage collection.
+
+In the original AAM paper, abstract garbage collection is described using a path-sensitive CESK* machine.
+Later in the paper, the path-sensitive CESK* machine is abstracted to use a single global store, which yields a less precise but more tractable analysis.
+However, the single-store variant of the analysis requires one to repeat the “instrument then abstract” design process for abstract garbage collection.
+By abstracting control and exposing it as an orthogonal tuning knob, we are able to design flow and path sensitive variants of garbage collection at once.
 
 \paragraph{MCFA}
-MCFA is an optimization that improves the asymptotic complexity of context-sensitive control flow analyses.
-kCFA explodes exponentially for $k > 0$ in functional analyses, causing extremely poor analysis performance in the worst case.
-However, an apparent paradox was discovered as kCFA was proven to be polynomial in the worst case for object-oriented programs.
-MCFA resolved the paradox by identifying the difference in analyses and transfering the polynomial behavior to functional analysis.
+
+MCFA is an optimization that improves the asymptotic complexity of context-sensitive control flow analyses for functional languages.
+Context sensitive analysis were shown to be exponential for functional analyses, yet polynomial for OO analysis, creating an apparent paradox.
+MCFA resolves this paradox by identifying the difference in context sensitive analyses and porting the polynomial behavior from OO to functional analyses.
 The key insight of MCFA is to use packed, copied closures rather than linked closures in the abstract semantics.
+Like garbage collection, using packed rather than linked closures is a simple optimization a compiler or concrete interpreter might use to increase performance.
+Like \emph{abstract} garbage collection, transporting this simple idea from concrete to abstract interpreters reveals a surprising analysis optimization.
 
-So far our analysis has not used closures for abstract values; 0CFA only tracks lambdas without their closing context.
-Adding closures to abstract values is a straightforward addition to the examples we've shown.
-(Our implementation implements all of these features in full.)
+The examples so far have covered 0CFA, a context insensitive analysis.
+Before discussing MCFA, we add context sensitivity to our example analysis.
 
-The mcfa optimization of copying rather than linking closures similarly enjoys a fully generic implementation:
+To incorporate context sensitivity into the analysis we do the following:
+\begin{itemize}
+\item Add another state space component to $Σ$ for environments: $\AEnv$.
+      This environment will track which calling function is responsible for binding a given parameter.
+\item Capture this environment when evaluating $λ$ expressions, just like a concrete interpreter would for concrete environments.
+\item Add another state space component which tracks the program points visited so far by the program: $\ATime$.
+\item When interpreting a command $𝒞_{m}(e)$, move time forward by adding $e$ to the list of program points visited.
+\item When calling a function, record the current time next to the function arguments in the environment.
+\end{itemize}
+These steps have the effect of re-analyzing a function twice if it is called from two separate places.
+
+Changing the state space two have two new components is achieved by adding two more state effects two our monad, one for $\AEnv$ and one for $\ATime$:
 \begin{align*}
-  ρ : Env  &≔  Var ⇀ \widehat{Addr}                       \\
-clo : Clo  &⩴ <\lam(x) → c, ρ> \;|\; <\lam(x,k) → c, ρ>   \\
+  ρ : \AEnv &≔ Var ⇀ \ATime                              \\
+σ : \AStore &≔ (Var,\ATime) → \PM(\AVal)                 \\
+ τ : \ATime &≔ Call \;\text{(the last program location)} \\
+ f,g : Lam  &⩴ \lam(x) → e \;|\; \lam(x,k) → e           \\
+  clo : Clo &⩴ ⟨f, ρ⟩                                    \\
+  v : \AVal &⩴ l \;|\; clo \;|\; INT                     \\
 \end{align*}
 
+Capturing the environment when evaluating $λ$ expressions is a simple monadic action:
 \begin{align*}
-clo-copy    &: Lam → ℳ (Clo)                               \\
-clo-copy(l) &≔ \ddo                                        \\
-            &\llet ys ≔ \operatorname{free-vars}(l)        \\
-            &vs ← map^{⋆}(lookup)(ys)                      \\
-            &ρ ← \{ y ↦^{⋆} v \;|\; (y,v) ∈ zip(ys, vs) \} \\
-            &\return (l,ρ)                                 \\
+𝒜_{m}                &: Atom → ℳ (\PM(\AVal))      \\
+                 ... &                             \\
+𝒜_{m}(\lam(x) → e)   &≔ \ddo                       \\
+                     &ρ ← \getenv                  \\
+                     &\return (⟨\lam(x) → e, ρ⟩)   \\
+𝒜_{m}(\lam(x,k) → e) &≔ \ddo                       \\
+                     &ρ ← \getenv                  \\
+                     &\return (⟨\lam(x,k) → e, ρ⟩) \\
+                 ... &                             \\
+\end{align*}
+This is the “linked” implementation of closures, which MCFA will replace with a packed version.
+
+Moving abstract time forward is a simple update of the $\ATime$ state to be the current call expression:
+\begin{align*}
+   𝒞_{m}' &: Call → ℳ (Call) \\
+𝒞_{m}'(e) &≔ \ddo            \\
+          &\puttime(e)       \\
+          &𝒞_{m}(e)          \\
 \end{align*}
 
-Using existing techniques, these optimizations would need to be both implemented and proven correct for each instantiation of abstract control.
-Our generalization over abstract control allows us to implement each of these optimizations once.
-More importantly, the correctness of these optimizations can be established generically as well.
+Calling a function now uses time as an address for storing values in $\AStore$.
+\begin{align*}
+           𝒞_{m} &: Call → ℳ (Call)                            \\
+             ... &                                             \\
+𝒞_{m}(a₁(a₂,a₃)) &≔ \ddo                                       \\
+                 &vP ← 𝒜_{m}(a₁)                               \\
+                 &v ← \liftpowerset(vP)                        \\
+                 &(⟨\lam(x)(k) → e, ρ⟩) ← \coercefun(v)        \\
+                 &vP₂ ← 𝒜_{m}(a₂)                              \\
+                 &vP₃ ← 𝒜_{m}(a₃)                              \\
+                 &σ ← \getstore                                \\
+                 &τ ← \gettime                                 \\
+                 &\putenv(ρ[x ↦ τ][k ↦ τ])                     \\
+                 &\putstore(σ ⊔ [(x,τ) ↦ vP₂] ⊔ [(k,τ) ↦ vP₃]) \\
+                 &\return(e)                                   \\
+             ... &                                             \\
+\end{align*}
+
+Now that we have a context sensitive analysis, MCFA is implemented by creating a new packed environment, rather than just linking with the current environment:
+\input{snips/MCFA.tex}
+
+Like abstract garbage collection, our implementation of MCFA is tunable from one implementation which has abstracted control through a monad.
+Flow and path sensitive variants of MCFA fall out of a simple rearranging of the monad transformer stack.
 
 % }}}
 
@@ -635,12 +620,12 @@ More importantly, the correctness of these optimizations can be established gene
 %   - Galois connections with functors for α γ maps
 
 
-The key advantage to our framework is that the proofs of correctness for constructed analyses are derived automatically.
-To establish the correctness of the monadic approach, we do not merely inline the definitions and resort to reasoning about fully instantiated instances of monadic definitions.
-Instead, we relate monadic actions directly to abstract state space transitions for each monad transformer combination.
+The key advantage to our framework is that the proofs of correctness for constructed analyses are constructed compositionally and derived automatically.
+The proofs are compositional because they are established at the level of monad transformers, not hard-coded for a full monad stack.
+The proofs are derived automatically through the galois-functorality of the monad transformers we use; they transport galois connections in addition to monadic actions.
 Given these proofs, along with an argument about monotonicity of the monadic semantics, we can establish a proof of galois connection for any given interpreter instantiation.
 
-To relate back to small step semantics, we establish a galois connection between monadic actions in $ℳ $ and transitions functions for \emph{some} abstract state space $𝒮𝒮$.
+To relate back to abstract machine semantics, we establish a galois connection between monadic actions in $ℳ $ and transitions functions for \emph{some} abstract state space $𝒮𝒮$.
 This abstract state space is constructed from the monad transformer stack, although some transformer stacks support multiple abstract state spaces.
 This property is notated $(A → ℳ (B))\galois{α}{\gamma}(𝒮𝒮(A) → 𝒮𝒮(B))$.
 We call a particular monad $ℳ $ which enjoys this property a \emph{small-step monad}.
@@ -652,7 +637,7 @@ This means that for any stack of interleaving $\ST$ and $\PT$ monad transformers
 We prove that $\ST(𝓈)(\PM) ⊑ \PT(\SM(𝓈))$.
 These monad interleavings correspond to path-sensitivity and path-insensitivity respectively.
 
-For the $\PT(\SM(𝓈))$ monad, we show two galois connections are possible to the state space $\PM(\_ × 𝓈)$.
+For the $\PT(\SM(𝓈))$ monad, we show two galois connections are possible: one to the state space $\PM(\_ × 𝓈)$ and one to the state space $(\PM(\_) × 𝓈)$.
 These choices for galois connection correspond to flow-sensitivity and flow-insensitivity respectively.
 
 Independent of language or application we have proven:
@@ -661,44 +646,31 @@ flow-insensitive ⊑ flow-sensitive path-insensitive ⊑ flow-sensitive
 \end{align*}
 
 A given concrete semantics will always use the flow-sensitive path-sensitive monad.
-We can use this bridge to construct a galois connection between concrete and a flow-insensitive abstract semantics.
+Using this bridge we can construct a galois connection between concrete and a flow-insensitive abstract semantics with no added effort.
 
-When using our framework, the analysis designer need only prove prove:
+This table summarizes these results, showing both the monad $ℳ $ and state space $Σ$ which correspond to each analysis:
+\begin{center}\begin{tabular}{| c | c | c |}
+  \hline Sensitivity      & Path Sensitive                    & Path Insensitive                  \\
+  \hline Flow Sensitive   & $ℳ  ≔ S ∘ 𝒫$ \newline $Σ ≔ P ∘ ×$ & $ℳ  ≔ 𝒫 ∘ S$ \newline $Σ ≔ 𝒫 ∘ ×$ \\
+  \hline Flow Insensitive & $DNE$                             & $ℳ  ≔ × ∘ 𝒫$ \newline $Σ ≔ × ∘ 𝒫$ \\
+  \hline                                                                                          \\
+\end{tabular}\end{center}
+(We write $S and 𝒫$ to abbreviate the state and nondeterminism monad
+transformers, and $× and 𝒫$ to abbreviate the cartesian product and
+nondeterminism state space functors.)
+
+In summary, when using our framework, the analysis designer need only prove prove:
 \begin{itemize}
-\item The semantic step function $𝒞$ is monotonic.
+\item The semantic step function $𝒞_{m}$ is monotonic.
 \item The semantics as written, including intensional optimizations, are correct.
 \end{itemize}
 After supplying these proofs, the analysis designer enjoys:
 \begin{itemize}
-\item An automatically derived analysis for their language with their choice of abstract control.
+\item An automatically derived analysis for their language with abstract control left as a tuning knob.
 \item A proof-by-construction of galois connection (soundness and tightness) for the derived analysis.
-\item Seamless extensions to AAM and intensional optimizations (like gc or mcfa), which we demonstrate in our implementation.
+\item Easy integration of new analysis features, a la. AAM.
+\item Single-definition implementation of intensional optimizations like abstract garbage collection or MCFA.
 \end{itemize}
-
-Our proof technique is maximally modular in that new monads can be composed seamlessly into the framework with disruption.
-This modularity greatly reduces the proof burden on the analysis designer as new languages and analyses are developed.
-
-In practice, there will be many more state space components, like abstract time and abstract address in the AAM framework.
-To add these features, the analysis designer need only stack more state space monads together to augment the resulting abstract state machine.
-However, once monotonicity of the $𝒞$ action is established, both concrete and abstract interpreters can be derived for free.
-This is only possible because all proofs have been decomposed to the unit of monad transformer, and these extensions reduce to just adding more transformers to the stack.
-
-% }}}
-
-% Future Work {{{
-\section{Future Work}
-\label{FutureWork}
-% * Future Work:
-%   - Verified compilation:
-%     + CompCert, but whole program analysis, functional languages.
-%     + Requires embedding whole framework in proof assistant.
-%     + Mechanizing galois connections is hard, because of calculation.
-%   - More knobs for analysis:
-%     + Lexical Time
-%     + Object sensitivity for functional languages.
-%   - Denotational variants of MAAM
-%     + Picking small-step semantics has consequences.
-%     + Add MonadFix to effects, show a memoizing fixpoint is an abstraction of Y.
 
 % }}}
 
@@ -718,12 +690,100 @@ This is only possible because all proofs have been decomposed to the unit of mon
 %   - Kastrinis and Smaragdakis. 2013. Hybrid Context-Sensitivity for Points-To Analysis.
 % * Using Path Sensitivity: 
 %   - Das et al. 2002. ESP: Path-Sensitive Program Verification in Polynomial Time.
+\paragraph{Abstract Control}
+Johnson and Van Horn recently explored the concept of abstract control in their paper Abstracting Abstract Control (AAC)\cite{AAC}.
+In this work, the authors discuss how to recover a pushdown abstraction systematically in the setting of AAM.
+Our work is orthogonal, and potentially compatible with theirs: our framework explains compositional analyses, while theirs explains pushdown control abstraction.
+We hope for an eventual combination of the two techniques, and see this as a ripe area for combination of results.
+
+As far as the question “what is abstract control?”, it appears that we paint a similar picture as Johnson and Van Horn in AAC.
+In both works, abstract control has something to do with the fixpoint iteration of the semantic step function, and is noted as lacking in classic AAM.
+Our work gives one possible definition for what abstract control is: it's the control effects used by an interpreter, coupled with the way these effects are related to abstract machines.
+
+\paragraph{Compositional Approaches}
+Another compositional approach to abstract interpretation is described by Cousot and Cousot: \emph{calculational abstract interpretation}\cite{CalculationalAI}.
+Calculational AI shares a similar philosophy to our work: abstract interpreters should be build piecewise from compositional components.
+In calculational AI, analyses are derived from applying a sequence of galois connections.
+This contrasts to the approach of designing an analysis first, and manually justifying the galois connection after.
+After applying a sequence of galois connections, the analysis designer must \emph{calculate} the computable analysis from the one derived by galois connection composition.
+
+The downfall of calculational AI is in the effort required during the calculation step.
+For example, Midgaard and Jensen\cite{Calculational0CFA} describe a calculational derivation of 0CFA, the same analysis described in this work, and it is a difficult process.
+
+While work in calculational AI has seen less success than AAM, we note that the two approaches are actually compatible, and thus tackle different parts of the analysis design process.
+AAM is a methodology for splitting the design process to first instrument a concrete semantics, and then systematically abstract.
+Both of these steps must be justified with galois connections, and one could use calculation for either.
+Our work provides computations and proofs for the second step, the systematic abstraction, but one might happily justify the instrumentation step via calculation.
+
+\paragraph{Tuning Knobs}
+Tuning knobs for static analysis are great when they're general enough for a wide range of applications.
+For example, the work Kastrinis and Smaragdakis\cite{HybridContextObject} shows how to leave both context-sensitivity and object-sensitivity as orthogonal tuning knobs in an OO analysis.
+These knobs have shown to be sufficient for interesting applications like malware detection for Android applications\cite{Apposcopy}.
+(\cite{Apposcopy} directly uses the analysis framework described in\cite{HybridContextObject}.)
+
+\paragraph{Path Sensitivity}
+Path sensitivity in particular was shown to be profitible and tractable by Das et al.\cite{ESP}.
+In this work the authors verify the absence of open/close file handle bugs in the GNU C compiler.
+Path sensitivity was crucial achieve the precision needed for their analysis, and their paper describes to to achieve this precision without too much added cost in complexity.
+These subtle variants of path sensitivity are important for applying path sensitive analysis in practice.
+We do not account for these particular variants of path sensitivity in our framework, although we hope to explore how they fit into our framework in future work.
+% }}}
+
+% Future Work {{{
+\section{Future Work}
+\label{FutureWork}
+% * Future Work:
+%   - Verified compilation:
+%     + CompCert, but whole program analysis, functional languages.
+%     + Requires embedding whole framework in proof assistant.
+%     + Mechanizing galois connections is hard, because of calculation.
+%   - More knobs for analysis:
+%     + Lexical Time
+%     + Object sensitivity for functional languages.
+%   - Denotational variants of MAAM
+%     + Picking small-step semantics has consequences.
+%     + Add MonadFix to effects, show a memoizing fixpoint is an abstraction of Y.
+
+\paragraph{Fully Verified Compilation}
+One direction of future work is to apply our approach to fully verified compilation.
+In fully verified compilation, the implementation of a comipler is typically embedded in proof assistant and proven correct all the way down to axioms in a logical system.
+This task is difficult due to both the extra rigor required in modelling and the proof engineering required in interacting with proof assistants.
+We hope the compositionality of the \emph{correctness} of our approach will apply especially in this setting, because proofs need to be developed and maintained side-by-side with code.
+
+CompCert\cite{CompCert} is perhaps the most well known fully verified compiler to date.
+CompCert compiles C programs down to machine code and performs simple local optimizations.
+A verified compiler for languages with rich features like objects and first-class functions benefit especially from approaches like AAM and our extension of it.
+Whole program analysis has also not been studied yet in the context of fully verified compilation, perhaps because establishing the proof of correctness is too burdensome.
+We hope our technique can be extended to support fully verified compilation of whole program analysis for functional programs in the future.
+
+\paragraph{New Tuning Knobs for Analysis}
+Another direction for future work is to discover more tuning knobs for analyses which have been missed by frameworks like AAM.
+For example, it would be nice if we could account for the pushdown abstraction from Johnson and Van Horn's work on \emph{Abstracting Abstract Control} into our monadic formulation.
+Less related to abstract control, we believe there is work to be done in porting object sensitivity to functional language analysis.
+We have preliminary results suggesting that object sensitivity becomes lexically scoped time in the functional setting.
+Exploring this would uncover yet another useful knob to analysis designers to quickly interate through the analysis design process.
+
+\paragraph{New Semantic Settings}
+Our framework small-step abstract machines semantic framework of AAM.
+The small-step setting is convenient, but it has less-well understood consequences when it serves as the basis for abstract interpretation.
+
+For example, we can imagine a more denotational variant of this work where we relate our interpreters to a denotational space rather than state machines.
+We have preliminary results suggesting that this can be done by allowing our monadic interpreter to be recursive.
+When this is done, the meaning of the program is not given by an external fixpoint of the step function, but rather directly through the denotation of recursion.
+To recover an analysis, one would abstract a precise fixpoint finder like the Y-combinator with an approximating fixpoint finder.
 
 % }}}
 
 % Conclusion {{{
 \section{Conclusion}
 \label{Conclusion}
+
+We have shown how to build compositional abstract interpreters which expose a tuning knob for abstract control.
+We use monad transformers as the building blocks for both constructing abstract interpreters and proving them correct piecewise.
+Using the monad abstraction, we showed how to expose abstract control as a tuning knob to recover flow and path sensitivities for a static analysis.
+After exposing a tuning knob for abstract control, we then demonstrated how to implement two analysis optimizations which adapt effortlessly to changes in abstract control.
+Our approach is justified piecewise by relating monad transformers to state machine functors.
+To achieve this, we develop a new monad transformer for nondeterminism and develop a functorial variant of galois connection.
 
 % }}}
 

@@ -1,0 +1,17 @@
+\begin{align*}
+𝒜_{m}                 &: Atom → ℳ (\PM(\AVal))                         \\
+𝒜_{m}(x)              &≔ \ddo                                          \\
+                      &σ ← \getstore                                   \\
+                      &\return(σ(x))                                   \\
+𝒜_{m}(l)              &≔ \return(\{l\})                                \\
+𝒜_{m}(add1(a))        &≔ \ddo                                          \\
+                      &v ← 𝒜_{m}(a)                                    \\
+                      &\return(\{\INT \;|\; ∃ i ⊑ \INT ∈ v\})          \\
+𝒜_{m}(sub1(a))        &≔ \ddo                                          \\
+                      &v ← 𝒜_{m}(a)                                    \\
+                      &\return(\{\INT \;|\; ∃ i ⊑ \INT ∈ v\})          \\
+𝒜_{m}(gez(a))         &≔ \ddo                                          \\
+                      &v ← 𝒜_{m}(a)                                    \\
+                      &\return(\{\TRUE, \FALSE \;|\; ∃ i ⊑ \INT ∈ v\}) \\
+𝒜_{m}(\lam(x)(k) → e) &≔ \return(\{\lam(x)(k) → e\})                   \\
+\end{align*}

@@ -1,0 +1,17 @@
+\begin{align*}
+                     𝒞_{m} &: Call → ℳ (Call)                                                  \\
+𝒞_{m}(\iif(a)\{e₁\}\{e₂\}) &≔ \ddo                                                             \\
+                           &vP ← 𝒜_{m}(a)                                                      \\
+                           &v ← \liftpowerset(vP)                                              \\
+                           &b ← \coercebool(v)                                                 \\
+                           &\return(\{ \text{if}\; b\; \text{then}\; e₁\; \text{else}\; e₂ \}) \\
+          𝒞_{m}(a₁(a₂,a₃)) &≔ \ddo                                                             \\
+                           &vP ← 𝒜_{m}(a₁)                                                     \\
+                           &v ← \liftpowerset(vP)                                              \\
+                           &(\lam(x)(k) → e) ← \coercefun(v)                                   \\
+                           &vP₂ ← 𝒜_{m}(a₂)                                                    \\
+                           &vP₃ ← 𝒜_{m}(a₃)                                                    \\
+                           &σ ← \getstore                                                      \\
+                           &\putstore(σ ⊔ [x ↦ vP₂] ⊔ [k ↦ vP₃])                               \\
+                           &\return(e)                                                         \\
+\end{align*}

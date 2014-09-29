@@ -1,0 +1,9 @@
+\begin{align*}
+   gc &: Call → ℳ (1)                                   \\
+gc(e) &≔ \ddo                                           \\
+      &σ ← \getstore                                    \\
+      &𝓉₀ ← \touchedcall(e)                             \\
+      &\llet 𝓉 ≔ μ(𝓉) → 𝓉 ⊔ \touchedvar(𝓉)              \\
+      &σ ← \getstore                                    \\
+      &\putstore(⋃ \{ [x ↦ vP] | x ∈ 𝓉 ∧ σ(x) = vP \} ) \\
+\end{align*}
