@@ -4,7 +4,7 @@
 
 \input{setup.tex}
 
-\title{Abstract Control in Static Analysis (Draft)}
+\title{Abstract Control in Static Analysis}
 \author{David Darais}
 \date{\today}
 
@@ -19,14 +19,14 @@
 The field of static analysis offers many techniques for automatically discovering facts about programs.
 For example, a static analysis might be used to verify that a program is memory safe, or that it obeys a privacy policy.
 Techniques based on Abstract Interpretation (AI) allow the analysis designer to vary some properties of an analysis.
-However, features like context, object, and flow sensitivity must be hard-coded into an analysis based on classic AI.
+However, features like context, object, and flow sensitivity are often hard-coded into an analysis based on classic AI.
 Abstracting Abstract Machines (AAM) is one design methodology for analysis which exposes more of these features as tuning knobs.
 Unfortunately, AAM lacks reusable tools for building analyses, and not all analysis features fit nicely into the framework.
 
-We propose a new compositional framework for designing analyses which supports a tuning knob missing from AAM: abstract control.
-We achieve compositionality by refactoring AAM into monad transformers, each of which we relate back to abstract state machines.
+We propose a new compositional framework for designing analyses which support a tuning knob missing from AAM: abstract control.
+We achieve compositionality by refactoring AAM into monad transformers, each of which we relate back to abstract state machines piecewise.
 When put together, these monad transformers build analyses which are correct by construction.
-Furthermore, the monadic abstraction allows us to recover a tuning knob for abstract control when designing analyses.
+Furthermore, the monadic abstraction allows us to recover a new tuning knob which we call abstract control.
 Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
 
 \end{abstract}
@@ -36,9 +36,9 @@ Abstract control allows one to adjust the flow and path sensitivity of an analys
 
 % Introduction {{{
 \section{Introduction}
-\label{section:Introduction}
+\label{Intro}
 
-Static analysis is useful for many different situations.
+Static analysis has many applications.
 A software developer might use an analysis to find bugs in a program.
 A software merchant might use an analysis to detect malware or other security vulnerabilities in software hosted by their app store.
 A manufacturer might use an analysis to establish high assurance in the reliability of control software for a car or airplane.
@@ -49,7 +49,7 @@ Getting an analysis right might require more modification than an existing analy
 Because of this, complex analyses often need to be designed from scratch, and analysis designer need tools to help them with this process.
 
 Designing a static analysis is hard.
-Designing \emph{the right} static analysis is even more difficult.
+Designing \emph{the right} static analysis is even harder.
 One possible process for arriving at the right static analysis is:
 \begin{enumerate}
 \item Describe the semantics of your language.
@@ -58,34 +58,36 @@ One possible process for arriving at the right static analysis is:
 \item If the analysis is too slow or imprecise: repeat from 2.
 \end{enumerate}
 To get a complex analysis right this process must be repeated multiple times.
-Iterating quickly between the design and exercise of an analysis is the key to getting the analysis you wanted without too much pain.
+Iterating quickly between the design and exercise of an analysis is the key to getting the analysis you wanted without too much unnecessary effort.
 
-One methodology which aims to ease the design process for static analysis is the Abstracting Abstract Machines (AAM) framework\cite{AAM}.
+One methodology which aims to ease the design process for static analysis is the Abstracting Abstract Machines (AAM) 
+  framework\cite{van-horn:2010:aam}.
 AAM separates two design steps which are traditionally tightly coupled: describing features of interest and abstracting those features.
 Furthermore, AAM shows that the abstraction step is systematic, freeing the analysis designer to spend effort in designing features of interest.
-However, AAM doesn't provide reusable tools for the design process; the analysis designer must describe their state machine transition from scratch.
+However, AAM doesn't provide reusable tools for constructing analyses.
+The analysis designer must describe their state machine transition function from scratch.
 Additionally, some analysis features like flow and path sensitivity don't fit nicely into the AAM framework.
 
 We propose a new compositional framework for designing analyses which supports a tuning knob missing from AAM: abstract control.
 To achieve this we refactor AAM into monad transformers.
 Using monad transformers, the analysis designer can easily add and remove features from their semantics independently of other features.
-The monadic abstraction additionaly exposes a new tuning knob for analyses which we call abstract control.
+The monadic abstraction additionally exposes a new tuning knob for analyses which we call abstract control.
 Abstract control allows one to adjust the flow and path sensitivity of an analysis independent of other design choices.
 
-To justify the soundness of the approach, we show that the monad transformers we use are also galois connection transformers.
+To justify the soundness of the approach, we show that the monad transformers we use are also Galois connection transformers.
 This means that any combination of our monad transformers will yield a sound approximation of a state machine semantics.
 
 Our contributions in this work are:
 \begin{enumerate}
 \item A monadic formulation of AAM which exposes abstract control as a tuning knob.
 \item A compositional analysis \emph{implementation} framework for building abstract state machines using monad transformers.
-\item A compositional analysis \emph{proof} framework for justifying the correctness of abstract state machines using galois connection transformers.
-\item A new monad transformer for nondeterminism which is the key to recovering abstract control as a tuning knob.
+\item A compositional analysis \emph{proof} framework for justifying the correctness of abstract state machines using Galois connection transformers.
+\item A new monad transformer for nondeterminism which serves as our gateway to recovering abstract control as a tuning knob.
 \end{enumerate}
 
 The rest of the paper is structured as follows:
 Section \ref{Background} covers necessary background material in semantics, analysis, and the CPS language which we use for examples.
-Section \ref{MAAM} demonstrates a monadic variant of AAM which supports defining compositional interpreters for analysis.
+Section \ref{CompositionalAnalysis} demonstrates a monadic variant of AAM which supports defining compositional interpreters for analysis.
 Section \ref{AbstractControl} discusses abstract control and how we exploit the monadic abstraction to expose a tuning knob for it.
 Section \ref{Optimizations} gives two examples of analysis optimizations and how they adapt seamlessly to variations in abstract control.
 Section \ref{Correctness} discusses the correctness framework and what key lemmas are involved.
@@ -96,78 +98,96 @@ Sections \ref{RelatedWork} and \ref{FutureWork} discuss relate and future work, 
 
 % Background {{{
 \section{Background}
-\label{section:Background}
-% * Background
-%   - Small Step Semantics
-%     - CPS Language
-%   - Abstract Interpretation (Galois Connections)
-%     - Control Flow Analysis
-%   - AAM
-%   - Monads and Monad Transformers
+\label{Background}
+
+In this section we discuss background material potentially useful for understanding our compositional analysis framework.
+This section provides merely a sketch these concepts, and does not motivate them directly in the context of our work.
+Some readers may find it useful to skip ahead to section \ref{CompositionalAnalysis} and chase backlinks as they are needed and motivated.
+Or some may prefer to proceed directly with this section, consuming the document in a more bottom-up fashion.
+For these readers, we have done our best to keep this section brief.
  
 % Small Step Semantics {{{
 \subsection{Small-Step Semantics}
-\label{section:Background:SmallStepSemantics}
+\label{SS-Semantics}
 
-This work follows the small-step operational approach to language semantics pioneered by Plotkin and Felleisen.
-In small-step operational semantics, the meaning of an expression $e$ of a language is given by the transitive closure of some step relation $e ↦ e'$.
-This yields a state-machine approach to semantics.
-Exploring the meaning of $e$ reduces to exploring all possible transitions reachable from $e$ through $↦$.
-This contrasts to previously developed deontational approaches, where the meaning of $e$ must be given all at once by a denotation function $⟦ e ⟧$.
-This denotation function can quickly demand lots of mathematical machinery.
-Small-step operational methods side-step the need for such machinery.
+We use the small-step operational approach to semantics pioneered by independently by 
+  Plotkin\cite{plotkin:1981:sos} 
+  and Felleisen\cite{felleisen:1992:red-sem}.
+In small-step operational semantics, expressions in a language are given meaning by mapping them to state machines.
+Formally, a small-step semantics for a language $L$ is given by:
+\begin{itemize}
+\item A state machine with configuration states $\C$.
+\item A transition relation $σ \Csteps σ'$ for $(\Ce, \Ce' : \C)$.
+\item An embedding function $η : L → \C$.
+\end{itemize}
+The meaning of an expression $e$ is then given by a final configuration $σ$ reachable by $η(e)$ through $\Csteps$.
 
-The small-step operation framework supports arbitrary step relations $e ↦ e'$.  
-However for our purposes $↦$ will be always be a function-like form of \emph{decidable} relation, i.e. a multifunction.
+Small-step semantics contrast to previously developed denotational approaches.
+A denotational semantics for a language $L$ is given by a denotation function $⟦\_⟧$ mapping terms $e$ to objects in a mathematical space.
+This denotation function can quickly demand non-trivial mathematical machinery for even very simple languages.
+Small-step methods side-step the need for such machinery at the cost of potentially useful mathematical structure.
+Many useful analysis properties can be states as properties of execution states of an abstract machine.
+Small-step semantics therefore serve as a nice middle-ground marrying formality and simplicity.
 
 % }}}
 
 % CPS {{{
 \subsection{Continuation Passing Style}
-\label{section:Background:ContinuationPassingStyle}
+\label{CPS}
 
-We use CPS-IF as an example language to demonstrate the benefits of our framework.
-CPS is a syntactically restricted version of the lambda calculus.
-CPS-IF is an extension of CPS with conditionals.
-We choose CPS because the state machine for the semantics of CPS requires no call stack.
-We add conditionals to make things slightly more interesting.
+We use CPS-IF as an example language to demonstrate our framework.
+CPS-IF is a variant of continuation passing style λ-calculus extended with conditionals and branching.
+We use λ-calculus because it is the simplest language with support for higher-order control flow.
+λ-calculus can serve as the core target language for larger languages which appear in practice.
+We use CPS because the state machine for the semantics of CPS requires one less component and it simplifies our presentation.
+All lambda calculus terms can be translated to CPS terms through CPS-conversion, so there is no loss in language expressivity.
+We add conditionals to help exercise analyses which track branching structure in different ways.
 
 We define the CPS-IF language as follows:
 \input{snips/CPS-IF.tex}
 
 CPS-IF supports integer and boolean literals, addition and subtraction by 1, and testing if an integer is greater than or equal to zero.
 The essence of CPS is in the syntactic restriction on application forms $a(a)$ and $a(a,a)$.  
-Because $a$ cannot be a nested call expression, evaluating a $Call$ requires no evaluation stack.
+Because $a$ cannot be a nested expression, evaluating an $Exp$ requires no evaluation stack.
 
-All lambda calculus terms can be translated to CPS terms through CPS-conversion.
-However, because lambda calculus terms are much easier to read, we will use lambda calculus terms for examples.
-We display the CPS-converted version of examples where appropriate.
+The state machine $\C$ for CPS-IF is defined as:
+\input{snips/CPS-IF-CSigma.tex}
+Environments map variables to addresses, and the store maps addresses to values.
+Values contain closures, which are lambda expressions paired with their closure environment.
+
+The small-step semantics for CPS-IF are defined in two parts.
+First we define a \emph{denotation function} $𝒜 $ for $Atom$ expressions.
+\input{snips/CPS-IF-CA.tex}
+
+Second we define a \emph{step relation} (as a function) $ℰ$ for $Exp$ expressions.
+\input{snips/CPS-IF-CE.tex}
 
 % }}}
 
 % Abstract Interpretation {{{
 \subsection{Abstract Interpretation}
-\label{section:Background:AbstractInterpretation}
+\label{AI}
 
-Abstract Iterpretation (AI) is a formal framework for program analysis pioneered by Cousot and Cousot.
+Abstract Iterpretation (AI) is a formal framework for program analysis pioneered by Cousot and Cousot\cite{cousot:1977:ai}.
 In the setting of abstract interpretation, a program analysis is just an alternate semantics over an abstract domain.
 To distinguish the original semantics from the alternate semantics we call the original semantics the \emph{concrete} semantics.
 The alternate semantics is called the \emph{abstract} semantics\footnote{
-  This terminology quickly becomes confusing because we will eventually construct an abstract machine for both semantics.
+  This terminology quickly becomes confusing when we construct an abstract machine for both semantics.
   This yields a concrete abstract machine and an abstract abstract machine. 
-  This linguistic pun is exploited mercilessly in the work of Might and Van Horn as they “abstract” abstract abstract machines, yielding abstract abstract abstract machines.
+  This linguistic pun is exploited mercilessly in the work of Might and Van Horn as they “abstract” abstract abstract machines.
+  We simplify the matter by calling them abstract state machines and concrete state machines.
 }.
 
-Consider a concrete language $\C$ and a program in that language $(\Ce : \C)$.
+Consider a concrete state machine $\C$ and a state $(\Ce : \C)$.
 In the AI framework, an analysis for $\Ce$ is:
 \begin{itemize}
 \item 
-  An abstract language $\A$.
+  An abstract state machine $\A$.
 \item 
   A relationship between $\C$ and $\A$ that defines when some $(\Ce' : \C)$ and $(\Ae' : \A)$ are related.
   This often takes the form of projecting $\A$ to $\PM(\C)$ and using the subset relation.
 \item 
-  An abstract version of $\Ce$ our concrete program: $(\Ae : \A)$.
+  An abstract version of $\Ce$: $(\Ae : \A)$.
 \item 
   An abstract version of the $\Csteps$ relation: $(\Asteps : \A × \A → Prop)$
 \item 
@@ -178,26 +198,26 @@ By convention, we put hats ($\widehat{\;\;}$) on things to name their abstract c
 The overall approach is summarized in the following picture:
 \input{diagrams/AI.tikz}
 This picture takes place at some point in the analysis process.
-$\Ce$ is the current program (possibly the result of running the base program for a little while).
+$\Ce$ is the current state (possibly the result of running the original program for a little while).
 $\Ae$ is a valid abstraction of $\Ce$, where this validity is expressed by some relation $R$ holding between $\Ce$ and $\Ae$.
 $\Ce'$ is some next state of execution of $\Ce$, and likewise for $\Ae$/$\Ae'$.
 In order to be a correct analysis, it must be guaranteed that $\Ce'$ and $\Ae'$ will be related.
-The logical structure of the picture, which states the correctness of the analysis, is given by:
+The logical structure of the picture, which states the correctness of the analysis $\Asteps$, is given by:
 \begin{equation*}
 ∀ (\Ce,\Ce' : \C ) (\Ae,\Ae' : \A), (\Ce R \Ae) ∧ (\Ce \Csteps \Ce') ∧ (\Ae \Asteps \Ae') ⇒  (\Ce' R \Ae')
 \end{equation*}
-The \emph{meaning} of the analysis is entirely subject to the relation $R$ which relates the abstract to the concrete.
+The meaning of the analysis is entirely subject to the relation $R$ which relates the abstract to the concrete.
 
 % }}}
 
 % Galois Connections {{{
 \subsection{Galois Connections}
-\label{section:Background:GaloisConnections}
+\label{GaloisConnections}
 
-The AI setting can be elegently simplified and enriched through the use of \emph{galois connections}.
+The AI setting can be elegantly simplified and enriched through the use of \emph{Galois connections}.
 Galois connections serve as a unifying framework for establishing the “relationship between $\C $ and $\A$” mentioned in the previous section.
 
-A galois connection between two posets (sets with a partial order) $\C$ and $\A$ is notated $\C\galois{α}{γ}\A$ and contains:
+A Galois connection between two posets (sets with a partial order) $\C$ and $\A$ is notated $\C\galois{α}{γ}\A$ and contains:
 \begin{itemize}
 \item $(α : \C → \A)$ where $α$ is monotonic
 \item $(γ : \A → \C )$ where $γ$ is monotonic
@@ -205,41 +225,42 @@ A galois connection between two posets (sets with a partial order) $\C$ and $\A$
 \item A proof that $(α ∘ γ)$ is contractive: $∀ (y : \A), α(γ(y)) ⊑ y$
 \end{itemize}
 The last two properties can be succinctly stated as $(α ∘ γ ⊑ id ⊑ γ ∘ α)$\footnote{
-  This uses the logical monotonicity relation $f ⊑ g ⇔  (x ⊑ y ⇒  f(x) ⊑ g(y))$ for the function space.
+  This uses the usual monotonicity relation $f ⊑ g ⇔  (x ⊑ y ⇒  f(x) ⊑ g(y))$ for the function space.
 }.
 Equivalent to all four properties is the property $x ⊑ γ(y) ⇔  α(x) ⊑ y$.
 
+A Galois connection $\C\galois{α}{γ}\A$ can be read “$\A$ is an abstraction of $\C$” and $x ⊑ y$ can be read “$x$ is more precise than $y$”.
 The expansive property corresponds to \emph{soundness}, and the contractive property corresponds to \emph{tightness}.
 A sound analysis gives results you can trust.  
 A tight analysis promises to be the “best” analysis possible.
 
 \paragraph{Example:}
-Given a galois connection $\C\galois{α}{γ}\A$, there exists a galois connection $(\C → \C)\galois{α'}{γ'}(\A → \A)$ where:
+Given a Galois connection $\C\galois{α}{γ}\A$, there exists a Galois connection 
+  $(\C \xrightarrow{mon} \C)\galois{α'}{γ'}(\A \xrightarrow{mon} \A)$ where:
 \begin{align*}
-α'(f : \C → \C) &≔ α ∘ f ∘ γ \\
-γ'(g : \A → \A) &≔ γ ∘ g ∘ α \\
+  α'(f : \C \xrightarrow{mon} \C) &≔ α ∘ f ∘ γ \\
+  γ'(g : \A \xrightarrow{mon} \A) &≔ γ ∘ g ∘ α \\
 \end{align*}
 
 \paragraph{Example:} 
-The language $(\PM(ℤ),+,*)$ forms a galois connection with the language $(\PM(\{ EVEN, ODD \}),∧,∨)$ where:
+The language $(\PM(ℤ),+,*)$ forms a Galois connection with the language $(\PM(\{ EVEN, ODD \}),∧,∨)$ where:
 \begin{align*}
-α(zs : \PM(ℤ))               &≔ ⋃ \{ \{ EVEN  \;|\; ∃ z ∈ zs ∧ Even(z) \},  \{ ODD   \;|\; ∃ z ∈ zs ∧ Odd(z) \} \} \\
-γ(ts : \PM(\{ EVEN, ODD \})) &≔ ⋃ \{ \{ z ∈ ℤ \;|\; EVEN ∈ ts ∧ Even(z) \}, \{ z ∈ ℤ \;|\; ODD ∈ ts ∧ Odd(z) \} \} \\
+α(zs : \PM(ℤ))               &≔ \{ EVEN  \;|\; ∃ z ∈ zs ∧ Even(z) \} ∪ \{ ODD   \;|\; ∃ z ∈ zs ∧ Odd(z) \}  \\
+γ(ts : \PM(\{ EVEN, ODD \})) &≔ \{ z ∈ ℤ \;|\; EVEN ∈ ts ∧ Even(z) \} ∪ \{ z ∈ ℤ \;|\; ODD ∈ ts ∧ Odd(z) \} \\
 \end{align*}
 
 Galois connections simplify the AI framework by using $x ⊑ γ(y)$ or (equivalently) $α(x) ⊑ y$ as the relation $(x R y)$.
 Galois connections are a natural and general way of placing partial orders \emph{on sets themselves}.
 $x ⊑ γ(y)$ can be seen as a heterogenous extension of $x ⊑ y$ when $(x : A)$ and $(y : B)$ live in different sets. 
-This heterogenous order is given meaning when there exists a galois connection $A\galois{α}{γ}B$.
-One can also think of galois connections as something like an isomorphism, but with a weaker round-trip property.
+One can also think of Galois connections as something like an isomorphism, but with a weaker round-trip property.
 (An isomorphism would require $α ∘ γ = id = γ ∘ α$.)
 
-Using galois connections, the AI framework introduced in the previous section can be re-stated. In the AI framework, an analysis for $\Ce$ is:
+Using Galois connections, the AI framework introduced in the previous section can be re-stated. In the AI framework, an analysis for $\Ce$ is:
 \begin{itemize}
 \item 
   An abstract language $\A$.
 \item 
-  A galois connection $\C\galois{α}{γ}\A$.
+  A Galois connection $\C\galois{α}{γ}\A$.
 \item 
   An abstract version of the $\Csteps$ relation: $(\Asteps : \A × \A → Prop)$
 \item 
@@ -248,360 +269,510 @@ Using galois connections, the AI framework introduced in the previous section ca
 \end{itemize}
 The overall approach is summarized in the following picture:
 \input{diagrams/AIGC.tikz}
-As before, the logical structure of the picture is given by:
+As before, the logical structure of the picture, which states the correctness of the analysis $\Asteps$, is given by:
 \begin{equation*}
 ∀ (\Ce,\Ce' : \C ) (\Ae,\Ae' : \A), (\Ce ⊑ γ(\Ae)) ∧ (\Ce \Csteps \Ce') ∧ (\Ae \Asteps \Ae') ⇒  (\Ce' ⊑ γ(\Ae'))
 \end{equation*}
 The statement of this property can be simplified further as $\Csteps ⊑ γ(\Asteps)$.
-This uses the definition of galois connections for function spaces shown in a previous example.
+This uses the definition of Galois connections for function spaces shown in a previous example.
 
-Using a galois connection $\C\galois{α}{γ}\A$ and abstract step function $\Asteps ⊑ γ(\Csteps)$, the analysis story becomes simplified even further:
-\begin{itemize}
+Using a Galois connection $\C\galois{α}{γ}\A$ and abstract step function $\Asteps ⊑ γ(\Csteps)$, an algorithm for analysis can be stated:
+\begin{enumerate}
 \item Translate $(\Ce : \C)$ to $(α(\Ce) : \A)$
 \item Explore all abstract states $\Ae'$ states reachable from $α(\Ce)$.
-\item All reachable concrete states are summarized by projecting each $γ(\Ae')$ back to $\C$.
-\end{itemize}
+\end{enumerate}
+All reachable concrete states are then summarized by projecting each $γ(\Ae')$ back to $\C$.
 
-The galois connection framework simultaneously guarantees the \emph{soundness} and \emph{tightness} of this method.
-Soundness tells us that if we abstract, take an abstract step, and then concretize, then the result is an approximation of taking a concrete step.
+The Galois connection framework simultaneously justifies the \emph{soundness} and \emph{tightness} of this method.
+Soundness tells us that if we (1) abstract, (2) take an abstract step, and then (3) concretize, 
+  then the result is an approximation of (4) taking a concrete step.
 Soundness tells us that we can trust the results of the analysis.
 \input{diagrams/GCSoundness.tikz}
-Tightness tells us that if we concretize, take a concrete step, and then abstract, then the result must be just as precise as taking an abstract step.
-Tightness tells us that our abstract step function isn't losing precision unnecessarily, and that our abstract step $\Asteps$ is provably as strong as possible.
+Tightness tells us that if we (1) concretize, (2) take a concrete step, and then (3) abstract, 
+  then the result must be just as precise as (4) taking an abstract step.
+Tightness tells us that our abstract step function isn't losing precision unnecessarily, 
+  and that our abstract step $\Asteps$ is provably as precise as possible.
 \input{diagrams/GCTightness.tikz}
+The above diagrams compose to state similar properties about $\Csteps*$ and $\Asteps*$.
 
 % }}}
 
 % Control Flow Analysis {{{
 \subsection{Control Flow Analysis}
-\label{section:Background:ControlFlowAnalysis}
+\label{CFA}
 
 Control flow analysis is a class of analysis which is particularly important for higher-order languages.
-In non-higher-order languages, it is useful to distinguish control-flow from data-flow.
-The control flow of the program is a graph of what functions are called from where.
-The data flow of a program is a mapping of which values can flow to which variables.
-Traditionally one performs a control-flow analysis first, to find out which functions are called, and a data-flow analysis second, using the results of the control flow analysis.
-
+In non-higher-order languages, it can be useful to distinguish control-flow from data-flow.
+The control flow of the program is the graph of what functions are called from where.
+The data flow of a program is the mapping of which values flow to which variables.
+Traditionally one performs a control-flow analysis first to find out which functions are called, 
+  and a data-flow analysis second using the results of the control flow analysis.
 In higher-order languages, data-flow and control-flow are tightly coupled.
-Before you can tell which functions will be called, you need to know how values flow, because functions are themselves values.
+Before you can tell which functions will be called, you need to know how values will flow through the program.
 
 We note that the distinction between “higher-order” languages and “non-higher-order” languages is a red herring.
-Functions can be passed as values in C using function pointers, and object-oriented languages enjoy a similar circularity between control- and data- flow due to method dispatch.
+Functions can be passed as values in C using function pointers.
+Object-oriented languages enjoy a similar circularity between control and data flow from dynamic method dispatch.
 You can read these statements as saying “all languages are higher order, and thus all languages need higher order control flow analysis”.
 Or you can read them as saying “all languages are higher order, and we've done just fine without higher oder control flow analysis so far”.
-The real distinction is in the code that you end up analysing.
+The distinction in practice comes from the properties you are looking for and the code that you end up analysing.
 
-We build on the tradition of control flow analysis (CFA) pioneered by Shivers, as well as recent refinements of CFA developed by Might and Van Horn.
-In this tradition, the result of a control flow analysis is closer to what one would think of as a data-flow analysis, only the process accounts for higher order flow.
+We build on the tradition of Control Flow Analysis (CFA) pioneered by Shivers\cite{shivers:1991:cfa}.
+In this tradition, the result of a control flow analysis is closer to what one would think of as a data-flow analysis.
+CFA is nothing more than getting data-flow right in a higher-order setting.
 0CFA, the most basic control flow analysis, merely computes the set of values which might flow to a particular variable.
-kCFA is a suite of context sensitive extensions to 0CFA for which functions are analyzed separately for each possible calling context.
-We use 0CFA as the example analysis in this paper.
-However our framework, and our implementation of it, scale to the full range of context sensitive control flow analyses.
+kCFA is a family of context sensitive extensions to 0CFA which separates analysis results for functions based on call site.
+We use 0CFA and kCFA as the example analyses in this paper.
 
 % }}}
 
 % Monads {{{
 \subsection{Monads}
-\label{section:Background:Monads}
+\label{Monads}
 
-A basic familiarity with the concept of monads will be necessary for understanding this paper.
 Some find it useful to review the concept of functor before learning about monads. 
 We adopt this approach for our brief explanation of monads.
 
+\paragraph{Functors}
 A type $(F : Set → Set)$ is called a \emph{functor} if one can:
 \begin{itemize}
 \item Define $map : ∀ (A, B : Set), (A → B) → (F(A) → F(B))$
-\item Prove $map(id) = id$, where $id$ is the identity function $(λ(x) → x)$
+\item Prove $map(id) = id$
 \item Prove $map (g ∘ f) = map(g) ∘ map(f)$
 \end{itemize}
 
-\paragraph{Example:} 
+\begin{example}
 Lists are functors, where $map$ is defined:
 \begin{align*}
     map(f)(xs) ≔ &\case(xs):           \\
           Nil    &→ Nil                \\
          x ∷ xs' &→ f(x) ∷ map(f)(xs') \\
 \end{align*}
+\end{example}
 
-\paragraph{Example:} $map(isEven)([1, 2, 3, 4]) = [False, True, False, True]$
+\begin{example} 
+  $map(isEven)([1, 2, 3, 4]) = [False, True, False, True]$ 
+\end{example}
 
-Likewise a type $(ℳ  : Set → Set)$ is called a \emph{monad} if one can:
+\paragraph{Monads}
+A type $(ℳ  : Set → Set)$ is called a \emph{monad} if one can:
 \begin{itemize}
 \item Define $extend : ∀ (A, B : Set), (A → ℳ (B)) → (ℳ (A) → ℳ (B))$
-\item Prove unit and associativity laws (not mentioned here).
+\item Prove $extend(return) = id$, called the left-unit law.
+\item Prove $extend(f)(return(x)) = f(x)$, called the right-unit law.
+\item Prove $extend(g)(extend(f)(x)) = extend(λ(y) → extend(g)(f(y)))(x)$ called associativity.
 \end{itemize}
-The only difference from the definition of functor is in the the first argument.
+The only computational difference from the definition of functor is in the first argument of extend.
 For monads, this argument is allowed to be a \emph{monadic} $(A → ℳ (B))$, rather than a pure function $(A → B)$.
 
-\paragraph{Example:} Lists are monads, where $extend$ is defined:
+\begin{example} Lists are monads, where $extend$ is defined:
 \begin{align*}
-    extend(f)(xs) ≔ &\case(xs):              \\
-                Nil &→ Nil                   \\
-            x ∷ xs' &→ f(x) ⧺ extend(f)(xs') \\
+    extend(f)(xs) ≔ &\case(xs):                                                                 \\
+                Nil &→ Nil                                                                      \\
+            x ∷ xs' &→ f(x) ⧺\footnote{⧺ is our notation for list concatenation} extend(f)(xs') \\
+\end{align*}
+\end{example}
+
+\begin{example} 
+Let $adjacent(x) ≔ [x - 1, x + 1]$.  Then $extend(adjacent)([10, 100]) = [9, 11, 99, 101]$
+\end{example}
+
+\paragraph{Monad Notation}
+One of the biggest benefits of monads is perhaps the most superficial: do-notation.
+Do-notation transforms imperative-looking code into uses of $extend$.
+This enables kind of “abstract semicolon”, where the meaning of sequencing statements is give by an arbitrary implementation of $extend$.
+
+Do-notation is simply a translation from:
+\begin{align*}
+  do&                  \\
+    &x ← get           \\
+    &y ← get           \\
+    &put(x + y)        \\
+\end{align*}
+to
+\begin{align*}
+  extend(λ(x) → extend(λ(y) → put(x + y)(get)))(get)
 \end{align*}
 
-\paragraph{Example:} 
-$extend(λ(x) → [x + 1, x - 1])([10, 100]) = [9, 11, 99, 101]$
-
-$extend$ for lists can also be understood as $concat$ followed by $map$:
-\paragraph{Example:} 
+Leveraging even more notation, we can write $extend(f)(x)$ infix and backwards as $x ≫= f$, yielding the following equivalent translation:
 \begin{align*}
-extend(f)([10, 100]) &= concat(map(f)([10, 100]))    \\
-                     &= concat([[9, 11], [99, 101]]) \\
-                     &= [9, 11, 99, 101]             \\
+  &get ≫= λ(x) →    \\
+  &get ≫= λ(y) →    \\
+  &put(x + y)       \\
 \end{align*}
-For all monads, it is equivalent to define $return$, $map$ and $join$, where:
-\begin{equation*}
-join : ∀ (A : Set), ℳ (ℳ (A)) → ℳ (A)
-\end{equation*}
-As we have just seen, $join$ for the list monad is just $concat$.
+which looks closer to the original expression written in do-notation.
+For the rest of the paper we will write exclusively using do-notation and assume this lightweight translation to uses of $extend$.
+
+% }}}
+
+% Monadic Effects {{{
+\subsection{Monadic Effects}
+\label{MonadicEffects}
+
+In addition to $return$ and $extend$, monads typically come with their own flavor of \emph{monadic effect}.
+We use two monadic effects in this paper: state and nondeterminism.
+
+\paragraph{State}
+The state monadic effect models manipulation of a single cell of state with type $𝓈$ using operations $get$ and $put$:
+\begin{align*}
+  get &: ℳ (𝓈)      \\
+  put &: 𝓈 → ℳ (1)  \\
+\end{align*}
+(We write $1$ as the unit type, i.e. the singleton set.)
+$get$ and $put$ come with the following laws:
+\begin{align*}
+               put(𝓈_1) ; put(𝓈_2) &= put (𝓈_2)           \\
+                      put(𝓈) ; get &= return(𝓈)           \\
+                  𝓈 ← get ; put(𝓈) &= return(∙)           \\
+𝓈_1 ← get ; 𝓈_2 ← get ; k(𝓈_1,𝓈_2) &= 𝓈 ← get ; k(𝓈,𝓈)    \\
+\end{align*}
+Multiple cells of state can be modeled by stacking this effect multiple times.  
+
+\paragraph{Nondeterminism}
+The nondeterminism monadic effect models branching control flow using a single operation $⟨+⟩$:
+\begin{align*}
+    ⊥ &: ∀ (a : A), ℳ (A)                  \\
+  ⟨+⟩ &: ∀ (a : A), ℳ (A) → ℳ (A) → ℳ (A)  \\
+\end{align*}
+$⟨+⟩$ comes with the following laws:
+\begin{align*}
+         extend(\_)(⊥) &= ⊥                                \\
+  extend(const(⊥))(\_) &= ⊥                                \\
+    extend(f)(x\; ⟨+⟩\; y) &= extend(f)(x)\; ⟨+⟩\; extend(f)(y)    \\
+\end{align*}
+A null branch of a computation is written $⊥ $ and branching with two possible values $v_1 v_2$ is written $return(v_1)\; ⟨+⟩\; return(v_2)$.
+Note that $ℳ $ having a nondeterminism effect is equivalent to $ℳ $ being a join-semilattice for every possible $ℳ (a)$.
 
 % }}}
 
 % Monad Transformers {{{
 \subsection{Monad Transformers}
-\label{section:Background:MonadTransformers}
+\label{MonadTransformers}
 
-Monad transformers are functions between monads.
+Monad transformers are building blocks for constructing larger monads.
 Where a monad $ℳ $ will have type $Set → Set$, a monad transformer $𝒯$ will have type $(Set → Set) → (Set → Set)$.
-
 Monad transformers are used to extend an existing monad to support another effect.
-The three monads used in this work are the state monad, powerset monad, and the identity monad.
-The state monad is notated $\SM(𝓈)$ (carrying a single cell of type $𝓈$), the powerset monad is notated $\PM$, and the identity is notated $ID$.
-The state and powerset monad transformer equivalents are notated $\ST(𝓈)(ℳ )$ and $\PT(ℳ )$ where $ℳ $ is the underlying monad.
-The state monad has $get$ and $put$ effects, whereas the powerset monad has a $nondeterminism$ effect.
+
+The three monads used in this work are the state monad, nondeterminism monad, and identity monad.
+The state monad is notated $\SM(𝓈)$ (carrying a single cell of type $𝓈$), nondeterminism $\PM$, and identity $ID$.
+The transformer analogues for state and nondeterminism are notated $\ST(𝓈)(ℳ )$ and $\PT(ℳ )$ where $ℳ $ is the underlying monad.
 The transformer versions of both of these monads allow you to combine effects piecewise.
 
-\paragraph{Example:}
-$\ST(ℤ)(\PT(ID))$ is a monad which has $get$ and $put$ effects for a single cell of integer state, in addition to nondeterminism effects.
+\begin{example}
+  $\ST(ℤ)(\PT(ID))$ and $\PT(\ST(ℤ)(ID))$ are both monads with state (where $𝓈 = ℤ$) and nondeterminism effects.
+\end{example}
 
-The definitions, details and proofs of all monads used in our work are given in section \ref{section:Proofs}.
+The non-transformer versions of state and nondeterminism monads can be defined directly, or simply as transformers on top of $ID$.
+The nondeterminism monad transformer we use in this work is new.
+The full definitions and proofs of all monad transformers used in this paper are given in section \ref{Proofs}.
 
 % }}}
 
 % }}}
 
-% Monadic AAM {{{
+% A Compositional Analysis Framework {{{
 
-\section{Monadic AAM}
-\label{section:MonadicAAM}
-%* Monadic AAM
-%  - 0CFA Before Monads
-%  - 0CFA After Monads
-%  - Recovering the Previous Analysis
+\section{A Compositional Analysis Framework}
+\label{CompositionalAnalysis}
 
+A compositional analysis framework must support adding and removing features from the analysis without touching the entire implementation.
+We achieve such compositionality by building abstract interpreters using monad transformers.
+To demonstrating our compositional approach to analysis design, we first show a classic definition of 0CFA.
+Then, we will show how to design such an analysis using our framework.
+After porting 0CFA to our framework, we will show how to grow this analysis to include context sensitivity in a compositional fashion.
 
-Monadic abstract interpretation[Sergey et al. PLDI 2013] demonstrated that abstract interpreters can be built using a monadic abstraction.
-We build directly on the intuition of this work: monadic interpreters are easier to develop than state machines.
-However, our approach takes this idea further in pursuit of a more compositional framework.
-
-First we demonstrate a simple 0CFA analysis on CPS-IF using classic AAM.
-The CPS-IF language is introduced in section \ref{CPS}.
-We repeat the definition here for convenience.
+We will use the CPS-IF language introduced in section \ref{CPS} as the target language for 0CFA.
+We repeat the definition of CPS-IF syntax here for convenience.
 \input{snips/CPS-IF.tex}
 
-The abstract semantics of 0CFA will track literals (including lambdas) that appear in the program text.
-For integers that do not appear in the program text, the analysis uses a single token $INT$ which conservatively approximates any possible integer.
-We note that many more abstractions of integers are possible, like range analysis or relational integer analysis.
-These decisions do not interfere with AAM or abstract control, so we do not discuss them for simplicity.
+\subsection{Classic 0CFA}
+\label{AAM-0CFA}
 
-Formally, the state space $Σ$ for the abstract machine of the abstract semantics is defined as:
-\input{snips/CPS-IF-Sigma.tex}
+Our abstract semantics for classic 0CFA will track literals (including lambdas) that appear in the program text.
+For integers that do not appear in the program text, the analysis uses a single token $INT$ which conservatively approximates any possible integer.
+We note that many more abstractions for integers are possible, like integer ranges or symbolic binary relations among variables.
+These decisions do not interfere with AAM or abstract control, so we pick the simplest abstraction to simplify presentation.
+
+The state space $\A$ for 0CFA is defined as:
+\input{snips/CPS-IF-ASigma.tex}
 Because there are finite many literals in the program text, we can claim that $\AVal$ and $\AStore$ are finite.
 
-The abstract semantics for $Σ$ comes in two parts.  
+The abstract semantics for $\A$ comes in two parts.  
 First we define a \emph{denotation function} $𝒜 $ for $Atom$ expressions.
-\input{snips/CPS-IF-A.tex}
+\input{snips/CPS-IF-AA.tex}
 
-Second we define a \emph{step relation} (as a function) $𝒞$ for $Call$ expressions.
-\input{snips/CPS-IF-C.tex}
+Second we define a \emph{step relation} (as a function) $ℰ$ for $Exp$ expressions.
+\input{snips/CPS-IF-AE.tex}
 (We omit the $(a₁(a₂))$ case. It is directly analogous to $(a₁(a₂,a₃))$).
 
-The complete analysis of an expression $e$ is defined as the least fixed point of a \emph{collection semantics} for the relation $𝒞$:
+The complete analysis of an expression $e$ is defined as the least fixed point of a \emph{collection semantics} for the relation $ℰ$:
 \begin{align*}
-\text{analysis} ≔ μ(Σ) → \{(e,⊥)\} ⊔ 𝒞^{⋆}(Σ)
+\text{analysis} ≔ μ(\Ae) → \{(e,⊥)\} ⊔ ℰ^{⋆}(\Ae)
 \end{align*}
 where
 \begin{align*}
-𝒞^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore) \\
-𝒞^{⋆}(Σ) &≔ ⋃ \{ 𝒞(e,σ) | (e,σ) ∈ Σ \}                  \\
+ℰ^{⋆}    &: \PM(Exp × \AStore) → \PM(Exp × \AStore) \\
+  ℰ^{⋆}(\Ae) &≔ ⋃_{e, θ ∈ \AE} ℰ(e,θ) \\
 \end{align*}
-The collecting semantics tracks all states that the program could be in rather than just the final states.
+A collecting semantics is used to track all states that the program could be in rather than just the final states.
 
-The first insight in monadic abstract interpretation is to abbreviate the definitions of $𝒜 $ and $𝒞$ monadic state rather than explicit state-passing-style.
-At this point, the monad “trick” is nothing more than a technique to simplify the definition of $𝒜 $ and $𝒞$.
+\subsection{Monadic 0CFA}
+\label{MAAM-0CFA}
 
-We use a powerset monad underneath a state monad transformer to write the analysis in monadic style.
+The first insight in monadic abstract interpretation is to abbreviate the definitions of $𝒜 $ and $ℰ$ using monadic state.
+We use a nondeterminism monad underneath a state monad transformer to write the analysis in monadic style.
+Monad transformers are just fancy names for simple types, 
+  and we write simple types underneath definitions which use monad transformer to aid understanding.
 \input{snips/CPS-IF-M.tex}
-The full definitions of the monads (and their proofs) used throughout this paper are defered to section \ref{Proofs}.
-Because monad transformers are just fancy names for simple types, we write the equivalent simple type underneath definitions which use monad transformer.
 
-The monadic conversion of $𝒜 $ interacts with the store $σ$ using get and put operations.
-\input{snips/CPS-IF-Am.tex}
+The monadic conversion of $𝒜 $ interacts with the store $θ$ using get and put operations.
+\input{snips/CPS-IF-AAm.tex}
 
-The monadic conversion of $𝒞$ doesn't use monadic actions directly.
-\input{snips/CPS-IF-Cm.tex}
-The “effects” in $𝒞_{m}$ happen in its calls to $𝒜_{m}$, $\liftpowerset$, $\coercebool$ and $\coercefun$.
-$𝒜_{m}$ will have state effects and $\liftpowerset$, $\coercebool$ and $\coercefun$ will have nondeterminism effects.
+The monadic conversion of $ℰ$ uses $\liftpowerset$ to convert from powerset to monadic values.
+$\coercebool$ and $\coercefun$ are used to coerce lambdas out of abstract values, failing (with $⊥$) otherwise.
+The “effects” in $ℰ_{m}$ happen in calls to $𝒜_{m}$, $\liftpowerset$, $\coercebool$ and $\coercefun$.
+\input{snips/CPS-IF-AEm.tex}
 
 $\liftpowerset$, $\coercebool$ and $\coercefun$ use the nondeterminism monadic effect and are defined as follows:
 \input{snips/CPS-IF-P.tex}
 
-The monadic abstraction leads to a simplified definition of the analysis.
-This simplification becomes much more apparent as a state space grows to have more than two states.
-Metafunctions which interact with only one state component can be written generically to support any state space which has that component.
+The monadic abstraction leads to a more compositional definition of the analysis.
+Pieces of the analysis which only use one effect need not mention the others.
+This compositionality will become more apparent when we extend this analysis to include context sensitivity.
 
 As before, we must complete the analysis by building an abstract machine transition function:
 \begin{align*}
-𝒞_{m}^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore) \\
-𝒞_{m}^{⋆}(Σ) &≔ ⋃ \{ 𝒞_{m}(e)(σ) \;|\; (e,σ) ∈ Σ \}          \\
+ℰ_{m}^{⋆}    &: \PM(Exp × \AStore) → \PM(Exp × \AStore) \\
+  ℰ_{m}^{⋆}(\Ae) &≔ ⋃_{e, θ ∈ \Ae} ℰ_{m}(e)(θ) \\
+\end{align*}
+This definition of $ℳ $ and $ ℰ_{m}^{⋆}$ recovers exactly the analysis we wrote before.
+
+\subsection{Monadic kCFA}
+\label{MAAM-kCFA}
+
+To incorporate context sensitivity (for $k=1$) into the analysis we do the following:
+\begin{itemize}
+\item Add another state space component to $\A$ for environments: $\AEnv$.
+      This environment will track which calling function is responsible for binding a given parameter.
+\item Capture this environment when evaluating $λ$ expressions, just the concrete semantics does for concrete environments.
+\item Add another state space component which tracks the program points visited so far by the program: $\ATime$.
+\item When interpreting a command $ℰ_{m}(e)$ set the time to $e$.
+\item When calling a function, record the current time next to the function arguments in the environment.
+\end{itemize}
+These steps have the effect of re-analyzing a function twice if it is called from two separate places.
+
+Changing the state space two have two new components is achieved simply by adding two more state effects two our monad, 
+  one for $\AEnv$ and one for $\ATime$.
+The resulting abstract state space looks like this:
+\begin{align*}
+  ρ : \AEnv &≔ Var ⇀ \ATime                                     \\
+θ : \AStore &≔ (Var,\ATime) → \PM(\AVal)                        \\
+ τ : \ATime &≔ Exp \;\text{(the last program location visited)} \\
+ f,g : Lam  &⩴ \lam(x) → e \;|\; \lam(x,k) → e                  \\
+  clo : Clo &⩴ ⟨f, ρ⟩                                           \\
+  v : \AVal &⩴ l \;|\; clo \;|\; INT                            \\
+  \Ae : \A  &≔ \PM(Exp × \ATime × \AEnv × \AStore)              \\
 \end{align*}
 
-Our current definition of $ℳ $ recovers exactly the analysis we wrote before.
-On top of the convenience of writing things monadically, our insight and contribution is twofold:
-\begin{itemize}
-\item State spaces $Σ$ can be defined and proven correct compositionally using monad transformers.
-\item $𝒞_{m}$ can be written generic to a monadic effect signature, rather than a specific monad.
-      Multiple different monads can be shown to meet this signature, and swapping the monad allows one to tune the flow and path sensitivity of an analysis.
-\end{itemize}
+Using monad transformers, we can easily add two new state components to our monadic interpreter.
+\begin{align*}
+ℳ     &: Set → Set                                                    \\
+  ℳ (a) &≔ \ST(\AEnv)(\ST(\ATime)(\ST(\AStore)(\PM))(a)               \\
+ℳ (a) &≔ \AEnv × \ATime × \AStore → \PM(a × \AEnv × \ATime × \AStore) \\
+\end{align*}
+
+Capturing the environment when evaluating $λ$ expressions is a simple use of monadic state:
+\begin{align*}
+𝒜_{m}                &: Atom → ℳ (\PM(\AVal)) \\
+                 ... &                        \\
+𝒜_{m}(f)             &≔ \ddo                  \\
+                     &ρ ← \getenv             \\
+                     &\return (\{⟨f, ρ⟩\})    \\
+                 ... &                        \\
+\end{align*}
+
+Moving abstract time forward is a simple update of the $\ATime$ state to be the current expression:
+\begin{align*}
+   ℰ_{m}' &: Exp → ℳ (Exp) \\
+ℰ_{m}'(e) &≔ \ddo          \\
+          &\puttime(e)     \\
+          &ℰ_{m}(e)        \\
+\end{align*}
+
+Calling a function now uses time as an address for storing values in $\AStore$.
+This is analogous to the allocation concrete semantics shown in section \ref{CPS}.
+\begin{align*}
+           ℰ_{m} &: Exp → ℳ (Exp)                              \\
+             ... &                                             \\
+ℰ_{m}(a₁(a₂,a₃)) &≔ \ddo                                       \\
+                 &vP ← 𝒜_{m}(a₁)                               \\
+                 &v ← \liftpowerset(vP)                        \\
+                 &(⟨\lam(x)(k) → e, ρ⟩) ← \coercefun(v)        \\
+                 &vP₂ ← 𝒜_{m}(a₂)                              \\
+                 &vP₃ ← 𝒜_{m}(a₃)                              \\
+                 &θ ← \getstore                                \\
+                 &τ ← \gettime                                 \\
+                 &\putenv(ρ[x ↦ τ][k ↦ τ])                     \\
+                 &\putstore(θ ⊔ [(x,τ) ↦ vP₂] ⊔ [(k,τ) ↦ vP₃]) \\
+                 &\return(e)                                   \\
+             ... &                                             \\
+\end{align*}
+
+Finally, lookup for variables must follow the indirection of addresses through $\AStore$.
+\begin{align*}
+𝒜_{m}                &: Atom → ℳ (\PM(\AVal)) \\
+                 ... &                        \\
+𝒜_{m}(x)             &≔ \ddo                  \\
+                     &ρ ← \getenv             \\
+                     &θ ← \getstore           \\
+                     &\return (θ(x,ρ(x)))     \\
+                 ... &                        \\
+\end{align*}
+
+That's all there is to it.  
+Adding two new states to the state space and instrumenting the analysis to track time leaves the rest of the semantics undisturbed.
+Without the monad abstraction, the entire semantics must be redefined when extending the analysis to be context sensitive.
+
+So far we have used monad transformers to build analyses in a compositional manner.
+In the next section, we will see how to exploit the monadic abstraction to expose a tuning knob for abstract control.
 
 % }}}
 
 % Abstract Control {{{
 \section{Abstract Control}
-\label{section:AbstractControl}
-%* Abstract Control
-%  - Axiomatize monadic interface
-%  - Build interface from legos
-%  - Swapping the legos gives you PS - FS - FI
+\label{AbstractControl}
 
-The current instantiation of ℳ  in our example happens to give a flow-sensitive path-sensitive analysis.
-Consider a reordering of powerset and state monad transformers:
+The instantiation for $ℳ $ in our previous examples happens to give a flow-sensitive path-sensitive analysis.
+We claim that our monad transformers compose in either direction, 
+  and one might ask what happens when one swaps the order of state and nondeterminism transformers.
+Consider such a reordering of $ℳ $ (using the simpler 0CFA semantics):
 \begin{align*}
 ℳ     &: Set → Set                  \\
 ℳ (a) &≔ \PT(\SM(\AStore))(a)       \\
 ℳ (a) &≔ \AStore → \PM(a) × \AStore \\
 \end{align*}
-As before, we must convert between monadic actions and abstract state space transitions to achieve an analysis:
-\begin{align*}
-𝒞_{m}^{⋆}       &: \PM(Call) × \AStore → \PM(Call) × \AStore                                              \\
-𝒞_{m}^{⋆}(cP,σ) &≔ (\{ e' \;|\; e' ∈ π₁(𝒞_{m}(e))(σ) \;|\; e ∈ e\PM \}, ⋃ \{ π₂(𝒞(e))(σ) \;|\; e ∈ cP \}) \\
-\end{align*}
-This instantiation of $ℳ $ and $𝒞_{m}^{⋆}$ yields a flow-insensitive path-insensitive analysis.
-For the same monad $ℳ $, we can change the definition of $𝒞_{m}^{⋆}$ to achieve a flow-sensitive path-insensitive analysis:
-\begin{align*}
-𝒞_{m}^{⋆}    &: \PM(Call × \AStore) → \PM(Call × \AStore)                             \\
-𝒞_{m}^{⋆}(Σ) &≔ \{ (e',π₂(𝒞_{m}(e))(σ)) \;|\; e' ∈ π₁(𝒞_{m}(e))(σ) \;|\; (e,σ) ∈ Σ \} \\
-\end{align*}
-By altering the monad behind the abstraction, we are able to tune the path sensitivity of the analysis.
-For the path-insensitive monad, we were able to further alter the resulting state space $Σ$ to tune the flow sensitivity of the analysis.
 
-% Talk about monad transformers as building blocks.  How these computations (and their proofs) fall out fully compositional components.
+The implementations of $𝒜 $ and $ℰ$ can be left as is, as they did not depend on the specific monad used, only the monadic effect interface.
+However, the type of $ℳ $ has changed so we must redefine $ℰ_{m}^{⋆}$, as the old one is now ill-typed.
+One possible definition for $ ℰ_{m}^{⋆}$ is the following:
+\begin{align*}
+ℰ_{m}^{⋆}       &: \PM(Exp) × \AStore → \PM(Exp) × \AStore                                       \\
+  ℰ_{m}^{⋆}(eP,θ) &≔ (\{ e' \;|\; e' ∈ π₁(ℰ_{m}(e))(θ) \;\;|\;\; e ∈ e\PM \}, ⋃_{e ∈ eP} π₂(ℰ(e))(θ)) \\
+\end{align*}
+This definition gives a flow-insensitive path-insensitive analysis.
+Note that the resulting state space $\A = \PM(Exp) × \AStore$.
+
+Another implementation of $ℰ_{m}^{⋆}$ is actually possible for a different state space $\A = \PM(Exp × \AStore)$.
+This is the same $\A$ from our first monadic definition of 0CFA, although we are using a different monad.
+\begin{align*}
+ℰ_{m}^{⋆}    &: \PM(Exp × \AStore) → \PM(Exp × \AStore)                             \\
+ℰ_{m}^{⋆}(\Ae) &≔ \{ (e',π₂(ℰ_{m}(e))(θ)) \;\;|\;\; e' ∈ π₁(ℰ_{m}(e))(θ) \;\;|\;\; (e,θ) ∈ \Ae \} \\
+\end{align*}
+This definition gives a flow-sensitive path-insensitive analysis.
+
+By altering the monad behind the abstraction, we are able to tune the flow and path sensitivity of the analysis.
+The two choices for $ℳ $ alter to path sensitivity of the analysis.
+For the choice of $ℳ  = \PT(\SM(\AStore))$, the two choices for $\A$ alter the flow sensitivity of the analysis.
+
+Our definition of a nondeterminism monad transformer is new in this work, and we give its definition here.
+Our nondeterminism monad transformer requires the underlying monad $ℳ $ to be a join-semilattice functor: 
+  $ℳ (a)$ must be a join-semilattice if $a$ is a join-semilattice.
+We define the type $\PT(ℳ )(a) ≔ ℳ (\PM(a))$ and define monad operations:
+\begin{align*}
+   return &≔ return_{ℳ } ∘ singleton \\
+extend(k) &≔ extend_{ℳ }(joins ∘ map_{\PM}(k))  \\
+\end{align*}
+where
+\begin{align*}
+  joins(xs) ≔ ⋃_{x ∈ xs} x
+\end{align*}
+The fact that $\PT(ℳ )(a)$ is a join-semilattice follows trivially from the functorality of $ℳ $.
+Proofs of monad laws and other correctness properties are given in section \ref{Proofs}.
 
 % }}}
 
 % Intensional Optimizations {{{
 \section{Intensional Optimizations}
-\label{section:IntensionalOptimizations}
-% * Intensional Optimizations
-%   - Garbage Collection
-%   - MCFA
+\label{Optimizations}
 
-Up to this point we have factored the abstract control properties of static analysis behind a common interface.  
-Now we show how to implement two intentional optimizations, abstract garbage collection and mcfa, in a completely general setting.
+Up to this point we have demonstrated a compositional framework for building abstract interpreters, 
+  and a method for exposing abstract control as a tuning knob for these analysis.
+Now we show how to implement two intentional optimizations, abstract garbage collection and MCFA, in a completely general setting.
 
-\paragraph{Abstract Garbage Collection}
-Abstract garbage collection is an optimization technique in abstract interpretation where unreachable abstract addresses are pruned from the state space.
+\subsection{Abstract Garbage Collection}
+Abstract garbage collection\cite{might:2006:gammacfa} is an optimization technique in abstract interpretation 
+  where unreachable abstract addresses are pruned from the state space.
 This is analagous to “real” garbage collection, where unreachable pointers are reclaimed for space efficiency.
 However, in abstract semantics, live addresses are \emph{re-used} as part of the sound and finite approximation of an infinite address space.
-When a live address present in the heap must be used for allocation, a static analysis is forced to lose precision.
-Abstract garbage collection exploits the realization that these live addresses can be collected before they are reallocated, resulting in no loss of precision.
+When an in-use address must be re-used for allocation, a static analysis is forced to lose precision.
+Abstract garbage collection exploits the fact that unreachable addresses can be reclaimed before they are re-used, 
+  resulting in no loss of precision when re-using an address.
 
 For a generic implementation of garbage collection we assume an arbitrary $ℳ $ that has $get$, $put$ and nondeterminism effects.
-This allows us to change the flow and path sensitivity of the garbage collection without having to reimplement that analysis.
+This allows us to change $ℳ $, and therefore the flow and path sensitivity of the garbage collection, 
+  without having to reimplement our optimization.
+
+We implement abstract garbage collection for our example of kCFA (for $k=1$) described in section \ref{MAAM-KCFA}.
+Our implementation of garbage collection uses two helper functions $𝓉Exp : Exp → ℳ (\PM(\AAddr))$ and $ 𝓉\AAddr : \AStore → \AAddr → \PM(\AAddr)$.
+$𝓉Exp$ is a monadic action which computes the live addresses reachable from the current expression using $ 𝓉\AAddr$.
+$𝓉\AAddr$ computes the addresses reachable from a single address.
+\begin{align*}
+          𝓉Clo &: \AStore × Clo → \PM (\AAddr)         \\
+𝓉Clo(θ,⟨f, ρ⟩) &≔ ⋃_{x ∈ freevars(f)} 𝓉\AAddr(θ)(ρ(x)) \\
+        𝓉Addr &: \AStore → \AAddr → \AAddr            \\
+𝓉\AAddr(θ)(𝓁)  &≔ ⋃_{clo ∈ θ(𝓁)} 𝓉Clo(clo)             \\
+       currClo &: Exp → ℳ (Clo)                        \\
+  currClo(e)   &≔ \ddo                                 \\
+               &ρ ← \getenv                            \\
+               &return(⟨λ(\_) → e, ρ⟩)                 \\
+          𝓉Exp &: Exp → ℳ (\AAddr)                     \\
+  𝓉Exp(e)      &≔ \ddo                                 \\
+               &clo ← currClo(e)                       \\
+               &𝓉Clo(clo)                              \\
+\end{align*}
+$freevars$ computes the free variables of an expression in the usual way:
+\begin{align*}
+  freevars(\iif(a)\{e₁\}\{e₂\}) &≔ freevars(a) ∪ freevars(e₁) ∪ freevars(e₂)   \\
+  freevars(a₁(a₂))        &≔ freevars(a₁) ∪ freevars(a₂)                 \\
+  freevars(a₁(a₂,a₃))     &≔ freevars(a₁) ∪ freevars(a₂) ∪ freevars (a₃) \\
+  freevars(\halt(a))      &≔ freevars(a)                                 \\
+  freevars(\lam(x) → e)   &≔ freevars(e) - \{ x \}                       \\
+  freevars(\lam(x,k) → e) &≔ freevars(e) - \{ x, k \}                    \\
+  freevars(l)             &≔ \{\}                                        \\
+\end{align*}
+
+Using helper functions $𝓉Exp$ and $ 𝓉\AAddr$, we can define garbage collection using the following strategy:
+\begin{enumerate}
+\item Find the set of addresses reachable from the current expression.
+\item Find the least-fixed point of the reachability relation for the heap starting from this set.
+\item Retain only the mappings in the heap that have keys in this set.
+\end{enumerate}
 \input{snips/GC.tex}
 This is literally the implementation of \emph{concrete} garbage collection, but with control properties abstracted behind a monad.
-When instantiated with path-sensitive, flow-sensitive or flow insensitive monads, we can recover the appropriate version of control for abstract garbage collection.
+When instantiated with path-sensitive, flow-sensitive or flow insensitive monads, 
+  we can recover the appropriate version of control for abstract garbage collection.
 
-In the original AAM paper, abstract garbage collection is described using a path-sensitive CESK* machine.
-Later in the paper, the path-sensitive CESK* machine is abstracted to use a single global store, which yields a less precise but more tractable analysis.
-However, the single-store variant of the analysis requires one to repeat the “instrument then abstract” design process for abstract garbage collection.
-By abstracting control and exposing it as an orthogonal tuning knob, we are able to design flow and path sensitive variants of garbage collection at once.
+In AAM, the authors describe abstract garbage collection for a path-sensitive CESK* machine.
+Later in the AAM story, the path-sensitive CESK* machine is abstracted to use a single global store, 
+  resulting in a less precise but more tractable analysis.
+However, the single-store variant of the analysis requires one to repeat the 
+  “instrument then abstract” design process all over again for abstract garbage collection.
+By abstracting control and exposing it as an orthogonal tuning knob, 
+  we are able to design flow and path sensitive variants of garbage collection with a single definition.
 
-\paragraph{MCFA}
+\subsection{MCFA}
 
-MCFA is an optimization that improves the asymptotic complexity of context-sensitive control flow analyses for functional languages.
+MCFA\cite{might:2010:mcfa} is an optimization that improves the asymptotic 
+  complexity of context-sensitive control flow analyses for functional languages.
 Context sensitive analysis were shown to be exponential for functional analyses, yet polynomial for OO analysis, creating an apparent paradox.
 MCFA resolves this paradox by identifying the difference in context sensitive analyses and porting the polynomial behavior from OO to functional analyses.
 The key insight of MCFA is to use packed, copied closures rather than linked closures in the abstract semantics.
 Like garbage collection, using packed rather than linked closures is a simple optimization a compiler or concrete interpreter might use to increase performance.
 Like \emph{abstract} garbage collection, transporting this simple idea from concrete to abstract interpreters reveals a surprising analysis optimization.
 
-The examples so far have covered 0CFA, a context insensitive analysis.
-Before discussing MCFA, we add context sensitivity to our example analysis.
-
-To incorporate context sensitivity into the analysis we do the following:
-\begin{itemize}
-\item Add another state space component to $Σ$ for environments: $\AEnv$.
-      This environment will track which calling function is responsible for binding a given parameter.
-\item Capture this environment when evaluating $λ$ expressions, just like a concrete interpreter would for concrete environments.
-\item Add another state space component which tracks the program points visited so far by the program: $\ATime$.
-\item When interpreting a command $𝒞_{m}(e)$, move time forward by adding $e$ to the list of program points visited.
-\item When calling a function, record the current time next to the function arguments in the environment.
-\end{itemize}
-These steps have the effect of re-analyzing a function twice if it is called from two separate places.
-
-Changing the state space two have two new components is achieved by adding two more state effects two our monad, one for $\AEnv$ and one for $\ATime$:
-\begin{align*}
-  ρ : \AEnv &≔ Var ⇀ \ATime                              \\
-σ : \AStore &≔ (Var,\ATime) → \PM(\AVal)                 \\
- τ : \ATime &≔ Call \;\text{(the last program location)} \\
- f,g : Lam  &⩴ \lam(x) → e \;|\; \lam(x,k) → e           \\
-  clo : Clo &⩴ ⟨f, ρ⟩                                    \\
-  v : \AVal &⩴ l \;|\; clo \;|\; INT                     \\
-\end{align*}
-
-Capturing the environment when evaluating $λ$ expressions is a simple monadic action:
-\begin{align*}
-𝒜_{m}                &: Atom → ℳ (\PM(\AVal))      \\
-                 ... &                             \\
-𝒜_{m}(\lam(x) → e)   &≔ \ddo                       \\
-                     &ρ ← \getenv                  \\
-                     &\return (⟨\lam(x) → e, ρ⟩)   \\
-𝒜_{m}(\lam(x,k) → e) &≔ \ddo                       \\
-                     &ρ ← \getenv                  \\
-                     &\return (⟨\lam(x,k) → e, ρ⟩) \\
-                 ... &                             \\
-\end{align*}
-This is the “linked” implementation of closures, which MCFA will replace with a packed version.
-
-Moving abstract time forward is a simple update of the $\ATime$ state to be the current call expression:
-\begin{align*}
-   𝒞_{m}' &: Call → ℳ (Call) \\
-𝒞_{m}'(e) &≔ \ddo            \\
-          &\puttime(e)       \\
-          &𝒞_{m}(e)          \\
-\end{align*}
-
-Calling a function now uses time as an address for storing values in $\AStore$.
-\begin{align*}
-           𝒞_{m} &: Call → ℳ (Call)                            \\
-             ... &                                             \\
-𝒞_{m}(a₁(a₂,a₃)) &≔ \ddo                                       \\
-                 &vP ← 𝒜_{m}(a₁)                               \\
-                 &v ← \liftpowerset(vP)                        \\
-                 &(⟨\lam(x)(k) → e, ρ⟩) ← \coercefun(v)        \\
-                 &vP₂ ← 𝒜_{m}(a₂)                              \\
-                 &vP₃ ← 𝒜_{m}(a₃)                              \\
-                 &σ ← \getstore                                \\
-                 &τ ← \gettime                                 \\
-                 &\putenv(ρ[x ↦ τ][k ↦ τ])                     \\
-                 &\putstore(σ ⊔ [(x,τ) ↦ vP₂] ⊔ [(k,τ) ↦ vP₃]) \\
-                 &\return(e)                                   \\
-             ... &                                             \\
-\end{align*}
-
-Now that we have a context sensitive analysis, MCFA is implemented by creating a new packed environment, rather than just linking with the current environment:
+Like abstract garbage collection, our implementation of MCFA also uses the semantics for kCFA.
+MCFA is implemented by creating a new packed environment, rather than just linking with the current environment:
+This reuses the definition of $freevars$ from the previous section.
 \input{snips/MCFA.tex}
 
 Like abstract garbage collection, our implementation of MCFA is tunable from one implementation which has abstracted control through a monad.
@@ -610,167 +781,159 @@ Flow and path sensitive variants of MCFA fall out of a simple rearranging of the
 % }}}
 
 % Correctness {{{
-
 \section{Correctness}
-\label{section:Correctness}
-% * Correctness
-%   - All Legos give correct analyses
-%   - Nondeterminism MT
-%   - Monad Transformers relate to state machine functors.
-%   - Galois connections with functors for α γ maps
+\label{Correctness}
 
-
-The key advantage to our framework is that the proofs of correctness for constructed analyses are constructed compositionally and derived automatically.
+One advantage of using our framework is that proofs of correctness for analyses are constructed compositionally and automatically.
 The proofs are compositional because they are established at the level of monad transformers, not hard-coded for a full monad stack.
-The proofs are derived automatically through the galois-functorality of the monad transformers we use; they transport galois connections in addition to monadic actions.
-Given these proofs, along with an argument about monotonicity of the monadic semantics, we can establish a proof of galois connection for any given interpreter instantiation.
+The proofs are derived automatically through the Galois-functorality of the monad transformers we use, 
+  which means they transport Galois connections in addition to monadic actions.
+Given the proofs provided by our framework, along with an argument about monotonicity of the monadic semantics, 
+  we can establish a proof of Galois connection for any given monadic instantiation.
 
-To relate back to abstract machine semantics, we establish a galois connection between monadic actions in $ℳ $ and transitions functions for \emph{some} abstract state space $𝒮𝒮$.
-This abstract state space is constructed from the monad transformer stack, although some transformer stacks support multiple abstract state spaces.
-This property is notated $(A → ℳ (B))\galois{α}{\gamma}(𝒮𝒮(A) → 𝒮𝒮(B))$.
-We call a particular monad $ℳ $ which enjoys this property a \emph{small-step monad}.
-Likewise, we call a monad transformer $𝒯$ which enjoys \emph{transports} this property a \emph{small-step monad transformer}.
+To relate back to state machine semantics, we establish Galois connections between monadic actions in $ℳ $ 
+and transitions functions for \emph{some} abstract state space $\A$, notated $(A \xrightarrow{mon} ℳ (B))\galois{α}{\gamma}(\A_T(A) \xrightarrow{mon} \A_T(B))$.
+The abstract state space $\A$is constructed from the monad transformer stack, although some transformer stacks support multiple abstract state spaces.
+Proofs of these properties are given in section \ref{Proofs}.
 
-In our framework we prove that not only are $\ST$ and $\PT$ monad transformers, they're small-step monad transformers.
-This means that for any stack of interleaving $\ST$ and $\PT$ monad transformers, one can construct the necessary galois connection back to small step semantics.
+Key lemmas in our construction of these Galois connections include:
+\begin{itemize}
+\item Proving that our new monad transformer for nondeterminism is a proper monad transformer.
+      The key insight here is to require the underlying monad to be a join-semilattice functor, 
+         which holds for the analyses we discuss in this paper.
+\item Proving that both state and nondeterminism transformers transport Galois connections to abstract state machines.
+  The key insight here is to move the Galois connection framework to a \emph{functorial} framework, 
+    where $α(1) = 1$ and $ α(g ∘ f) = α(g) ∘ α(f)$, and likewise for $γ$.
+\end{itemize}
 
-We prove that $\ST(𝓈)(\PM) ⊑ \PT(\SM(𝓈))$.
-These monad interleavings correspond to path-sensitivity and path-insensitivity respectively.
+In our framework we also prove that $(\ST(𝓈) ∘ \PT) ⊑ (\PT ∘ \ST(𝓈))$.
+These orders for the monad transformer stack correspond to path-sensitivity and path-insensitivity respectively.
 
-For the $\PT(\SM(𝓈))$ monad, we show two galois connections are possible: one to the state space $\PM(\_ × 𝓈)$ and one to the state space $(\PM(\_) × 𝓈)$.
-These choices for galois connection correspond to flow-sensitivity and flow-insensitivity respectively.
+For the $\PT ∘ \ST(𝓈)$ ordering, we show two Galois connections are possible: 
+  one to the state space $\PM(\_ × 𝓈)$ and one to the state space $(\PM(\_) × 𝓈)$.
+These choices for Galois connection correspond to flow-sensitivity and flow-insensitivity respectively.
 
-Independent of language or application we have proven:
+Using monad transformers and their relationships to state machines, we have shown independent of a particular language or analysis that:
 \begin{align*}
-flow-insensitive ⊑ flow-sensitive path-insensitive ⊑ flow-sensitive 
+  \text{flow-insensitive} ⊑ \text{flow-sensitive path-insensitive} ⊑ \text{flow-sensitive}
 \end{align*}
 
-A given concrete semantics will always use the flow-sensitive path-sensitive monad.
-Using this bridge we can construct a galois connection between concrete and a flow-insensitive abstract semantics with no added effort.
+A given \emph{concrete} semantics will typically use the flow-sensitive path-sensitive monad.
+Using this already established ordering we can construct a Galois connection between 
+  a concrete semantics and a flow-insensitive abstract semantics with no additional effort.
 
-This table summarizes these results, showing both the monad $ℳ $ and state space $Σ$ which correspond to each analysis:
+This table summarizes our results, showing both the monad $ℳ $ and state space $\A$ which correspond to each analysis:
 \begin{center}\begin{tabular}{| c | c | c |}
-  \hline Sensitivity      & Path Sensitive                    & Path Insensitive                  \\
-  \hline Flow Sensitive   & $ℳ  ≔ S ∘ 𝒫$ \newline $Σ ≔ P ∘ ×$ & $ℳ  ≔ 𝒫 ∘ S$ \newline $Σ ≔ 𝒫 ∘ ×$ \\
-  \hline Flow Insensitive & $DNE$                             & $ℳ  ≔ × ∘ 𝒫$ \newline $Σ ≔ × ∘ 𝒫$ \\
-  \hline                                                                                          \\
+  \hline Sensitivity      & Path Sensitive                             & Path Insensitive                           \\
+  \hline Flow Sensitive   & $ℳ  ≔ \ST ∘ \PT$ \;|\; $\A ≔ \PT ∘ \XT$ & $ℳ  ≔ \PT ∘ \ST$ \;|\; $\A ≔ \PT ∘ \XT$ \\
+  \hline Flow Insensitive & $DNE$                                      & $ℳ  ≔ \XT ∘ \PT$ \;|\; $\A ≔ \XT ∘ \PT$ \\
+  \hline                                                                                                            \\
 \end{tabular}\end{center}
-(We write $S and 𝒫$ to abbreviate the state and nondeterminism monad
-transformers, and $× and 𝒫$ to abbreviate the cartesian product and
-nondeterminism state space functors.)
-
-In summary, when using our framework, the analysis designer need only prove prove:
-\begin{itemize}
-\item The semantic step function $𝒞_{m}$ is monotonic.
-\item The semantics as written, including intensional optimizations, are correct.
-\end{itemize}
-After supplying these proofs, the analysis designer enjoys:
-\begin{itemize}
-\item An automatically derived analysis for their language with abstract control left as a tuning knob.
-\item A proof-by-construction of galois connection (soundness and tightness) for the derived analysis.
-\item Easy integration of new analysis features, a la. AAM.
-\item Single-definition implementation of intensional optimizations like abstract garbage collection or MCFA.
-\end{itemize}
+where $\XT$ is the state machine functor for cartesian product ($×$).
 
 % }}}
 
 % Related Work {{{
 \section{Related Work}
 \label{RelatedWork}
-% * Abstract Control:
-%   - Johnson and Van Horn. 2014. Abstracting Abstract Control.
-%     + Discusses push-down as the missing knob.
-%     + Different knob settings for the same knob; hopefully they can be combined.
-% * Compositional Analysis Design: Calculational AI:
-%   - Cousot. 1999. The calculational design of a generic abstract interpreter.
-%     + Works for anything in principle, but hasn't been demonstrated.
-%   - Midgaard and Jensen. 2008. A Calculational Approach to Control-flow Analysis by Abstract Interpretation.
-%     + Calculation is hard; maybe proof assistants can help with this.
-% * New knobs: object sensitivity:
-%   - Kastrinis and Smaragdakis. 2013. Hybrid Context-Sensitivity for Points-To Analysis.
-% * Using Path Sensitivity: 
-%   - Das et al. 2002. ESP: Path-Sensitive Program Verification in Polynomial Time.
+
 \paragraph{Abstract Control}
-Johnson and Van Horn recently explored the concept of abstract control in their paper Abstracting Abstract Control (AAC)\cite{AAC}.
+Johnson and Van Horn recently explored the concept of abstract control in their recent paper Abstracting Abstract Control 
+(AAC)\cite{johnson:2014:AAC}.
 In this work, the authors discuss how to recover a pushdown abstraction systematically in the setting of AAM.
 Our work is orthogonal, and potentially compatible with theirs: our framework explains compositional analyses, while theirs explains pushdown control abstraction.
-We hope for an eventual combination of the two techniques, and see this as a ripe area for combination of results.
+We hope for an eventual combination of the two techniques, which would expose pushdown abstraction as a feature-independent tuning knob.
 
-As far as the question “what is abstract control?”, it appears that we paint a similar picture as Johnson and Van Horn in AAC.
-In both works, abstract control has something to do with the fixpoint iteration of the semantic step function, and is noted as lacking in classic AAM.
-Our work gives one possible definition for what abstract control is: it's the control effects used by an interpreter, coupled with the way these effects are related to abstract machines.
+As far as the question “what is abstract control?”, we paint a similar picture as do Johnson and Van Horn in AAC.
+In both works, abstract control is an abstraction over the fixpoint iteration of the semantic step function which classic AAM didn't account for.
+Our work gives one possible definition for what abstract control is: 
+  abstrct control is the combination of control effects used by an interpreter,
+  coupled with the way these effects are related to abstract machines.
 
 \paragraph{Compositional Approaches}
-Another compositional approach to abstract interpretation is described by Cousot and Cousot: \emph{calculational abstract interpretation}\cite{CalculationalAI}.
-Calculational AI shares a similar philosophy to our work: abstract interpreters should be build piecewise from compositional components.
-In calculational AI, analyses are derived from applying a sequence of galois connections.
-This contrasts to the approach of designing an analysis first, and manually justifying the galois connection after.
-After applying a sequence of galois connections, the analysis designer must \emph{calculate} the computable analysis from the one derived by galois connection composition.
+Another compositional approach to abstract interpretation is \emph{calculational abstract interpretation}\cite{cousot:1999:calculational} 
+  as described by Cousot and Cousot.
+Calculational AI shares a similar philosophy to our work: abstract interpreters should be built piecewise from compositional components.
+In calculational AI, analyses are derived by applying a sequence of Galois connections to the concrete semantics.
+This contrasts to the approach of designing an analysis first, and manually justifying the Galois connection after.
+However, after applying a sequence of Galois connections, 
+  the analysis designer must \emph{calculate} the computable analysis from the one derived by Galois connection composition,
+  which in general is not computable.
 
 The downfall of calculational AI is in the effort required during the calculation step.
-For example, Midgaard and Jensen\cite{Calculational0CFA} describe a calculational derivation of 0CFA, the same analysis described in this work, and it is a difficult process.
+For example, Midgaard and Jensen\cite{midtgaard:2008:calculational-cfa} describe a calculational derivation of 0CFA, the same analysis described in this work, and it is a difficult process.
 
-While work in calculational AI has seen less success than AAM, we note that the two approaches are actually compatible, and thus tackle different parts of the analysis design process.
+While work in calculational AI has perhaps seen less success than AAM, 
+  we note that the two approaches are actually compatible, tackling different parts of the analysis design process.
 AAM is a methodology for splitting the design process to first instrument a concrete semantics, and then systematically abstract.
-Both of these steps must be justified with galois connections, and one could use calculation for either.
-Our work provides computations and proofs for the second step, the systematic abstraction, but one might happily justify the instrumentation step via calculation.
+Both of these steps must be justified with Galois connections, and one could use calculation for either step.
+Our work provides computations and proofs for the abstraction step, but one might happily justify the instrumentation step via calculation.
 
 \paragraph{Tuning Knobs}
 Tuning knobs for static analysis are great when they're general enough for a wide range of applications.
-For example, the work Kastrinis and Smaragdakis\cite{HybridContextObject} shows how to leave both context-sensitivity and object-sensitivity as orthogonal tuning knobs in an OO analysis.
-These knobs have shown to be sufficient for interesting applications like malware detection for Android applications\cite{Apposcopy}.
-(\cite{Apposcopy} directly uses the analysis framework described in\cite{HybridContextObject}.)
+For example, work by Kastrinis and Smaragdakis\cite{kastrinis:2013:hybrid-points-to}\cite{smaragdakis:2011:pick-your-contexts-well} 
+  shows how to expose both context-sensitivity and object-sensitivity as orthogonal tuning knobs in an OO analysis.
+These knobs have shown to be sufficient for interesting applications like malware detection for Android applications\cite{feng:2014:apposcopy}.
+(\cite{feng:2014:apposcopy} directly uses the analysis framework described in\cite{kastrinis:2013:hybrid-points-to}.)
 
 \paragraph{Path Sensitivity}
-Path sensitivity in particular was shown to be profitible and tractable by Das et al.\cite{ESP}.
+Path sensitivity in particular was shown to be profitible and tractable by Das et al.\cite{das:2002:esp}.
 In this work the authors verify the absence of open/close file handle bugs in the GNU C compiler.
-Path sensitivity was crucial achieve the precision needed for their analysis, and their paper describes to to achieve this precision without too much added cost in complexity.
+Path sensitivity was crucial achieve the precision needed for their analysis, and their paper describes how to achieve this precision without too much added cost in complexity.
 These subtle variants of path sensitivity are important for applying path sensitive analysis in practice.
-We do not account for these particular variants of path sensitivity in our framework, although we hope to explore how they fit into our framework in future work.
+We do not directly account for these particular variants of path sensitivity in our framework, 
+  although we hope to explore how they fit into our framework in future work.
 % }}}
 
 % Future Work {{{
 \section{Future Work}
 \label{FutureWork}
-% * Future Work:
-%   - Verified compilation:
-%     + CompCert, but whole program analysis, functional languages.
-%     + Requires embedding whole framework in proof assistant.
-%     + Mechanizing galois connections is hard, because of calculation.
-%   - More knobs for analysis:
-%     + Lexical Time
-%     + Object sensitivity for functional languages.
-%   - Denotational variants of MAAM
-%     + Picking small-step semantics has consequences.
-%     + Add MonadFix to effects, show a memoizing fixpoint is an abstraction of Y.
 
 \paragraph{Fully Verified Compilation}
 One direction of future work is to apply our approach to fully verified compilation.
 In fully verified compilation, the implementation of a comipler is typically embedded in proof assistant and proven correct all the way down to axioms in a logical system.
-This task is difficult due to both the extra rigor required in modelling and the proof engineering required in interacting with proof assistants.
+This task is difficult due to both the extra rigor required in modeling and the proof engineering required in interacting with proof assistants.
 We hope the compositionality of the \emph{correctness} of our approach will apply especially in this setting, because proofs need to be developed and maintained side-by-side with code.
 
-CompCert\cite{CompCert} is perhaps the most well known fully verified compiler to date.
+CompCert\cite{leroy:2009:compcert} is perhaps the most well known fully verified compiler to date.
 CompCert compiles C programs down to machine code and performs simple local optimizations.
-A verified compiler for languages with rich features like objects and first-class functions benefit especially from approaches like AAM and our extension of it.
-Whole program analysis has also not been studied yet in the context of fully verified compilation, perhaps because establishing the proof of correctness is too burdensome.
-We hope our technique can be extended to support fully verified compilation of whole program analysis for functional programs in the future.
+A variation of CompCert which would support richer language features might benefit from our approach.
+Whole program analysis has also not been studied yet in the context of fully verified compilation, 
+  perhaps because establishing the proof of correctness is too burdensome.
+We hope our technique can be applied to a fully verified compiler for functional program which also performs advanced whole program analysis.
+
+In the author's view, the biggest obstacle to implementing verified static analyses is 
+  the difficulty in establishing Galois connections using proof assistants.
+Galois connections sit in the middle-ground between computable functions (like an isomorphism) 
+  and mere specification (like a characteristic function).
+Arguments using Galois connections often start with some infinite set, after which calculation brings the 
+  result to something finite and computable.
+It is this process, moving from infinite to computable through calculation, that we conjecture has given experts the most difficulty in modeling Galois connections.
+All results to date of static analyses proven correct within proof assistants give up on establishing full Galois connection 
+  and settle for more direct methods.
+Tackling this problem could be a huge step forward in bringing more powerful analyses to the stage of fully verified compilation.
 
 \paragraph{New Tuning Knobs for Analysis}
 Another direction for future work is to discover more tuning knobs for analyses which have been missed by frameworks like AAM.
-For example, it would be nice if we could account for the pushdown abstraction from Johnson and Van Horn's work on \emph{Abstracting Abstract Control} into our monadic formulation.
+For example, it would be nice if we could account for the pushdown abstraction 
+  from Johnson and Van Horn's work on Abstracting Abstract Control into our monadic formulation.
+
 Less related to abstract control, we believe there is work to be done in porting object sensitivity to functional language analysis.
-We have preliminary results suggesting that object sensitivity becomes lexically scoped time in the functional setting.
-Exploring this would uncover yet another useful knob to analysis designers to quickly interate through the analysis design process.
+We have preliminary results suggesting that object sensitivity can be seen as lexically scoped time in the functional setting.
+Exploring this would uncover yet another tuning knob to analysis designers to quickly interate through the analysis design process.
 
 \paragraph{New Semantic Settings}
-Our framework small-step abstract machines semantic framework of AAM.
-The small-step setting is convenient, but it has less-well understood consequences when it serves as the basis for abstract interpretation.
+Our framework shares the small-step operational semantics roots of AAM.
+The small-step setting is convenient, but understood consequences when used as the basis for abstract interpretation 
+  which are less well understood.
 
-For example, we can imagine a more denotational variant of this work where we relate our interpreters to a denotational space rather than state machines.
-We have preliminary results suggesting that this can be done by allowing our monadic interpreter to be recursive.
-When this is done, the meaning of the program is not given by an external fixpoint of the step function, but rather directly through the denotation of recursion.
-To recover an analysis, one would abstract a precise fixpoint finder like the Y-combinator with an approximating fixpoint finder.
+For example, we can imagine a more denotational variant of this work where interpreters are related to a denotational space 
+  rather than to state machines.
+We have preliminary results suggesting that this can be done by allowing the monadic interpreter to be recursive, 
+  and then abstracting the meaning of recursion directly.
+The meaning of a program would then be given not given by an external fixpoint of the step function, 
+  but directly through a denotation for recursion.
+To recover an analysis, one would abstract a precise fixpoint finder like the Y-combinator with an approximating, finite fixpoint finder.
 
 % }}}
 
@@ -780,57 +943,71 @@ To recover an analysis, one would abstract a precise fixpoint finder like the Y-
 
 We have shown how to build compositional abstract interpreters which expose a tuning knob for abstract control.
 We use monad transformers as the building blocks for both constructing abstract interpreters and proving them correct piecewise.
-Using the monad abstraction, we showed how to expose abstract control as a tuning knob to recover flow and path sensitivities for a static analysis.
+Using the monadic abstraction, we showed how to expose abstract control as a tuning knob to recover flow and path sensitivities 
+  for a static analysis.
 After exposing a tuning knob for abstract control, we then demonstrated how to implement two analysis optimizations which adapt effortlessly to changes in abstract control.
 Our approach is justified piecewise by relating monad transformers to state machine functors.
-To achieve this, we develop a new monad transformer for nondeterminism and develop a functorial variant of galois connection.
+To achieve this, we develop a new monad transformer for nondeterminism and develop a functorial variant of Galois connection.
+
+When using our framework, the analysis designer need only prove prove:
+\begin{itemize}
+\item The monadic interpreter $ℰ_{m}$ is monotonic.
+\item The semantics as written, including intensional optimizations, are correct.
+\end{itemize}
+After supplying these proofs, the analysis designer enjoys:
+\begin{itemize}
+\item An automatically derived analysis for their language with abstract control left as a tuning knob.
+\item A proof-by-construction of Galois connection (soundness and tightness) for the derived analysis.
+\item Easy integration of new analysis features, a la. AAM.
+\item Single-definition implementations of intensional optimizations like abstract garbage collection and MCFA.
+\end{itemize}
 
 % }}}
 
 % Proofs {{{
 \section{Proofs}
-\label{section:Proofs}
+\label{Proofs}
 
-% Basic Definitions {{{
-\subsection{Basic Definitions}
-\label{section:Proofs:BasicDefinitions}
+% Definitions {{{
+\subsection{Definitions}
+\label{Definitions}
+
+% \begin{definition}
+% For a type $(A : Set)$, a \emph{partial order} structure on $A$ contains an operator:
+% \begin{align*}
+% \_⊑\_ : A → A → Prop
+% \end{align*}
+% which respect the following properties:
+% \begin{align*}
+%  \operatorname{reflexivity} &: x ⊑ x                   \\
+% \operatorname{antisymmetry} &: x ⊑ y ⇒  y ⊑ x ⇒  x = y \\
+% \operatorname{transitivity} &: x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z \\
+% \end{align*}
+% \end{definition}
+
+% \begin{definition}
+% For types $(A, B : Set)$ which both have partial orders, a function $(f : A → B)$ is called \emph{monotonic} if:
+% \begin{align*}
+% ∀ (x, y : A), x ⊑ y ⇒  f(x) ⊑ f(y)
+% \end{align*}
+% \end{definition}
+
+% \begin{lemma}
+% For types $(A, B : Set)$ which both have partial orders, there exists a partial order on the \emph{monotonic} function space $(A →^{mon} B : Set)$ with operator:
+% \begin{align*}
+% f ⊑ g ≔ ∀ (x, y : A), x ⊑ y → f(x) ⊑ g(y)
+% \end{align*}
+% \begin{proof}
+% Reflexivity is justified by monotonicity.  
+% Antisymmetry and transitivity are justified through the partial orders on $A$ and $B$.
+% \end{proof}
+% \end{lemma}
 
 \begin{definition}
-For a type $(A : Set)$, a \emph{partial order} structure on $A$ contains an operator:
+For types $(\C, \A : Set)$ which both have partial orders, a \emph{Galois connection} between $\C$ and $\A$, written $\C\galois{α}{γ}\A$, contains two operators:
 \begin{align*}
-\_⊑\_ : A → A → Prop
-\end{align*}
-which respect the following properties:
-\begin{align*}
- \operatorname{reflexivity} &: x ⊑ x                   \\
-\operatorname{antisymmetry} &: x ⊑ y ⇒  y ⊑ x ⇒  x = y \\
-\operatorname{transitivity} &: x ⊑ y ⇒  y ⊑ z ⇒  x ⊑ z \\
-\end{align*}
-\end{definition}
-
-\begin{definition}
-For types $(A, B : Set)$ which both have partial orders, a function $(f : A → B)$ is called \emph{monotonic} if:
-\begin{align*}
-∀ (x, y : A), x ⊑ y ⇒  f(x) ⊑ f(y)
-\end{align*}
-\end{definition}
-
-\begin{lemma}
-For types $(A, B : Set)$ which both have partial orders, there exists a partial order on the \emph{monotonic} function space $(A →^{mon} B : Set)$ with operator:
-\begin{align*}
-f ⊑ g ≔ ∀ (x, y : A), x ⊑ y → f(x) ⊑ g(y)
-\end{align*}
-\begin{proof}
-Reflexivity is justified by monotonicity.  
-Antisymmetry and transitivity are justified through the partial orders on $A$ and $B$.
-\end{proof}
-\end{lemma}
-
-\begin{definition}
-For types $(C, A : Set)$ which both have partial orders, a \emph{galois connection} between $C$ and $A$, written $C\galois{α}{γ}A$, contains two operators:
-\begin{align*}
-α &: C → A \\
-γ &: A → C \\
+α &: \C → \A \\
+γ &: \A → \C \\
 \end{align*}
 which respect the following properties:
 \begin{align*}
@@ -841,20 +1018,20 @@ which respect the following properties:
 \end{align*}
 \end{definition}
 
-\begin{definition}
-For a type $(A : Set)$, we call $A$ a \emph{join semilattice}, written $JoinSemilattice(A)$, if one can define two operators:
-\begin{align*}
-    ⊥ &: A         \\
-\_⊔\_ &: A → A → A \\
-\end{align*}
-which respect the following properties:
-\begin{align*}
-    \operatorname{left-unit} &: ⊥ ⊔ x = x                  \\
-   \operatorname{right-unit} &: x ⊔ bot = x                \\
-\operatorname{associativity} &: x ⊔ (y ⊔ z) = (x ⊔ y) ⊔ z  \\
-\operatorname{commutativity} &: x ⊔ y = y ⊔ x              \\
-\end{align*}
-\end{definition}
+% \begin{definition}
+% For a type $(A : Set)$, we call $A$ a \emph{join semilattice}, written $JoinSemilattice(A)$, if one can define two operators:
+% \begin{align*}
+%     ⊥ &: A         \\
+% \_⊔\_ &: A → A → A \\
+% \end{align*}
+% which respect the following properties:
+% \begin{align*}
+%     \operatorname{left-unit} &: ⊥ ⊔ x = x                  \\
+%    \operatorname{right-unit} &: x ⊔ bot = x                \\
+% \operatorname{associativity} &: x ⊔ (y ⊔ z) = (x ⊔ y) ⊔ z  \\
+% \operatorname{commutativity} &: x ⊔ y = y ⊔ x              \\
+% \end{align*}
+% \end{definition}
 
 \begin{definition}
 For a type $(F : Set → Set)$, we call $F$ a \emph{functor}, written $Functor(F)$, if one can define the operator:
@@ -919,9 +1096,9 @@ and the following additional properties hold:
 \end{definition}
 
 \begin{definition}
-For types $(ℳ  , 𝒮𝒮 : Set → Set)$, we call $ℳ $ a \emph{small step monad with state space $𝒮𝒮$}, written $MonadSmallStep(𝒮𝒮)(ℳ )$, if one can define:
+For types $(ℳ  , \A_T : Set → Set)$, we call $ℳ $ a \emph{small step monad with state space $\A_T$}, written $MonadSmallStep(\A_T)(ℳ )$, if one can define:
 \begin{align*}
-∀ (A, B : Set), (A → ℳ (B)) \galois{α}{γ} (𝒮𝒮(A) → 𝒮𝒮(B))
+∀ (A, B : Set), (A → ℳ (B)) \galois{α}{γ} (\A_T(A) → \A_T(B))
 \end{align*}
 \end{definition}
 
@@ -944,7 +1121,7 @@ return (x ⊔ y) = return(x) ⊔ return(y)
 
 % ID {{{
 \subsection{ID}
-\label{section:Proofs:ID}
+\label{ID}
 
 \begin{definition}
 The \emph{identity monad}, written $ID$, is defined:
@@ -976,7 +1153,7 @@ Holds by definition of $ID$.
 
 % SetT {{{
 \subsection{$\PT$}
-\label{section:Proofs:SetT}
+\label{SetT}
 
 \begin{definition}
 The \emph{set monad transformer}, written $\PT$, is defined:
@@ -1013,8 +1190,8 @@ extend(k) &≔ extend_{ℳ }(joins ∘ map_{\PM}(k))  \\
 \operatorname{left-unit} &: extend(return) = id                                                                                        \\
                                                                                                                                        \\
 extend(return) &= extend_{ℳ }(joins ∘ map_{\PM}(return_{ℳ } ∘ singleton_{\PM}))            \tag{definition of extend and join}         \\
-               &= extend_{ℳ }(λ(xs) → ⋃ \{ return_{ℳ } (singleton_{\PM}(x)) \;|\; x ∈ xs \}) \tag{definition of joins}                 \\
-               &= extend_{ℳ }(λ(xs) → return_{ℳ } (⋃ \{ singleton_{\PM}(x) \;|\; x ∈ xs \})) \tag{functorality of semilattice in $ℳ $} \\
+               &= extend_{ℳ }(λ(xs) → ⋃_{x ∈ xs} return_{ℳ } (singleton_{\PM}(x)) ) \tag{definition of joins}                 \\
+               &= extend_{ℳ }(λ(xs) → return_{ℳ } (⋃_{x ∈ xs} singleton_{\PM}(x) )) \tag{functorality of semilattice in $ℳ $} \\
                &= extend_{ℳ }(λ(xs) → return_{ℳ }(xs))                                       \tag{join identity for $\PM$}             \\
                &= extend_{ℳ }(return_{ℳ })                                                 \tag{η reduction for λ}                     \\
                &= id                                                                       \tag{left unit monad law for $ℳ $}          \\
@@ -1037,8 +1214,8 @@ extend(k)(return(x)) &= extend_{ℳ }(joins ∘ map_{\PM}(k))(return_{ℳ }(sing
 extend(k₂)∘ extend(k₁) &= extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ extend_{ℳ }(joins ∘ map_{\PM}(k₁)) \tag{definition of $extend$}                 \\
                        &= extend_{ℳ }(extend_{ℳ }(joins ∘ map_{\PM}(k₂)) ∘ joins ∘ map_{\PM}(k₁)) \tag{associativity law for $ℳ $}             \\
                        &= extend_{ℳ }(extend(k₂) ∘ joins ∘ map_{\PM}(k₁))                         \tag{definition of $extend$}                 \\
-                       &= extend_{ℳ }(λ(xs) → extend(k₂) (⋃ \{ k₁(x) \;|\; x ∈ xs\}))             \tag{definitions of $joins$ and $map_{\PM}$} \\
-                       &= extend_{ℳ }(λ(xs) → ⋃ \{ extend(k₂)(k₁(x)) \;|\; x ∈ xs\})              \tag{distributivity of $∪$ for $ℳ $}         \\
+                       &= extend_{ℳ }(λ(xs) → extend(k₂) (⋃_{x ∈ xs} k₁(x) ))             \tag{definitions of $joins$ and $map_{\PM}$} \\
+                       &= extend_{ℳ }(λ(xs) → ⋃_{x ∈ xs} extend(k₂)(k₁(x)) )              \tag{distributivity of $∪$ for $ℳ $}         \\
                        &= extend_{ℳ }(joins ∘ map_{\PM}(extend(k₂) ∘ k₁))                         \tag{definition of $map_{\PM}$}              \\
                        &= extend(extend(k₂) ∘ k₁)                                                 \tag{definition of $extend$}                 \\
 \end{align*}
@@ -1060,129 +1237,129 @@ then $\PT(ℳ )$ is a monad state over $𝓈$ with operators:
 \end{lemma}
 
 \begin{lemma}
-For a given $(ℳ  : Set → Set)$ and $(𝒮𝒮 : Set → Set)$ where:
+For a given $(ℳ  : Set → Set)$ and $(\A_T : Set → Set)$ where:
 \begin{itemize}
 \item $ℳ $ is a monad.
-\item $ℳ $ is a small-step monad over $𝒮𝒮$.
+\item $ℳ $ is a small-step monad over $\A_T$.
 \item $ℳ $ is functorial in join semilattice.
-\item $𝒮𝒮$ is a functor.
+\item $\A_T$ is a functor.
 \end{itemize}
-then $\PT(ℳ )$ is a small step monad over $(𝒮𝒮 ∘ \PM)$ with galois connection maps:
+then $\PT(ℳ )$ is a small step monad over $(\A_T ∘ \PM)$ with Galois connection maps:
 \begin{align*}
-   α &: ∀ (A, B : Set), (A → \PT(ℳ )(B)) → (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B))) \\
+   α &: ∀ (A, B : Set), (A → \PT(ℳ )(B)) → (\A_T(\PM(A)) → \A_T(\PM(B))) \\
 α(f) &≔ α_{ℳ }(joins ∘ map_{\PM}(f))                                 \\
                                                                      \\
-   γ &: ∀ (A, B : Set), (𝒮𝒮(\PM(A)) → 𝒮𝒮(\PM(B))) → (A → \PT(ℳ )(B)) \\
-γ(f) &≔ γ_{ℳ }(f ∘ map_{𝒮𝒮}(return_{\PM}))                           \\
+   γ &: ∀ (A, B : Set), (\A_T(\PM(A)) → \A_T(\PM(B))) → (A → \PT(ℳ )(B)) \\
+γ(f) &≔ γ_{ℳ }(f ∘ map_{\A_T}(return_{\PM}))                           \\
 \end{align*}
-\begin{proof} of contractivity.
+%\begin{proof} of contractivity.
 \begin{align*}
 α ∘ γ &⊑ id                                                                   \\
                                                                               \\
 (α ∘ γ)(f) &= α_{ℳ }(joins ∘ map_{\PM}(γ_{ℳ }(f ∘ map_{𝒮 𝒮 }(return_{\PM})))) \\
 \end{align*}
-TODO.
-(Requires $α(1) = 1$ and $α(g ∘ f) = α(g) ∘ α(f)$ (maybe $⊑$?), and likewise for $γ$.)
-\end{proof}
-\begin{proof} of expansivity.
-\begin{align*}
-\end{align*}
-TODO.
-\end{proof}
+%TODO.
+%(Requires $α(1) = 1$ and $α(g ∘ f) = α(g) ∘ α(f)$ (maybe $⊑$?), and likewise for $γ$.)
+%\end{proof}
+%\begin{proof} of expansivity.
+%\begin{align*}
+%\end{align*}
+%TODO.
+%\end{proof}
 \end{lemma}
 
-\begin{verbatim}
-
-MonadSmallStep(𝓂 )(𝒮𝒮) ∧ (\PM ∘ 𝒮𝒮) α⇄ γ (𝒮𝒮 ∘ \PM)
--------------------------------------
-MonadSmallStep(\ST 𝓂 )(\PM ∘ 𝒮)
-
-α : ∀ (A B : Set), (A → \ST(𝓂 )(B)) → (\PM(𝒮𝒮(A) → \PM(𝒮𝒮(B))))
-α(f) ≔ extendₚ(α ∘ αₘ(f))
-
-γ : ∀ (A B : Set), (\PM(𝒮𝒮(A) → \PM(𝒮𝒮(B)))) → (A → \ST(𝓂 )(B))
-γ(f) ≔ extendₚ(γ ∘ γₘ(f))
-\end{verbatim}
-
-% }}}
-
-% StateT {{{
-
-\subsection{$\ST$}
-\label{section:Proofs:StateT}
-
-\begin{verbatim}
-\ST : Set → (Set → Set) → (Set → Set)
-\ST(𝓈)(𝓂 )(A) ≔ 𝓈 → 𝓂  (A × 𝓈)
-
-Transformer(\ST(𝓈))
-----------------------
-
-lift : ∀ (𝓂  : Set → Set) (A : Set), 𝓂  a → \ST(𝓈)(𝓂 )(A)
-lift aM ≔ λ 𝓈 → mapₘ (,𝓈) aM
-
-Monad(𝓂 )
---------------------
-Monad(\ST(𝓈)(𝓂 ))
-
-return : ∀ (A : Set), A → \ST(𝓈)(𝓂 )(A)
-return ≔ lift ∘ returnₘ
-
-extend : ∀ (A B : Set), (A → \ST(𝓈)(𝓂 )(B)) → (\ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(B))
-extend(k)(aM) ≔ λ 𝓈 → doₘ
-  (a,𝓈') ← aM(𝓈)
-  k(a)(𝓈')
-
-JoinSemilattice(𝓈) ∧ Monad(𝓂 )
-------------------------------------------
-Functorial(JoinSemilattice)(\ST(𝓈)(𝓂 ))
-
-bot : \ST(𝓈)(𝓂 )(A)
-bot ≔ λ(𝓈)→ (⊥ ₛ, ⊥ ₐ)
-
-⊔ : \ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(A)
-aM₁ ⊔ aM₂ ≔ λ 𝓈 → doₘ
-  (a₁,𝓈₁) ← aM₁
-  (a₂,𝓈₂) ← aM₂
-  return (a₁ ⊔ a₂, 𝓈₁ ⊔ 𝓈₂)
-
-MonadPlus(𝓂 )
-------------------------
-MonadPlus(\ST(𝓈)(𝓂 ))
-
-⊥ : ∀ (A : Set), \ST(𝓈)(𝓂 )(A)
-⊥ ≔ lift ⊥ ₘ
-
-⊔ : ∀ (A : Set), \ST(𝓈)(𝓂 )(A)
-aM₁ ⊔ aM₂ ≔ λ 𝓈 → aM₁(𝓈) <+> aM₂(𝓈)
-
-Monad(𝓂 )
-----------------------------
-Monad\ST(𝓈)(\ST(𝓈)(𝓂 ))
-
-get : \ST 𝓈 𝓂  𝓈
-get ≔ λ 𝓈 → return (𝓈,𝓈)
-
-put : 𝓈 → \ST 𝓈 𝓂  1
-put(𝓈) ≔ λ (𝓈') → return (∙,𝓈)
-
-MonadSmallStep(𝓂 )(𝒮𝒮)
---------------------------------------
-MonadSmallStep(\ST(𝓈)(𝓂 ))(𝒮𝒮(\_ × 𝓈))
-
-α : ∀ (A B : Set), (A → \ST(𝓈)(𝓂 )(B)) → (𝒮𝒮(A × 𝓈) → 𝒮𝒮(B × 𝓈))
-α(f) ≔ αₘ (λ (a,𝓈) → f(a)(𝓈))
-
-γ : ∀ (A B : Set), (𝒮𝒮(A × 𝓈) → 𝒮𝒮(B × 𝓈)) → (A → \ST(𝓈)(𝓂 )(B))
-γ(f) ≔ λ(a,𝓈) → γₘ (f)(a,s)
-\end{verbatim}
+% \begin{verbatim}
+% 
+% MonadSmallStep(𝓂 )(\A_T) ∧ (\PM ∘ \A_T) α⇄ γ (\A_T ∘ \PM)
+% -------------------------------------
+% MonadSmallStep(\ST 𝓂 )(\PM ∘ 𝒮)
+% 
+% α : ∀ (A B : Set), (A → \ST(𝓂 )(B)) → (\PM(\A_T(A) → \PM(\A_T(B))))
+% α(f) ≔ extendₚ(α ∘ αₘ(f))
+% 
+% γ : ∀ (A B : Set), (\PM(\A_T(A) → \PM(\A_T(B)))) → (A → \ST(𝓂 )(B))
+% γ(f) ≔ extendₚ(γ ∘ γₘ(f))
+% \end{verbatim}
+% 
+% % }}}
+% 
+% % StateT {{{
+% 
+% \subsection{$\ST$}
+% \label{StateT}
+% 
+% \begin{verbatim}
+% \ST : Set → (Set → Set) → (Set → Set)
+% \ST(𝓈)(𝓂 )(A) ≔ 𝓈 → 𝓂  (A × 𝓈)
+% 
+% Transformer(\ST(𝓈))
+% ----------------------
+% 
+% lift : ∀ (𝓂  : Set → Set) (A : Set), 𝓂  a → \ST(𝓈)(𝓂 )(A)
+% lift aM ≔ λ 𝓈 → mapₘ (,𝓈) aM
+% 
+% Monad(𝓂 )
+% --------------------
+% Monad(\ST(𝓈)(𝓂 ))
+% 
+% return : ∀ (A : Set), A → \ST(𝓈)(𝓂 )(A)
+% return ≔ lift ∘ returnₘ
+% 
+% extend : ∀ (A B : Set), (A → \ST(𝓈)(𝓂 )(B)) → (\ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(B))
+% extend(k)(aM) ≔ λ 𝓈 → doₘ
+%   (a,𝓈') ← aM(𝓈)
+%   k(a)(𝓈')
+% 
+% JoinSemilattice(𝓈) ∧ Monad(𝓂 )
+% ------------------------------------------
+% Functorial(JoinSemilattice)(\ST(𝓈)(𝓂 ))
+% 
+% bot : \ST(𝓈)(𝓂 )(A)
+% bot ≔ λ(𝓈)→ (⊥ ₛ, ⊥ ₐ)
+% 
+% ⊔ : \ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(A) → \ST(𝓈)(𝓂 )(A)
+% aM₁ ⊔ aM₂ ≔ λ 𝓈 → doₘ
+%   (a₁,𝓈₁) ← aM₁
+%   (a₂,𝓈₂) ← aM₂
+%   return (a₁ ⊔ a₂, 𝓈₁ ⊔ 𝓈₂)
+% 
+% MonadPlus(𝓂 )
+% ------------------------
+% MonadPlus(\ST(𝓈)(𝓂 ))
+% 
+% ⊥ : ∀ (A : Set), \ST(𝓈)(𝓂 )(A)
+% ⊥ ≔ lift ⊥ ₘ
+% 
+% ⊔ : ∀ (A : Set), \ST(𝓈)(𝓂 )(A)
+% aM₁ ⊔ aM₂ ≔ λ 𝓈 → aM₁(𝓈) <+> aM₂(𝓈)
+% 
+% Monad(𝓂 )
+% ----------------------------
+% Monad\ST(𝓈)(\ST(𝓈)(𝓂 ))
+% 
+% get : \ST 𝓈 𝓂  𝓈
+% get ≔ λ 𝓈 → return (𝓈,𝓈)
+% 
+% put : 𝓈 → \ST 𝓈 𝓂  1
+% put(𝓈) ≔ λ (𝓈') → return (∙,𝓈)
+% 
+% MonadSmallStep(𝓂 )(\A_T)
+% --------------------------------------
+% MonadSmallStep(\ST(𝓈)(𝓂 ))(\A_T(\_ × 𝓈))
+% 
+% α : ∀ (A B : Set), (A → \ST(𝓈)(𝓂 )(B)) → (\A_T(A × 𝓈) → \A_T(B × 𝓈))
+% α(f) ≔ αₘ (λ (a,𝓈) → f(a)(𝓈))
+% 
+% γ : ∀ (A B : Set), (\A_T(A × 𝓈) → \A_T(B × 𝓈)) → (A → \ST(𝓈)(𝓂 )(B))
+% γ(f) ≔ λ(a,𝓈) → γₘ (f)(a,s)
+% \end{verbatim}
 
 % }}}
 
 % }}}
 
 % Bibliography {{{
-\bibliography{davdar}{}
+\bibliography{davdar}
 \bibliographystyle{plain}
 % }}}
 

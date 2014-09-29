@@ -1,0 +1,13 @@
+\begin{align*}
+𝒜                    &: \AStore × Atom → \PM(\AVal)                 \\
+𝒜 (θ,x)              &≔ θ(x)                                        \\
+𝒜 (θ,l)              &≔ \{ l \}                                     \\
+𝒜 (θ,\add(a))         &≔ \{ \INT \;|\; ∃ i ⊑ \INT ∈ 𝒜 ( θ , a) \}    \\
+𝒜 (θ,\sub(a))         &≔ \{ \INT \;|\; ∃ i ⊑ \INT ∈ 𝒜 ( θ , a) \}    \\
+𝒜 (θ,\gez(a))         &≔ \{ \TRUE \;|\; ∃ i ∈ 𝒜 (θ,a) ∧ i >= 0 \}    \\
+                     &∪ \{ \FALSE \;|\; ∃ i ∈ 𝒜 (θ,a) ∧ i < 0 \}    \\
+                     &∪ \{ \TRUE, \FALSE \;|\; \INT ∈ 𝒜 ( θ , a) \} \\
+𝒜 (θ,\lam(x) → e)    &≔ \{ \lam(x) → e \}                           \\
+𝒜 (θ,\lam(x)(k) → e) &≔ \{ \lam(x)(k) → e \}                        \\
+\end{align*}
+

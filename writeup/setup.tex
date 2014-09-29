@@ -4,13 +4,14 @@
 \setmathfont{XITS Math}
 \usepackage{tikz}
 \usetikzlibrary{matrix}
-\usepackage{newunicodechar}
+%\usepackage{newunicodechar}
 \usepackage{galois}
 \usepackage{amsthm}
 
 \theoremstyle{definition}
 \newtheorem*{definition}{Definition}
 \newtheorem*{example}{Example}
+\newtheorem*{fact}{Fact}
 
 \theoremstyle{plain}
 \newtheorem*{lemma}{Lemma}
@@ -21,17 +22,17 @@
 \newcommand{\case}{\underline{\text{case}}}
 \newcommand{\halt}{\underline{\text{halt}}}
 \newcommand{\lam}{\underline{\text{λ}}}
-\newcommand{\add}{\text{add1}}
-\newcommand{\sub}{\text{sub1}}
-\newcommand{\gez}{\text{gez}}
+\newcommand{\add}{\underline{\text{add1}}}
+\newcommand{\sub}{\underline{\text{sub1}}}
+\newcommand{\gez}{\underline{\text{gez}}}
 \newcommand{\INT}{\text{INT}}
 \newcommand{\TRUE}{\text{TRUE}}
 \newcommand{\FALSE}{\text{FALSE}}
 \newcommand{\ddo}{\operatorname{do}}
 \newcommand{\llet}{\operatorname{let}}
 \newcommand{\return}{\operatorname{return}}
-\newcommand{\getstore}{\operatorname{get-σ}}
-\newcommand{\putstore}{\operatorname{put-σ}}
+\newcommand{\getstore}{\operatorname{get-θ}}
+\newcommand{\putstore}{\operatorname{put-θ}}
 \newcommand{\getenv}{\operatorname{get-ρ}}
 \newcommand{\putenv}{\operatorname{put-ρ}}
 \newcommand{\gettime}{\operatorname{get-τ}}
@@ -40,28 +41,36 @@
 \newcommand{\coercekon}{\operatorname{↓λ₁}}
 \newcommand{\coercefun}{\operatorname{↓λ₂}}
 \newcommand{\liftpowerset}{\operatorname{↑𝒫}}
-\newcommand{\touchedcall}{\operatorname{𝓉𝒞}}
+\newcommand{\touchedexp}{\operatorname{𝓉Exp}}
 \newcommand{\touchedvar}{\operatorname{𝓉Var}}
 
-\newcommand{\C}{L}
-\newcommand{\A}{\widehat{L}}
+\newcommand{\C}{Σ}
+\newcommand{\A}{\widehat{Σ}}
 
 \newcommand{\Csteps}{↦}
 \newcommand{\Asteps}{\ \widehat{↦}\ }
 
-\newcommand{\Ce}{e}
-\newcommand{\Ae}{\widehat{e}}
+\newcommand{\Ce}{σ}
+\newcommand{\Ae}{\widehat{σ}}
 
+\newcommand{\CVal}{Val}
+\newcommand{\CStore}{Store}
+\newcommand{\CAddr}{Addr}
+\newcommand{\CEnv}{Env}
+
+\newcommand{\AVal}{\widehat{Val}}
 \newcommand{\AStore}{\widehat{Store}}
 \newcommand{\AEnv}{\widehat{Env}}
 \newcommand{\ATime}{\widehat{Time}}
-\newcommand{\AVal}{\widehat{Val}}
+\newcommand{\AAddr}{\widehat{Addr}}
 
 \newcommand{\PM}{𝒫\ }
 \newcommand{\PT}{𝒫_T\ }
 
-\newcommand{\SM}{State}
-\newcommand{\ST}{State_T}
+\newcommand{\SM}{𝒮}
+\newcommand{\ST}{𝒮_T}
+
+\newcommand{\XT}{×_T}
 
 \newenvironment{donotbreak}
 {\\[0.5\baselineskip]\begin{minipage}{\linewidth}}

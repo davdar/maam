@@ -1,12 +1,12 @@
 \begin{align*}
-                 \liftpowerset &: 𝒫 (a) → ℳ (a)                        \\
-\liftpowerset(\{x₁, ..., x₂\}) &≔ ⋃ \{return (x₁), ... , return (x₂)\} \\
-                                                                       \\
-                   \coercebool &: \AVal → ℳ  (𝔹 )                      \\
-               \coercebool (b) &≔ return(b)                            \\
-              \coercebool (\_) &≔ ⊥                                    \\
-                                                                       \\
-                    \coercefun &: \AVal → ℳ  (Lam)                     \\
-                \coercefun (f) &≔ return(f)                            \\
-               \coercefun (\_) &≔ ⊥                                    \\
+                 \liftpowerset &: \PM (a) → ℳ (a)  \\
+  \liftpowerset(xs) &≔ ⋃_{x ∈ xs} return (x)       \\
+                                                   \\
+                   \coercebool &: \AVal → ℳ  (𝔹 )  \\
+               \coercebool (b) &≔ return(b)        \\
+              \coercebool (\_) &≔ ⊥                \\
+                                                   \\
+                    \coercefun &: \AVal → ℳ  (Lam) \\
+                \coercefun (f) &≔ return(f)        \\
+               \coercefun (\_) &≔ ⊥                \\
 \end{align*}
