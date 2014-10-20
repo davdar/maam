@@ -2,6 +2,11 @@ module Lang.Lam.Pushdown where
 
 import FP hiding (Kon)
 import Lang.Lam.Syntax
+import MAAM
+import qualified Lang.Lam.SyntaxHelpers as H
+import Lang.Lam.Passes.A_Stamp
+import qualified FP.Pretty as P
+import Lang.Lam.CPS.Instances.PrettySyntax (prettyLam)
 
 data Kon = HaltK
          | PrimK Op Kon
@@ -9,6 +14,18 @@ data Kon = HaltK
          | AppL SExp Kon
          | AppR (Set AValue) Kon
          | IfK SExp SExp Kon
+         deriving (Eq, Ord)
+
+instance Pretty Kon where
+  pretty (HaltK) = P.con "HALT"
+  pretty (PrimK o k) = P.app [pretty o, P.lit "[ ]", pretty k]
+  pretty (LetK x b k) = P.app [P.con "let", pretty x, P.lit "= [ ]", pretty b, pretty k]
+  pretty (AppL a k) = P.app [P.lit "[ ]", pretty a, pretty k]
+  pretty (AppR v k) = P.app [pretty v, P.lit "[ ]", pretty k]
+  pretty (IfK tb fb k) = P.app [P.lit "[ ]", pretty tb, pretty fb, pretty k]
+
+instance HasBot Kon where
+  bot = HaltK
 
 konP :: P Kon
 konP = P
@@ -22,6 +39,10 @@ type Analysis m =
   , MonadFail m
   , MonadZero m
   , MonadPlus m
+  , MonadStep m
+  , JoinLattice (SS m SExp)
+  , PartialOrder (SS m SExp)
+  , SSC m SExp
   )
 
 type Store = Map SName (Set AValue)
@@ -32,12 +53,20 @@ data Clo = Clo
   }
   deriving (Eq, Ord)
 
+instance Pretty Clo where
+  pretty (Clo x b) = prettyLam [x] b
+
 data AValue =
   LitA Lit | IA | CloA Clo
   deriving (Eq, Ord)
 
-eval :: (Analysis m) => SExp -> m SExp
-eval e =
+instance Pretty AValue where
+  pretty (LitA l) = pretty l
+  pretty IA = P.con "I"
+  pretty (CloA c) = pretty c
+
+eval :: (Analysis m) => P m -> SExp -> m SExp
+eval _ e =
   case stampedFix e of
     Lit l -> kreturn $ ssingleton $ LitA l
     Var x -> var x
@@ -106,3 +135,41 @@ opOne Add1 (LitA (I _)) = ssingleton IA
 opOne Sub1 (LitA (I _)) = ssingleton IA
 opOne IsNonNeg (LitA (I _)) = fromList $ map (LitA . B) [ True, False ]
 opOne _ _ = sempty
+
+execCollect :: (Analysis m) => P m -> SExp -> SS m SExp
+execCollect m s = collect (mstep (eval m)) $ munit m s
+
+omega :: Exp
+omega = (H.lam "x" (H.v "x" H.@# H.v "x")) H.@# (H.lam "x" (H.v "x" H.@# H.v "x"))
+
+somega :: SExp
+somega = stamp omega
+
+type FIguts = StateT Kon (ListSetT (StateT Store ID))
+newtype FI a = FI { runFI :: FIguts a }
+             deriving ( MonadStateE Kon
+                      , MonadZero
+                      , MonadPlus
+                      , Unit
+                      , Functor
+                      , Applicative
+                      , Product
+                      , Bind
+                      , Monad
+                      )
+instance MonadFail FI where
+  fail = error . fromChars
+
+instance MonadStep FI where
+  type SS FI = SS FIguts
+  type SSC FI = SSC FIguts
+  mstep f = mstep (runFI . f)
+  munit _ = munit (P :: P FIguts)
+
+instance MonadStateE Store FI where
+  stateE = FI . mtMap stateE . stateCommute . mtMap runFI
+
+runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
+runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
+
+result = runFI_SS $ execCollect (P :: P FI) somega

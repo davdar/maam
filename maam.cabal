@@ -22,6 +22,7 @@ library
                      , Lang.Lam
                      , Lang.Lam.Analyses
                      , Lang.Lam.Syntax
+                     , Lang.Lam.SyntaxHelpers
                      , Lang.Lam.CPS.Syntax
                      , Lang.Lam.CPS.MonadicSemantics
                      , Lang.Lam.CPS.Classes.Delta
@@ -31,6 +32,7 @@ library
                      , Lang.Lam.Instances.PrettySyntax
                      , Lang.Lam.Passes.A_Stamp
                      , Lang.Lam.Passes.B_CPSConvert
+                     , Lang.Lam.Pushdown
                      , MAAM.Classes
                      , MAAM.Instances
                      , MAAM.Classes.AAM
