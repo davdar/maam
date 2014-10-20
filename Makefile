@@ -1,7 +1,7 @@
 all: src
 
 src:
-	cabal configure --enable-library-profiling --enable-executable-profiling && cabal build
+	cabal configure --disable-library-profiling && cabal build
 
 writeup:
 	make -C writeup
