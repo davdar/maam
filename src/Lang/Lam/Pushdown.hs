@@ -42,9 +42,9 @@ eval e =
     Lit l -> kreturn $ ssingleton $ LitA l
     Var x -> var x
     Lam x b -> kreturn $ ssingleton $ CloA $ Clo x b
-    Prim o e -> do
+    Prim o e' -> do
       modifyP konP (PrimK o)
-      return e
+      return e'
     Let x v b -> do
       modifyP konP (LetK x v)
       return b
@@ -79,8 +79,8 @@ kreturn' k v = case k of
     bind x v
     return (b, κ)
   IfK tb fb κ -> do
-    v <- coerceBool *$ msumVals v
-    return $ ifThenElse v (tb, κ) (fb, κ)
+    v' <- coerceBool *$ msumVals v
+    return $ ifThenElse v' (tb, κ) (fb, κ)
 
 var :: (Analysis m) => SName -> m SExp
 var x = do
