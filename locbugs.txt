@@ -1,5 +1,0 @@
-loc: 4549
-bugs: 3
-* bad applicative instance for state
-* looping msUnit implementation for one of the MonadStep instances
-* looping null implementation for Set
