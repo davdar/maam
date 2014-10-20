@@ -1,5 +1,6 @@
 module Examples where
 
+import Lang.Lam.Pushdown
 import Lang.Lam.Syntax
 import FP
 import qualified FP.Pretty as P
