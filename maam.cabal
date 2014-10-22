@@ -45,7 +45,7 @@ library
                      , containers
                      , text
   default-language:    Haskell2010
-  ghc-options:         -Wall -fno-warn-amp -fno-warn-orphans
+  ghc-options:         -Wall -fno-warn-amp -fno-warn-orphans -isrc
   default-extensions:  ConstraintKinds
                      , ExplicitNamespaces
                      , FlexibleContexts

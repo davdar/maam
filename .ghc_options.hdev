@@ -1,5 +1,4 @@
 -g-Wall
 -g-fno-warn-amp
 -g-fno-warn-orphans
--g-auto-all
--g-caf-all
+-g-isrc
