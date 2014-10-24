@@ -140,7 +140,15 @@ execCollect :: (Analysis m) => P m -> SExp -> SS m SExp
 execCollect m s = collect (mstep (eval m)) $ munit m s
 
 omega :: Exp
-omega = (H.lam "x" (H.v "x" H.@# H.v "x")) H.@# (H.lam "x" (H.v "x" H.@# H.v "x"))
+omega = ((H.lam "x" (H.v "x" H.@# H.v "x"))
+         H.@#
+         (H.lam "x" (H.v "x" H.@# H.v "x")))
+
+eta_omega :: Exp
+eta_omega = H.llet "id" (H.lam "x" $ H.v "x")
+            ((H.lam "x" (H.v "id" H.@# (H.v "x" H.@# H.v "x")))
+             H.@#
+             (H.lam "x" (H.v "id" H.@# (H.v "x" H.@# H.v "x"))))
 
 somega :: SExp
 somega = stamp omega
