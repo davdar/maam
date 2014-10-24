@@ -75,8 +75,8 @@ eval _ e =
       modifyP konP (PrimK o)
       return e'
     Let x v b -> do
-      modifyP konP (LetK x v)
-      return b
+      modifyP konP (LetK x b)
+      return v
     App f v -> do
       modifyP konP (AppL v)
       return f
