@@ -1,0 +1,40 @@
+<h1 id="building">Building</h1>
+<pre><code>make init configure build</code></pre>
+<h1 id="running">Running</h1>
+<p>To run src/Main</p>
+<pre><code>./ghci.sh</code></pre>
+<p>To run FILE and/or with command line options ARGS ...</p>
+<pre><code>./ghci.sh FILE ARGS ...</code></pre>
+<p>(the default for FILE is src/Main)</p>
+<h1 id="example">Example</h1>
+<p>Here is what it looks like for me:</p>
+<pre><code>&#187;=  maam git:(pushdown) &#10007; make init configure build
+runhaskell EnvSetup.hs
+cabal configure --disable-library-profiling
+Resolving dependencies...
+Configuring maam-0.1.0.0...
+cabal build
+Building maam-0.1.0.0...
+Preprocessing library maam-0.1.0.0...
+&lt;&lt; ... compiler output ... &gt;&gt;</code></pre>
+<p>and</p>
+<pre><code>&#187;=  maam git:(pushdown) &#10007; ./ghci.sh 
+&lt;&lt; ... ghci loader output ... &gt;&gt;
+*Main System.Directory&gt; result 
+Loading package containers-0.5.5.1 ... linking ... done.
+Loading package text-1.2.0.0 ... linking ... done.
+( { ( 0:(1:&#955; 0:x. 2:(3:0:x) (4:0:x)) (5:&#955; 1:x. 6:(7:1:x) (8:1:x))
+    , HALT
+    )
+  , (1:&#955; 0:x. 2:(3:0:x) (4:0:x),[ ] (5:&#955; 1:x. 6:(7:1:x) (8:1:x)) HALT)
+  , (2:(3:0:x) (4:0:x),HALT)
+  , (3:0:x,[ ] (4:0:x) HALT)
+  , (4:0:x,{&#955; 1:x. 6:(7:1:x) (8:1:x)} [ ] HALT)
+  , (5:&#955; 1:x. 6:(7:1:x) (8:1:x),{&#955; 0:x. 2:(3:0:x) (4:0:x)} [ ] HALT)
+  , (6:(7:1:x) (8:1:x),HALT)
+  , (7:1:x,[ ] (8:1:x) HALT)
+  , (8:1:x,{&#955; 1:x. 6:(7:1:x) (8:1:x)} [ ] HALT)
+  }
+, {0:x =&gt; {&#955; 1:x. 6:(7:1:x) (8:1:x)},1:x =&gt; {&#955; 1:x. 6:(7:1:x) (8:1:x)}}
+)
+*Main System.Directory&gt; </code></pre>
