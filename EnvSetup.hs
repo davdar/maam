@@ -30,11 +30,11 @@ main = do
   -- OPTIONS --
   let ops = fromJust $ lookup GHC $ options bi
   -- write out a file for ghci to load options
-  withFile ".ghc_options.ghci" WriteMode $ \ h -> do
+  withFile ".options.ghci" WriteMode $ \ h -> do
     forM_ ops $ \ o -> do
       hPutStrLn h $ ":set " ++ o
   -- write out a file for hdevtools to load options
-  withFile ".ghc_options.hdev" WriteMode $ \ h -> do
+  withFile ".options.hdev" WriteMode $ \ h -> do
     forM_ ops $ \ o -> do
       hPutStrLn h $ "-g" ++ o
   return ()

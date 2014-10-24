@@ -72,10 +72,10 @@ library
                      , TypeSynonymInstances
                      , UndecidableInstances
                      , ViewPatterns
-
-executable runquals
-  build-depends: maam == 0.1.*
-  main-is: src/Main.hs
-  ghc-options: -Wall
-  default-extensions: NoImplicitPrelude
-  default-language: Haskell2010
+-- 
+-- executable runquals
+--   build-depends: maam == 0.1.*
+--   main-is: src/Main.hs
+--   ghc-options: -Wall
+--   default-extensions: NoImplicitPrelude
+--   default-language: Haskell2010

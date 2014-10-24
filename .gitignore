@@ -10,3 +10,5 @@
 *.dtx
 *.ins
 .DS_Store
+.options*
+.extensions*

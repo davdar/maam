@@ -1,4 +1,9 @@
+.PHONY: all init src writeup toc clean
+
 all: src
+
+init:
+	runhaskell EnvSetup.hs
 
 src:
 	cabal configure --disable-library-profiling && cabal build
@@ -12,5 +17,5 @@ toc:
 clean:
 	cabal clean
 	make -C writeup clean
-
-.PHONY: all src writeup toc clean
+	rm .extensions*
+	rm .options*

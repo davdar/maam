@@ -1,5 +1,24 @@
 :set +m
 
+import System.Directory
+
+-- loads .options.ghci and .extensions.ghci if they exists
+let init_cmd = do
+      opt <- optM
+      ext <- extM
+      return $ opt ++ "\n" ++ ext
+      where
+        optM = do
+          b <- doesFileExist ".options.ghci"
+          return $ if b then ":script .options.ghci" else ""
+        extM = do
+          b <- doesFileExist ".extensions.ghci"
+          return $ if b then ":script .extensions.ghci" else ""
+
+:def init (const init_cmd)
+
+-- loads the file GHCI_LOAD if it exists in the environment and then loads
+-- .reload.ghci
 let ll_cmd = do
       e <- System.Environment.getEnvironment
       return $ case lookup "GHCI_LOAD" e of 
@@ -8,9 +27,10 @@ let ll_cmd = do
 
 :def ll (const ll_cmd)
 
+-- reloads the file and then loads .reload.ghci
 let rl_cmd = return $ ":re \n :script .reload.ghci"
 
 :def rl (const rl_cmd)
 
-:script .ghc_options.ghci
-:script .extensions.ghci
+:init
+:ll

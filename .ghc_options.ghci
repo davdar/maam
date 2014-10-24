@@ -1,4 +1,0 @@
-:set -Wall
-:set -fno-warn-amp
-:set -fno-warn-orphans
-:set -isrc
