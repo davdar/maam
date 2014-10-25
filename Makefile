@@ -14,9 +14,6 @@ build:
 writeup:
 	make -C writeup
 
-toc:
-	make -C writeup toc.pdf
-
 docs:
 	pandoc --ascii -f markdown -t html README > README.html
 

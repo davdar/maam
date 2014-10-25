@@ -1,0 +1,193 @@
+% any author declaration will be ignored  when using 'plid' option (for double blind review)
+\documentclass[pldi]{sigplanconf}
+
+% From PLDI Template {-{
+
+% \usepackage{SIunits}            % typset units correctly
+\usepackage{courier}            % standard fixed width font
+\usepackage[scaled]{helvet} % see www.ctan.org/get/macros/latex/required/psnfss/psnfss2e.pdf
+\usepackage{url}                  % format URLs
+\usepackage{listings}          % format code
+\usepackage{enumitem}      % adjust spacing in enums
+\usepackage[colorlinks=true,allcolors=blue,breaklinks,draft=false]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+% known bug: http://tex.stackexchange.com/questions/1522/pdfendlink-ended-up-in-different-nesting-level-than-pdfstartlink
+\newcommand{\doi}[1]{doi:~\href{http://dx.doi.org/#1}{\Hurl{#1}}}   % print a hyperlinked DOI
+
+% }-}
+
+% Setup {-{
+
+\usepackage{fontspec}
+\setmainfont{CMU Serif}   % unicode variant of CM
+
+\usepackage{amsmath}      % \begin{align*}
+\usepackage{amssymb}      % \leadsto
+\usepackage{bm}           % bold maths
+\usepackage{unicode-math} % unicode maths
+\usepackage{galois}       % \galois
+
+\usepackage{float}        % \begin{figure}
+\floatstyle{boxed}
+\restylefloat{figure}
+
+% }-}
+
+% Macros {-{
+
+\newcommand{\lamif}{\textbf{λ-IF}\@}
+
+\newcommand{\ifz}[3]{\pmb{\operatorname{if0}} (#1)\{#2\}\{#3\}}
+\newcommand{\lam}{\pmb{λ}}
+\newcommand{\indor}{\;|\;}
+\newcommand{\plus}{\pmb{+}}
+\newcommand{\minus}{\pmb{-}}
+\newcommand{\op}{\mathbin{op}}
+\newcommand{\ap}{\;\;}
+\newcommand{\steps}{\leadsto}
+\newcommand{\ddo}{\underline{\operatorname{do}}}
+\newcommand{\case}[1]{\text{\underline{case} $#1$ \underline{of}}}
+\newcommand{\pushkon}{\operatorname{push-Kon}}
+\newcommand{\popkon}{\operatorname{pop-Kon}}
+\newcommand{\getenv}{\operatorname{get-Env}}
+\newcommand{\putenv}{\operatorname{put-Env}}
+\newcommand{\ret}{\underline{\operatorname{return}}}
+\newcommand{\toclo}{\operatorname{to-clo}}
+\newcommand{\mif}[3]{\text{\underline{if} $#1$ \underline{then} $#2$ \underline{else} $#3$}}
+\newcommand{\stepf}{\operatorname{step}}
+\newcommand{\atomf}{\operatorname{atom}}
+\newcommand{\branchOnSet}{\operatorname{branch-on-set}}
+\newcommand{\intI}{\operatorname{int-I}}
+\newcommand{\ifzE}{\operatorname{if0-E}}
+\newcommand{\cloI}{\operatorname{clo-I}}
+\newcommand{\cloE}{\operatorname{clo-E}}
+\newcommand{\st}{\;|\;}
+
+% }-}
+
+\begin{document}
+
+\title{Modular Static Analysis: Orthogonal Design, Correct by Construction}
+\maketitle
+
+% Abstract {-{
+% \begin{abstract}
+% \end{abstract}
+% }-}
+
+% Introduction {-{
+% \section{Introduction}
+
+% }-}
+
+% Modular Analysis by Example {{{
+\section{Modular Analysis by Example}
+
+To demonstrate our framework we will grow a concrete semantics into an executable analysis in small steps.
+Each step will expose some property of the analysis to be tuned independent of other properties.
+We use an applied lambda calculus as an example language to demonstrate our approach.
+
+% }}}
+
+% Concrete Semantics {-{
+\subsection{Concrete Semantics}
+
+Our example language is \lamif, an applied lambda caluclus with integers and conditional statements.
+The syntax for \lamif\ is given in figure~\ref{lamif:syntax}.
+
+\begin{figure}[t]
+\caption{\lamif\ syntax.}
+\label{lamif:syntax}
+\input{snips/Lam-IF.tex}
+\end{figure}
+
+We will use a standard small-step semantics for \lamif, which is shown in figure~\ref{lamif:semantics}.
+
+\begin{figure}[t]
+\caption{\lamif\ semantics.}
+\label{lamif:semantics}
+{\scriptsize
+\input{snips/Lam-IF-Semantics-SS.tex}
+\input{snips/Lam-IF-Semantics-Rules.tex}
+}
+\end{figure}
+
+The analyses we will consider will be stated as the least fixed point of some abstract collecting semantics.
+A collecting semantics for \lamif\ is defined as:
+\begin{equation*}
+  μ(ς). ς₀ ⊔ ς ⊔ \{ ς' \st ς \steps ς' \}
+\end{equation*}
+where $ς₀ := ⟨ e₀ , ⊥ , ∙ ⟩$ is the injection of the initial program $e₀$ into the state space $Σ$.
+
+% }-}
+
+% From Semantics to Interpreter {-{
+\section{From Semantics to Interpreter}
+
+On our way to an executable analysis for \lamif, we first evolve the small-step relation into an executable small-step interpreter.
+We write this interpreter in monadic style for two reasons.
+First, it is much easier to add new states and rules to a monadic interpreter.
+Second, we will exploit the monadic abstraction to expose flow and path sensitivities in a later interpreter.
+
+The monad for the interpreter will have two types effects: state and partiality.
+Two operations carry state effects: get and put; and one operation carries a partiality effect: fail.
+
+We construct a monad $ℳ $ which combines state effects for $Env$ and $Kon$ with partiality effects.
+The type $ℳ $ is just a simple type which supports the monad, state, and partiality operations.
+The interpreter for \lamif\ which uses $ℳ $ and monadic effects is given in figure~\ref{lamif:minterpreter}.
+
+\begin{figure}[t]
+\caption{\lamif\ monadic interpreter.}
+\label{lamif:minterpreter}
+{\scriptsize
+\input{snips/Lam-IF-MInterpreter.tex}
+}
+\end{figure}
+
+As before, we must construct a collecting semantics in order to define an executable analysis.
+To do this, we must relate our step function back to some state machine step \emph{function}.
+One we c % HERE
+
+% }-}
+
+% Exposing the Abstract Domain {-{
+\section{Exposing the Abstract Domain}
+
+We will now expose the choice of abstract domain for the interpreter.
+However, giving a finite abstract domain for integers alone will not yet give a computable analysis.
+There will still be an infinite number of possible abstract state spaces due to the recursion between closures and environments.
+We will address this issue in a future modification to the interpreter.
+
+To expose the choice of abstract domain we introduce a type $AVal$ behind an abstract interface.
+\begin{alignat*}{1}
+    AVal &∈ Set                \\
+   \intI &: ℤ → AVal           \\
+   \ifzE &: AVal → 𝒫 (𝔹)       \\
+   \cloI &: Clo → AVal         \\
+   \cloE &: AVal → 𝒫 (Clo)     \\
+  \delta &: Op → AVal → AVal → AVal
+\end{alignat*}
+
+To establish the correctness of our interpreter $\stepf$, we must prove that it is monotonic in $AVal$, $intI$, $if0E$, $cloI$ and $cloE$.
+This can be done independent of a specific $AVal$.
+Then we need only establish $Val \galois{α}{γ} AVal$ for some $AVal$ in order to justify the correctness of $\stepf$ instantiated with $AVal$.
+  
+Exposing the abstract domain forces us to reconsider our monadic effects.
+For example, a branch on a possibly unknown integer value must return multiple possible machine states.
+Therefore we must trade our partiality monad for a nonteterminism monad.
+The monadic abstraction supports nondeterminism nicely in this setting.
+The helper function $\branchOnSet$ will return multiple times for each value in the set.
+This allows the interpreter to be written in a style that need only consider one state at a time.
+The monadic interpreter whith the abstract domain exposd is given in figure~\ref{lamif:minterpreter:adom}.
+(The implementation of $\stepf$ is unchanged.)
+
+\begin{figure}[t]
+\caption{\lamif\ monadic interpreter with abstract domain exposed.}
+\label{lamif:minterpreter:adom}
+{\scriptsize
+\input{snips/Lam-IF-MInterpreter-ADom.tex}
+}
+\end{figure}
+
+% }-}
+
+\end{document}

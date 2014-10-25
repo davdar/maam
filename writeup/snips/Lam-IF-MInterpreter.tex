@@ -1,0 +1,31 @@
+\begin{alignat*}{1}
+& \hspace{0em}   ℳ (a) := Env × Kon → {(a × Env × Kon)}_⊥                      \\
+& \hspace{0em}   \atomf : Atom → ℳ (Exp)                                       \\
+& \hspace{0em}   \atomf(a) := \ddo                                             \\
+& \hspace{2em}     v ← 𝒜 ⟦a⟧                                                   \\
+& \hspace{2em}     fr ← \popkon                                                \\
+& \hspace{2em}     \case{fr}                                                   \\
+& \hspace{4em}       [ □  \op e ] → \ddo                                       \\
+& \hspace{6em}         \pushkon([ v \op □ ])                                   \\
+& \hspace{6em}         \ret(e)                                                 \\
+& \hspace{4em}       [ v' \op □ ] → \ret(\delta(\op, v', v))                   \\
+& \hspace{4em}       [ □  \ap e ] → \ddo                                       \\
+& \hspace{6em}         \pushkon([ v \ap □ ])                                   \\
+& \hspace{6em}         \ret(e)                                                 \\
+& \hspace{4em}       [ v' \ap □ ] → \ddo                                       \\
+& \hspace{6em}         ⟨ \lam(x) → e, ρ' ⟩ ← \toclo(v')                        \\
+& \hspace{6em}         \putenv(ρ'[x ↦ v])                                      \\
+& \hspace{6em}         \ret(e)                                                 \\
+& \hspace{4em}       [ \ifz{□}{e₁}{e₂} ] → \mif{v ≟ 0}{\ret(e₁)}{\ret(e₂)}     \\
+& \hspace{0em}   \stepf : Exp → ℳ (Exp)                                        \\
+& \hspace{0em}   \stepf(a) := \atomf(a)                                        \\
+& \hspace{0em}   \stepf(e₁ \op e₂) := \ddo                                     \\
+& \hspace{2em}     \pushkon([ □ \op e₂ ])                                      \\
+& \hspace{2em}     \ret(e₁)                                                    \\
+& \hspace{0em}   \stepf(e₁ \ap e₂) := \ddo                                     \\
+& \hspace{2em}     \pushkon([ □ \ap e₂ ])                                      \\
+& \hspace{2em}     \ret(e₁)                                                    \\
+& \hspace{0em}   \stepf(\ifz{e₁}{e₂}{e₃}) := \ddo                              \\
+& \hspace{2em}     \pushkon([\ifz{□}{e₂}{e₃}])                                 \\
+& \hspace{2em}     \ret(e₁)
+\end{alignat*}

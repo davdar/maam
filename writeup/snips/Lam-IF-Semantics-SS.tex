@@ -1,0 +1,10 @@
+\begin{alignat*}{2}
+          clo &∈ Clo     &&:= ⟨\lam(x) → e, ρ⟩                                           \\
+            v &∈ Val     &&::= i \indor clo                                              \\
+            ρ &∈ Env     &&:= Var ⇀ Val                                                  \\
+           fr &∈ Frame   &&::= [ □ \op e ] \indor [ v \op □ ] 
+                        \indor [ □ \ap e ] \indor [ v \ap □ ] \indor [ \ifz{□}{e₁}{e₂} ] \\
+\overline{fr} &∈ Kon     &&:= Frame^*                                                    \\
+            ς &∈ Σ       &&:= Exp × Env × Kon                                        \\
+       \steps &∈ 𝒫 (Σ × Σ)
+\end{alignat*}
