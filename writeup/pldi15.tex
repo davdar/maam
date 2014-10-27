@@ -46,11 +46,13 @@
 \newcommand{\steps}{\leadsto}
 \newcommand{\ddo}{\underline{\operatorname{do}}}
 \newcommand{\case}[1]{\text{\underline{case} $#1$ \underline{of}}}
+\newcommand{\getkon}{\operatorname{get-Kon}}
+\newcommand{\putkon}{\operatorname{put-Kon}}
 \newcommand{\pushkon}{\operatorname{push-Kon}}
 \newcommand{\popkon}{\operatorname{pop-Kon}}
 \newcommand{\getenv}{\operatorname{get-Env}}
 \newcommand{\putenv}{\operatorname{put-Env}}
-\newcommand{\ret}{\underline{\operatorname{return}}}
+\newcommand{\ret}{\operatorname{return}}
 \newcommand{\toclo}{\operatorname{to-clo}}
 \newcommand{\mif}[3]{\text{\underline{if} $#1$ \underline{then} $#2$ \underline{else} $#3$}}
 \newcommand{\stepf}{\operatorname{step}}
@@ -60,7 +62,18 @@
 \newcommand{\ifzE}{\operatorname{if0-E}}
 \newcommand{\cloI}{\operatorname{clo-I}}
 \newcommand{\cloE}{\operatorname{clo-E}}
+\newcommand{\aintI}{\widehat{\operatorname{int-I}}}
+\newcommand{\aifzE}{\widehat{\operatorname{if0-E}}}
+\newcommand{\acloI}{\widehat{\operatorname{clo-I}}}
+\newcommand{\acloE}{\widehat{\operatorname{clo-E}}}
+\newcommand{\adelta}{\widehat{\delta}}
 \newcommand{\st}{\;|\;}
+\newcommand{\coerce}[1]{\operatorname{↓_{#1}}}
+\newcommand{\failonbot}{\operatorname{↑_⊥}}
+\newcommand{\liftnondet}{\operatorname{↑_𝒫 }}
+\newcommand{\AVal}{\widehat{Val}}
+\newcommand{\AEnv}{\widehat{Env}}
+\newcommand{\mplus}{\mathbin{⟨+⟩}}
 
 % }-}
 
@@ -79,14 +92,13 @@
 
 % }-}
 
-% Modular Analysis by Example {{{
+% Modular Analysis by Example {-{
 \section{Modular Analysis by Example}
 
 To demonstrate our framework we will grow a concrete semantics into an executable analysis in small steps.
+% Should I resist the pun? :P -DD
 Each step will expose some property of the analysis to be tuned independent of other properties.
 We use an applied lambda calculus as an example language to demonstrate our approach.
-
-% }}}
 
 % Concrete Semantics {-{
 \subsection{Concrete Semantics}
@@ -97,7 +109,7 @@ The syntax for \lamif\ is given in figure~\ref{lamif:syntax}.
 \begin{figure}[t]
 \caption{\lamif\ syntax.}
 \label{lamif:syntax}
-\input{snips/Lam-IF.tex}
+\input{snips/00_Semantics/00_Syntax.tex}
 \end{figure}
 
 We will use a standard small-step semantics for \lamif, which is shown in figure~\ref{lamif:semantics}.
@@ -105,13 +117,10 @@ We will use a standard small-step semantics for \lamif, which is shown in figure
 \begin{figure}[t]
 \caption{\lamif\ semantics.}
 \label{lamif:semantics}
-{\scriptsize
-\input{snips/Lam-IF-Semantics-SS.tex}
-\input{snips/Lam-IF-Semantics-Rules.tex}
-}
+\input{snips/00_Semantics/01_Semantics.tex}
 \end{figure}
 
-The analyses we will consider will be stated as the least fixed point of some abstract collecting semantics.
+Analyses in our framework are least fixed point computations over a collecting semantics.
 A collecting semantics for \lamif\ is defined as:
 \begin{equation*}
   μ(ς). ς₀ ⊔ ς ⊔ \{ ς' \st ς \steps ς' \}
@@ -121,72 +130,146 @@ where $ς₀ := ⟨ e₀ , ⊥ , ∙ ⟩$ is the injection of the initial progra
 % }-}
 
 % From Semantics to Interpreter {-{
-\section{From Semantics to Interpreter}
+\subsection{From Semantics to Interpreter}
+\label{interpreter}
 
 On our way to an executable analysis for \lamif, we first evolve the small-step relation into an executable small-step interpreter.
 We write this interpreter in monadic style for two reasons.
 First, it is much easier to add new states and rules to a monadic interpreter.
-Second, we will exploit the monadic abstraction to expose flow and path sensitivities in a later interpreter.
+Second, we will exploit the monadic abstraction to expose flow and path sensitivities in a later section.
 
-The monad for the interpreter will have two types effects: state and partiality.
-Two operations carry state effects: get and put; and one operation carries a partiality effect: fail.
+The interpreter will use two types monadic effects: state and partiality.
+The operations for state effects are get and put, and the operation for the partiality effect is $⊥$.
+For reference: monadic, state and partiality operations have the following types:
 
-We construct a monad $ℳ $ which combines state effects for $Env$ and $Kon$ with partiality effects.
-The type $ℳ $ is just a simple type which supports the monad, state, and partiality operations.
-The interpreter for \lamif\ which uses $ℳ $ and monadic effects is given in figure~\ref{lamif:minterpreter}.
+\input{snips/01_Interpreter/00_MonadOps.tex}
+%\input{snips/01_Interpreter/01_StateOps.tex}
+%\input{snips/01_Interpreter/02_PartialityOps.tex}
 
-\begin{figure}[t]
-\caption{\lamif\ monadic interpreter.}
-\label{lamif:minterpreter}
-{\scriptsize
-\input{snips/Lam-IF-MInterpreter.tex}
-}
-\end{figure}
+We construct a monad $ℳ $ for our interpreter which combines state effects for $Env$ and $Kon$ with a partiality effect.
+The type $ℳ $ is just a simple type:
+\input{snips/01_Interpreter/03_MonadType.tex}
+
+We factor the definition of the interpreter into two parts: one for atomic and one for compound expressions.
+Atomic expressions return to the top frame of the stack:
+\input{snips/01_Interpreter/04_Atomic.tex}
+
+Our interpreter uses helper functions $𝒜 ⟦\_⟧$, $\pushkon$, $\popkon$, $\delta$, $\coerce{Clo}$, and $\failonbot$.
+The function $𝒜 ⟦\_⟧$ is the denotation function which uses the monadic state effect for environments:
+\input{snips/01_Interpreter/05_AtomDen.tex}
+
+Functions $\pushkon$ and $\popkon$ interact with effects for both continuation state and partiality:
+\input{snips/01_Interpreter/06_PushPopKon.tex}
+
+The function $\delta$ gives the expected denotation to operators:
+\input{snips/01_Interpreter/07_Delta.tex}
+
+The function $\coerce{Clo}$ is a function from types which include closure values to partial closures.
+\input{snips/01_Interpreter/08_CoerceClo.tex}
+
+The function $\failonbot$ lifts partial values to monadic values, mapping $⊥$ to $⊥$.
+\input{snips/01_Interpreter/09_FailOnBot.tex}
+
+Our small-step interpreter is defined by dispatching to $\atomf$ or pushing continuation frames for compound expressions.
+\input{snips/01_Interpreter/10_Exp.tex}
+
+\paragraph{Correctness and Execution}
 
 As before, we must construct a collecting semantics in order to define an executable analysis.
-To do this, we must relate our step function back to some state machine step \emph{function}.
-One we c % HERE
+To do this, we must relate our small-step interpreter to a state machine transition function.
+That is, we must relate our interpreter of type $Exp → ℳ (Exp)$ to a state transition of type $Σ → Σ$ for \emph{some} $Σ$.
+
+For this interpreter the state space $Σ$ is defined $Σ := {(Exp × Env × Kon)}_⊥$.
+To establish the correctness of $Σ$ we construct an isomorphism between $Exp → ℳ (Exp)$ and $Σ → Σ$.
+We use the standard isomorphisim between Kleisli morphisms $α → ℳ (β)$ and $ℳ (α) → ℳ (β)$ where $ℳ $ is the partiality monad ${(\_)}_⊥$.
+To execute the analysis we transport the interpreter through the isomorphism and find the least fixed point of the collecting semantics.
 
 % }-}
 
 % Exposing the Abstract Domain {-{
-\section{Exposing the Abstract Domain}
+\subsection{Exposing the Abstract Domain}
 
 We will now expose the choice of abstract domain for the interpreter.
 However, giving a finite abstract domain for integers alone will not yet give a computable analysis.
 There will still be an infinite number of possible abstract state spaces due to the recursion between closures and environments.
 We will address this issue in a future modification to the interpreter.
 
-To expose the choice of abstract domain we introduce a type $AVal$ behind an abstract interface.
-\begin{alignat*}{1}
-    AVal &∈ Set                \\
-   \intI &: ℤ → AVal           \\
-   \ifzE &: AVal → 𝒫 (𝔹)       \\
-   \cloI &: Clo → AVal         \\
-   \cloE &: AVal → 𝒫 (Clo)     \\
-  \delta &: Op → AVal → AVal → AVal
-\end{alignat*}
+To expose the choice of abstract domain we introduce a type $\AVal$ behind an abstract interface:
+\input{snips/02_AbstractDomain/00_AVal.tex}
 
-To establish the correctness of our interpreter $\stepf$, we must prove that it is monotonic in $AVal$, $intI$, $if0E$, $cloI$ and $cloE$.
-This can be done independent of a specific $AVal$.
-Then we need only establish $Val \galois{α}{γ} AVal$ for some $AVal$ in order to justify the correctness of $\stepf$ instantiated with $AVal$.
-  
-Exposing the abstract domain forces us to reconsider our monadic effects.
-For example, a branch on a possibly unknown integer value must return multiple possible machine states.
-Therefore we must trade our partiality monad for a nonteterminism monad.
-The monadic abstraction supports nondeterminism nicely in this setting.
-The helper function $\branchOnSet$ will return multiple times for each value in the set.
-This allows the interpreter to be written in a style that need only consider one state at a time.
-The monadic interpreter whith the abstract domain exposd is given in figure~\ref{lamif:minterpreter:adom}.
-(The implementation of $\stepf$ is unchanged.)
+This abstraction forces us to use an abstract environment, mapping variables to abstract values:
+\input{snips/02_AbstractDomain/01_AEnv.tex}
+and re-implement $𝒜 ⟦\_⟧$:
+\input{snips/02_AbstractDomain/02_AtomDen.tex}
 
-\begin{figure}[t]
-\caption{\lamif\ monadic interpreter with abstract domain exposed.}
-\label{lamif:minterpreter:adom}
-{\scriptsize
-\input{snips/Lam-IF-MInterpreter-ADom.tex}
-}
-\end{figure}
+Before implementing $\atomf$ we must reconsider our monadic effects.
+Because we have abstracted values, our interpreter must consider \emph{sets} of possible states resulting from conditionals and function calls.
+We introduce this nondeterminism as an effect in the monad, taking the place of partiality (which was just nondeterminism with zero or one branches).
+Nondeterminism has two operators, $⊥$ as we've seen before, and $\mplus$ which branches to both left and right monadic computation.
+The effects for our monadic type are now:
+\input{snips/02_AbstractDomain/03_Effects.tex}
+and to support these effects we redefine $ℳ $ to be:
+\input{snips/02_AbstractDomain/04_MonadType.tex}
+
+Our definition for $\atomf$ now uses nondeterminism effects:
+\input{snips/02_AbstractDomain/05_Atomic.tex}
+
+Helper function $\liftnondet$ is the analog of $\failonbot$ for lifting sets into monads with nondeterminism:
+\input{snips/02_AbstractDomain/06_LiftNonDet.tex}
+
+\paragraph{Correctness and Execution}
+
+To construct a collecting semantics we again construct an isomorphism between $Exp → ℳ (Exp)$ and $Σ$ where $Σ := 𝒫 (Exp × \AEnv × Kon)$.
+This isomorphism is again the standard one between Kleisli morphisms $α → ℳ (β)$ and $ℳ (α) → ℳ (β)$ where $ℳ $ is the powerset monad $𝒫 $.
+
+Now that we have a parameter to the analysis, $\AVal$, we can discuss what an analysis is and what it means for it to be correct.
+An analysis is some instantiation of $\AVal$ to $\AVal₁$ where $Val\galois{α}{γ}\AVal₁$.
+Furthermore, each operation in the $\AVal$ interface must be an abstraction of concrete versions, namely $\intI ⊑ γ (\aintI₁)$, $\ifzE ⊑ γ (\aifzE₁)$, etc.
+This local argument about $\AVal₁$, coupled with the monotonicity of $\stepf$ and the isomorphism between $Exp → ℳ (Exp)$ and $Σ → Σ$, 
+  gives us an end to end correctness argument for our executable abstract interpreter.
+At this point our analysis is still not yet decidable; the abstract state space is still infinite.
+
+We will expose two more feature, flow sensitivity and context sensitivity, before we achieve a decidable analysis.
+However, the \emph{correctness} of our analysis will be carried through every example.
+
+% }-}
+
+% Exposing Flow Sensitivity {-{
+\subsection{Exposing Flow Sensitivity}
+
+Novel in this work is the ability to expose flow sensitivity as an orthogonal parameter to a static analysis.
+
+% }-}
+
+% Exposing Context Sensitivity {-{
+\subsection{Exposing Context Sensitivity}
+
+% }-}
+
+% Intentional Optimizations {-{
+\subsection{Intentional Optimizations}
+
+\subsubsection{Abstract Garbage Collection}
+
+\subsubsection{Flat Closures}
+
+% }-}
+
+% }-}
+
+% Summary {-{
+\section{Summary}
+
+Our final interpreter enjoys the following properties:
+\begin{itemize}
+\item Abstract Domain can be altered independent of other features.
+\item Flow Sensitivity can be altered independent of other features.
+\item Context Sensitivity (and its granularity) can be altered indepndend of other features.
+\item Intensional optimizations can be implemented once and integrate seamlessly with any of the above choices.
+\item New state space components and their widening properties can be added seamlessly using compositional building blocks.
+\item Interpreters are automatically related to a collecting semantics, enabling a straight forward least-fixed-point implementation strategy.
+\item All analyses are correct by construction with no additional proof burdon beyond interpreter monotonicity and correctness of orthoganal parameters piecewise.
+\end{itemize}
 
 % }-}
 

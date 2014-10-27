@@ -1,0 +1,17 @@
+{\scriptsize
+\begin{align*}
+& \hspace{0em}   \pushkon : Frame → ℳ (1)         \\
+& \hspace{0em}   \pushkon fr := \ddo              \\
+& \hspace{2em}     \overline{fr} ← \getkon        \\
+& \hspace{2em}     \putkon(fr ∷ \overline{fr})    \\
+%
+& \hspace{0em}   \popkon : ℳ (Frame × Frame^*)    \\
+& \hspace{0em}   \popkon := \ddo                  \\
+& \hspace{2em}     \overline{fr} ← \getkon        \\
+& \hspace{2em}     \case{\overline{fr}}           \\
+& \hspace{4em}       ∙ → ⊥                        \\
+& \hspace{4em}       fr ∷ \overline{fr'} → \ddo   \\
+& \hspace{6em}         \putkon(\overline{fr'})    \\
+& \hspace{6em}         \ret(fr)
+\end{align*}
+}

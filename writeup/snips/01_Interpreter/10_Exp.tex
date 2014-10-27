@@ -1,0 +1,15 @@
+{\scriptsize
+\begin{align*}
+& \hspace{0em}   \stepf : Exp → ℳ (Exp)                                        \\
+& \hspace{0em}   \stepf(a) := \atomf(a)                                        \\
+& \hspace{0em}   \stepf(e₁ \op e₂) := \ddo                                     \\
+& \hspace{2em}     \pushkon([ □ \op e₂ ])                                      \\
+& \hspace{2em}     \ret(e₁)                                                    \\
+& \hspace{0em}   \stepf(e₁ \ap e₂) := \ddo                                     \\
+& \hspace{2em}     \pushkon([ □ \ap e₂ ])                                      \\
+& \hspace{2em}     \ret(e₁)                                                    \\
+& \hspace{0em}   \stepf(\ifz{e₁}{e₂}{e₃}) := \ddo                              \\
+& \hspace{2em}     \pushkon([\ifz{□}{e₂}{e₃}])                                 \\
+& \hspace{2em}     \ret(e₁)
+\end{align*}
+}
