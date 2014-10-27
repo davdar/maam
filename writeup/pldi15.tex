@@ -74,6 +74,11 @@
 \newcommand{\AVal}{\widehat{Val}}
 \newcommand{\AEnv}{\widehat{Env}}
 \newcommand{\mplus}{\mathbin{⟨+⟩}}
+\newcommand{\AAddr}{\widehat{Addr}}
+\newcommand{\ATime}{\widehat{Time}}
+\newcommand{\AStore}{\widehat{Store}}
+\newcommand{\aalloc}{\widehat{alloc}}
+\newcommand{\atick}{\widehat{tick}}
 
 % }-}
 
@@ -229,8 +234,22 @@ This local argument about $\AVal₁$, coupled with the monotonicity of $\stepf$ 
   gives us an end to end correctness argument for our executable abstract interpreter.
 At this point our analysis is still not yet decidable; the abstract state space is still infinite.
 
-We will expose two more feature, flow sensitivity and context sensitivity, before we achieve a decidable analysis.
-However, the \emph{correctness} of our analysis will be carried through every example.
+% }-}
+
+% Exposing Context Sensitivity {-{
+\subsection{Exposing Context Sensitivity}
+
+To expose context sensitivity (also called call-site sensitivity) we instantiate the AAM approach of cutting recursion in the state space to our framework.
+This conceptually takes place in two steps.
+First we introduce indirection between values and environments through a store and a type of addresses.
+Second we abstract the choice of address to achieve an analysis.
+
+We introduce abstract time and addresses behind an interface:
+\input{snips/03_ContextSensitivity/00_AAM.tex}
+which alters the definition of the monad to contain new state components:
+\input{snips/03_ContextSensitivity/01_StateSpace.tex}
+
+[LEFT OFF HERE]
 
 % }-}
 
@@ -238,11 +257,14 @@ However, the \emph{correctness} of our analysis will be carried through every ex
 \subsection{Exposing Flow Sensitivity}
 
 Novel in this work is the ability to expose flow sensitivity as an orthogonal parameter to a static analysis.
+To do this we exploit both the monadic abstraction and our correctness framework which relates monadic actions to state machine transitions.
+\emph{Our insight is that both computational and correctness components of flow-sensitivity can be obtain by varying the monad for the interpreter alone.}
 
-% }-}
-
-% Exposing Context Sensitivity {-{
-\subsection{Exposing Context Sensitivity}
+The anlyses we have constructed thus far are path sensitive, meaning they will follow branching control flow precisely.
+We can see that the analysis is path sensitive by inspecting the state space $Σ$ that it induces: $ Σ := 𝒫 (Exp × \AEnv × Kon × \ATime × \AStore)$.
+A flow insensitive analysis pulls the store out of the powerset to a single global store: $Σ := (𝒫 (Exp × \AEnv × Kon × \ATime) × \AStore)$.
+A flow sensitive path insensitive analysis shares the state space of path sensitivity but employs store widening to keep the state space explosion under control.
+In this section we will show how variations in the monad can recover all three analysis variants: path sensitive, flow sensitive, and flow insensitive.
 
 % }-}
 

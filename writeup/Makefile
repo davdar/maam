@@ -2,4 +2,4 @@ pldi15.pdf: pldi15.tex snips/*/*.tex
 	xelatex pldi15.tex
 
 clean:
-	rm *.log *.aux
+	rm *.log *.aux *.out pldi15.pdf
