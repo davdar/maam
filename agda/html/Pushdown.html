@@ -1,0 +1,3417 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >Pushdown</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Keyword"
+      >open</a
+      ><a name="5"
+      > </a
+      ><a name="6" class="Keyword"
+      >import</a
+      ><a name="12"
+      > </a
+      ><a name="13" href="Data.String.html#1" class="Module"
+      >Data.String</a
+      ><a name="24"
+      >
+</a
+      ><a name="25" class="Keyword"
+      >open</a
+      ><a name="29"
+      > </a
+      ><a name="30" class="Keyword"
+      >import</a
+      ><a name="36"
+      > </a
+      ><a name="37" href="Data.Maybe.html#1" class="Module"
+      >Data.Maybe</a
+      ><a name="47"
+      > </a
+      ><a name="48" class="Keyword"
+      >hiding</a
+      ><a name="54"
+      > </a
+      ><a name="55" class="Symbol"
+      >(</a
+      ><a name="56"
+      >map</a
+      ><a name="59" class="Symbol"
+      >)</a
+      ><a name="60"
+      >
+</a
+      ><a name="61" class="Keyword"
+      >open</a
+      ><a name="65"
+      > </a
+      ><a name="66" class="Keyword"
+      >import</a
+      ><a name="72"
+      > </a
+      ><a name="73" href="Data.List.html#1" class="Module"
+      >Data.List</a
+      ><a name="82"
+      >
+</a
+      ><a name="83" class="Keyword"
+      >open</a
+      ><a name="87"
+      > </a
+      ><a name="88" class="Keyword"
+      >import</a
+      ><a name="94"
+      > </a
+      ><a name="95" href="Relation.Nullary.html#1" class="Module"
+      >Relation.Nullary</a
+      ><a name="111"
+      >
+</a
+      ><a name="112" class="Keyword"
+      >open</a
+      ><a name="116"
+      > </a
+      ><a name="117" class="Keyword"
+      >import</a
+      ><a name="123"
+      > </a
+      ><a name="124" href="Relation.Binary.PropositionalEquality.html#1" class="Module"
+      >Relation.Binary.PropositionalEquality</a
+      ><a name="161"
+      >
+</a
+      ><a name="162" class="Keyword"
+      >open</a
+      ><a name="166"
+      > </a
+      ><a name="167" class="Keyword"
+      >import</a
+      ><a name="173"
+      > </a
+      ><a name="174" href="Data.Product.html#1" class="Module"
+      >Data.Product</a
+      ><a name="186"
+      > </a
+      ><a name="187" class="Keyword"
+      >hiding</a
+      ><a name="193"
+      > </a
+      ><a name="194" class="Symbol"
+      >(</a
+      ><a name="195"
+      >&lt;_,_&gt;</a
+      ><a name="200" class="Symbol"
+      >;</a
+      ><a name="201"
+      > _,_</a
+      ><a name="205" class="Symbol"
+      >)</a
+      ><a name="206"
+      >
+
+</a
+      ><a name="208" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="212"
+      > </a
+      ><a name="213" class="Symbol"
+      >:</a
+      ><a name="214"
+      > </a
+      ><a name="215" class="PrimitiveType"
+      >Set</a
+      ><a name="218"
+      >
+</a
+      ><a name="219" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="223"
+      > </a
+      ><a name="224" class="Symbol"
+      >=</a
+      ><a name="225"
+      > </a
+      ><a name="226" href="Data.String.html#900" class="Postulate"
+      >String</a
+      ><a name="232"
+      >
+
+</a
+      ><a name="234" class="Keyword"
+      >mutual</a
+      ><a name="240"
+      >
+  </a
+      ><a name="243" class="Keyword"
+      >data</a
+      ><a name="247"
+      > </a
+      ><a name="248" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="252"
+      > </a
+      ><a name="253" class="Symbol"
+      >:</a
+      ><a name="254"
+      > </a
+      ><a name="255" class="PrimitiveType"
+      >Set</a
+      ><a name="258"
+      > </a
+      ><a name="259" class="Keyword"
+      >where</a
+      ><a name="264"
+      >
+    </a
+      ><a name="269" href="Pushdown.html#269" class="InductiveConstructor"
+      >var</a
+      ><a name="272"
+      > </a
+      ><a name="273" class="Symbol"
+      >:</a
+      ><a name="274"
+      > </a
+      ><a name="275" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="279"
+      > </a
+      ><a name="280" class="Symbol"
+      >&#8594;</a
+      ><a name="281"
+      > </a
+      ><a name="282" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="286"
+      >
+    </a
+      ><a name="291" href="Pushdown.html#291" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;_&#8658;_</a
+      ><a name="297"
+      > </a
+      ><a name="298" class="Symbol"
+      >:</a
+      ><a name="299"
+      > </a
+      ><a name="300" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="304"
+      > </a
+      ><a name="305" class="Symbol"
+      >&#8594;</a
+      ><a name="306"
+      > </a
+      ><a name="307" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="310"
+      > </a
+      ><a name="311" class="Symbol"
+      >&#8594;</a
+      ><a name="312"
+      > </a
+      ><a name="313" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="317"
+      >
+
+  </a
+      ><a name="321" class="Keyword"
+      >data</a
+      ><a name="325"
+      > </a
+      ><a name="326" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="329"
+      > </a
+      ><a name="330" class="Symbol"
+      >:</a
+      ><a name="331"
+      > </a
+      ><a name="332" class="PrimitiveType"
+      >Set</a
+      ><a name="335"
+      > </a
+      ><a name="336" class="Keyword"
+      >where</a
+      ><a name="341"
+      >
+    </a
+      ><a name="346" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="350"
+      > </a
+      ><a name="351" class="Symbol"
+      >:</a
+      ><a name="352"
+      > </a
+      ><a name="353" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="357"
+      > </a
+      ><a name="358" class="Symbol"
+      >&#8594;</a
+      ><a name="359"
+      > </a
+      ><a name="360" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="363"
+      >
+    </a
+      ><a name="368" href="Pushdown.html#368" class="InductiveConstructor Operator"
+      >_&#8729;_</a
+      ><a name="371"
+      > </a
+      ><a name="372" class="Symbol"
+      >:</a
+      ><a name="373"
+      > </a
+      ><a name="374" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="377"
+      > </a
+      ><a name="378" class="Symbol"
+      >&#8594;</a
+      ><a name="379"
+      > </a
+      ><a name="380" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="383"
+      > </a
+      ><a name="384" class="Symbol"
+      >&#8594;</a
+      ><a name="385"
+      > </a
+      ><a name="386" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="389"
+      >
+
+</a
+      ><a name="391" class="Keyword"
+      >mutual</a
+      ><a name="397"
+      >
+    </a
+      ><a name="402" class="Keyword"
+      >data</a
+      ><a name="406"
+      > </a
+      ><a name="407" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="410"
+      > </a
+      ><a name="411" class="Symbol"
+      >:</a
+      ><a name="412"
+      > </a
+      ><a name="413" class="PrimitiveType"
+      >Set</a
+      ><a name="416"
+      > </a
+      ><a name="417" class="Keyword"
+      >where</a
+      ><a name="422"
+      >
+      </a
+      ><a name="429" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;_&#8658;_,_</a
+      ><a name="437"
+      > </a
+      ><a name="438" class="Symbol"
+      >:</a
+      ><a name="439"
+      > </a
+      ><a name="440" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="444"
+      > </a
+      ><a name="445" class="Symbol"
+      >&#8594;</a
+      ><a name="446"
+      > </a
+      ><a name="447" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="450"
+      > </a
+      ><a name="451" class="Symbol"
+      >&#8594;</a
+      ><a name="452"
+      > </a
+      ><a name="453" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="456"
+      > </a
+      ><a name="457" class="Symbol"
+      >&#8594;</a
+      ><a name="458"
+      > </a
+      ><a name="459" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="462"
+      >
+
+    </a
+      ><a name="468" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="471"
+      > </a
+      ><a name="472" class="Symbol"
+      >:</a
+      ><a name="473"
+      > </a
+      ><a name="474" class="PrimitiveType"
+      >Set</a
+      ><a name="477"
+      >
+    </a
+      ><a name="482" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="485"
+      > </a
+      ><a name="486" class="Symbol"
+      >=</a
+      ><a name="487"
+      > </a
+      ><a name="488" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="492"
+      > </a
+      ><a name="493" class="Symbol"
+      >&#8594;</a
+      ><a name="494"
+      > </a
+      ><a name="495" href="Data.Maybe.Core.html#315" class="Datatype"
+      >Maybe</a
+      ><a name="500"
+      > </a
+      ><a name="501" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="504"
+      > 
+
+</a
+      ><a name="507" class="Keyword"
+      >data</a
+      ><a name="511"
+      > </a
+      ><a name="512" href="Pushdown.html#512" class="Datatype"
+      >Frame</a
+      ><a name="517"
+      > </a
+      ><a name="518" class="Symbol"
+      >:</a
+      ><a name="519"
+      > </a
+      ><a name="520" class="PrimitiveType"
+      >Set</a
+      ><a name="523"
+      > </a
+      ><a name="524" class="Keyword"
+      >where</a
+      ><a name="529"
+      >
+  </a
+      ><a name="532" href="Pushdown.html#532" class="InductiveConstructor Operator"
+      >&#9633;&#8729;_</a
+      ><a name="535"
+      > </a
+      ><a name="536" class="Symbol"
+      >:</a
+      ><a name="537"
+      > </a
+      ><a name="538" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="541"
+      > </a
+      ><a name="542" class="Symbol"
+      >&#8594;</a
+      ><a name="543"
+      > </a
+      ><a name="544" href="Pushdown.html#512" class="Datatype"
+      >Frame</a
+      ><a name="549"
+      >
+  </a
+      ><a name="552" href="Pushdown.html#552" class="InductiveConstructor Operator"
+      >_&#8729;&#9633;</a
+      ><a name="555"
+      > </a
+      ><a name="556" class="Symbol"
+      >:</a
+      ><a name="557"
+      > </a
+      ><a name="558" href="Data.Maybe.Core.html#315" class="Datatype"
+      >Maybe</a
+      ><a name="563"
+      > </a
+      ><a name="564" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="567"
+      > </a
+      ><a name="568" class="Symbol"
+      >&#8594;</a
+      ><a name="569"
+      > </a
+      ><a name="570" href="Pushdown.html#512" class="Datatype"
+      >Frame</a
+      ><a name="575"
+      >
+
+</a
+      ><a name="577" class="Keyword"
+      >data</a
+      ><a name="581"
+      > </a
+      ><a name="582" href="Pushdown.html#582" class="Datatype"
+      >C&#8321;</a
+      ><a name="584"
+      > </a
+      ><a name="585" class="Symbol"
+      >:</a
+      ><a name="586"
+      > </a
+      ><a name="587" class="PrimitiveType"
+      >Set</a
+      ><a name="590"
+      > </a
+      ><a name="591" class="Keyword"
+      >where</a
+      ><a name="596"
+      >
+  </a
+      ><a name="599" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;_,_&gt;</a
+      ><a name="604"
+      > </a
+      ><a name="605" class="Symbol"
+      >:</a
+      ><a name="606"
+      > </a
+      ><a name="607" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="610"
+      > </a
+      ><a name="611" class="Symbol"
+      >&#8594;</a
+      ><a name="612"
+      > </a
+      ><a name="613" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="616"
+      > </a
+      ><a name="617" class="Symbol"
+      >&#8594;</a
+      ><a name="618"
+      > </a
+      ><a name="619" href="Pushdown.html#582" class="Datatype"
+      >C&#8321;</a
+      ><a name="621"
+      >
+
+</a
+      ><a name="623" class="Keyword"
+      >data</a
+      ><a name="627"
+      > </a
+      ><a name="628" href="Pushdown.html#628" class="Datatype"
+      >LFrame</a
+      ><a name="634"
+      > </a
+      ><a name="635" class="Symbol"
+      >:</a
+      ><a name="636"
+      > </a
+      ><a name="637" class="PrimitiveType"
+      >Set</a
+      ><a name="640"
+      > </a
+      ><a name="641" class="Keyword"
+      >where</a
+      ><a name="646"
+      >
+  </a
+      ><a name="649" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >_^_</a
+      ><a name="652"
+      > </a
+      ><a name="653" class="Symbol"
+      >:</a
+      ><a name="654"
+      > </a
+      ><a name="655" href="Pushdown.html#512" class="Datatype"
+      >Frame</a
+      ><a name="660"
+      > </a
+      ><a name="661" class="Symbol"
+      >&#8594;</a
+      ><a name="662"
+      > </a
+      ><a name="663" href="Pushdown.html#582" class="Datatype"
+      >C&#8321;</a
+      ><a name="665"
+      > </a
+      ><a name="666" class="Symbol"
+      >&#8594;</a
+      ><a name="667"
+      > </a
+      ><a name="668" href="Pushdown.html#628" class="Datatype"
+      >LFrame</a
+      ><a name="674"
+      >
+
+</a
+      ><a name="676" href="Pushdown.html#676" class="Function"
+      >Kon</a
+      ><a name="679"
+      > </a
+      ><a name="680" class="Symbol"
+      >:</a
+      ><a name="681"
+      > </a
+      ><a name="682" class="PrimitiveType"
+      >Set</a
+      ><a name="685"
+      >
+</a
+      ><a name="686" href="Pushdown.html#676" class="Function"
+      >Kon</a
+      ><a name="689"
+      > </a
+      ><a name="690" class="Symbol"
+      >=</a
+      ><a name="691"
+      > </a
+      ><a name="692" href="Data.List.html#659" class="Datatype"
+      >List</a
+      ><a name="696"
+      > </a
+      ><a name="697" href="Pushdown.html#628" class="Datatype"
+      >LFrame</a
+      ><a name="703"
+      >
+
+</a
+      ><a name="705" class="Keyword"
+      >data</a
+      ><a name="709"
+      > </a
+      ><a name="710" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="721"
+      > </a
+      ><a name="722" class="Symbol"
+      >:</a
+      ><a name="723"
+      > </a
+      ><a name="724" class="PrimitiveType"
+      >Set</a
+      ><a name="727"
+      > </a
+      ><a name="728" class="Keyword"
+      >where</a
+      ><a name="733"
+      >
+  </a
+      ><a name="736" href="Pushdown.html#736" class="InductiveConstructor"
+      >cached</a
+      ><a name="742"
+      > </a
+      ><a name="743" class="Symbol"
+      >:</a
+      ><a name="744"
+      > </a
+      ><a name="745" href="Data.Maybe.Core.html#315" class="Datatype"
+      >Maybe</a
+      ><a name="750"
+      > </a
+      ><a name="751" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="754"
+      > </a
+      ><a name="755" class="Symbol"
+      >&#8594;</a
+      ><a name="756"
+      > </a
+      ><a name="757" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="768"
+      >
+  </a
+      ><a name="771" href="Pushdown.html#771" class="InductiveConstructor"
+      >seen</a
+      ><a name="775"
+      > </a
+      ><a name="776" class="Symbol"
+      >:</a
+      ><a name="777"
+      > </a
+      ><a name="778" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="789"
+      >
+  </a
+      ><a name="792" href="Pushdown.html#792" class="InductiveConstructor"
+      >unseen</a
+      ><a name="798"
+      > </a
+      ><a name="799" class="Symbol"
+      >:</a
+      ><a name="800"
+      > </a
+      ><a name="801" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="812"
+      >
+
+</a
+      ><a name="814" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="819"
+      > </a
+      ><a name="820" class="Symbol"
+      >:</a
+      ><a name="821"
+      > </a
+      ><a name="822" class="PrimitiveType"
+      >Set</a
+      ><a name="825"
+      >
+</a
+      ><a name="826" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="831"
+      > </a
+      ><a name="832" class="Symbol"
+      >=</a
+      ><a name="833"
+      > </a
+      ><a name="834" href="Pushdown.html#582" class="Datatype"
+      >C&#8321;</a
+      ><a name="836"
+      > </a
+      ><a name="837" class="Symbol"
+      >&#8594;</a
+      ><a name="838"
+      > </a
+      ><a name="839" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="850"
+      >
+
+</a
+      ><a name="852" class="Keyword"
+      >data</a
+      ><a name="856"
+      > </a
+      ><a name="857" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="859"
+      > </a
+      ><a name="860" class="Symbol"
+      >:</a
+      ><a name="861"
+      > </a
+      ><a name="862" class="PrimitiveType"
+      >Set</a
+      ><a name="865"
+      > </a
+      ><a name="866" class="Keyword"
+      >where</a
+      ><a name="871"
+      >
+  </a
+      ><a name="874" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;_,_,_&gt;</a
+      ><a name="881"
+      > </a
+      ><a name="882" class="Symbol"
+      >:</a
+      ><a name="883"
+      > </a
+      ><a name="884" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="887"
+      > </a
+      ><a name="888" class="Symbol"
+      >&#8594;</a
+      ><a name="889"
+      > </a
+      ><a name="890" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="893"
+      > </a
+      ><a name="894" class="Symbol"
+      >&#8594;</a
+      ><a name="895"
+      > </a
+      ><a name="896" href="Pushdown.html#676" class="Function"
+      >Kon</a
+      ><a name="899"
+      > </a
+      ><a name="900" class="Symbol"
+      >&#8594;</a
+      ><a name="901"
+      > </a
+      ><a name="902" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="904"
+      >
+
+</a
+      ><a name="906" href="Pushdown.html#906" class="Function Operator"
+      >[_&#8614;_]</a
+      ><a name="911"
+      > </a
+      ><a name="912" class="Symbol"
+      >:</a
+      ><a name="913"
+      > </a
+      ><a name="914" href="Pushdown.html#208" class="Function"
+      >Name</a
+      ><a name="918"
+      > </a
+      ><a name="919" class="Symbol"
+      >&#8594;</a
+      ><a name="920"
+      > </a
+      ><a name="921" href="Data.Maybe.Core.html#315" class="Datatype"
+      >Maybe</a
+      ><a name="926"
+      > </a
+      ><a name="927" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="930"
+      > </a
+      ><a name="931" class="Symbol"
+      >&#8594;</a
+      ><a name="932"
+      > </a
+      ><a name="933" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="936"
+      > </a
+      ><a name="937" class="Symbol"
+      >&#8594;</a
+      ><a name="938"
+      > </a
+      ><a name="939" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="942"
+      >
+</a
+      ><a name="943" href="Pushdown.html#906" class="Function Operator"
+      >[</a
+      ><a name="944"
+      > </a
+      ><a name="945" href="Pushdown.html#945" class="Bound"
+      >x</a
+      ><a name="946"
+      > </a
+      ><a name="947" href="Pushdown.html#906" class="Function Operator"
+      >&#8614;</a
+      ><a name="948"
+      > </a
+      ><a name="949" href="Pushdown.html#949" class="Bound"
+      >v</a
+      ><a name="950"
+      > </a
+      ><a name="951" href="Pushdown.html#906" class="Function Operator"
+      >]</a
+      ><a name="952"
+      > </a
+      ><a name="953" href="Pushdown.html#953" class="Bound"
+      >&#961;</a
+      ><a name="954"
+      > </a
+      ><a name="955" href="Pushdown.html#955" class="Bound"
+      >y</a
+      ><a name="956"
+      > </a
+      ><a name="957" class="Keyword"
+      >with</a
+      ><a name="961"
+      > </a
+      ><a name="962" href="Pushdown.html#945" class="Bound"
+      >x</a
+      ><a name="963"
+      > </a
+      ><a name="964" href="Data.String.html#1969" class="Function Operator"
+      >&#8799;</a
+      ><a name="965"
+      > </a
+      ><a name="966" href="Pushdown.html#955" class="Bound"
+      >y</a
+      ><a name="967"
+      >
+</a
+      ><a name="968" class="Symbol"
+      >...</a
+      ><a name="971"
+      > </a
+      ><a name="972" class="Symbol"
+      >|</a
+      ><a name="973"
+      > </a
+      ><a name="974" href="Relation.Nullary.Core.html#504" class="InductiveConstructor"
+      >yes</a
+      ><a name="977"
+      > </a
+      ><a name="978" class="Symbol"
+      >_</a
+      ><a name="979"
+      > </a
+      ><a name="980" class="Symbol"
+      >=</a
+      ><a name="981"
+      > </a
+      ><a name="982" href="Pushdown.html#949" class="Bound"
+      >v</a
+      ><a name="983"
+      >
+</a
+      ><a name="984" class="Symbol"
+      >...</a
+      ><a name="987"
+      > </a
+      ><a name="988" class="Symbol"
+      >|</a
+      ><a name="989"
+      > </a
+      ><a name="990" href="Relation.Nullary.Core.html#531" class="InductiveConstructor"
+      >no</a
+      ><a name="992"
+      > </a
+      ><a name="993" class="Symbol"
+      >_</a
+      ><a name="994"
+      > </a
+      ><a name="995" class="Symbol"
+      >=</a
+      ><a name="996"
+      > </a
+      ><a name="997" href="Pushdown.html#953" class="Bound"
+      >&#961;</a
+      ><a name="998"
+      > </a
+      ><a name="999" href="Pushdown.html#955" class="Bound"
+      >y</a
+      ><a name="1000"
+      >
+
+</a
+      ><a name="1002" href="Pushdown.html#1002" class="Function Operator"
+      >[[_&#8614;_]]</a
+      ><a name="1009"
+      > </a
+      ><a name="1010" class="Symbol"
+      >:</a
+      ><a name="1011"
+      > </a
+      ><a name="1012" href="Pushdown.html#582" class="Datatype"
+      >C&#8321;</a
+      ><a name="1014"
+      > </a
+      ><a name="1015" class="Symbol"
+      >&#8594;</a
+      ><a name="1016"
+      > </a
+      ><a name="1017" href="Pushdown.html#710" class="Datatype"
+      >CacheResult</a
+      ><a name="1028"
+      > </a
+      ><a name="1029" class="Symbol"
+      >&#8594;</a
+      ><a name="1030"
+      > </a
+      ><a name="1031" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="1036"
+      > </a
+      ><a name="1037" class="Symbol"
+      >&#8594;</a
+      ><a name="1038"
+      > </a
+      ><a name="1039" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="1044"
+      >
+</a
+      ><a name="1045" href="Pushdown.html#1002" class="Function Operator"
+      >[[_&#8614;_]]</a
+      ><a name="1052"
+      > </a
+      ><a name="1053" class="Symbol"
+      >=</a
+      ><a name="1054"
+      > </a
+      ><a name="1055" href="Pushdown.html#1086" class="Postulate"
+      >whatever</a
+      ><a name="1063"
+      >
+  </a
+      ><a name="1066" class="Keyword"
+      >where</a
+      ><a name="1071"
+      >
+    </a
+      ><a name="1076" class="Keyword"
+      >postulate</a
+      ><a name="1085"
+      > </a
+      ><a name="1086" href="Pushdown.html#1086" class="Postulate"
+      >whatever</a
+      ><a name="1094"
+      > </a
+      ><a name="1095" class="Symbol"
+      >:</a
+      ><a name="1096"
+      > </a
+      ><a name="1097" class="Symbol"
+      >_</a
+      ><a name="1098"
+      >
+
+</a
+      ><a name="1100" href="Pushdown.html#1100" class="Function Operator"
+      >A[_]</a
+      ><a name="1104"
+      > </a
+      ><a name="1105" class="Symbol"
+      >:</a
+      ><a name="1106"
+      > </a
+      ><a name="1107" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="1110"
+      > </a
+      ><a name="1111" class="Symbol"
+      >&#8594;</a
+      ><a name="1112"
+      > </a
+      ><a name="1113" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="1117"
+      > </a
+      ><a name="1118" class="Symbol"
+      >&#8594;</a
+      ><a name="1119"
+      > </a
+      ><a name="1120" href="Data.Maybe.Core.html#315" class="Datatype"
+      >Maybe</a
+      ><a name="1125"
+      > </a
+      ><a name="1126" href="Pushdown.html#407" class="Datatype"
+      >Val</a
+      ><a name="1129"
+      >
+</a
+      ><a name="1130" href="Pushdown.html#1100" class="Function Operator"
+      >A[</a
+      ><a name="1132"
+      > </a
+      ><a name="1133" href="Pushdown.html#1133" class="Bound"
+      >&#961;</a
+      ><a name="1134"
+      > </a
+      ><a name="1135" href="Pushdown.html#1100" class="Function Operator"
+      >]</a
+      ><a name="1136"
+      > </a
+      ><a name="1137" class="Symbol"
+      >(</a
+      ><a name="1138" href="Pushdown.html#269" class="InductiveConstructor"
+      >var</a
+      ><a name="1141"
+      > </a
+      ><a name="1142" href="Pushdown.html#1142" class="Bound"
+      >x</a
+      ><a name="1143" class="Symbol"
+      >)</a
+      ><a name="1144"
+      > </a
+      ><a name="1145" class="Symbol"
+      >=</a
+      ><a name="1146"
+      > </a
+      ><a name="1147" href="Pushdown.html#1133" class="Bound"
+      >&#961;</a
+      ><a name="1148"
+      > </a
+      ><a name="1149" href="Pushdown.html#1142" class="Bound"
+      >x</a
+      ><a name="1150"
+      >
+</a
+      ><a name="1151" href="Pushdown.html#1100" class="Function Operator"
+      >A[</a
+      ><a name="1153"
+      > </a
+      ><a name="1154" href="Pushdown.html#1154" class="Bound"
+      >&#961;</a
+      ><a name="1155"
+      > </a
+      ><a name="1156" href="Pushdown.html#1100" class="Function Operator"
+      >]</a
+      ><a name="1157"
+      > </a
+      ><a name="1158" class="Symbol"
+      >(</a
+      ><a name="1159" href="Pushdown.html#291" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;</a
+      ><a name="1162"
+      > </a
+      ><a name="1163" href="Pushdown.html#1163" class="Bound"
+      >x</a
+      ><a name="1164"
+      > </a
+      ><a name="1165" href="Pushdown.html#291" class="InductiveConstructor Operator"
+      >&#8658;</a
+      ><a name="1166"
+      > </a
+      ><a name="1167" href="Pushdown.html#1167" class="Bound"
+      >e</a
+      ><a name="1168" class="Symbol"
+      >)</a
+      ><a name="1169"
+      > </a
+      ><a name="1170" class="Symbol"
+      >=</a
+      ><a name="1171"
+      > </a
+      ><a name="1172" href="Data.Maybe.Core.html#353" class="InductiveConstructor"
+      >just</a
+      ><a name="1176"
+      > </a
+      ><a name="1177" class="Symbol"
+      >(</a
+      ><a name="1178" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;</a
+      ><a name="1181"
+      > </a
+      ><a name="1182" href="Pushdown.html#1163" class="Bound"
+      >x</a
+      ><a name="1183"
+      > </a
+      ><a name="1184" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#8658;</a
+      ><a name="1185"
+      > </a
+      ><a name="1186" href="Pushdown.html#1167" class="Bound"
+      >e</a
+      ><a name="1187"
+      > </a
+      ><a name="1188" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1189"
+      > </a
+      ><a name="1190" href="Pushdown.html#1154" class="Bound"
+      >&#961;</a
+      ><a name="1191" class="Symbol"
+      >)</a
+      ><a name="1192"
+      >
+
+</a
+      ><a name="1194" class="Comment"
+      >-- non-caching semantics</a
+      ><a name="1218"
+      >
+</a
+      ><a name="1219" class="Keyword"
+      >data</a
+      ><a name="1223"
+      > </a
+      ><a name="1224" href="Pushdown.html#1224" class="Datatype Operator"
+      >_&#10230;&#8322;_</a
+      ><a name="1228"
+      > </a
+      ><a name="1229" class="Symbol"
+      >:</a
+      ><a name="1230"
+      > </a
+      ><a name="1231" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="1233"
+      > </a
+      ><a name="1234" class="Symbol"
+      >&#8594;</a
+      ><a name="1235"
+      > </a
+      ><a name="1236" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="1238"
+      > </a
+      ><a name="1239" class="Symbol"
+      >&#8594;</a
+      ><a name="1240"
+      > </a
+      ><a name="1241" class="PrimitiveType"
+      >Set</a
+      ><a name="1244"
+      > </a
+      ><a name="1245" class="Keyword"
+      >where</a
+      ><a name="1250"
+      >
+  </a
+      ><a name="1253" href="Pushdown.html#1253" class="InductiveConstructor"
+      >e&#8321;-ret</a
+      ><a name="1259"
+      >  </a
+      ><a name="1261" class="Symbol"
+      >:</a
+      ><a name="1262"
+      > </a
+      ><a name="1263" class="Symbol"
+      >&#8704;</a
+      ><a name="1264"
+      > </a
+      ><a name="1265" class="Symbol"
+      >{</a
+      ><a name="1266" href="Pushdown.html#1266" class="Bound"
+      >a</a
+      ><a name="1267"
+      > </a
+      ><a name="1268" href="Pushdown.html#1268" class="Bound"
+      >&#961;</a
+      ><a name="1269"
+      > </a
+      ><a name="1270" href="Pushdown.html#1270" class="Bound"
+      >e</a
+      ><a name="1271"
+      > </a
+      ><a name="1272" href="Pushdown.html#1272" class="Bound"
+      >&#8467;</a
+      ><a name="1273"
+      > </a
+      ><a name="1274" href="Pushdown.html#1274" class="Bound"
+      >&#954;</a
+      ><a name="1275" class="Symbol"
+      >}</a
+      ><a name="1276"
+      >      </a
+      ><a name="1282" class="Symbol"
+      >&#8594;</a
+      ><a name="1283"
+      > </a
+      ><a name="1284" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1285"
+      > </a
+      ><a name="1286" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="1290"
+      > </a
+      ><a name="1291" href="Pushdown.html#1266" class="Bound"
+      >a</a
+      ><a name="1292"
+      >  </a
+      ><a name="1294" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1295"
+      > </a
+      ><a name="1296" href="Pushdown.html#1268" class="Bound"
+      >&#961;</a
+      ><a name="1297"
+      > </a
+      ><a name="1298" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1299"
+      > </a
+      ><a name="1300" href="Pushdown.html#532" class="InductiveConstructor Operator"
+      >&#9633;&#8729;</a
+      ><a name="1302"
+      > </a
+      ><a name="1303" href="Pushdown.html#1270" class="Bound"
+      >e</a
+      ><a name="1304"
+      >                     </a
+      ><a name="1325" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1326"
+      > </a
+      ><a name="1327" href="Pushdown.html#1272" class="Bound"
+      >&#8467;</a
+      ><a name="1328"
+      > </a
+      ><a name="1329" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1330"
+      > </a
+      ><a name="1331" href="Pushdown.html#1274" class="Bound"
+      >&#954;</a
+      ><a name="1332"
+      > </a
+      ><a name="1333" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1334"
+      > </a
+      ><a name="1335" href="Pushdown.html#1224" class="Datatype Operator"
+      >&#10230;&#8322;</a
+      ><a name="1337"
+      > </a
+      ><a name="1338" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1339"
+      > </a
+      ><a name="1340" href="Pushdown.html#1270" class="Bound"
+      >e</a
+      ><a name="1341"
+      >  </a
+      ><a name="1343" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1344"
+      > </a
+      ><a name="1345" href="Pushdown.html#1268" class="Bound"
+      >&#961;</a
+      ><a name="1346"
+      >                   </a
+      ><a name="1365" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1366"
+      > </a
+      ><a name="1367" href="Pushdown.html#1100" class="Function Operator"
+      >A[</a
+      ><a name="1369"
+      > </a
+      ><a name="1370" href="Pushdown.html#1268" class="Bound"
+      >&#961;</a
+      ><a name="1371"
+      > </a
+      ><a name="1372" href="Pushdown.html#1100" class="Function Operator"
+      >]</a
+      ><a name="1373"
+      > </a
+      ><a name="1374" href="Pushdown.html#1266" class="Bound"
+      >a</a
+      ><a name="1375"
+      > </a
+      ><a name="1376" href="Pushdown.html#552" class="InductiveConstructor Operator"
+      >&#8729;&#9633;</a
+      ><a name="1378"
+      > </a
+      ><a name="1379" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1380"
+      > </a
+      ><a name="1381" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1382"
+      > </a
+      ><a name="1383" href="Pushdown.html#1270" class="Bound"
+      >e</a
+      ><a name="1384"
+      > </a
+      ><a name="1385" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1386"
+      > </a
+      ><a name="1387" href="Pushdown.html#1268" class="Bound"
+      >&#961;</a
+      ><a name="1388"
+      > </a
+      ><a name="1389" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1390"
+      >  </a
+      ><a name="1392" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1393"
+      > </a
+      ><a name="1394" href="Pushdown.html#1274" class="Bound"
+      >&#954;</a
+      ><a name="1395"
+      > </a
+      ><a name="1396" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1397"
+      >
+  </a
+      ><a name="1400" href="Pushdown.html#1400" class="InductiveConstructor"
+      >e&#8322;-ret</a
+      ><a name="1406"
+      >  </a
+      ><a name="1408" class="Symbol"
+      >:</a
+      ><a name="1409"
+      > </a
+      ><a name="1410" class="Symbol"
+      >&#8704;</a
+      ><a name="1411"
+      > </a
+      ><a name="1412" class="Symbol"
+      >{</a
+      ><a name="1413" href="Pushdown.html#1413" class="Bound"
+      >a</a
+      ><a name="1414"
+      > </a
+      ><a name="1415" href="Pushdown.html#1415" class="Bound"
+      >&#961;</a
+      ><a name="1416"
+      > </a
+      ><a name="1417" href="Pushdown.html#1417" class="Bound"
+      >x</a
+      ><a name="1418"
+      > </a
+      ><a name="1419" href="Pushdown.html#1419" class="Bound"
+      >e</a
+      ><a name="1420"
+      > </a
+      ><a name="1421" href="Pushdown.html#1421" class="Bound"
+      >&#961;'</a
+      ><a name="1423"
+      > </a
+      ><a name="1424" href="Pushdown.html#1424" class="Bound"
+      >&#8467;</a
+      ><a name="1425"
+      > </a
+      ><a name="1426" href="Pushdown.html#1426" class="Bound"
+      >&#954;</a
+      ><a name="1427" class="Symbol"
+      >}</a
+      ><a name="1428"
+      > </a
+      ><a name="1429" class="Symbol"
+      >&#8594;</a
+      ><a name="1430"
+      > </a
+      ><a name="1431" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1432"
+      > </a
+      ><a name="1433" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="1437"
+      > </a
+      ><a name="1438" href="Pushdown.html#1413" class="Bound"
+      >a</a
+      ><a name="1439"
+      >  </a
+      ><a name="1441" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1442"
+      > </a
+      ><a name="1443" href="Pushdown.html#1415" class="Bound"
+      >&#961;</a
+      ><a name="1444"
+      > </a
+      ><a name="1445" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1446"
+      > </a
+      ><a name="1447" href="Data.Maybe.Core.html#353" class="InductiveConstructor"
+      >just</a
+      ><a name="1451"
+      > </a
+      ><a name="1452" class="Symbol"
+      >(</a
+      ><a name="1453" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;</a
+      ><a name="1456"
+      > </a
+      ><a name="1457" href="Pushdown.html#1417" class="Bound"
+      >x</a
+      ><a name="1458"
+      > </a
+      ><a name="1459" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#8658;</a
+      ><a name="1460"
+      > </a
+      ><a name="1461" href="Pushdown.html#1419" class="Bound"
+      >e</a
+      ><a name="1462"
+      > </a
+      ><a name="1463" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1464"
+      > </a
+      ><a name="1465" href="Pushdown.html#1421" class="Bound"
+      >&#961;'</a
+      ><a name="1467" class="Symbol"
+      >)</a
+      ><a name="1468"
+      > </a
+      ><a name="1469" href="Pushdown.html#552" class="InductiveConstructor Operator"
+      >&#8729;&#9633;</a
+      ><a name="1471"
+      > </a
+      ><a name="1472" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1473"
+      > </a
+      ><a name="1474" href="Pushdown.html#1424" class="Bound"
+      >&#8467;</a
+      ><a name="1475"
+      > </a
+      ><a name="1476" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1477"
+      > </a
+      ><a name="1478" href="Pushdown.html#1426" class="Bound"
+      >&#954;</a
+      ><a name="1479"
+      > </a
+      ><a name="1480" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1481"
+      > </a
+      ><a name="1482" href="Pushdown.html#1224" class="Datatype Operator"
+      >&#10230;&#8322;</a
+      ><a name="1484"
+      > </a
+      ><a name="1485" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1486"
+      > </a
+      ><a name="1487" href="Pushdown.html#1419" class="Bound"
+      >e</a
+      ><a name="1488"
+      >  </a
+      ><a name="1490" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1491"
+      > </a
+      ><a name="1492" href="Pushdown.html#906" class="Function Operator"
+      >[</a
+      ><a name="1493"
+      > </a
+      ><a name="1494" href="Pushdown.html#1417" class="Bound"
+      >x</a
+      ><a name="1495"
+      > </a
+      ><a name="1496" href="Pushdown.html#906" class="Function Operator"
+      >&#8614;</a
+      ><a name="1497"
+      > </a
+      ><a name="1498" href="Pushdown.html#1100" class="Function Operator"
+      >A[</a
+      ><a name="1500"
+      > </a
+      ><a name="1501" href="Pushdown.html#1415" class="Bound"
+      >&#961;</a
+      ><a name="1502"
+      > </a
+      ><a name="1503" href="Pushdown.html#1100" class="Function Operator"
+      >]</a
+      ><a name="1504"
+      > </a
+      ><a name="1505" href="Pushdown.html#1413" class="Bound"
+      >a</a
+      ><a name="1506"
+      > </a
+      ><a name="1507" href="Pushdown.html#906" class="Function Operator"
+      >]</a
+      ><a name="1508"
+      > </a
+      ><a name="1509" href="Pushdown.html#1421" class="Bound"
+      >&#961;'</a
+      ><a name="1511"
+      > </a
+      ><a name="1512" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1513"
+      >                            </a
+      ><a name="1541" href="Pushdown.html#1426" class="Bound"
+      >&#954;</a
+      ><a name="1542"
+      > </a
+      ><a name="1543" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1544"
+      >
+  </a
+      ><a name="1547" href="Pushdown.html#1547" class="InductiveConstructor"
+      >e&#8321;-push</a
+      ><a name="1554"
+      > </a
+      ><a name="1555" class="Symbol"
+      >:</a
+      ><a name="1556"
+      > </a
+      ><a name="1557" class="Symbol"
+      >&#8704;</a
+      ><a name="1558"
+      > </a
+      ><a name="1559" class="Symbol"
+      >{</a
+      ><a name="1560" href="Pushdown.html#1560" class="Bound"
+      >e&#8321;</a
+      ><a name="1562"
+      > </a
+      ><a name="1563" href="Pushdown.html#1563" class="Bound"
+      >e&#8322;</a
+      ><a name="1565"
+      > </a
+      ><a name="1566" href="Pushdown.html#1566" class="Bound"
+      >&#961;</a
+      ><a name="1567"
+      > </a
+      ><a name="1568" href="Pushdown.html#1568" class="Bound"
+      >&#954;</a
+      ><a name="1569" class="Symbol"
+      >}</a
+      ><a name="1570"
+      >      </a
+      ><a name="1576" class="Symbol"
+      >&#8594;</a
+      ><a name="1577"
+      > </a
+      ><a name="1578" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1579"
+      > </a
+      ><a name="1580" href="Pushdown.html#1560" class="Bound"
+      >e&#8321;</a
+      ><a name="1582"
+      > </a
+      ><a name="1583" href="Pushdown.html#368" class="InductiveConstructor Operator"
+      >&#8729;</a
+      ><a name="1584"
+      > </a
+      ><a name="1585" href="Pushdown.html#1563" class="Bound"
+      >e&#8322;</a
+      ><a name="1587"
+      > </a
+      ><a name="1588" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1589"
+      > </a
+      ><a name="1590" href="Pushdown.html#1566" class="Bound"
+      >&#961;</a
+      ><a name="1591"
+      > </a
+      ><a name="1592" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1593"
+      >                                </a
+      ><a name="1625" href="Pushdown.html#1568" class="Bound"
+      >&#954;</a
+      ><a name="1626"
+      > </a
+      ><a name="1627" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1628"
+      > </a
+      ><a name="1629" href="Pushdown.html#1224" class="Datatype Operator"
+      >&#10230;&#8322;</a
+      ><a name="1631"
+      > </a
+      ><a name="1632" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1633"
+      > </a
+      ><a name="1634" href="Pushdown.html#1560" class="Bound"
+      >e&#8321;</a
+      ><a name="1636"
+      > </a
+      ><a name="1637" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1638"
+      > </a
+      ><a name="1639" href="Pushdown.html#1566" class="Bound"
+      >&#961;</a
+      ><a name="1640"
+      >                   </a
+      ><a name="1659" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1660"
+      > </a
+      ><a name="1661" href="Pushdown.html#532" class="InductiveConstructor Operator"
+      >&#9633;&#8729;</a
+      ><a name="1663"
+      > </a
+      ><a name="1664" href="Pushdown.html#1563" class="Bound"
+      >e&#8322;</a
+      ><a name="1666"
+      >       </a
+      ><a name="1673" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1674"
+      > </a
+      ><a name="1675" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1676"
+      > </a
+      ><a name="1677" href="Pushdown.html#1560" class="Bound"
+      >e&#8321;</a
+      ><a name="1679"
+      > </a
+      ><a name="1680" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1681"
+      > </a
+      ><a name="1682" href="Pushdown.html#1566" class="Bound"
+      >&#961;</a
+      ><a name="1683"
+      > </a
+      ><a name="1684" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1685"
+      > </a
+      ><a name="1686" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1687"
+      > </a
+      ><a name="1688" href="Pushdown.html#1568" class="Bound"
+      >&#954;</a
+      ><a name="1689"
+      > </a
+      ><a name="1690" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1691"
+      >
+
+</a
+      ><a name="1693" class="Keyword"
+      >data</a
+      ><a name="1697"
+      > </a
+      ><a name="1698" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="1700"
+      > </a
+      ><a name="1701" class="Symbol"
+      >:</a
+      ><a name="1702"
+      > </a
+      ><a name="1703" class="PrimitiveType"
+      >Set</a
+      ><a name="1706"
+      > </a
+      ><a name="1707" class="Keyword"
+      >where</a
+      ><a name="1712"
+      >
+  </a
+      ><a name="1715" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;_,_,_,_&gt;</a
+      ><a name="1724"
+      > </a
+      ><a name="1725" class="Symbol"
+      >:</a
+      ><a name="1726"
+      > </a
+      ><a name="1727" href="Pushdown.html#326" class="Datatype"
+      >Exp</a
+      ><a name="1730"
+      > </a
+      ><a name="1731" class="Symbol"
+      >&#8594;</a
+      ><a name="1732"
+      > </a
+      ><a name="1733" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="1736"
+      > </a
+      ><a name="1737" class="Symbol"
+      >&#8594;</a
+      ><a name="1738"
+      > </a
+      ><a name="1739" href="Pushdown.html#676" class="Function"
+      >Kon</a
+      ><a name="1742"
+      > </a
+      ><a name="1743" class="Symbol"
+      >&#8594;</a
+      ><a name="1744"
+      > </a
+      ><a name="1745" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="1750"
+      > </a
+      ><a name="1751" class="Symbol"
+      >&#8594;</a
+      ><a name="1752"
+      > </a
+      ><a name="1753" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="1755"
+      >
+
+</a
+      ><a name="1757" class="Keyword"
+      >data</a
+      ><a name="1761"
+      > </a
+      ><a name="1762" href="Pushdown.html#1762" class="Datatype Operator"
+      >_&#10230;&#8323;_</a
+      ><a name="1766"
+      > </a
+      ><a name="1767" class="Symbol"
+      >:</a
+      ><a name="1768"
+      > </a
+      ><a name="1769" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="1771"
+      > </a
+      ><a name="1772" class="Symbol"
+      >&#8594;</a
+      ><a name="1773"
+      > </a
+      ><a name="1774" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="1776"
+      > </a
+      ><a name="1777" class="Symbol"
+      >&#8594;</a
+      ><a name="1778"
+      > </a
+      ><a name="1779" class="PrimitiveType"
+      >Set</a
+      ><a name="1782"
+      > </a
+      ><a name="1783" class="Keyword"
+      >where</a
+      ><a name="1788"
+      >
+  </a
+      ><a name="1791" href="Pushdown.html#1791" class="InductiveConstructor"
+      >$ed-e&#8321;</a
+      ><a name="1797"
+      >     </a
+      ><a name="1802" class="Symbol"
+      >:</a
+      ><a name="1803"
+      > </a
+      ><a name="1804" class="Symbol"
+      >&#8704;</a
+      ><a name="1805"
+      > </a
+      ><a name="1806" class="Symbol"
+      >{</a
+      ><a name="1807" href="Pushdown.html#1807" class="Bound"
+      >e&#8321;</a
+      ><a name="1809"
+      > </a
+      ><a name="1810" href="Pushdown.html#1810" class="Bound"
+      >e&#8322;</a
+      ><a name="1812"
+      > </a
+      ><a name="1813" href="Pushdown.html#1813" class="Bound"
+      >&#8467;</a
+      ><a name="1814"
+      > </a
+      ><a name="1815" href="Pushdown.html#1815" class="Bound"
+      >&#961;</a
+      ><a name="1816"
+      > </a
+      ><a name="1817" href="Pushdown.html#1817" class="Bound"
+      >v</a
+      ><a name="1818"
+      > </a
+      ><a name="1819" href="Pushdown.html#1819" class="Bound"
+      >&#954;</a
+      ><a name="1820"
+      > </a
+      ><a name="1821" href="Pushdown.html#1821" class="Bound"
+      >$</a
+      ><a name="1822" class="Symbol"
+      >}</a
+      ><a name="1823"
+      >      </a
+      ><a name="1829" class="Symbol"
+      >&#8594;</a
+      ><a name="1830"
+      > </a
+      ><a name="1831" href="Pushdown.html#1821" class="Bound"
+      >$</a
+      ><a name="1832"
+      > </a
+      ><a name="1833" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1834"
+      > </a
+      ><a name="1835" href="Pushdown.html#1807" class="Bound"
+      >e&#8321;</a
+      ><a name="1837"
+      > </a
+      ><a name="1838" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1839"
+      > </a
+      ><a name="1840" href="Pushdown.html#1815" class="Bound"
+      >&#961;</a
+      ><a name="1841"
+      > </a
+      ><a name="1842" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1843"
+      > </a
+      ><a name="1844" href="Relation.Binary.Core.html#4603" class="Datatype Operator"
+      >&#8801;</a
+      ><a name="1845"
+      > </a
+      ><a name="1846" href="Pushdown.html#736" class="InductiveConstructor"
+      >cached</a
+      ><a name="1852"
+      > </a
+      ><a name="1853" href="Pushdown.html#1817" class="Bound"
+      >v</a
+      ><a name="1854"
+      > </a
+      ><a name="1855" class="Symbol"
+      >&#8594;</a
+      ><a name="1856"
+      > </a
+      ><a name="1857" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1858"
+      > </a
+      ><a name="1859" href="Pushdown.html#1807" class="Bound"
+      >e&#8321;</a
+      ><a name="1861"
+      > </a
+      ><a name="1862" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1863"
+      > </a
+      ><a name="1864" href="Pushdown.html#1815" class="Bound"
+      >&#961;</a
+      ><a name="1865"
+      > </a
+      ><a name="1866" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1867"
+      > </a
+      ><a name="1868" href="Pushdown.html#532" class="InductiveConstructor Operator"
+      >&#9633;&#8729;</a
+      ><a name="1870"
+      > </a
+      ><a name="1871" href="Pushdown.html#1810" class="Bound"
+      >e&#8322;</a
+      ><a name="1873"
+      > </a
+      ><a name="1874" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1875"
+      > </a
+      ><a name="1876" href="Pushdown.html#1813" class="Bound"
+      >&#8467;</a
+      ><a name="1877"
+      >                     </a
+      ><a name="1898" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1899"
+      > </a
+      ><a name="1900" href="Pushdown.html#1819" class="Bound"
+      >&#954;</a
+      ><a name="1901"
+      > </a
+      ><a name="1902" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1903"
+      > </a
+      ><a name="1904" href="Pushdown.html#1821" class="Bound"
+      >$</a
+      ><a name="1905"
+      > </a
+      ><a name="1906" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1907"
+      > </a
+      ><a name="1908" href="Pushdown.html#1762" class="Datatype Operator"
+      >&#10230;&#8323;</a
+      ><a name="1910"
+      > </a
+      ><a name="1911" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1912"
+      > </a
+      ><a name="1913" href="Pushdown.html#1810" class="Bound"
+      >e&#8322;</a
+      ><a name="1915"
+      > </a
+      ><a name="1916" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1917"
+      > </a
+      ><a name="1918" href="Pushdown.html#1815" class="Bound"
+      >&#961;</a
+      ><a name="1919"
+      >            </a
+      ><a name="1931" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1932"
+      > </a
+      ><a name="1933" href="Pushdown.html#1817" class="Bound"
+      >v</a
+      ><a name="1934"
+      > </a
+      ><a name="1935" href="Pushdown.html#552" class="InductiveConstructor Operator"
+      >&#8729;&#9633;</a
+      ><a name="1937"
+      > </a
+      ><a name="1938" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="1939"
+      > </a
+      ><a name="1940" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="1941"
+      > </a
+      ><a name="1942" href="Pushdown.html#1810" class="Bound"
+      >e&#8322;</a
+      ><a name="1944"
+      > </a
+      ><a name="1945" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1946"
+      > </a
+      ><a name="1947" href="Pushdown.html#1815" class="Bound"
+      >&#961;</a
+      ><a name="1948"
+      > </a
+      ><a name="1949" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1950"
+      > </a
+      ><a name="1951" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="1952"
+      > </a
+      ><a name="1953" href="Pushdown.html#1819" class="Bound"
+      >&#954;</a
+      ><a name="1954"
+      > </a
+      ><a name="1955" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1956"
+      > </a
+      ><a name="1957" href="Pushdown.html#1821" class="Bound"
+      >$</a
+      ><a name="1958"
+      > </a
+      ><a name="1959" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="1960"
+      >
+  </a
+      ><a name="1963" href="Pushdown.html#1963" class="InductiveConstructor"
+      >$ed-e&#8322;</a
+      ><a name="1969"
+      >     </a
+      ><a name="1974" class="Symbol"
+      >:</a
+      ><a name="1975"
+      > </a
+      ><a name="1976" class="Symbol"
+      >&#8704;</a
+      ><a name="1977"
+      > </a
+      ><a name="1978" class="Symbol"
+      >{</a
+      ><a name="1979" href="Pushdown.html#1979" class="Bound"
+      >e&#8321;</a
+      ><a name="1981"
+      > </a
+      ><a name="1982" href="Pushdown.html#1982" class="Bound"
+      >e&#8322;</a
+      ><a name="1984"
+      > </a
+      ><a name="1985" href="Pushdown.html#1985" class="Bound"
+      >&#8467;</a
+      ><a name="1986"
+      > </a
+      ><a name="1987" href="Pushdown.html#1987" class="Bound"
+      >x</a
+      ><a name="1988"
+      > </a
+      ><a name="1989" href="Pushdown.html#1989" class="Bound"
+      >&#961;</a
+      ><a name="1990"
+      > </a
+      ><a name="1991" href="Pushdown.html#1991" class="Bound"
+      >&#961;'</a
+      ><a name="1993"
+      > </a
+      ><a name="1994" href="Pushdown.html#1994" class="Bound"
+      >v</a
+      ><a name="1995"
+      > </a
+      ><a name="1996" href="Pushdown.html#1996" class="Bound"
+      >&#954;</a
+      ><a name="1997"
+      > </a
+      ><a name="1998" href="Pushdown.html#1998" class="Bound"
+      >$</a
+      ><a name="1999" class="Symbol"
+      >}</a
+      ><a name="2000"
+      > </a
+      ><a name="2001" class="Symbol"
+      >&#8594;</a
+      ><a name="2002"
+      > </a
+      ><a name="2003" href="Pushdown.html#1998" class="Bound"
+      >$</a
+      ><a name="2004"
+      > </a
+      ><a name="2005" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2006"
+      > </a
+      ><a name="2007" href="Pushdown.html#1979" class="Bound"
+      >e&#8321;</a
+      ><a name="2009"
+      > </a
+      ><a name="2010" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2011"
+      > </a
+      ><a name="2012" href="Pushdown.html#1989" class="Bound"
+      >&#961;</a
+      ><a name="2013"
+      > </a
+      ><a name="2014" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2015"
+      > </a
+      ><a name="2016" href="Relation.Binary.Core.html#4603" class="Datatype Operator"
+      >&#8801;</a
+      ><a name="2017"
+      > </a
+      ><a name="2018" href="Pushdown.html#736" class="InductiveConstructor"
+      >cached</a
+      ><a name="2024"
+      > </a
+      ><a name="2025" href="Pushdown.html#1994" class="Bound"
+      >v</a
+      ><a name="2026"
+      > </a
+      ><a name="2027" class="Symbol"
+      >&#8594;</a
+      ><a name="2028"
+      > </a
+      ><a name="2029" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2030"
+      > </a
+      ><a name="2031" href="Pushdown.html#1979" class="Bound"
+      >e&#8321;</a
+      ><a name="2033"
+      > </a
+      ><a name="2034" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2035"
+      > </a
+      ><a name="2036" href="Pushdown.html#1989" class="Bound"
+      >&#961;</a
+      ><a name="2037"
+      > </a
+      ><a name="2038" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2039"
+      > </a
+      ><a name="2040" href="Data.Maybe.Core.html#353" class="InductiveConstructor"
+      >just</a
+      ><a name="2044"
+      > </a
+      ><a name="2045" class="Symbol"
+      >(</a
+      ><a name="2046" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#10216;&#955;&#10217;</a
+      ><a name="2049"
+      > </a
+      ><a name="2050" href="Pushdown.html#1987" class="Bound"
+      >x</a
+      ><a name="2051"
+      > </a
+      ><a name="2052" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >&#8658;</a
+      ><a name="2053"
+      > </a
+      ><a name="2054" href="Pushdown.html#1982" class="Bound"
+      >e&#8322;</a
+      ><a name="2056"
+      > </a
+      ><a name="2057" href="Pushdown.html#429" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2058"
+      > </a
+      ><a name="2059" href="Pushdown.html#1991" class="Bound"
+      >&#961;'</a
+      ><a name="2061" class="Symbol"
+      >)</a
+      ><a name="2062"
+      > </a
+      ><a name="2063" href="Pushdown.html#552" class="InductiveConstructor Operator"
+      >&#8729;&#9633;</a
+      ><a name="2065"
+      > </a
+      ><a name="2066" href="Pushdown.html#649" class="InductiveConstructor Operator"
+      >^</a
+      ><a name="2067"
+      > </a
+      ><a name="2068" href="Pushdown.html#1985" class="Bound"
+      >&#8467;</a
+      ><a name="2069"
+      > </a
+      ><a name="2070" href="Data.List.html#711" class="InductiveConstructor Operator"
+      >&#8759;</a
+      ><a name="2071"
+      > </a
+      ><a name="2072" href="Pushdown.html#1996" class="Bound"
+      >&#954;</a
+      ><a name="2073"
+      > </a
+      ><a name="2074" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2075"
+      > </a
+      ><a name="2076" href="Pushdown.html#1998" class="Bound"
+      >$</a
+      ><a name="2077"
+      > </a
+      ><a name="2078" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2079"
+      > </a
+      ><a name="2080" href="Pushdown.html#1762" class="Datatype Operator"
+      >&#10230;&#8323;</a
+      ><a name="2082"
+      > </a
+      ><a name="2083" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2084"
+      > </a
+      ><a name="2085" href="Pushdown.html#1982" class="Bound"
+      >e&#8322;</a
+      ><a name="2087"
+      > </a
+      ><a name="2088" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2089"
+      > </a
+      ><a name="2090" href="Pushdown.html#906" class="Function Operator"
+      >[</a
+      ><a name="2091"
+      > </a
+      ><a name="2092" href="Pushdown.html#1987" class="Bound"
+      >x</a
+      ><a name="2093"
+      > </a
+      ><a name="2094" href="Pushdown.html#906" class="Function Operator"
+      >&#8614;</a
+      ><a name="2095"
+      > </a
+      ><a name="2096" href="Pushdown.html#1994" class="Bound"
+      >v</a
+      ><a name="2097"
+      > </a
+      ><a name="2098" href="Pushdown.html#906" class="Function Operator"
+      >]</a
+      ><a name="2099"
+      > </a
+      ><a name="2100" href="Pushdown.html#1991" class="Bound"
+      >&#961;'</a
+      ><a name="2102"
+      > </a
+      ><a name="2103" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2104"
+      >                     </a
+      ><a name="2125" href="Pushdown.html#1996" class="Bound"
+      >&#954;</a
+      ><a name="2126"
+      > </a
+      ><a name="2127" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2128"
+      > </a
+      ><a name="2129" href="Pushdown.html#1998" class="Bound"
+      >$</a
+      ><a name="2130"
+      > </a
+      ><a name="2131" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2132"
+      >
+
+  </a
+      ><a name="2136" href="Pushdown.html#2136" class="InductiveConstructor"
+      >$ed-unseen</a
+      ><a name="2146"
+      > </a
+      ><a name="2147" class="Symbol"
+      >:</a
+      ><a name="2148"
+      > </a
+      ><a name="2149" class="Symbol"
+      >&#8704;</a
+      ><a name="2150"
+      > </a
+      ><a name="2151" class="Symbol"
+      >{</a
+      ><a name="2152" href="Pushdown.html#2152" class="Bound"
+      >e</a
+      ><a name="2153"
+      > </a
+      ><a name="2154" href="Pushdown.html#2154" class="Bound"
+      >e'</a
+      ><a name="2156"
+      > </a
+      ><a name="2157" href="Pushdown.html#2157" class="Bound"
+      >&#961;</a
+      ><a name="2158"
+      > </a
+      ><a name="2159" href="Pushdown.html#2159" class="Bound"
+      >&#961;'</a
+      ><a name="2161"
+      > </a
+      ><a name="2162" href="Pushdown.html#2162" class="Bound"
+      >&#954;</a
+      ><a name="2163"
+      > </a
+      ><a name="2164" href="Pushdown.html#2164" class="Bound"
+      >&#954;'</a
+      ><a name="2166"
+      > </a
+      ><a name="2167" href="Pushdown.html#2167" class="Bound"
+      >$</a
+      ><a name="2168" class="Symbol"
+      >}</a
+      ><a name="2169"
+      >     </a
+      ><a name="2174" class="Symbol"
+      >&#8594;</a
+      ><a name="2175"
+      > </a
+      ><a name="2176" href="Pushdown.html#2167" class="Bound"
+      >$</a
+      ><a name="2177"
+      > </a
+      ><a name="2178" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2179"
+      > </a
+      ><a name="2180" href="Pushdown.html#2152" class="Bound"
+      >e</a
+      ><a name="2181"
+      > </a
+      ><a name="2182" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2183"
+      > </a
+      ><a name="2184" href="Pushdown.html#2157" class="Bound"
+      >&#961;</a
+      ><a name="2185"
+      > </a
+      ><a name="2186" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2187"
+      > </a
+      ><a name="2188" href="Relation.Binary.Core.html#4603" class="Datatype Operator"
+      >&#8801;</a
+      ><a name="2189"
+      > </a
+      ><a name="2190" href="Pushdown.html#792" class="InductiveConstructor"
+      >unseen</a
+      ><a name="2196"
+      >
+                                        </a
+      ><a name="2237" class="Symbol"
+      >&#8594;</a
+      ><a name="2238"
+      > </a
+      ><a name="2239" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2240"
+      > </a
+      ><a name="2241" href="Pushdown.html#2152" class="Bound"
+      >e</a
+      ><a name="2242"
+      > </a
+      ><a name="2243" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2244"
+      > </a
+      ><a name="2245" href="Pushdown.html#2157" class="Bound"
+      >&#961;</a
+      ><a name="2246"
+      > </a
+      ><a name="2247" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2248"
+      > </a
+      ><a name="2249" href="Pushdown.html#2162" class="Bound"
+      >&#954;</a
+      ><a name="2250"
+      > </a
+      ><a name="2251" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2252"
+      > </a
+      ><a name="2253" href="Pushdown.html#1224" class="Datatype Operator"
+      >&#10230;&#8322;</a
+      ><a name="2255"
+      > </a
+      ><a name="2256" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2257"
+      > </a
+      ><a name="2258" href="Pushdown.html#2154" class="Bound"
+      >e'</a
+      ><a name="2260"
+      > </a
+      ><a name="2261" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2262"
+      > </a
+      ><a name="2263" href="Pushdown.html#2159" class="Bound"
+      >&#961;'</a
+      ><a name="2265"
+      > </a
+      ><a name="2266" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2267"
+      > </a
+      ><a name="2268" href="Pushdown.html#2164" class="Bound"
+      >&#954;'</a
+      ><a name="2270"
+      > </a
+      ><a name="2271" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2272"
+      >
+                                        </a
+      ><a name="2313" class="Symbol"
+      >&#8594;</a
+      ><a name="2314"
+      > </a
+      ><a name="2315" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2316"
+      > </a
+      ><a name="2317" href="Pushdown.html#2152" class="Bound"
+      >e</a
+      ><a name="2318"
+      > </a
+      ><a name="2319" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2320"
+      > </a
+      ><a name="2321" href="Pushdown.html#2157" class="Bound"
+      >&#961;</a
+      ><a name="2322"
+      > </a
+      ><a name="2323" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2324"
+      > </a
+      ><a name="2325" href="Pushdown.html#2162" class="Bound"
+      >&#954;</a
+      ><a name="2326"
+      > </a
+      ><a name="2327" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2328"
+      > </a
+      ><a name="2329" href="Pushdown.html#2167" class="Bound"
+      >$</a
+      ><a name="2330"
+      > </a
+      ><a name="2331" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2332"
+      > </a
+      ><a name="2333" href="Pushdown.html#1762" class="Datatype Operator"
+      >&#10230;&#8323;</a
+      ><a name="2335"
+      > </a
+      ><a name="2336" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2337"
+      > </a
+      ><a name="2338" href="Pushdown.html#2154" class="Bound"
+      >e'</a
+      ><a name="2340"
+      > </a
+      ><a name="2341" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2342"
+      > </a
+      ><a name="2343" href="Pushdown.html#2159" class="Bound"
+      >&#961;'</a
+      ><a name="2345"
+      > </a
+      ><a name="2346" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2347"
+      > </a
+      ><a name="2348" href="Pushdown.html#2164" class="Bound"
+      >&#954;'</a
+      ><a name="2350"
+      > </a
+      ><a name="2351" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2352"
+      > </a
+      ><a name="2353" href="Pushdown.html#1002" class="Function Operator"
+      >[[</a
+      ><a name="2355"
+      > </a
+      ><a name="2356" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2357"
+      > </a
+      ><a name="2358" href="Pushdown.html#2152" class="Bound"
+      >e</a
+      ><a name="2359"
+      > </a
+      ><a name="2360" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2361"
+      > </a
+      ><a name="2362" href="Pushdown.html#2157" class="Bound"
+      >&#961;</a
+      ><a name="2363"
+      > </a
+      ><a name="2364" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2365"
+      > </a
+      ><a name="2366" href="Pushdown.html#1002" class="Function Operator"
+      >&#8614;</a
+      ><a name="2367"
+      > </a
+      ><a name="2368" href="Pushdown.html#771" class="InductiveConstructor"
+      >seen</a
+      ><a name="2372"
+      > </a
+      ><a name="2373" href="Pushdown.html#1002" class="Function Operator"
+      >]]</a
+      ><a name="2375"
+      > </a
+      ><a name="2376" href="Pushdown.html#2167" class="Bound"
+      >$</a
+      ><a name="2377"
+      > </a
+      ><a name="2378" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2379"
+      >
+  </a
+      ><a name="2382" class="Comment"
+      >-- things to do </a
+      ><a name="2398"
+      >
+  </a
+      ><a name="2401" class="Comment"
+      >-- &#8729; we should separate cached rules to only deal with (e&#8321; &#8729; e&#8322;) expressions (ruling out atom expression).</a
+      ><a name="2507"
+      >
+  </a
+      ><a name="2510" class="Comment"
+      >-- &#8729; we need to implement $ (ideally using a map or assoc list, and with type classes for the update function using decidable equality on the domain).</a
+      ><a name="2660"
+      >
+  </a
+      ><a name="2663" class="Comment"
+      >-- &#8729; the actual proofs (&#10230;&#8323; is a simulation of &#10230;&#8322;, under some conditions about the $)</a
+      ><a name="2747"
+      >
+
+
+</a
+      ><a name="2750" href="Pushdown.html#2750" class="Function Operator"
+      >_&#10230;&#8322;*_</a
+      ><a name="2755"
+      > </a
+      ><a name="2756" class="Symbol"
+      >:</a
+      ><a name="2757"
+      > </a
+      ><a name="2758" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="2760"
+      > </a
+      ><a name="2761" class="Symbol"
+      >&#8594;</a
+      ><a name="2762"
+      > </a
+      ><a name="2763" href="Pushdown.html#857" class="Datatype"
+      >C&#8322;</a
+      ><a name="2765"
+      > </a
+      ><a name="2766" class="Symbol"
+      >&#8594;</a
+      ><a name="2767"
+      > </a
+      ><a name="2768" class="PrimitiveType"
+      >Set</a
+      ><a name="2771"
+      >
+</a
+      ><a name="2772" href="Pushdown.html#2750" class="Function Operator"
+      >_&#10230;&#8322;*_</a
+      ><a name="2777"
+      > </a
+      ><a name="2778" class="Symbol"
+      >=</a
+      ><a name="2779"
+      > </a
+      ><a name="2780" href="Pushdown.html#2811" class="Postulate"
+      >whatever</a
+      ><a name="2788"
+      >
+  </a
+      ><a name="2791" class="Keyword"
+      >where</a
+      ><a name="2796"
+      >
+    </a
+      ><a name="2801" class="Keyword"
+      >postulate</a
+      ><a name="2810"
+      > </a
+      ><a name="2811" href="Pushdown.html#2811" class="Postulate"
+      >whatever</a
+      ><a name="2819"
+      > </a
+      ><a name="2820" class="Symbol"
+      >:</a
+      ><a name="2821"
+      > </a
+      ><a name="2822" class="Symbol"
+      >_</a
+      ><a name="2823"
+      >
+
+</a
+      ><a name="2825" href="Pushdown.html#2825" class="Function Operator"
+      >_&#10230;&#8323;*_</a
+      ><a name="2830"
+      > </a
+      ><a name="2831" class="Symbol"
+      >:</a
+      ><a name="2832"
+      > </a
+      ><a name="2833" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="2835"
+      > </a
+      ><a name="2836" class="Symbol"
+      >&#8594;</a
+      ><a name="2837"
+      > </a
+      ><a name="2838" href="Pushdown.html#1698" class="Datatype"
+      >C&#8323;</a
+      ><a name="2840"
+      > </a
+      ><a name="2841" class="Symbol"
+      >&#8594;</a
+      ><a name="2842"
+      > </a
+      ><a name="2843" class="PrimitiveType"
+      >Set</a
+      ><a name="2846"
+      >
+</a
+      ><a name="2847" href="Pushdown.html#2825" class="Function Operator"
+      >_&#10230;&#8323;*_</a
+      ><a name="2852"
+      > </a
+      ><a name="2853" class="Symbol"
+      >=</a
+      ><a name="2854"
+      > </a
+      ><a name="2855" href="Pushdown.html#2886" class="Postulate"
+      >whatever</a
+      ><a name="2863"
+      >
+  </a
+      ><a name="2866" class="Keyword"
+      >where</a
+      ><a name="2871"
+      >
+    </a
+      ><a name="2876" class="Keyword"
+      >postulate</a
+      ><a name="2885"
+      > </a
+      ><a name="2886" href="Pushdown.html#2886" class="Postulate"
+      >whatever</a
+      ><a name="2894"
+      > </a
+      ><a name="2895" class="Symbol"
+      >:</a
+      ><a name="2896"
+      > </a
+      ><a name="2897" class="Symbol"
+      >_</a
+      ><a name="2898"
+      >
+
+</a
+      ><a name="2900" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="2908"
+      > </a
+      ><a name="2909" class="Symbol"
+      >:</a
+      ><a name="2910"
+      > </a
+      ><a name="2911" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="2916"
+      > </a
+      ><a name="2917" class="Symbol"
+      >&#8594;</a
+      ><a name="2918"
+      > </a
+      ><a name="2919" class="PrimitiveType"
+      >Set</a
+      ><a name="2922"
+      >
+</a
+      ><a name="2923" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="2931"
+      > </a
+      ><a name="2932" href="Pushdown.html#2932" class="Bound"
+      >$</a
+      ><a name="2933"
+      > </a
+      ><a name="2934" class="Symbol"
+      >=</a
+      ><a name="2935"
+      > </a
+      ><a name="2936" class="Symbol"
+      >&#8704;</a
+      ><a name="2937"
+      > </a
+      ><a name="2938" href="Pushdown.html#2938" class="Bound"
+      >e</a
+      ><a name="2939"
+      > </a
+      ><a name="2940" href="Pushdown.html#2940" class="Bound"
+      >&#961;</a
+      ><a name="2941"
+      > </a
+      ><a name="2942" href="Pushdown.html#2942" class="Bound"
+      >v</a
+      ><a name="2943"
+      > </a
+      ><a name="2944" class="Symbol"
+      >&#8594;</a
+      ><a name="2945"
+      > </a
+      ><a name="2946" href="Pushdown.html#2932" class="Bound"
+      >$</a
+      ><a name="2947"
+      > </a
+      ><a name="2948" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="2949"
+      > </a
+      ><a name="2950" href="Pushdown.html#2938" class="Bound"
+      >e</a
+      ><a name="2951"
+      > </a
+      ><a name="2952" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="2953"
+      > </a
+      ><a name="2954" href="Pushdown.html#2940" class="Bound"
+      >&#961;</a
+      ><a name="2955"
+      > </a
+      ><a name="2956" href="Pushdown.html#599" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="2957"
+      > </a
+      ><a name="2958" href="Relation.Binary.Core.html#4603" class="Datatype Operator"
+      >&#8801;</a
+      ><a name="2959"
+      > </a
+      ><a name="2960" href="Pushdown.html#736" class="InductiveConstructor"
+      >cached</a
+      ><a name="2966"
+      > </a
+      ><a name="2967" href="Pushdown.html#2942" class="Bound"
+      >v</a
+      ><a name="2968"
+      > </a
+      ><a name="2969" class="Symbol"
+      >&#8594;</a
+      ><a name="2970"
+      > </a
+      ><a name="2971" href="Data.Product.html#688" class="Function"
+      >&#931;[</a
+      ><a name="2973"
+      > </a
+      ><a name="2974" href="Pushdown.html#2974" class="Bound"
+      >a</a
+      ><a name="2975"
+      > </a
+      ><a name="2976" href="Data.Product.html#688" class="Function"
+      >&#8712;</a
+      ><a name="2977"
+      > </a
+      ><a name="2978" href="Pushdown.html#248" class="Datatype"
+      >Atom</a
+      ><a name="2982"
+      > </a
+      ><a name="2983" href="Data.Product.html#688" class="Function"
+      >]</a
+      ><a name="2984"
+      > </a
+      ><a name="2985" href="Data.Product.html#688" class="Function"
+      >&#931;[</a
+      ><a name="2987"
+      > </a
+      ><a name="2988" href="Pushdown.html#2988" class="Bound"
+      >&#961;'</a
+      ><a name="2990"
+      > </a
+      ><a name="2991" href="Data.Product.html#688" class="Function"
+      >&#8712;</a
+      ><a name="2992"
+      > </a
+      ><a name="2993" href="Pushdown.html#468" class="Function"
+      >Env</a
+      ><a name="2996"
+      > </a
+      ><a name="2997" href="Data.Product.html#688" class="Function"
+      >]</a
+      ><a name="2998"
+      > </a
+      ><a name="2999" class="Symbol"
+      >(&#8704;</a
+      ><a name="3001"
+      > </a
+      ><a name="3002" href="Pushdown.html#3002" class="Bound"
+      >&#954;</a
+      ><a name="3003"
+      > </a
+      ><a name="3004" class="Symbol"
+      >&#8594;</a
+      ><a name="3005"
+      > </a
+      ><a name="3006" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3007"
+      > </a
+      ><a name="3008" href="Pushdown.html#2938" class="Bound"
+      >e</a
+      ><a name="3009"
+      > </a
+      ><a name="3010" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3011"
+      > </a
+      ><a name="3012" href="Pushdown.html#2940" class="Bound"
+      >&#961;</a
+      ><a name="3013"
+      > </a
+      ><a name="3014" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3015"
+      > </a
+      ><a name="3016" href="Pushdown.html#3002" class="Bound"
+      >&#954;</a
+      ><a name="3017"
+      > </a
+      ><a name="3018" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3019"
+      > </a
+      ><a name="3020" href="Pushdown.html#2750" class="Function Operator"
+      >&#10230;&#8322;*</a
+      ><a name="3023"
+      > </a
+      ><a name="3024" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3025"
+      > </a
+      ><a name="3026" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="3030"
+      > </a
+      ><a name="3031" href="Pushdown.html#2974" class="Bound"
+      >a</a
+      ><a name="3032"
+      > </a
+      ><a name="3033" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3034"
+      > </a
+      ><a name="3035" href="Pushdown.html#2988" class="Bound"
+      >&#961;'</a
+      ><a name="3037"
+      > </a
+      ><a name="3038" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3039"
+      > </a
+      ><a name="3040" href="Pushdown.html#3002" class="Bound"
+      >&#954;</a
+      ><a name="3041"
+      > </a
+      ><a name="3042" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3043"
+      > </a
+      ><a name="3044" href="Data.Product.html#1055" class="Function Operator"
+      >&#215;</a
+      ><a name="3045"
+      > </a
+      ><a name="3046" href="Pushdown.html#1100" class="Function Operator"
+      >A[</a
+      ><a name="3048"
+      > </a
+      ><a name="3049" href="Pushdown.html#2940" class="Bound"
+      >&#961;</a
+      ><a name="3050"
+      > </a
+      ><a name="3051" href="Pushdown.html#1100" class="Function Operator"
+      >]</a
+      ><a name="3052"
+      > </a
+      ><a name="3053" href="Pushdown.html#2974" class="Bound"
+      >a</a
+      ><a name="3054"
+      > </a
+      ><a name="3055" href="Relation.Binary.Core.html#4603" class="Datatype Operator"
+      >&#8801;</a
+      ><a name="3056"
+      > </a
+      ><a name="3057" href="Pushdown.html#2942" class="Bound"
+      >v</a
+      ><a name="3058" class="Symbol"
+      >)</a
+      ><a name="3059"
+      >
+
+</a
+      ><a name="3061" class="Comment"
+      >-- what we don't get is a simulation for looping behavior.  but this is WANTED behavior.</a
+      ><a name="3149"
+      >
+</a
+      ><a name="3150" href="Pushdown.html#3150" class="Function"
+      >the-theorem</a
+      ><a name="3161"
+      > </a
+      ><a name="3162" class="Symbol"
+      >:</a
+      ><a name="3163"
+      > </a
+      ><a name="3164" class="PrimitiveType"
+      >Set</a
+      ><a name="3167"
+      >
+</a
+      ><a name="3168" href="Pushdown.html#3150" class="Function"
+      >the-theorem</a
+      ><a name="3179"
+      > </a
+      ><a name="3180" class="Symbol"
+      >=</a
+      ><a name="3181"
+      > </a
+      ><a name="3182" class="Symbol"
+      >&#8704;</a
+      ><a name="3183"
+      > </a
+      ><a name="3184" class="Symbol"
+      >{</a
+      ><a name="3185" href="Pushdown.html#3185" class="Bound"
+      >e</a
+      ><a name="3186"
+      > </a
+      ><a name="3187" href="Pushdown.html#3187" class="Bound"
+      >a</a
+      ><a name="3188"
+      > </a
+      ><a name="3189" href="Pushdown.html#3189" class="Bound"
+      >&#961;</a
+      ><a name="3190"
+      > </a
+      ><a name="3191" href="Pushdown.html#3191" class="Bound"
+      >&#961;'</a
+      ><a name="3193"
+      > </a
+      ><a name="3194" href="Pushdown.html#3194" class="Bound"
+      >&#954;</a
+      ><a name="3195"
+      > </a
+      ><a name="3196" href="Pushdown.html#3196" class="Bound"
+      >$</a
+      ><a name="3197" class="Symbol"
+      >}</a
+      ><a name="3198"
+      >
+  </a
+      ><a name="3201" class="Symbol"
+      >&#8594;</a
+      ><a name="3202"
+      > </a
+      ><a name="3203" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="3211"
+      > </a
+      ><a name="3212" href="Pushdown.html#3196" class="Bound"
+      >$</a
+      ><a name="3213"
+      >
+  </a
+      ><a name="3216" class="Symbol"
+      >&#8594;</a
+      ><a name="3217"
+      > </a
+      ><a name="3218" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3219"
+      > </a
+      ><a name="3220" href="Pushdown.html#3185" class="Bound"
+      >e</a
+      ><a name="3221"
+      > </a
+      ><a name="3222" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3223"
+      > </a
+      ><a name="3224" href="Pushdown.html#3189" class="Bound"
+      >&#961;</a
+      ><a name="3225"
+      > </a
+      ><a name="3226" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3227"
+      > </a
+      ><a name="3228" href="Pushdown.html#3194" class="Bound"
+      >&#954;</a
+      ><a name="3229"
+      > </a
+      ><a name="3230" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3231"
+      > </a
+      ><a name="3232" href="Pushdown.html#2750" class="Function Operator"
+      >&#10230;&#8322;*</a
+      ><a name="3235"
+      > </a
+      ><a name="3236" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3237"
+      > </a
+      ><a name="3238" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="3242"
+      > </a
+      ><a name="3243" href="Pushdown.html#3187" class="Bound"
+      >a</a
+      ><a name="3244"
+      > </a
+      ><a name="3245" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3246"
+      > </a
+      ><a name="3247" href="Pushdown.html#3191" class="Bound"
+      >&#961;'</a
+      ><a name="3249"
+      > </a
+      ><a name="3250" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3251"
+      > </a
+      ><a name="3252" href="Pushdown.html#3194" class="Bound"
+      >&#954;</a
+      ><a name="3253"
+      > </a
+      ><a name="3254" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3255"
+      >
+  </a
+      ><a name="3258" class="Symbol"
+      >&#8594;</a
+      ><a name="3259"
+      > </a
+      ><a name="3260" href="Data.Product.html#688" class="Function"
+      >&#931;[</a
+      ><a name="3262"
+      > </a
+      ><a name="3263" href="Pushdown.html#3263" class="Bound"
+      >$'</a
+      ><a name="3265"
+      > </a
+      ><a name="3266" href="Data.Product.html#688" class="Function"
+      >&#8712;</a
+      ><a name="3267"
+      > </a
+      ><a name="3268" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="3273"
+      > </a
+      ><a name="3274" href="Data.Product.html#688" class="Function"
+      >]</a
+      ><a name="3275"
+      > </a
+      ><a name="3276" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3277"
+      > </a
+      ><a name="3278" href="Pushdown.html#3185" class="Bound"
+      >e</a
+      ><a name="3279"
+      > </a
+      ><a name="3280" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3281"
+      > </a
+      ><a name="3282" href="Pushdown.html#3189" class="Bound"
+      >&#961;</a
+      ><a name="3283"
+      > </a
+      ><a name="3284" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3285"
+      > </a
+      ><a name="3286" href="Pushdown.html#3194" class="Bound"
+      >&#954;</a
+      ><a name="3287"
+      > </a
+      ><a name="3288" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3289"
+      > </a
+      ><a name="3290" href="Pushdown.html#3196" class="Bound"
+      >$</a
+      ><a name="3291"
+      > </a
+      ><a name="3292" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3293"
+      > </a
+      ><a name="3294" href="Pushdown.html#2825" class="Function Operator"
+      >&#10230;&#8323;*</a
+      ><a name="3297"
+      > </a
+      ><a name="3298" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3299"
+      > </a
+      ><a name="3300" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="3304"
+      > </a
+      ><a name="3305" href="Pushdown.html#3187" class="Bound"
+      >a</a
+      ><a name="3306"
+      > </a
+      ><a name="3307" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3308"
+      > </a
+      ><a name="3309" href="Pushdown.html#3191" class="Bound"
+      >&#961;'</a
+      ><a name="3311"
+      > </a
+      ><a name="3312" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3313"
+      > </a
+      ><a name="3314" href="Pushdown.html#3194" class="Bound"
+      >&#954;</a
+      ><a name="3315"
+      > </a
+      ><a name="3316" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3317"
+      > </a
+      ><a name="3318" href="Pushdown.html#3263" class="Bound"
+      >$'</a
+      ><a name="3320"
+      > </a
+      ><a name="3321" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3322"
+      > </a
+      ><a name="3323" href="Data.Product.html#1055" class="Function Operator"
+      >&#215;</a
+      ><a name="3324"
+      > </a
+      ><a name="3325" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="3333"
+      > </a
+      ><a name="3334" href="Pushdown.html#3263" class="Bound"
+      >$'</a
+      ><a name="3336"
+      >
+
+</a
+      ><a name="3338" class="Comment"
+      >-- this theorem is trivial, and only is about a single step (not *)</a
+      ><a name="3405"
+      >
+</a
+      ><a name="3406" href="Pushdown.html#3406" class="Function"
+      >smaller-theorem</a
+      ><a name="3421"
+      > </a
+      ><a name="3422" class="Symbol"
+      >:</a
+      ><a name="3423"
+      > </a
+      ><a name="3424" class="PrimitiveType"
+      >Set</a
+      ><a name="3427"
+      >
+</a
+      ><a name="3428" href="Pushdown.html#3406" class="Function"
+      >smaller-theorem</a
+      ><a name="3443"
+      > </a
+      ><a name="3444" class="Symbol"
+      >=</a
+      ><a name="3445"
+      > </a
+      ><a name="3446" class="Symbol"
+      >&#8704;</a
+      ><a name="3447"
+      > </a
+      ><a name="3448" class="Symbol"
+      >{</a
+      ><a name="3449" href="Pushdown.html#3449" class="Bound"
+      >a</a
+      ><a name="3450"
+      > </a
+      ><a name="3451" href="Pushdown.html#3451" class="Bound"
+      >e</a
+      ><a name="3452"
+      > </a
+      ><a name="3453" href="Pushdown.html#3453" class="Bound"
+      >&#961;</a
+      ><a name="3454"
+      > </a
+      ><a name="3455" href="Pushdown.html#3455" class="Bound"
+      >&#961;'</a
+      ><a name="3457"
+      > </a
+      ><a name="3458" href="Pushdown.html#3458" class="Bound"
+      >&#954;</a
+      ><a name="3459"
+      > </a
+      ><a name="3460" href="Pushdown.html#3460" class="Bound"
+      >&#954;'</a
+      ><a name="3462"
+      > </a
+      ><a name="3463" href="Pushdown.html#3463" class="Bound"
+      >$</a
+      ><a name="3464" class="Symbol"
+      >}</a
+      ><a name="3465"
+      > 
+  </a
+      ><a name="3469" class="Symbol"
+      >&#8594;</a
+      ><a name="3470"
+      > </a
+      ><a name="3471" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="3479"
+      > </a
+      ><a name="3480" href="Pushdown.html#3463" class="Bound"
+      >$</a
+      ><a name="3481"
+      >
+  </a
+      ><a name="3484" class="Symbol"
+      >&#8594;</a
+      ><a name="3485"
+      > </a
+      ><a name="3486" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3487"
+      > </a
+      ><a name="3488" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="3492"
+      > </a
+      ><a name="3493" href="Pushdown.html#3449" class="Bound"
+      >a</a
+      ><a name="3494"
+      > </a
+      ><a name="3495" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3496"
+      > </a
+      ><a name="3497" href="Pushdown.html#3453" class="Bound"
+      >&#961;</a
+      ><a name="3498"
+      > </a
+      ><a name="3499" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3500"
+      > </a
+      ><a name="3501" href="Pushdown.html#3458" class="Bound"
+      >&#954;</a
+      ><a name="3502"
+      > </a
+      ><a name="3503" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3504"
+      > </a
+      ><a name="3505" href="Pushdown.html#1224" class="Datatype Operator"
+      >&#10230;&#8322;</a
+      ><a name="3507"
+      > </a
+      ><a name="3508" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3509"
+      > </a
+      ><a name="3510" href="Pushdown.html#3451" class="Bound"
+      >e</a
+      ><a name="3511"
+      > </a
+      ><a name="3512" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3513"
+      > </a
+      ><a name="3514" href="Pushdown.html#3455" class="Bound"
+      >&#961;'</a
+      ><a name="3516"
+      > </a
+      ><a name="3517" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3518"
+      > </a
+      ><a name="3519" href="Pushdown.html#3460" class="Bound"
+      >&#954;'</a
+      ><a name="3521"
+      > </a
+      ><a name="3522" href="Pushdown.html#874" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3523"
+      >
+  </a
+      ><a name="3526" class="Symbol"
+      >&#8594;</a
+      ><a name="3527"
+      > </a
+      ><a name="3528" href="Data.Product.html#688" class="Function"
+      >&#931;[</a
+      ><a name="3530"
+      > </a
+      ><a name="3531" href="Pushdown.html#3531" class="Bound"
+      >$'</a
+      ><a name="3533"
+      > </a
+      ><a name="3534" href="Data.Product.html#688" class="Function"
+      >&#8712;</a
+      ><a name="3535"
+      > </a
+      ><a name="3536" href="Pushdown.html#814" class="Function"
+      >Cache</a
+      ><a name="3541"
+      > </a
+      ><a name="3542" href="Data.Product.html#688" class="Function"
+      >]</a
+      ><a name="3543"
+      > </a
+      ><a name="3544" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3545"
+      > </a
+      ><a name="3546" href="Pushdown.html#346" class="InductiveConstructor"
+      >atom</a
+      ><a name="3550"
+      > </a
+      ><a name="3551" href="Pushdown.html#3449" class="Bound"
+      >a</a
+      ><a name="3552"
+      > </a
+      ><a name="3553" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3554"
+      > </a
+      ><a name="3555" href="Pushdown.html#3453" class="Bound"
+      >&#961;</a
+      ><a name="3556"
+      > </a
+      ><a name="3557" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3558"
+      > </a
+      ><a name="3559" href="Pushdown.html#3458" class="Bound"
+      >&#954;</a
+      ><a name="3560"
+      > </a
+      ><a name="3561" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3562"
+      > </a
+      ><a name="3563" href="Pushdown.html#3463" class="Bound"
+      >$</a
+      ><a name="3564"
+      > </a
+      ><a name="3565" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3566"
+      > </a
+      ><a name="3567" href="Pushdown.html#1762" class="Datatype Operator"
+      >&#10230;&#8323;</a
+      ><a name="3569"
+      > </a
+      ><a name="3570" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&lt;</a
+      ><a name="3571"
+      > </a
+      ><a name="3572" href="Pushdown.html#3451" class="Bound"
+      >e</a
+      ><a name="3573"
+      > </a
+      ><a name="3574" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3575"
+      > </a
+      ><a name="3576" href="Pushdown.html#3455" class="Bound"
+      >&#961;'</a
+      ><a name="3578"
+      > </a
+      ><a name="3579" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3580"
+      > </a
+      ><a name="3581" href="Pushdown.html#3460" class="Bound"
+      >&#954;'</a
+      ><a name="3583"
+      > </a
+      ><a name="3584" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="3585"
+      > </a
+      ><a name="3586" href="Pushdown.html#3531" class="Bound"
+      >$'</a
+      ><a name="3588"
+      > </a
+      ><a name="3589" href="Pushdown.html#1715" class="InductiveConstructor Operator"
+      >&gt;</a
+      ><a name="3590"
+      > </a
+      ><a name="3591" href="Data.Product.html#1055" class="Function Operator"
+      >&#215;</a
+      ><a name="3592"
+      > </a
+      ><a name="3593" href="Pushdown.html#2900" class="Function"
+      >cache-wf</a
+      ><a name="3601"
+      > </a
+      ><a name="3602" href="Pushdown.html#3531" class="Bound"
+      >$'</a
+      ><a name="3604"
+      >
+</a
+      ></pre
+    ></body
+  ></html
+>
