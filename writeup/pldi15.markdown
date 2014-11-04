@@ -1,3 +1,48 @@
+# Introduction
+
+Writing abstract interpreters is hard.
+Establishing the proof of correctness of an abstract interpreter is even harder.
+Modern practice in whole-program analysis requires multiple iterations of abstract models during the design process.
+What we lack is a meta-theory framework for designing new abstract interpreters that come with correctness proofs.
+
+We propose a compositional meta-theory framework for static analysis.
+Our framework gives the analysis designer building blocks for building static analysis.
+These building blocks are highly compositional, and carry both computational and correctness properties of an analysis.
+Analyses built in our framework enjoy two key properties not present in previous work:
+
+* Analyses are correct-by-construction.
+* The path and flow sensitivities of an analysis can be recovered through plug-and-play modules.
+
+Our framework leverages monad transformers as the fundamental building blocks for an abstract interpreter.
+Monad transformers compose to form a single monad which underlies a monadic abstract interpreter.
+Each piece of the monad transformer stack corresponds to an element of the semantics' state space.
+Variations in the stack are shown to give rise to different path and flow sensitivities.
+
+The _monad_ abstraction provides both computational and proof properties for interpreters.
+The operations provide an abstraction for computation, and the monad laws provide a framework for proof.
+The _monad transformer_ are actions which build monads piece-wise.
+Monad transformers are just compositional monads.
+We prove that any instantiation of monad transformers in our framework results in a correct-by-construction abstract interpreter.
+
+## Contributions:
+
+Our contributions are:
+
+* A compositional meta-theory framework for building correct-by-construction abstract interpreters.
+* A new monad transformer for nondeterminism.
+* An isolated understanding of flow-sensitivity as variations in the monad underlying an interpreter.
+
+## Outline
+
+We demonstrate our framework by example:
+we walk the reader through the design and implementation of a family of correct-by-construction abstract interpreters.
+Section [2][Semantics] gives the concrete semantics for a small functional language.
+Section [3][Methodology] sketches the correct-by-construction methodology of our framework
+Section [4][Monadic Interpreter] shows the concrete monadic interpreter.
+Section [5][Systematic Abstraction] performs systematic abstraction of the interpreter to enable a wide range of analyses.
+
+# Semantics
+
 Our language of study is `λIF`:
 
     i   ∈ ℤ
@@ -96,20 +141,22 @@ We also wish to employ abstract garbage collection, which adheres to the followi
 `R₀[ρ](e,κ)` computes the initial reachable address set for `e` and `κ`.
 `R-*` computes the reachable address set for a given type.
 
+# Methodology
+
 To design abstract interpreters for `λIF` we adhere to the following methodology:
 
 1. Parameterize over some element of the state space (`Val`, `Addr`, `M`, etc.) and its operations.
     * Show that the interpreter is monotonic w.r.t. the parameters.
-        * _i.e._, if `Val α⇄γ ^Val^` and `+ ⊑ γ ∘ ^+^ ∘ α` then `step(Val) α⇄γ step(^Val^)`.
+        * _i.e._, if `[Val α⇄γ ^Val^]` and `[+ ⊑ γ ∘ ^+^ ∘ α]` then `[step(Val) α⇄γ step(^Val^)]`.
 2. Relate the interpreter to a state space transition system.
     * Show that the mapping between the interpreter and transition system preserves Galois connections.
     * Show that the abstract state space is finite, and therefore that the analysis is computable.
     * An analysis is the least-fixed-point solution to the (finite) transition system.
 3. Recover the concrete semantics and design a family of abstractions.
     * Show that there are choices which have Galois connections.
-        * _i.e._, `Val α⇄γ ^Val^`.
+        * _i.e._, `[Val α⇄γ ^Val^]`.
     * Show that abstract operators are approximations of concrete ones.
-        * _i.e._, `+ ⊑ γ ∘ ^+^ ∘ α`.
+        * _i.e._, `[+ ⊑ γ ∘ ^+^ ∘ α]`.
 
 Following the above methodology results in end-to-end correctness proofs for abstract interpreters.
 We show how to obtain items 1 and 2 for free using compositional building blocks.
@@ -139,13 +186,11 @@ The rest of the paper is as follows:
     * We instantiate `ℤ` in Val with `ℤ ⊑ {-,0,+}`.
 5. We parameterize over `Time`, `Addr`, `alloc` and `tick` in the interpreter, exposing _call-site sensitivity_.
     * We show that the interpreter is monotonic w.r.t. `Addr`, `Time` and their operations.
-    * We instantiate `Time × Addr` and with `Exp* × (Var × Exp*) ⊑ (Exp*)ₖ × (Var × (Exp*)ₖ) × 1 × (Var × 1)`.
+    * We instantiate `[Time × Addr]` with `[Exp* × (Var × Exp*)] ⊑ [Exp*ₖ × (Var × Exp*ₖ)] ⊑ [1 × (Var × 1)]`.
 6. We observe that the implementation _and proof of correctness_ for abstract garbage require no change as we vary each parameter.
 
-Contributions:
+# Monadic Interpreter
 
-* A compositional framework for building both computations and proofs for abstract interpreters.
-    * We leverage monad transformers to transport both computation and proof.
-    * A new monad transformer for nondeterminism.
-* Carving out flow-sensitivity as orthogonal to other analysis features like abstract domain and call-site sensitivity.
-    * Variations in flow-sensitivity are understood in isolation as mere variations in the monad used for the interpreter.
+# Systematic Abstraction
+
+
