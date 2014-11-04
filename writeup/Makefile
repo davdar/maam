@@ -1,11 +1,21 @@
-pldi15.pdf: pldi15.tex pldi15.markdown.tex
-	xelatex pldi15.tex
+.PHONY: clean
 
-pldi15.markdown.tex: pldi15.markdown
-	pandoc pldi15.markdown -t latex -o pldi15.autogen.tex
+tmp/latex-out/pldi15.pdf: pldi15.tex tmp/autogen/pldi15.markdown.tex
+	mkdir -p tmp/latex-out
+	xelatex --output-directory=tmp/latex-out pldi15.tex && mv tmp/latex-out/pldi15.pdf ./
+
+tmp/autogen/pldi15.markdown.tex: tmp/autogen/pldi15.markdown
+	pandoc tmp/autogen/pldi15.markdown -t latex -o tmp/autogen/pldi15.markdown.tex
+
+tmp/autogen/pldi15.markdown: pldi15.markdown
+	mkdir -p tmp/autogen
+	# removes lines that start with -- (and any number of spaces before --)
+	cat pldi15.markdown > tmp/autogen/pldi15.markdown
+	sed -i .bak '/^ *--.*$$/d' tmp/autogen/pldi15.markdown
 
 davdar.bib:
-	curl http://www.citeulike.org/bibtex/user/davdar > davdar.bib
+	mkdir -p tmp
+	curl http://www.citeulike.org/bibtex/user/davdar > tmp/davdar.bib
 
 clean:
-	rm *.log *.aux *.out pldi15.pdf davdar.bib *.autogen.tex
+	rm -rf tmp

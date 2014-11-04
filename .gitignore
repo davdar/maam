@@ -9,8 +9,8 @@
 *.exrc
 *.dtx
 *.ins
-*.autogen.*
 .DS_Store
 .options*
 .extensions*
 README.html
+tmp/
