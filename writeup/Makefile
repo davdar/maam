@@ -1,4 +1,4 @@
-.PHONY: clean
+.PHONY: open clean
 
 tmp/latex-out/pldi15.pdf: pldi15.tex tmp/autogen/pldi15.markdown.tex
 	mkdir -p tmp/latex-out
@@ -16,6 +16,9 @@ tmp/autogen/pldi15.markdown: pldi15.markdown
 davdar.bib:
 	mkdir -p tmp
 	curl http://www.citeulike.org/bibtex/user/davdar > tmp/davdar.bib
+
+open:
+	open pldi15.pdf
 
 clean:
 	rm -rf tmp
