@@ -2,46 +2,44 @@
 # Introduction
 
 Writing abstract interpreters is hard.
-Writing proofs about abstract interpreters is harder.
-Modern practice in whole-program analysis requires multiple iterations of abstract models during the design process.
+Writing proofs about abstract interpreters is extra hard.
+Modern practice in whole-program analysis requires multiple iterations in the design space of possible analyses.
 As we explore the design space of abstract interpreters, it would be nice if we didn't need to reprove all the properties we care about.
-What we lack is a reusable meta-theory framework for exploring the design space of _correct-by-construction_ abstract interpreters.
+What we lack is a reusable meta-theory for exploring the design space of _correct-by-construction_ abstract interpreters.
 
 We propose a compositional meta-theory framework for general purpose static analysis.
 Our framework gives the analysis designer building blocks for building correct-by-construction abstract interpreters.
-These building blocks are highly compositional, and they transport both computational and correctness properties of an analysis.
-Using our framework we are able to tune the flow and path sensitivities of an analysis with no extra proof burden.
+These building blocks are compositional, and they carry both computational and correctness properties of an analysis.
+For example, we are able to tune the flow and path sensitivities of an analysis in our framework with no extra proof burden.
 We do this by capturing the essential properties of flow and path sensitivities into plug-and-play components.
-Furthermore, we show how to design an analysis to be correct for all possible instantiations to flow and path sensitivity.
+Comparably, we show how to design an analysis to be correct for all possible instantiations to flow and path sensitivity.
 
-Our framework leverages monad transformers as the fundamental building blocks for an abstract interpreter.
-Monad transformers compose to form a single monad which drives interpreter execution.
-Each piece of the monad transformer stack corresponds to an element of the semantics' state space.
-We show that variations in the transformer stack to give rise to different path and flow sensitivities for the analysis.
-Interpreters written in our framework are proven correct paramaterized over the monad used, and therefore to path and flow sensitivity properties.
+To achieve compositionality, our framework leverages monad transformers as the fundamental building blocks for an abstract interpreter.
+Monad transformers snap together to form a single monad which drives interpreter execution.
+Each piece of the monad transformer stack corresponds to either an element of the semantics' state space or a nondeterminism effect.
+Variations in the transformer stack to give rise to different path and flow sensitivities for the analysis.
+Interpreters written in our framework are proven correct w.r.t. all possible monads, and therefore to each choice of path and flow sensitivity.
 
-The monad abstraction provides the computational and proof properties for our interpreters, from the operators and laws respectively.
+The monad abstraction provides the computational and proof properties for our interpreters, from the monad operators and laws respectively.
 Monad transformers are monad composition function; they consume and produce monads.
 We strengthen the monad transformer interface to require that the resulting monad have a relationship to a state machine transition space.
-Along with proofs that the monads we use meet this stonger interface, we can prove that all variations in transformer ordering yield correct analyses.
+We prove that a small set of monads transformers that meet this stronger interface can be used to write monadic abstract interpreters.
 
 ## Contributions:
 
 Our contributions are:
 
 * A compositional meta-theory framework for building correct-by-construction abstract interpreters.
-  We use a strengthened form of monad transformer as compositional building blocks for building interpreters and their proofs.
+  This framework is built using a restricted class of monad transformers.
 * A new monad transformer for nondeterminism.
-* An isolated understanding of flow and path sensitivity as mere variations in the order of layering monad transformers.
+* An isolated understanding of flow and path sensitivity for analysis as mere variations in the order of monad transformer composition.
 
 ## Outline
 
 We will demonstrate our framework by example, walking the reader through the design and implementation of a family of an abstract interpreter.
 Section [2][Semantics] gives the concrete semantics for a small functional language.
 Section [3][Monadic Interpreter] shows the full definition of a concrete monadic interpreter.
-Section [4][Obtaining an Analysis] performs a systematic abstraction of the concrete interpreter to give an abstract interpreter.
-Section [5][Compositional Meta-theory] shows our compositional meta-theory framework for designing correct-by-construction abstract interpreters.
-Section [6][Methodology] summarizes our framework methodology.
+Section [4][A Compositional Monadic Framework] shows our compositional meta-theory framework built on monad transformers.
 
 -- }}}
 
@@ -162,10 +160,10 @@ The monad operation `bind` simultaneously sequence the state `Σ` and flattens n
 The unit to `bind` is `return`.
 
     bind : ∀ α β, M(α) → (α → M(β)) → M(β)
-    bind(m)(k)(ς) := {(y,ς'') | (y,ς'') ∈ k(x)(ς') ; (x,ς') ∈ m(ς)}
+    bind(m)(k)(ς) := {(y,ς'') | (y,ς'') ∈ k(a)(ς') ; (a,ς') ∈ m(ς)}
 
     return : ∀ α, α → M(α)
-    return(x)(ς) := {(x,ς)}
+    return(a)(ς) := {(a,ς)}
 
 These operators capture the guts of the explicit state-passing and set comprehension aspects of the interpreter.
 The rest of the implementation will use these operators and avoid referencing an explicit configuration `ς` or sets of results.
@@ -173,8 +171,8 @@ As is traditional with monadic programming, we use `do` notation as syntactic su
 For example:
 
     do 
-      x ← m 
-      k(x)
+      a ← m 
+      k(a)
 
 is just sugar for:
   
@@ -183,10 +181,10 @@ is just sugar for:
 Interacting with state is achieved through `get-*` and `put-*` effects:
 
     get-Env : M(Env)
-    get-Env(<ρ,σ,κ,τ>) := {(ρ,<ρ,σ,κ,τ>)}
+    get-Env(⟨ρ,σ,κ,τ⟩) := {(ρ,⟨ρ,σ,κ,τ⟩)}
 
     put-Env : Env → M(1)
-    put-Env(ρ')(<ρ,σ,κ,τ>) := {(1,<ρ',σ,κ,τ>)}
+    put-Env(ρ')(⟨ρ,σ,κ,τ⟩) := {(1,⟨ρ',σ,κ,τ⟩)}
 
 (Only `get-Env` and `put-Env` are shown for brevity.)
 Nondeterminism is achieved through null and plus operators `⟨⊥⟩` and `⟨+⟩`:
@@ -202,7 +200,7 @@ The state space for the interpeter is unchanged, although we promote partiality 
 Values in `P(β)` can be lifted to monadic values `M(β)` using `return` and `⟨⊥⟩`, which we name `↑ₚ`:
 
     ↑ₚ : ∀ α, P(α) → M(α)
-    ↑ₚ({x₀ .. xₙ}) := return(x₀) ⟨+⟩ .. ⟨+⟩ return(xₙ)
+    ↑ₚ({a₀ .. aₙ}) := return(a₀) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 
 We will also use various coercion helper functions to inject elements of sum types to possibly empty sets:
 
@@ -297,66 +295,211 @@ An collecting semantics is now described as the least-fixed-point of `step` as t
 
 -- }}}
 
--- 4. Obtaining an Analysis {{{
-# Obtaining an Analysis
+-- 4. A Compositional Framework {{{
+# A Compositional Framework
 
-So far our interpreter is concrete
+In the above monadic interpreter, changes to the language or analysis may require a redesign of the underlying monad.
+Remarkably, the analysis can be altered to be flow-sensitive by changing the definition of the monad.
+
+     Σ := Env × Kon × Time
+     M(α) := Σ × Store → P(α × Σ) × Store
+ 
+     bind : ∀ α β, M(α) → (α → M(β)) → M(β)
+     bind(m)(k)(ς,σ) := (bΣ*,σ''')
+       where
+         ({(a₁,ς'₁) .. (aₙ,ς'ₙ)},σ') := m(ς,σ)
+         ({(bᵢ₁,ς''ᵢ₁) .. (bᵢₘ,ς''ᵢₘ)},σ''ₙ) := k(aᵢ)(ς'ᵢ,σ')
+         bΣ* := {(b₁₁,ς₁₁) .. (bₙ₁,ςₙ₁) .. (bₙₘ,ςₙₘ)}
+         σ''' :=  σ''₁ ⊔ .. ⊔ σ''ₙ
+ 
+     return : ∀ α, α → M(α)
+     return(a)(ς,σ) := ({a,ς},σ)
+ 
+     get-Env : M(Env)
+     get-Env(⟨ρ,κ,τ⟩,σ) := ({(ρ,⟨ρ,κ,τ⟩)},σ)
+ 
+     put-Env : Env → M(1)
+     put-Env(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
+
+     get-Store : M(Env)
+     get-Store(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
+
+     put-Store : Store → M(1)
+     put-Store(σ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ,κ,τ⟩)},σ')
+ 
+     ⟨⊥⟩ : ∀ α, M(α)
+     ⟨⊥⟩(ς,σ) := {}
+ 
+     _⟨+⟩_ : ∀ α, M(α) × M(α) → M α 
+     (m₁ ⟨+⟩ m₂)(ς,σ) := m₁(ς,σ) ∪ m₂(ς,σ)
+
+However, we want to avoid reconstructing complicated monads for our interpreters.
+Even more, we want to avoid reconstructing proofs about monads for our interpreters.
+Toward this goal we introduce a compositional framework for constructing monads using a restricted class of monad transformer.
+
+There are two types of monadic effects used in the monadic interprer: state and nondeterminism.
+There is a monad transformer for adding state effects to existing monads, called the state monad tranformer:
+
+    Sₜ[_] : (Type → Type) → (Type → Type)
+    Sₜ[s](m)(α) := s → m (α × s)
+
+Monadic actions `bind` and `return` (and their laws) use the underlying monad:
+
+    bind : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
+    bind(m)(k)(s) := do
+      (x,s') ←ₘ m(s)
+      k(x)(s')
+
+    return : ∀ α m, α → Sₜ[s](m)(α)
+    return(x)(s) := returnₘ(x,s)
+
+State actions `get` and `put` expose the cell of state while interacting with the underlying monad `m`:
+
+    get : Sₜ[s](m)(s)
+    get(s) := returnₘ(s,s)
+
+    put : s → Sₜ[s](m)(1)
+    put(s')(s) := returnₘ(1,s')
+
+and the state monad transformer is able to transport nondeterminism effects from the underlying monad:
+
+    ⟨⊥⟩ : ∀ α, Sₜ[s](m)(α)
+    ⟨⊥⟩(s) := ⟨⊥⟩ₘ 
+
+    _⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
+    (m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ m₂(s) 
+      
+The state monad transformer was introduced by Mark P. Jones in [[X](http://web.cecs.pdx.edu/~mpj/pubs/springschool95.pdf)].
+We have developed a new monad transformer for nondeterminism which can compose with state in both directions.
+
+    Pₜ : (Type → Type) → (Type → Type)
+    Pₜ(m)(α) := m(P(α))
+
+Monadic actions `bind` and `return` require that the underlying monad be a join-semilattice functor:
+
+    bind : ∀ α β, Pₜ(m)(α) → (α → Pₜ(m)(β)) → Pₜ(m)(β)
+    bind(m)(k) := do
+      {x₁ .. xₙ} ←ₘ m
+      k(x₁) ⊔ₘ .. ⊔ₘ k(xₙ)
+
+    return : ∀ α, α → Pₜ(m)(α)
+    return(x) := returnₘ({x})
+
+Nondterminism actions `⟨⊥⟩` and `⟨+⟩` interact with the join-semilattice functorality of the underlying monad `m`:
+
+    ⟨⊥⟩ : ∀ α, Pₜ(m)(α)
+    ⟨⊥⟩ := ⊥ₘ
+
+    _⟨+⟩_ : ∀ α, Pₜ(m)(α) x Pₜ(m)(α) → Pₜ(m)(α)
+    m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
+
+and the nondeterminism monad transformer is able to transport state effects from the underlying monad:
+
+    get : Pₜ(m)(s)
+    get = map(λ(s).{s})(get)
+
+    put : s → Pₜ(m)(s)
+    put(s) = map(λ(1).{1})(put(s))
+
+Proposition: `Pₜ` is a transformer for monads which are also join semi-lattice functors.
+
+Our correctness framework requires that monadic actions in `M` map to state space transitions in `Σ`.
+We establish this property in addition to monadic actions and effects for state and nondeterminism monad transformers.
+We call this property `MonadStep`, where monads `M` have the following operation defined for some `Σ`:
+
+    mstep : ∀ α β, (α → M(β)) → (Σ(α) → Σ(β))
+
+Categorically speaking, `mstep` is a morphism between the Kleisli category for M and the transition system for Σ.
+We now show that the monad transformers for state and nondeterminism transport this property in addition to monadic operations.
+
+For the state monad transformer `Sₜ[s]` mstep is defined:
+
+    mstep : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
+    mstep(f) := mstepₘ (λ(a,s). f(a)(s))
+
+For the nondeterminism transformer `Pₜ` mstep has two possible definitions.
+One where `Σ` is `Σₘ ∘ P`:
+
+    mstep₁ : ∀ α β m, (α → Pₜ(m)(β)) → (Σₘ(P(α)) → Σₘ(P(β)))
+    mstep₁(f) := mstepₘ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+
+and one where `Σ` is `P ∘ Σₘ`:
+
+    mstep₂ : ∀ α β m, (α → Pₜ(m)(β)) → (P(Σₘ(α)) → P(Σₘ(β)))
+    mstep₂(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
+      where 
+        commuteP : ∀ α, Σₘ(P(α)) → P(Σₘ(α))
+        aΣPᵢ := commuteP(mstepₘ(f)(ςᵢ)) 
+
+The operation `computeP` must be defined for the underlying `Σₘ`.
+This property is true for the identiy monad, and is preserved by `Sₜ[s]` when `Σₘ` is also a functor:
+
+    commuteP : ∀ α, Σₘ(P(α) × s) → P(Σₘ(α × s))
+    commuteP := commutePₘ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
+
+We can now build monad transformer stacks from combinations of `Sₜ[s]` and `Pₜ` that have the following properties:
+
+- The resulting monad has the combined effects of all pieces of the transformer stack.
+- Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
+
+We can now instantiate our interpreter to the following monad stacks.
+
+- `Sₜ[Env] ∘ Sₜ[Store] ∘ Sₜ[Kon] ∘ Sₜ[Time] ∘ Pₜ ∘ ID`
+    - This yields a path-sensitive flow-sensitive analysis.
+- `Sₜ[Env] ∘ Sₜ[Kon] ∘ Sₜ[Time] ∘ Pₜ ∘ Sₜ[Store] ∘ ID`
+    - This yields a path-insensitive flow-insensitive analysis coupled with mstep₁.
+    - This yeilds a path-insensitive flow-sensitive analysis coupled with mstep₂.
 
 -- }}}
 
--- 5. A Compositional Meta-theory {{{
-# Compositional Meta-theory
-
--- }}}
-
--- 6. Methodology {{{
-# Methodology
-
-To design abstract interpreters for `λIF` we adhere to the following methodology:
-
-1. Parameterize over some element of the state space (`Val`, `Addr`, `M`, etc.) and its operations.
-    * Show that the interpreter is monotonic w.r.t. the parameters.
-        * _i.e._, if `[Val α⇄γ ^Val^]` and `[+ ⊑ γ ∘ ^+^ ∘ α]` then `[step(Val) α⇄γ step(^Val^)]`.
-2. Relate the interpreter to a state space transition system.
-    * Show that the mapping between the interpreter and transition system preserves Galois connections.
-    * Show that the abstract state space is finite, and therefore that the analysis is computable.
-    * An analysis is the least-fixed-point solution to the (finite) transition system.
-3. Recover the concrete semantics and design a family of abstractions.
-    * Show that there are choices which have Galois connections.
-        * _i.e._, `[Val α⇄γ ^Val^]`.
-    * Show that abstract operators are approximations of concrete ones.
-        * _i.e._, `[+ ⊑ γ ∘ ^+^ ∘ α]`.
-
-Following the above methodology results in end-to-end correctness proofs for abstract interpreters.
-We show how to obtain items 1 and 2 for free using compositional building blocks.
-Our building blocks snap together to construct both computational and correctness components of an analysis.
-
-First we will introduce our compositional building blocks for building correct-by-construction abstract interpreters.
-Then we will apply item 3 to three orthogonal design axis:
-
-* The monad `M` for the interpreter, exposing the _flow sensitivity_ of the analysis.
-  Exposing this axis is novel to this work.
-* The abstract value space `Val` for the interpreter, exposing the _abstract domain_ of the analysis.
-* The choice for `Time` and `Addr`, exposing the _call-site sensitivity_ of the analysis.
-
--- The rest of the paper is as follows:
+-- -- X. Methodology {{{
+-- # Methodology
 -- 
--- 1. We begin by writing a monadic concrete interpreter for `λIF`.
---     * There are no parameters to the interpreter yet.
---     * We show how to relate the monadic concrete interpreter to an executable state space transition system.
--- 2. We then introduce our compositional framework for building abstract interpreters.
---     * Our framework leverages monad transformers as vehicles for transporting both computation and proofs of correctness.
---     * We apply the framework to `λIF`, although the tools are directly usable for other languages and analyses.
--- 3. We parameterize over `M`  and monadic effects `get`, `put`, `⊥` and `⟨+⟩` in the interpreter, exposing _flow sensitivity_.
---     * We show that our interpreter is monotonic w.r.t. `M`  and monadic effects.
---     * We instantiate `M` with `path-sensitive ⊑ flow-sensitive ⊑ flow-sensitive` implementations.
--- 4. We parameterize over `Val` and `δ` in the interpreter, exposing the _abstract domain_.
---     * We show that the interpreter is monotonic w.r.t. `Val` and `δ`.
---     * We instantiate `ℤ` in Val with `ℤ ⊑ {-,0,+}`.
--- 5. We parameterize over `Time`, `Addr`, `alloc` and `tick` in the interpreter, exposing _call-site sensitivity_.
---     * We show that the interpreter is monotonic w.r.t. `Addr`, `Time` and their operations.
---     * We instantiate `[Time × Addr]` with `[Exp* × (Var × Exp*)] ⊑ [Exp*ₖ × (Var × Exp*ₖ)] ⊑ [1 × (Var × 1)]`.
--- 6. We observe that the implementation _and proof of correctness_ for abstract garbage require no change as we vary each parameter.
-
--- }}}
+-- To design abstract interpreters for `λIF` we adhere to the following methodology:
+-- 
+-- 1. Parameterize over some element of the state space (`Val`, `Addr`, `M`, etc.) and its operations.
+--     * Show that the interpreter is monotonic w.r.t. the parameters.
+--         * _i.e._, if `[Val α⇄γ ^Val^]` and `[+ ⊑ γ ∘ ^+^ ∘ α]` then `[step(Val) α⇄γ step(^Val^)]`.
+-- 2. Relate the interpreter to a state space transition system.
+--     * Show that the mapping between the interpreter and transition system preserves Galois connections.
+--     * Show that the abstract state space is finite, and therefore that the analysis is computable.
+--     * An analysis is the least-fixed-point solution to the (finite) transition system.
+-- 3. Recover the concrete semantics and design a family of abstractions.
+--     * Show that there are choices which have Galois connections.
+--         * _i.e._, `[Val α⇄γ ^Val^]`.
+--     * Show that abstract operators are approximations of concrete ones.
+--         * _i.e._, `[+ ⊑ γ ∘ ^+^ ∘ α]`.
+-- 
+-- Following the above methodology results in end-to-end correctness proofs for abstract interpreters.
+-- We show how to obtain items 1 and 2 for free using compositional building blocks.
+-- Our building blocks snap together to construct both computational and correctness components of an analysis.
+-- 
+-- First we will introduce our compositional building blocks for building correct-by-construction abstract interpreters.
+-- Then we will apply item 3 to three orthogonal design axis:
+-- 
+-- * The monad `M` for the interpreter, exposing the _flow sensitivity_ of the analysis.
+--   Exposing this axis is novel to this work.
+-- * The abstract value space `Val` for the interpreter, exposing the _abstract domain_ of the analysis.
+-- * The choice for `Time` and `Addr`, exposing the _call-site sensitivity_ of the analysis.
+-- 
+-- -- The rest of the paper is as follows:
+-- -- 
+-- -- 1. We begin by writing a monadic concrete interpreter for `λIF`.
+-- --     * There are no parameters to the interpreter yet.
+-- --     * We show how to relate the monadic concrete interpreter to an executable state space transition system.
+-- -- 2. We then introduce our compositional framework for building abstract interpreters.
+-- --     * Our framework leverages monad transformers as vehicles for transporting both computation and proofs of correctness.
+-- --     * We apply the framework to `λIF`, although the tools are directly usable for other languages and analyses.
+-- -- 3. We parameterize over `M`  and monadic effects `get`, `put`, `⊥` and `⟨+⟩` in the interpreter, exposing _flow sensitivity_.
+-- --     * We show that our interpreter is monotonic w.r.t. `M`  and monadic effects.
+-- --     * We instantiate `M` with `path-sensitive ⊑ flow-sensitive ⊑ flow-sensitive` implementations.
+-- -- 4. We parameterize over `Val` and `δ` in the interpreter, exposing the _abstract domain_.
+-- --     * We show that the interpreter is monotonic w.r.t. `Val` and `δ`.
+-- --     * We instantiate `ℤ` in Val with `ℤ ⊑ {-,0,+}`.
+-- -- 5. We parameterize over `Time`, `Addr`, `alloc` and `tick` in the interpreter, exposing _call-site sensitivity_.
+-- --     * We show that the interpreter is monotonic w.r.t. `Addr`, `Time` and their operations.
+-- --     * We instantiate `[Time × Addr]` with `[Exp* × (Var × Exp*)] ⊑ [Exp*ₖ × (Var × Exp*ₖ)] ⊑ [1 × (Var × 1)]`.
+-- -- 6. We observe that the implementation _and proof of correctness_ for abstract garbage require no change as we vary each parameter.
+-- 
+-- -- }}}
 
