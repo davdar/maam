@@ -54,7 +54,7 @@ Our language of study is `λIF`:
     iop ∈ IOp ::= + | -
     op ∈ Op ::= iop | @ 
     e∈ Exp ::= a | e op e | if0(e){e}{e}
-
+    
 (The operator `@` is syntax for function application.
  We define `op` as a single syntactic class for all operators to simplify presentation.)
 We begin with a concrete semantics for `λIF` which makes allocation explicit.
@@ -154,7 +154,7 @@ To do this, there will be three parameters which the user can instantiate in any
 2. The value space, which captures the abstract domain for integers and closures.
 3. Abstract time, which captures the call-site sensitivity of the analysis.
 
-We place each of these features behind an abstract interface and leave theirl implementations opaque.
+We place each of these features behind an abstract interface and leave their implementations opaque.
 We will recover specific concrete and abstract interpreters in a later section.
 
 The goal is to implement as much of the interpreter as possible while leaving these things abstract.
@@ -234,6 +234,9 @@ which have the following laws:
     +-commutativity : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
     +-distributivity : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
 
+The laws for monads, state and nondeterminism are important.
+They enable us to argue that our interpreter is correct w.r.t. the concrete semantics in the absence of a particular choice of monad.
+
 -- }}}
 
 -- The Value Space Interface {{{
@@ -250,7 +253,7 @@ The interface for integers consists of introduction and elimiation rules:
     int-I : ℤ → Val
     int-if0-E : Val → P(Bool)
 
-We can now state laws for this interface, which are designed to induce a Galois connection between `ℤ` and `Val`:
+The laws for this interface are designed to induce a Galois connection between `ℤ` and `Val`:
 
     {true}  ⊑ int-if0-E(int-I(i))     if i = 0
     {false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
@@ -271,7 +274,12 @@ which follow similar laws:
 
 The denotation for primitive operations `δ` must also be opaque:
 
-    δ : IOp × Val × Val → Val
+    δ⟦_,_,_ ⟧ : IOp × Val × Val → Val
+
+We can also give soundness laws for `δ` using int-I and int-if0-E:
+
+    int-I(i₁ + i₂) ⊑ δ⟦+,int-I(i₁),int-I(i₂)⟧
+    int-I(i₁ - i₂) ⊑ δ⟦-,int-I(i₁),int-I(i₂)⟧ 
 
 Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analagous.
 Introduction functions inject the type into `Val`.
@@ -315,8 +323,7 @@ For this presentation we use `P(Frame × KAddr)` as an abstraction for continuat
 ## Interpreter Definition
 
 We use the three interfaces from above as opaque parameters to out interpreter.
-Before defining the interpreter we define three helper functions.
-These helper functions crucially rely on the monadic effect interface.
+Before defining the interpreter we define some helper functions which interact with the underlying monad `M`.
 
 First, values in `P(α)` can be lifted to monadic values `M(α)` using `return` and `⟨⊥⟩`, which we name `↑ₚ`:
 
@@ -407,16 +414,21 @@ We also implement abstract garbage collection monadically:
       κσ ← get-KStore
       l*₀ ← R₀(ρ,e)
       κl₀ ← get-KAddr
-      let l*' := μ(θ). 
-        l*₀ ∪ θ ∪ { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
-      let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
+      let l*' := μ(θ). l*₀ ∪ θ ∪ R[σ](θ)
+      let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ κR[κσ](κθ)
       put-Store({l ↦ σ(l) | l ∈ l*'})
       put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
 
-where `R₀` is defined as before and `R-Clo` is defined:
+where `R₀` is defined as before and `R`, `κR` and R-Clo` are defined:
+
+    R : Store → P(Addr) → P(Addr)
+    R[σ](θ) := { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
 
     R-Clo : Clo → P(Addr)
     R-Clo(⟨λ(x).e,ρ⟩) := { ρ(x) | x ∈ FV(λ(x).e) }
+
+    κR : KStore → P(KAddr) → P(KAddr)
+    κR[σ](κθ) := { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
 
 There is one last parameter to our development: a connection between our monadic interpreter and a state space transition system.
 We state this connection formally as a Galois connection `(Σ → Σ)α⇄γ(Exp → M(Exp))`.
