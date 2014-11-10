@@ -379,9 +379,9 @@ We can now write a monadic interpreter for `λIF` using these monadic effects.
       return(e₁)
     step(a) := do
       tickM(a)
-      f ← pop
+      fr ← pop
       v ← A⟦a⟧
-      case f of
+      case fr of
         ⟨□ op e⟩ → do
           push(⟨v op □⟩)
           return(e)
@@ -407,7 +407,8 @@ We also implement abstract garbage collection monadically:
       κσ ← get-KStore
       l*₀ ← R₀(ρ,e)
       κl₀ ← get-KAddr
-      let l*' := μ(θ). l*₀ ∪ θ ∪ { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
+      let l*' := μ(θ). 
+        l*₀ ∪ θ ∪ { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
       let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
       put-Store({l ↦ σ(l) | l ∈ l*'})
       put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
@@ -446,7 +447,7 @@ The path sensitive monad is a simple powerset of products:
 Monadic operators `bindᵖˢ` and `returnᵖˢ` are defined to encapsulate both state-passing and set-flattening:
 
     bindᵖˢ : ∀ α, Mᵖˢ(α) → (α → Mᵖˢ(β)) → Mᵖˢ(β)
-    bindᵖˢ(m)(k)(ψ) := {(y,ψ'') | (y,ψ'') ∈ k(a)(ψ') ; (a,ψ') ∈ m(ψ)}
+    bindᵖˢ(m)(f)(ψ) := {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
 
     returnᵖˢ : ∀ α, α → Mᵖˢ(α)
     returnᵖˢ(a)(ψ) := {(a,ψ)}
@@ -510,6 +511,7 @@ and the Galois connection is:
     αᵖˢ(f)(e)(ψ) := f({(e,ψ)})
 
 _Proposition: `γᵖˢ` and `αᵖˢ` form an isomorphism._
+
 This implies Galois connnection.
 
 The injection `ςᵖˢ₀` for a program `e` is:
@@ -572,10 +574,10 @@ To do this we pull `Store` out of the powerset and use its join-semilattice stru
 The monad operator `bindᶠⁱ` must merge multiple stores back to one:
  
     bindᶠⁱ : ∀ α β, Mᶠⁱ(α) → (α → Mᶠⁱ(β)) → Mᶠⁱ(β)
-    bindᶠⁱ(m)(k)(ψ,σ) := ({bs₁₁ .. bsₙ₁ .. bsₙₘ},σ₁ `join` .. `join` σₙ)
+    bindᶠⁱ(m)(f)(ψ,σ) := ({bs₁₁ .. bsₙ₁ .. bsₙₘ},σ₁ `join` .. `join` σₙ)
       where
         ({(a₁,ψ₁) .. (aₙ,ψₙ)},σ') := m(ψ,σ)
-        ({bψᵢ₁ .. bψᵢₘ},σᵢ) := k(aᵢ)(ψᵢ,σ')
+        ({bψᵢ₁ .. bψᵢₘ},σᵢ) := f(aᵢ)(ψᵢ,σ')
  
 The unit for `bindᶠⁱ`:
 
@@ -620,9 +622,11 @@ Finally, the Galois connection for relating `Mᶠⁱ` to a state space transitio
     αᶠⁱ(f)(e)(ψ,σ) := f({(e,ψ)},σ)
 
 _Proposition: `γᶠⁱ` and `αᶠⁱ` form an isomorphism._
+
 Like the concrete `γᶠⁱ` and `αᶠⁱ`, this implies Galois connection.
 
 _Proposition: `Mᵖˢ α⇄γ Mᶠⁱ`._
+
 This demonstrates that path sensitivity is more precise than flow insensitivity in a formal, language-independent setting.
 
 We leave out the explicit definition for the flow-sensitive monad `Mᶠˢ`.
@@ -631,7 +635,7 @@ However, we will recover it through the compositional framework in Section [X][A
 We note that the implementation for our interpreter and abstract garbage collector remain the same.
 They both scale seamlessly to flow-sensitive and flow-insensitive variants when instantiated with the appropriate monad.
 
-}}}
+-- }}}
 
 -- 6. A Compositional Monadic Framework {{{
 #     A Compositional Monadic Framework
@@ -650,9 +654,9 @@ There is a monad transformer for adding state effects to existing monads, called
 Monadic actions `bind` and `return` (and their laws) use the underlying monad:
 
     bindˢ : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
-    bindˢ(m)(k)(s) := do
+    bindˢ(m)(f)(s) := do
       (x,s') ←ᵐ m(s)
-      k(x)(s')
+      f(x)(s')
 
     returnˢ : ∀ α m, α → Sₜ[s](m)(α)
     returnˢ(x)(s) := returnᵐ(x,s)
@@ -683,9 +687,9 @@ We develop a new monad transformer for nondeterminism which can compose with sta
 Monadic actions `bind` and `return` require that the underlying monad be a join-semilattice functor:
 
     bindᵖ : ∀ α β, Pₜ(m)(α) → (α → Pₜ(m)(β)) → Pₜ(m)(β)
-    bindᵖ(m)(k) := do
+    bindᵖ(m)(f) := do
       {x₁ .. xₙ} ←ᵐ m
-      k(x₁) `join`ᵐ .. `join`ᵐ k(xₙ)
+      f(x₁) `join`ᵐ .. `join`ᵐ f(xₙ)
 
     returnᵖ : ∀ α, α → Pₜ(m)(α)
     returnᵖ(x) := returnᵐ({x})
@@ -744,7 +748,7 @@ This property is true for the identiy monad, and is preserved by `Sₜ[s]` when 
 The `γ` side of commuteP is the only Galois connection mapping that loses information in the `α` direction.
 Therefore, `mstepˢ` and `mstepᵖ₁` are really isomorphism transformers, and `mstepᵖ₂` is the only Galois connection transformer.
 
-[QUESTION: should I give the definitions for α here? -DD]
+[QUESTION: should I give the definitions for the `α` maps here? -DD]
 
 For convenience, we name the pairing of `Pₜ` with `mstepᵖ₁` `FIₜ`, and with `mstepᵖ₂` `FSₜ` for flow insensitive and flow sensitive respectively.
 
