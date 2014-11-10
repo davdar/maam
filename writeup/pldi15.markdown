@@ -139,7 +139,7 @@ where `R` is the set of addresses reachable from a given expression:
 Analagously, `κR` is the set of addresses reachable from a given continuation address:
 
     κR[_] ∈ KStore → KAddr → P(KAddr)
-    κR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ { π₂(κσ(κl)) | κl ∈ κθ}
+    κR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ {π₂(κσ(κl)) | κl ∈ κθ}
 
 -- }}}
 
@@ -398,6 +398,25 @@ We can now write a monadic interpreter for `λIF` using these monadic effects.
           b ← ↑ₚ(int-if0-E(v))
           if(b) then return(e₁) else return(e₂)
 
+We also implement abstract garbage collection monadically:
+
+    gc : Exp → M(1)
+    gc(e) := do
+      ρ ← get-Env
+      σ ← get-Store
+      κσ ← get-KStore
+      l*₀ ← R₀(ρ,e)
+      κl₀ ← get-KAddr
+      let l*' := μ(θ). l*₀ ∪ θ ∪ { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
+      let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
+      put-Store({l ↦ σ(l) | l ∈ l*'})
+      put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
+
+where `R₀` is defined as before and `R-Clo` is defined:
+
+    R-Clo : Clo → P(Addr)
+    R-Clo(⟨λ(x).e,ρ⟩) := { ρ(x) | x ∈ FV(λ(x).e) }
+
 There is one last parameter to our development: a connection between our monadic interpreter and a state space transition system.
 We state this connection formally as a Galois connection `(Σ → Σ)α⇄γ(Exp → M(Exp))`.
 This Galois connection serves two purposes.
@@ -608,6 +627,9 @@ This demonstrates that path sensitivity is more precise than flow insensitivity 
 
 We leave out the explicit definition for the flow-sensitive monad `Mᶠˢ`.
 However, we will recover it through the compositional framework in Section [X][A Compositional Framework] using monad transformers.
+
+We note that the implementation for our interpreter and abstract garbage collector remain the same.
+They both scale seamlessly to flow-sensitive and flow-insensitive variants when instantiated with the appropriate monad.
 
 }}}
 
