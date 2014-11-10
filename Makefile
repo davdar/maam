@@ -1,6 +1,6 @@
 .PHONY: all init src ghci writeup docs toc clean
 
-all: src
+all: writeup
 
 init:
 	runhaskell EnvSetup.hs
