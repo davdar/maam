@@ -1,5 +1,4 @@
--- 1. Introduction {{{
-#     Introduction
+# Introduction
 
 Writing abstract interpreters is hard.
 Writing proofs about abstract interpreters is extra hard.
@@ -29,74 +28,64 @@ We prove that a small set of monads transformers that meet this stronger interfa
 
 Our contributions are:
 
-* A compositional meta-theory framework for building correct-by-construction abstract interpreters.
+- A compositional meta-theory framework for building correct-by-construction abstract interpreters.
   This framework is built using a restricted class of monad transformers.
-* An isolated understanding of flow and path sensitivity for static analysis.
+- An isolated understanding of flow and path sensitivity for static analysis.
   We understand this spectrum as mere variations in the order of monad transformer composition in our framework.
 
 ## Outline
 
-We will demonstrate our framework by example, walking the reader through the design and implementation of a family of an abstract interpreter.
+We will demonstrate our framework by example, walking the reader through the design and implementation of an abstract interpreter.
 Section [X][Semantics] gives the concrete semantics for a small functional language.
-Section [X][Monadic Interpreter] shows the full definition of a concrete monadic interpreter.
-Section [X][A Compositional Monadic Framework] shows our compositional meta-theory framework built on monad transformers.
+Section [X][Monadic Interpreter] shows the full definition of a highly parameterized monadic interpreter.
+Section [X][Recovering Concrete and Abstract Interpreters] shows how to recover concrete and abstract interpreters.
+Section [X][Varying Path and Flow Sensitivity] shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
+Section [X][A Compositional Monadic Framework] demonstrates our compositional meta-theory framework built on monad transformers.
 
--- }}}
-
--- 2. Semantics {{{
-#     Semantics
+# Semantics
 
 Our language of study is `λIF`:
-
 `````align````````````````````````````````````````
   i ∈  ℤ
   x ∈  Var
   a ∈  Atom  ::= i | x | [λ](x).e
   ⊕ ∈  IOp   ::= [+] | [-]
-  ⊙ ∈  EOp   ::= ⊕ | @ 
+  ⊙ ∈  Op    ::= ⊕ | @ 
   e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
 ``````````````````````````````````````````````````
-    
 `λIF` is a simple applied lambda calculus with integers and conditionals.
 The operator `@` is explicit syntax for function application.
-This allows for `EOp` to be a single syntactic class for all operators and simplifies the presentation.
+This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
 
 We begin with a concrete semantics for `λIF` which makes allocation explicit.
 Allocation is made explicit to make the semantics more amenable to abstraction and abstract garbage collection.
 
 The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values:
-
 `````align````````````````````````````````````````
  τ ∈  Time    := ℤ
- 
- l ∈  OAddr   := Var × Time
- ρ ∈  Env     := Var ⇀ OAddr
- σ ∈  OStore  := OAddr ⇀ PVal
+ l ∈  Addr   := Var × Time
+ ρ ∈  Env     := Var ⇀ Addr
+ σ ∈  Store   := Addr ⇀ Val
  c ∈  Clo     ::= ⟨[λ](x).e,ρ⟩ 
- v ∈  PVal    ::= i | c
-
+ v ∈  Val     ::= i | c
 κl ∈  KAddr   := Time
 κσ ∈  KStore  := KAddr ⇀ Frame × KAddr
 fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
-
- ς ∈  Σ       ::= Exp × Env × OStore × KAddr × KStore
+ ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
 
 Before defining the step relation we define metafunctions for evaluating atomic expressions and integer arithmatic:
-
 `````align````````````````````````````````````````
-       A⟦_,_,_⟧  ∈ Env × OStore × Atom ⇀ PVal
+       A⟦_,_,_⟧  ∈ Env × Store × Atom ⇀ Val
        A⟦ρ,σ,i⟧  := i
        A⟦ρ,σ,x⟧  := σ(ρ(x))
 A⟦ρ,σ,[λ](x).e⟧  := ⟨[λ](x).e,ρ⟩ 
-
        δ⟦_,_,_⟧  ∈ IOp × ℤ × ℤ → ℤ
    δ⟦[+],i₁,i₂⟧  := i₁ + i₂
    δ⟦[-],i₁,i₂⟧  := i₁ - i₂
 ``````````````````````````````````````````````````
 
 Our step relation is somewhat standard:
-
 `````indent```````````````````````````````````````
 _~~>_ ∈ 𝒫(Σ × Σ)
 ⟨e₁ ⊙ e₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e₁,ρ,σ,τ,κσ',τ+1⟩
@@ -122,7 +111,6 @@ _~~>_ ∈ 𝒫(Σ × Σ)
 ``````````````````````````````````````````````````
 
 We also wish to employ abstract garbage collection, which adheres to the following specification:
-
 `````indent```````````````````````````````````````
 _~~>ᵍᶜ_ ∈ 𝒫(Σ × Σ)
 ς ~~>ᵍᶜ ς' 
@@ -132,51 +120,41 @@ _~~>ᵍᶜ_ ∈ 𝒫(Σ × Σ)
     σ' := {l ↦ σ(l) | l ∈ R[σ](ρ,e)}
     κσ' := {κl ↦ κσ(κl) | κl ∈ κR[κσ](κl)}
 ``````````````````````````````````````````````````
-
 where `R` is the set of addresses reachable from a given expression:
-
 `````indent```````````````````````````````````````
-R[_] ∈ OStore → Env × Exp → 𝒫(OAddr)
+R[_] ∈ Store → Env × Exp → 𝒫(Addr)
 R[σ](ρ,e) := μ(θ). 
-  R₀(ρ,e) ∪ θ ∪ {l' | l' ∈ R-PVal(σ(l)) ; l ∈ θ}
-
-R₀ ∈ Env × Exp → 𝒫(OAddr)
+  R₀(ρ,e) ∪ θ ∪ {l' | l' ∈ R-Val(σ(l)) ; l ∈ θ}
+R₀ ∈ Env × Exp → 𝒫(Addr)
 R₀(ρ,e) := {ρ(x) | x ∈ FV(e)}
-
 FV ∈ Exp → 𝒫(Var)
 FV(x) := {x}
 FV(i) := {}
 FV([λ](x).e) := FV(e) - {x}
 FV(e₁ ⊙ e₂) := FV(e₁) ∪ FV(e₂)
 FV(if0(e₁){e₂}{e₃}) := FV(e₁) ∪ FV(e₂) ∪ FV(e₃)
-
-R-PVal ∈ PVal → 𝒫(OAddr)
-R-PVal(i) := {}
-R-PVal(⟨[λ](x).e,ρ⟩) := {ρ(x) | y ∈ FV([λ](x).e)}
+R-Val ∈ Val → 𝒫(Addr)
+R-Val(i) := {}
+R-Val(⟨[λ](x).e,ρ⟩) := {ρ(x) | y ∈ FV([λ](x).e)}
 ``````````````````````````````````````````````````
-
 `R[σ](ρ,e)` computes the transitively reachable addresses from `e` in `ρ` and `σ`.
 (We write `μ(x). f(x)` as the least-fixed-point of a function `f`.)
 `R₀(ρ,e)` computes the initial reachable address set for `e` under `ρ`.
 `FV(e)` computes the free variables for an expression `e`.
-`R-PVal` computes the addresses reachable from a value.
+`R-Val` computes the addresses reachable from a value.
 
 Analagously, `κR` is the set of addresses reachable from a given continuation address:
-
 `````indent```````````````````````````````````````
 κR[_] ∈ KStore → KAddr → 𝒫(KAddr)
 κR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ {π₂(κσ(κl)) | κl ∈ κθ}
 ``````````````````````````````````````````````````
 
--- }}}
-
--- 3. Monadic Interpreter {{{
-#     Monadic Interpreter
+# Monadic Interpreter
 
 We next design an interpreter for `λIF` as a monadic interpreter.
 This interpreter will support both concrete and abstract executions.
 To do this, there will be three parameters which the user can instantiate in any way they wish:
-    
+
 1. The monad, which captures the flow-sensitivity of the analysis.
 2. The value space, which captures the abstract domain for integers and closures.
 3. Abstract time, which captures the call-site sensitivity of the analysis.
@@ -187,28 +165,18 @@ We will recover specific concrete and abstract interpreters in a later section.
 The goal is to implement as much of the interpreter as possible while leaving these things abstract.
 The more we can prove about the interpreter independent of these variables, the more proof-work we'll get for free.
 
--- The Monad Interface {{{
 ## The Monad Interface
 
 The interpreter will use a monad `M` in two ways.
-First, to manipulate components of the state space (like `Env` and `OStore).
+First, to manipulate components of the state space (like `Env` and `Store`).
 Second, to exhibit nondeterministic behavior, which is inherent in computable analysis.
 We capture these properties as monadic effects.
 
-To be a monad, `M` must have type:
-
-`````indent```````````````````````````````````````
-M : Type → Type
-``````````````````````````````````````````````````
-
-and support the `bind` operation:
-
+To be a monad, a type operator `M` must support the `bind` operation:
 `````indent```````````````````````````````````````
 bind : ∀ α β, M(α) → (α → M(β)) → M(β)
 ``````````````````````````````````````````````````
-
 as well as a unit for `bind` called `return`:
-
 `````indent```````````````````````````````````````
 return : ∀ α, α → M(α)
 ``````````````````````````````````````````````````
@@ -219,7 +187,7 @@ We use the monad laws to reason about our implementation in the absence of a par
 bind-unit₁ : bind(return(a))(k) = k(a)
 bind-unit₂ : bind(m)(return) = m
 bind-associativity : 
-  bind(bind(m)(k₁))(k₂) = bind(m)(λ(a)→bind(k₁(a))(k₂))
+  bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 
 These operators capture the essence of the explicit state-passing and set comprehension aspects of the interpreter.
@@ -227,68 +195,67 @@ Our interpreter will use these operators and avoid referencing an explicit confi
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
 For example:
-
-    do 
-      a ← m 
-      k(a)
-
+`````indent```````````````````````````````````````
+do 
+  a ← m 
+  k(a)
+``````````````````````````````````````````````````
 and
-  
-    a ← m ; k(a)
-
+`````indent```````````````````````````````````````
+a ← m ; k(a)
+``````````````````````````````````````````````````
 are both just sugar for
-  
-    bind(m)(k)
+`````indent``````````````````````````````````````` 
+bind(m)(k)
+``````````````````````````````````````````````````
 
 Interacting with `Env` is achieved through `get-Env` and `put-Env` effects:
-
-    get-Env : M(Env)
-    put-Env : Env → M(1)
-
+`````indent``````````````````````````````````````` 
+get-Env : M(Env)
+put-Env : Env → M(1)
+``````````````````````````````````````````````````
 which have the following laws:
+`````indent``````````````````````````````````````` 
+put-put : put-Env(s₁) ; put-Env(s₂) = put-Env(s₂)
+put-get : put-Env(s) ; get-Env = return(s)
+get-put : s ← get-Env ; put-Env(s) = return(1)
+get-get : s₁ ← get-Env ; s₂ ← get-Env ; k(s₁,s₂) = s ← get-Env ; k(s,s)
+``````````````````````````````````````````````````
+The effects for `get-Store`, `get-KAddr` and `get-Store` are identical.
 
-    put-put : put-Env(s₁) ; put-Env(s₂) = put-Env(s₂)
-    put-get : put-Env(s) ; get-Env = return(s)
-    get-put : s ← get-Env ; put-Env(s) = return(1)
-    get-get : s₁ ← get-Env ; s₂ ← get-Env ; k(s₁,s₂) = s ← get-Env ; k(s,s)
-
-The effects for `get-OStore`, `get-KAddr` and `get-OStore` are identical.
-
-Nondeterminism is achieved through operators `⟨⊥⟩` and `⟨+⟩`:
-
-    ⟨⊥⟩ : ∀ α, M(α)
-    _⟨+⟩_ : ∀ α, M(α) × M(α) → M α 
-
+Nondeterminism is achieved through operators `⟨0⟩` and `⟨+⟩`:
+`````align```````````````````````````````````````` 
+  ⟨0⟩ :  ∀ α, M(α)
+_⟨+⟩_ :  ∀ α, M(α) × M(α) → M(α)
+`````````````````````````````````````````````````` 
 which have the following laws:
-
-    ⊥-zero₁ : bind(⟨⊥⟩)(k) = ⟨⊥⟩
-    ⊥-zero₂ : bind(m)(λ(a)→⟨⊥⟩) = ⟨⊥⟩
-    ⊥-unit₁ : ⟨⊥⟩ ⟨+⟩ m = m
-    ⊥-unit₂ : m ⟨+⟩ ⟨⊥⟩ = m 
-    +-associativity : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
-    +-commutativity : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
-    +-distributivity : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
+`````indent```````````````````````````````````````
+⊥-zero₁ : bind(⟨0⟩)(k) = ⟨0⟩
+⊥-zero₂ : bind(m)(λ(a).⟨0⟩) = ⟨0⟩
+⊥-unit₁ : ⟨0⟩ ⟨+⟩ m = m
+⊥-unit₂ : m ⟨+⟩ ⟨0⟩ = m 
++-associativity : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
++-commutativity : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
++-distributivity : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
+``````````````````````````````````````````````````
 
 The laws for monads, state and nondeterminism are important.
 They enable us to argue that our interpreter is correct w.r.t. the concrete semantics in the absence of a particular choice of monad.
 
--- }}}
-
--- The Value Space Interface {{{
 ## The Value Space Interface
 
-To abstract the value space we require the type `PVal` be an opaque parameter
-We need only require that `PVal` is a join-semilattice:
+To abstract the value space we require the type `Val` be an opaque parameter
+We need only require that `Val` is a join-semilattice:
 
-    ⊥ : PVal
-    _`join`_ : PVal × PVal → PVal
+    ⊥ : Val
+    ⊔ : Val × Val → Val
 
 The interface for integers consists of introduction and elimiation rules:
 
-    int-I : ℤ → PVal
-    int-if0-E : PVal → 𝒫(Bool)
+    int-I : ℤ → Val
+    int-if0-E : Val → 𝒫(Bool)
 
-The laws for this interface are designed to induce a Galois connection between `ℤ` and `PVal`:
+The laws for this interface are designed to induce a Galois connection between `ℤ` and `Val`:
 
     {true}  ⊑ int-if0-E(int-I(i))     if i = 0
     {false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
@@ -299,8 +266,8 @@ The laws for this interface are designed to induce a Galois connection between `
 
 Additionally we must abstract closures:
 
-    clo-I : Clo → PVal
-    clo-E : PVal → 𝒫(Clo)
+    clo-I : Clo → Val
+    clo-E : Val → 𝒫(Clo)
 
 which follow similar laws:
 
@@ -309,7 +276,7 @@ which follow similar laws:
 
 The denotation for primitive operations `δ` must also be opaque:
 
-    δ⟦_,_,_ ⟧ : IOp × PVal × PVal → PVal
+    δ⟦_,_,_⟧ : IOp × Val × Val → Val
 
 We can also give soundness laws for `δ` using int-I and int-if0-E:
 
@@ -317,13 +284,10 @@ We can also give soundness laws for `δ` using int-I and int-if0-E:
     int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
 
 Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analagous.
-Introduction functions inject the type into `PVal`.
+Introduction functions inject the type into `Val`.
 Elimination functions project a finite set of discrete observations.
 Introduction and elimination operators must follow a Galois connection discipline.
 
--- }}}
-
--- Abstract Time {{{
 ## Abstract Time 
 
 The interface for abstract time is familiar from the AAM literature:
@@ -332,8 +296,8 @@ The interface for abstract time is familiar from the AAM literature:
 
 In traditional AAM, `tick` is defined to have access to all of `Σ`.
 This comes from the generality of the framework--to account for all possibile `tick` functions.
-We only discuss instantiating `OAddr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
-Also in AAM is the opaque function `alloc : Var × Time → OAddr`.
+We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
+Also in AAM is the opaque function `alloc : Var × Time → Addr`.
 Because we will only ever use the identity function for `alloc`, we omit its abstraction and instantiation in our development.
 
 Remarkably, we need not state laws for `tick`.
@@ -341,33 +305,30 @@ Our interpreter will always merge values which reside at the same address to ach
 Therefore, any supplied implementations of `tick` is valid.
 
 In moving our semantics to an analysis, we will need to reuse addresses in the state space.
-This induces `OStore` and `KStore` to join when binding new values to in-use addresses.
+This induces `Store` and `KStore` to join when binding new values to in-use addresses.
 
-The state space for our interpreter will therefore use the following domain for `OStore` and `KStore`:
+The state space for our interpreter will therefore use the following domain for `Store` and `KStore`:
 
-    σ  ∈ OStore  : OAddr → PVal
+    σ  ∈ Store  : Addr → Val
     κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
 
-We have already established a join-semilattice structure for `PVal`.
+We have already established a join-semilattice structure for `Val`.
 Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
 For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
 
--- }}}
-
--- Interpreter Definition {{{
 ## Interpreter Definition
 
 We use the three interfaces from above as opaque parameters to out interpreter.
 Before defining the interpreter we define some helper functions which interact with the underlying monad `M`.
 
-First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `⟨⊥⟩`, which we name `↑ₚ`:
+First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `⟨0⟩`, which we name `↑ₚ`:
 
     ↑ₚ : ∀ α, 𝒫(α) → M(α)
     ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 
 We introduce monadic helper functions for allocation and manipulating time:
 
-    allocM : Var → M(OAddr)
+    allocM : Var → M(Addr)
     allocM(x) := do
       τ ← get-Time
       return(x,τ)
@@ -403,11 +364,11 @@ Finally we introduce helper functions for manipulating stack frames:
 
 We can now write a monadic interpreter for `λIF` using these monadic effects.
 
-    A⟦_⟧ ∈ Atom → M(PVal)
+    A⟦_⟧ ∈ Atom → M(Val)
     A⟦i⟧ := return(int-I(i))
     A⟦x⟧ := do
       ρ ← get-Env
-      σ ← get-OStore
+      σ ← get-Store
       l ← ↑ₚ(ρ(x))
       return(σ(x))
     A⟦[λ](x).e⟧ := do
@@ -430,9 +391,9 @@ We can now write a monadic interpreter for `λIF` using these monadic effects.
         ⟨v' @ □⟩ → do
           ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
           l ← alloc(x)
-          σ ← get-OStore
+          σ ← get-Store
           put-Env(ρ'[x↦l])
-          put-OStore(σ[l↦v])
+          put-Store(σ[l↦v])
           return(e)
         ⟨v' ⊕ □⟩ → do
           return(δ(⊕,v',v))
@@ -445,21 +406,21 @@ We also implement abstract garbage collection monadically:
     gc : Exp → M(1)
     gc(e) := do
       ρ ← get-Env
-      σ ← get-OStore
+      σ ← get-Store
       κσ ← get-KStore
       l*₀ ← R₀(ρ,e)
       κl₀ ← get-KAddr
       let l*' := μ(θ). l*₀ ∪ θ ∪ R[σ](θ)
       let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ κR[κσ](κθ)
-      put-OStore({l ↦ σ(l) | l ∈ l*'})
+      put-Store({l ↦ σ(l) | l ∈ l*'})
       put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
 
-where `R₀` is defined as before and `R`, `κR` and R-Clo` are defined:
+where `R₀` is defined as before and `R`, `κR` and `R-Clo` are defined:
 
-    R : OStore → 𝒫(OAddr) → 𝒫(OAddr)
+    R : Store → 𝒫(Addr) → 𝒫(Addr)
     R[σ](θ) := { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
 
-    R-Clo : Clo → 𝒫(OAddr)
+    R-Clo : Clo → 𝒫(Addr)
     R-Clo(⟨[λ](x).e,ρ⟩) := { ρ(x) | x ∈ FV([λ](x).e) }
 
     κR : KStore → 𝒫(KAddr) → 𝒫(KAddr)
@@ -470,7 +431,7 @@ We state this connection formally as a Galois connection `(Σ → Σ)α⇄γ(Exp
 This Galois connection serves two purposes.
 First, it allows us to implement the analysis by converting our interpreter to the transition system `Σ → Σ` through `γ`.
 Second, this Galois connection serves to _transport other Galois connections_.
-For example, given concrete and abstract versions of `PVal`, we carry `CVal α⇄γ AVal` through the Galois connection to establish `CΣ α⇄γ AΣ`.
+For example, given concrete and abstract versions of `Val`, we carry `CVal α⇄γ AVal` through the Galois connection to establish `CΣ α⇄γ AΣ`.
 
 A collecting-semantics execution of our interpreter is defined as:
 
@@ -478,17 +439,12 @@ A collecting-semantics execution of our interpreter is defined as:
 
 where `ς₀` is the injection of the initial program `e` into `Σ `.
 
--- }}}
-
--- }}}
-
--- 4. Recovering Concrete and Abstract Interpreters {{{
-#     Recovering Concrete and Abstract Interpreters
+# Recovering Concrete and Abstract Interpreters
 
 To recover a concrete interpreter we instantiate `M` to a path-sensitive monad: `Mᵖˢ`.
 The path sensitive monad is a simple powerset of products:
 
-    ψ ∈ Ψᵖˢ := Env × OStore × KAddr × KStore × Time
+    ψ ∈ Ψᵖˢ := Env × Store × KAddr × KStore × Time
     m ∈ Mᵖˢ(α) := Ψᵖˢ → 𝒫(α × Ψᵖˢ)
 
 Monadic operators `bindᵖˢ` and `returnᵖˢ` are defined to encapsulate both state-passing and set-flattening:
@@ -509,17 +465,17 @@ State effects merely return singleton sets:
 
 Nondeterminism effects are implemented with set union:
 
-    ⟨⊥⟩ᵖˢ : ∀ α, Mᵖˢ(α)
-    ⟨⊥⟩ᵖˢ(ψ) := {}
+    ⟨0⟩ᵖˢ : ∀ α, Mᵖˢ(α)
+    ⟨0⟩ᵖˢ(ψ) := {}
 
     _⟨+⟩ᵖˢ_ : ∀ α, Mᵖˢ(α) × Mᵖˢ(α) → Mᵖˢ(α)
     (m₁ ⟨+⟩ᵖˢ m₂)(ψ) := m₁(ψ) ∪ m₂(ψ)
 
 _Proposition: Mᵖˢ satisfies monad, state, and nondeterminism laws._
 
-For the value space `CVal` we use a powerset of semantic values `PVal`:
+For the value space `CVal` we use a powerset of semantic values `Val`:
 
-    v ∈ CVal := 𝒫(PVal)
+    v ∈ CVal := 𝒫(Val)
 
 with introduction and elimination rules:
 
@@ -538,13 +494,13 @@ and `δ` to manipulate abstract values:
 Abstract time and addresses are program contours in the concrete space:
 
     τ  ∈ Time  := (Exp × KAddr)*
-    l  ∈ OAddr  := Var × Time
+    l  ∈ Addr  := Var × Time
     κl ∈ KAddr := Time
 
 Operators `alloc` and `κalloc` are merely identity functions, and `tick` is just a cons operator.
 
 Finally, we must establish a Galois connection between `Exp → Mᵖˢ(Exp)` and `Σ → Σ` for some `Σ`.
-The state space `Σ` depends only on the monad `Mᵖˢ` and is independent of the choice for `CVal`, OAddr or Time.
+The state space `Σ` depends only on the monad `Mᵖˢ` and is independent of the choice for `CVal`, Addr or Time.
 For the path sensitive monad `Mᵖˢ` , `Σᵖˢ` is defined:
 
     Σᵖˢ := 𝒫(Exp × Ψᵖˢ)
@@ -566,7 +522,7 @@ The injection `ςᵖˢ₀` for a program `e` is:
     ςᵖˢ₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}
 
 To arrive at an abstract interpreter we seek a finite state space.
-First we abstract the value space `PVal` as `AVal`, which only tracks integer parity:
+First we abstract the value space `Val` as `AVal`, which only tracks integer parity:
 
     AVal := 𝒫(Clo + {-,0,+})
 
@@ -601,22 +557,19 @@ The `tick` operator becomes cons followed by k-truncation:
     tick : Exp × KAddr × Time → Time
     tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 
-After substituting abstract versions for `PVal` and `Time`, the following state space for `Σᵖˢ` becomes finite:
+After substituting abstract versions for `Val` and `Time`, the following state space for `Σᵖˢ` becomes finite:
 
     𝒫(Exp × AEnv × AStore × AKAddr × AKStore × ATime)
 
 and the least-fixed-point iteration of the collecting semantics provides a sound and computable analysis.
 
--- }}}
-
--- 5. Varying Path and Flow Sensitivity {{{
-#     Varying Path and Flow Sensitivity
+# Varying Path and Flow Sensitivity
 
 We are able to recover a flow-insensitive interpreter through a new definition for `M`: `Mᶠⁱ`.
-To do this we pull `OStore` out of the powerset and use its join-semilattice structure:
+To do this we pull `Store` out of the powerset and use its join-semilattice structure:
 
     Ψᶠⁱ := Env × KAddr × KStore × Time
-    Mᶠⁱ(α) := Ψᶠⁱ × OStore × 𝒫(α × Ψᶠⁱ) × OStore
+    Mᶠⁱ(α) := Ψᶠⁱ × Store × 𝒫(α × Ψᶠⁱ) × Store
 
 The monad operator `bindᶠⁱ` must merge multiple stores back to one:
  
@@ -639,18 +592,18 @@ State effects `get-Env` and `put-Env`:
     put-Envᶠⁱ : Env → Mᶠⁱ(1)
     put-Envᶠⁱ(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
 
-State effects `get-OStore` and `put-OStore`:
+State effects `get-Store` and `put-Store`:
 
     get-Storeᶠⁱ : Mᶠⁱ(Env)
     get-Storeᶠⁱ(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
 
-    put-Storeᶠⁱ : OStore → Mᶠⁱ(1)
+    put-Storeᶠⁱ : Store → Mᶠⁱ(1)
     put-Storeᶠⁱ(σ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ,κ,τ⟩)},σ')
 
 Nondeterminism operations:
  
-    ⟨⊥⟩ᶠⁱ : ∀ α, M(α)
-    ⟨⊥⟩ᶠⁱ(ψ,σ) := ({}, ⊥)
+    ⟨0⟩ᶠⁱ : ∀ α, M(α)
+    ⟨0⟩ᶠⁱ(ψ,σ) := ({}, ⊥)
  
     _⟨+⟩_ : ∀ α, M(α) × M(α) → M α 
     (m₁ ⟨+⟩ m₂)(ψ,σ) := (aψ*₁ ∪ aψ*₂,σ₁ `join` σ₂)  
@@ -658,7 +611,7 @@ Nondeterminism operations:
 
 Finally, the Galois connection for relating `Mᶠⁱ` to a state space transition over `Σᶠⁱ`:
 
-    Σᶠⁱ := 𝒫(Exp × Ψᶠⁱ) × OStore
+    Σᶠⁱ := 𝒫(Exp × Ψᶠⁱ) × Store
 
     γᶠⁱ : (Exp → Mᶠⁱ(Exp)) → (Σᶠⁱ → Σᶠⁱ)
     γᶠⁱ(f)(eψ*,σ) := ({eψ₁₁ .. eψₙ₁  .. eψₙₘ}, σ₁ `join` .. `join` σₙ)
@@ -682,10 +635,7 @@ However, we will recover it through the compositional framework in Section [X][A
 We note that the implementation for our interpreter and abstract garbage collector remain the same.
 They both scale seamlessly to flow-sensitive and flow-insensitive variants when instantiated with the appropriate monad.
 
--- }}}
-
--- 6. A Compositional Monadic Framework {{{
-#     A Compositional Monadic Framework
+# A Compositional Monadic Framework
 
 In our framework thus far, any modification to the interpreter requires redesigning the monad `M`.
 However, we want to avoid reconstructing complicated monads for our interpreters.
@@ -718,8 +668,8 @@ State actions `get` and `put` expose the cell of state while interacting with th
 
 and the state monad transformer is able to transport nondeterminism effects from the underlying monad:
 
-    ⟨⊥⟩ : ∀ α, Sₜ[s](m)(α)
-    ⟨⊥⟩(s) := ⟨⊥⟩ᵐ 
+    ⟨0⟩ : ∀ α, Sₜ[s](m)(α)
+    ⟨0⟩(s) := ⟨0⟩ᵐ 
 
     _⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
     (m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ᵐ m₂(s) 
@@ -741,10 +691,10 @@ Monadic actions `bind` and `return` require that the underlying monad be a join-
     returnᵖ : ∀ α, α → 𝒫ₜ(m)(α)
     returnᵖ(x) := returnᵐ({x})
 
-Nondterminism actions `⟨⊥⟩ᵐ and `⟨+⟩ᵐ interact with the join-semilattice functorality of the underlying monad `m`:
+Nondterminism actions `⟨0⟩ᵐ and `⟨+⟩ᵐ interact with the join-semilattice functorality of the underlying monad `m`:
 
-    ⟨⊥⟩ᵖ : ∀ α, 𝒫ₜ(m)(α)
-    ⟨⊥⟩ᵖ := ⊥ᵐ
+    ⟨0⟩ᵖ : ∀ α, 𝒫ₜ(m)(α)
+    ⟨0⟩ᵖ := ⊥ᵐ
 
     _⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
     m₁ ⟨+⟩ᵖ m₂ := m₁ `join`ᵐ m₂
@@ -809,13 +759,11 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 
 We can now instantiate our interpreter to the following monad stacks.
 
-- `Sₜ[Env] ∘ Sₜ[OStore] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FSₜ`
+- `Sₜ[Env] ∘ Sₜ[Store] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FSₜ`
     - This yields a path-sensitive flow-sensitive analysis.
-- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FSₜ ∘ Sₜ[OStore]`
+- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FSₜ ∘ Sₜ[Store]`
     - This yeilds a path-insensitive flow-sensitive analysis.
-- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FIₜ ∘ Sₜ[OStore]`
+- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[Time] ∘ FIₜ ∘ Sₜ[Store]`
     - This yields a path-insensitive flow-insensitive analysis.
 
 Furthermore, the final Galois connection for each state space Σ is justified from individual Galois connections between state space components.
-
--- }}}

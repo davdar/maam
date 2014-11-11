@@ -26,31 +26,24 @@
 \usepackage{stmaryrd}
 \usepackage{amssymb}
 
+% This makes newlines not introduce paragraphs.
+% Paragraphs must be explicitly marked with \par
+% WHAT WIZARDY IS THIS
+% \endlinechar=9\relax
+
 % }-}
 
 % Macros {-{
 
-\newcommand{\alt}{\;|\;}
-\newcommand{\semicolon}{\;;\;}
-\newcommand{\op}{\mathbin{\mathit op}}
-\newcommand{\iop}{\mathbin{\mathit iop}}
-\newcommand{\Int}{\mathbb{Z}}
-\newcommand{\In}{\;\in\;}
-\newcommand{\where}{\texttt{where}\;\;}
-\newcommand{\when}{\;\;\texttt{when}\;\;}
-\newcommand{\objifz}{\operatorname{\underline{\mathtt{\mathbf{if0}}}}}
-\newcommand{\objlambda}{\operatorname{\underline{\boldsymbol{\lambda}}}}
-\newcommand{\objplus}{\mathbin{\bm{+}}}
-\newcommand{\objminus}{\mathbin{\bm{-}}}
-\newcommand{\objapply}{\mathbin{\bm{@}}}
-\newcommand{\cons}{\mathbin{::}}
-\newcommand{\lamif}{\mathtt{\mathbf{\operatorname{\lambda-IF}}}}
-\newcommand{\CVal}{\mathtt{Val}}
-\newcommand{\AVal}{\widehat{\mathtt{Val}}}
-
 % }-}
 
 \begin{document}
+
+% These are supposed to make align* not have breaks around it...
+\setlength{\abovedisplayskip}{0em}
+\setlength{\belowdisplayskip}{0em}
+\setlength{\abovedisplayshortskip}{0em}
+\setlength{\belowdisplayshortskip}{0em}
 
 \title{Modular Metatheory for Abstract Interpreters}
 \maketitle

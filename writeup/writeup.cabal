@@ -5,4 +5,14 @@ build-type:          Simple
 
 library
   exposed-modules: Process
-  build-depends: base, pandoc, pandoc-types, process, regex-tdfa, regex-tdfa-text, text
+  build-depends: base
+               , pandoc == 1.13.*
+               , pandoc-types
+               , process
+               , regex-tdfa
+               , regex-compat-tdfa
+               , text
+               , directory
+               , filepath
+               , mtl
+               , split
