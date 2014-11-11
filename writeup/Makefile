@@ -4,7 +4,7 @@ pldi15.pdf: pldi15.tex tmp/autogen/pldi15.markdown.tex
 	mkdir -p tmp/latex-out
 	xelatex --output-directory=tmp/latex-out pldi15.tex && mv tmp/latex-out/pldi15.pdf ./
 
-tmp/autogen/pldi15.markdown.tex: pldi15.markdown Process.hs Process_macros.tbl Process_mathttNames.tbl
+tmp/autogen/pldi15.markdown.tex: pldi15.markdown Process.hs Process_macros.tbl Process_mathttNames.tbl Process_mathitNames.tbl
 	runhaskell Process.hs
 
 davdar.bib:

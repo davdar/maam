@@ -33,9 +33,20 @@ mathttNames =
   $ unsafePerformIO 
   $ parseTableIO "Process_mathttNames.tbl"
 
-mathTTMacros :: [(Text,Text,MatchMode)]
-mathTTMacros = flip map mathttNames $ \ n ->
+mathttMacros :: [(Text,Text,MatchMode)]
+mathttMacros = flip map mathttNames $ \ n ->
   (n, T.concat ["\\operatorname{\\mathtt{", n, "}}" ], Word)
+
+mathitNames :: [Text]
+mathitNames =
+    map (snd . head)
+  $ tableRows
+  $ unsafePerformIO
+  $ parseTableIO "Process_mathitNames.tbl"
+
+mathitMacros :: [(Text,Text,MatchMode)]
+mathitMacros = flip map mathitNames $ \ n ->
+  (n, T.concat ["\\mbox{\\emph{", n, "}}" ], Word)
 
 macros :: [(Text,Text,MatchMode)]
 macros = 
@@ -52,7 +63,7 @@ macros =
       return (s, r, m)
 
 allMacros :: [(Text,Text,MatchMode)]
-allMacros = macros ++ mathTTMacros
+allMacros = macros ++ mathttMacros ++ mathitMacros
 
 regexmeta :: [Text]
 regexmeta = [ "\\" , "|" , "(" , ")" , "[" , "]" , "{" , "}" , "^" , "$" , "*" , "+" , "?" , "." ]
