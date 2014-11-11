@@ -12,4 +12,8 @@ Process_macros.tbl is a list of [ NAME , REPLACEMENT, MODE ].
 The Word mode will only match whole words, like "foo" in "foo bar" but not in "fooey".
 The Anywehere mode is find/replace with no restrictions.
 
-Another thought is to indirect these macros to latex, so mathtt name NAME goes to \mymathtt{NAME}.
+Some macros are routed to \newcommand defined at the top of pldi15.tex.
+
+A new feature!
+Lines that start with \ like \begin{proposition} are preserved verbatim.
+Processing is otherwise non-latex aware.

@@ -16,3 +16,4 @@ library
                , filepath
                , mtl
                , split
+               , containers

@@ -717,10 +717,11 @@ They both scale seamlessly to flow-sensitive and flow-insensitive variants when 
 
 # A Compositional Monadic Framework
 
-In our framework thus far, any modification to the interpreter requires redesigning the monad `M`.
-However, we want to avoid reconstructing complicated monads for our interpreters.
-Even more, we want to avoid reconstructing _proofs_ about monads for our interpreters.
-Toward this goal we introduce a compositional framework for constructing monads using a restricted class of monad transformer.
+In our framework thus far, any modification to the interpreter requires redesigning the monad `M` and constructing new proofs.
+We want to avoid reconstructing complicated monads for our interpreters, especially as languages and analyses grow and change.
+Even more, we want to avoid reconstructing the _proofs_ that these changes will necessarily alter.
+Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction 
+  using a restricted class of monad transformer.
 
 There are two types of monadic effects used in the monadic interprer: state and nondeterminism.
 There is a monad transformer for adding state effects to existing monads, called the state monad tranformer:

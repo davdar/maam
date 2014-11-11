@@ -14,6 +14,7 @@ Aδ            \widehat{\mathtt{\mathbf{\delta}}}     Anywhere
 σ             \sigma                                              Anywhere  
 ς             \varsigma                                           Anywhere  
 Σ             \Sigma                                              Anywhere  
+γ             \gamma     Anywhere
 θ             \theta                                              Anywhere  
 κ             \kappa                                              Anywhere  
 μ             \mu                                                 Anywhere  
@@ -44,8 +45,9 @@ Aδ            \widehat{\mathtt{\mathbf{\delta}}}     Anywhere
 ⊑             \sqsubseteq                                         Anywhere  
 ⊒             \sqsupseteq                                         Anywhere  
 ∀             \forall                                             Anywhere  
-∧             \and     Anywhere
-∨             \or             Anywhere
+∧             \wedge     Anywhere
+∨             \vee             Anywhere
+<+>ₘ            \;\texttt{<+>}_m\;     Anywhere
 <+>           \;\texttt{<+>}\;     Anywhere
 <0>           \texttt{<0>}       Anywhere
 ⊥-zero        \operatorname{\mathtt{\bot-zero}}                   Anywhere  

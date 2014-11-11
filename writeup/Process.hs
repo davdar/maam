@@ -20,6 +20,7 @@ import Tables
 import Control.Monad.Writer
 import Debug.Trace
 import Data.List.Split
+import qualified Data.Set as Set
 
 data MatchMode = 
     Word      -- "an" will not match in "Dan"
@@ -88,7 +89,7 @@ main :: IO ()
 main = do
   s <- T.readFile "pldi15.markdown"
   let pre = preProcess s
-      md = readMarkdown def $ T.unpack pre
+      md = readMarkdown def { readerExtensions = readerExtensions def Set.\\ Set.singleton Ext_raw_tex} $ T.unpack pre
       post = postProcess md
   system "mkdir -p tmp/autogen"
   T.writeFile "tmp/autogen/pldi15.markdown.pre" pre
@@ -118,22 +119,28 @@ addPars = newlines . addPar . T.lines
 -- Post Processing {{{
 
 postProcess :: Pandoc -> Pandoc
-postProcess = walkInline . walkBlocks
+postProcess = walkInlineCommand . walkInlineMath . walkBlocksMath
   where
-    walkBlocks :: Pandoc -> Pandoc
-    walkBlocks = walk $ \ (b :: Block) -> case b of
+    walkBlocksMath :: Pandoc -> Pandoc
+    walkBlocksMath = walk $ \ (b :: Block) -> case b of
       CodeBlock (_,[c],_) s 
         | "align" `isPrefixOf` c -> alignBlock $ T.pack s
         | "indent" `isPrefixOf` c -> indentBlock $ T.pack s
       CodeBlock a s -> b
       _ -> b
-    walkInline :: Pandoc -> Pandoc
-    walkInline = walk $ \ (i :: Inline) -> case i of
+    walkInlineMath :: Pandoc -> Pandoc
+    walkInlineMath = walk $ \ (i :: Inline) -> case i of
       Code _ s -> RawInline (Format "latex") $ T.unpack $ T.concat
         [ "$"
         , macroText $ T.pack s
         , "$"
         ]
+      _ -> i
+    walkInlineCommand :: Pandoc -> Pandoc
+    walkInlineCommand = walk $ \ (i :: Inline) -> case i of
+      Str s 
+        | "\\" `isPrefixOf` s -> RawInline (Format "latex") s
+        | otherwise -> Str s
       _ -> i
 
 -- Align {{{
