@@ -1,4 +1,4 @@
-% any author declaration will be ignored  when using 'plid' option (for double blind review)
+%lambdlambdaa any author declaration will be ignored  when using 'plid' option (for double blind review)
 \documentclass[pldi]{sigplanconf}
 
 % From PLDI Template {-{
@@ -20,9 +20,33 @@
 \usepackage{fontspec}
 \setmonofont[Scale=0.7]{DejaVu Sans Mono}
 
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{bm}
+\usepackage{stmaryrd}
+\usepackage{amssymb}
+
 % }-}
 
 % Macros {-{
+
+\newcommand{\alt}{\;|\;}
+\newcommand{\semicolon}{\;;\;}
+\newcommand{\op}{\mathbin{\mathit op}}
+\newcommand{\iop}{\mathbin{\mathit iop}}
+\newcommand{\Int}{\mathbb{Z}}
+\newcommand{\In}{\;\in\;}
+\newcommand{\where}{\texttt{where}\;\;}
+\newcommand{\when}{\;\;\texttt{when}\;\;}
+\newcommand{\objifz}{\operatorname{\underline{\mathtt{\mathbf{if0}}}}}
+\newcommand{\objlambda}{\operatorname{\underline{\boldsymbol{\lambda}}}}
+\newcommand{\objplus}{\mathbin{\bm{+}}}
+\newcommand{\objminus}{\mathbin{\bm{-}}}
+\newcommand{\objapply}{\mathbin{\bm{@}}}
+\newcommand{\cons}{\mathbin{::}}
+\newcommand{\lamif}{\mathtt{\mathbf{\operatorname{\lambda-IF}}}}
+\newcommand{\CVal}{\mathtt{Val}}
+\newcommand{\AVal}{\widehat{\mathtt{Val}}}
 
 % }-}
 

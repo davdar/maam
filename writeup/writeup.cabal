@@ -1,0 +1,8 @@
+author:              David Darais
+name:                maam-writeup
+version:             0.1.0.0
+build-type:          Simple
+
+library
+  exposed-modules: Process
+  build-depends: base, pandoc, pandoc-types, process, regex-tdfa, regex-tdfa-text, text
