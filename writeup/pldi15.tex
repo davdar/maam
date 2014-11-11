@@ -75,26 +75,5 @@ We finally reconcile the systematic construction of static analyzers with their 
 
 \input{tmp/autogen/pldi15.markdown.tex}
 
-\appendix
-\section{Typesetting}
-
-\newcommand\Val{\mathit{Val}}
-\newcommand\getEnv{\mbox{\emph{get-Env}}}
-\newcommand\getSto{\mbox{\emph{get-Store}}}
-\newcommand\intI{\mbox{\emph{int-I}}}
-\newcommand\cloI{\mbox{\emph{clo-I}}}
-\newcommand\return{\mathit{return}}
-\begin{align*}
-A⟦\_⟧ & \in Atom \rightarrow M(\Val) \\
-A⟦i⟧ & := \return(\intI(i)) \\
-A⟦x⟧ & := do \\
-&\quad  \rho \leftarrow \getEnv\\
-&\quad  \sigma \leftarrow \getSto\\
-&\quad  \ell \leftarrow ↑_p(\rho(x))\\
-&\quad  \return(\sigma(x))\\
-A⟦\lambda(x).e⟧ &:= do\\
-&\quad  \rho \leftarrow \getEnv\\
-&\quad  \return(\cloI(\langle\lambda(x).e,\rho\rangle))\\
-\end{align*}
 
 \end{document}
