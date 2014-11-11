@@ -118,7 +118,7 @@ _~~>ᵍᶜ_ ∈ 𝒫(Σ × Σ)
 ⟨e,ρ,σ,κl,κσ,τ⟩ ~~>ᵍᶜ ⟨e,ρ,σ',κl,κσ,τ⟩
   where 
     σ' := {l ↦ σ(l) | l ∈ R[σ](ρ,e)}
-    κσ' := {κl ↦ κσ(κl) | κl ∈ κR[κσ](κl)}
+    κσ' := {κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)}
 ``````````````````````````````````````````````````
 where `R` is the set of addresses reachable from a given expression:
 `````indent```````````````````````````````````````
@@ -143,10 +143,10 @@ R-Val(⟨[λ](x).e,ρ⟩) := {ρ(x) | y ∈ FV([λ](x).e)}
 `FV(e)` computes the free variables for an expression `e`.
 `R-Val` computes the addresses reachable from a value.
 
-Analagously, `κR` is the set of addresses reachable from a given continuation address:
+Analagously, `KR` is the set of addresses reachable from a given continuation address:
 `````indent```````````````````````````````````````
-κR[_] ∈ KStore → KAddr → 𝒫(KAddr)
-κR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ {π₂(κσ(κl)) | κl ∈ κθ}
+KR[_] ∈ KStore → KAddr → 𝒫(KAddr)
+KR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ {π₂(κσ(κl)) | κl ∈ κθ}
 ``````````````````````````````````````````````````
 
 # Monadic Interpreter
@@ -186,8 +186,7 @@ We use the monad laws to reason about our implementation in the absence of a par
 `````indent```````````````````````````````````````
 bind-unit₁ : bind(return(a))(k) = k(a)
 bind-unit₂ : bind(m)(return) = m
-bind-associativity : 
-  bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
+bind-assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 
 These operators capture the essence of the explicit state-passing and set comprehension aspects of the interpreter.
@@ -234,9 +233,9 @@ which have the following laws:
 ⊥-zero₂ : bind(m)(λ(a).⟨0⟩) = ⟨0⟩
 ⊥-unit₁ : ⟨0⟩ ⟨+⟩ m = m
 ⊥-unit₂ : m ⟨+⟩ ⟨0⟩ = m 
-+-associativity : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
-+-commutativity : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
-+-distributivity : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
++-assoc : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
++-comm : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
++-dist : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
 ``````````````````````````````````````````````````
 
 The laws for monads, state and nondeterminism are important.
@@ -247,41 +246,54 @@ They enable us to argue that our interpreter is correct w.r.t. the concrete sema
 To abstract the value space we require the type `Val` be an opaque parameter
 We need only require that `Val` is a join-semilattice:
 
-    ⊥ : Val
-    ⊔ : Val × Val → Val
+`````align````````````````````````````````````````
+⊥ : Val
+_⊔_ : Val × Val → Val
+``````````````````````````````````````````````````
 
 The interface for integers consists of introduction and elimiation rules:
 
-    int-I : ℤ → Val
-    int-if0-E : Val → 𝒫(Bool)
+`````align````````````````````````````````````````
+int-I : ℤ → Val
+int-if0-E : Val → 𝒫(Bool)
+``````````````````````````````````````````````````
 
 The laws for this interface are designed to induce a Galois connection between `ℤ` and `Val`:
 
-    {true}  ⊑ int-if0-E(int-I(i))     if i = 0
-    {false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
-
-    v ⊒ `bigjoin`_{b ∈ int-if0-E(v)} θ(b)
-      where θ(true)  = int-I(0)                                      
-            θ(false) = `bigjoin`_{i ∈ ℤ | i ≠ 0} int-I(i)
+`````indent```````````````````````````````````````
+{true}  ⊑ int-if0-E(int-I(i))     if i = 0
+{false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
+v ⊒ ⨆⸤b ∈ int-if0-E(v)⸥ θ(b)
+  where θ(true)  = int-I(0)                                      
+        θ(false) = ⨆⸤i ∈ ℤ | i ≠ 0⸥ int-I(i)
+``````````````````````````````````````````````````
 
 Additionally we must abstract closures:
 
-    clo-I : Clo → Val
-    clo-E : Val → 𝒫(Clo)
+`````indent```````````````````````````````````````
+clo-I : Clo → Val
+clo-E : Val → 𝒫(Clo)
+``````````````````````````````````````````````````
 
 which follow similar laws:
 
-    {c} ⊑ clo-E(cloI(c))
-    v ⊑ `bigjoin`_{c ∈ clo-E(v)} clo-I(c)
+`````indent```````````````````````````````````````
+{c} ⊑ clo-E(cloI(c))
+v ⊑ ⨆⸤c ∈ clo-E(v)⸥ clo-I(c)
+``````````````````````````````````````````````````
 
 The denotation for primitive operations `δ` must also be opaque:
 
-    δ⟦_,_,_⟧ : IOp × Val × Val → Val
+`````indent```````````````````````````````````````
+δ⟦_,_,_⟧ : IOp × Val × Val → Val
+``````````````````````````````````````````````````
 
 We can also give soundness laws for `δ` using int-I and int-if0-E:
 
-    int-I(i₁ + i₂) ⊑ δ⟦[+],int-I(i₁),int-I(i₂)⟧
-    int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
+`````indent```````````````````````````````````````
+int-I(i₁ + i₂) ⊑ δ⟦[+],int-I(i₁),int-I(i₂)⟧
+int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
+``````````````````````````````````````````````````
 
 Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analagous.
 Introduction functions inject the type into `Val`.
@@ -292,7 +304,9 @@ Introduction and elimination operators must follow a Galois connection disciplin
 
 The interface for abstract time is familiar from the AAM literature:
 
-    tick : Exp × KAddr × Time → Time
+`````indent```````````````````````````````````````
+tick : Exp × KAddr × Time → Time
+``````````````````````````````````````````````````
 
 In traditional AAM, `tick` is defined to have access to all of `Σ`.
 This comes from the generality of the framework--to account for all possibile `tick` functions.
@@ -309,8 +323,10 @@ This induces `Store` and `KStore` to join when binding new values to in-use addr
 
 The state space for our interpreter will therefore use the following domain for `Store` and `KStore`:
 
-    σ  ∈ Store  : Addr → Val
-    κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
+`````indent```````````````````````````````````````
+σ  ∈ Store  : Addr → Val
+κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
+``````````````````````````````````````````````````
 
 We have already established a join-semilattice structure for `Val`.
 Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
@@ -323,108 +339,114 @@ Before defining the interpreter we define some helper functions which interact w
 
 First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `⟨0⟩`, which we name `↑ₚ`:
 
-    ↑ₚ : ∀ α, 𝒫(α) → M(α)
-    ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
+`````indent```````````````````````````````````````
+↑ₚ : ∀ α, 𝒫(α) → M(α)
+↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
+``````````````````````````````````````````````````
 
 We introduce monadic helper functions for allocation and manipulating time:
 
-    allocM : Var → M(Addr)
-    allocM(x) := do
-      τ ← get-Time
-      return(x,τ)
-
-    κallocM : M(KAddr)
-    κallocM := do
-      τ ← get-Time
-      return(τ)
-
-    tickM : Exp → M(1)
-    tickM(e) = do
-      τ ← get-Time
-      κl ← get-KAddr
-      put-Time(tick(e,κl,τ))
+`````indent```````````````````````````````````````
+allocM : Var → M(Addr)
+allocM(x) := do
+  τ ← get-Time
+  return(x,τ)
+κallocM : M(KAddr)
+κallocM := do
+  τ ← get-Time
+  return(τ)
+tickM : Exp → M(1)
+tickM(e) = do
+  τ ← get-Time
+  κl ← get-KAddr
+  put-Time(tick(e,κl,τ))
+``````````````````````````````````````````````````
 
 Finally we introduce helper functions for manipulating stack frames:
-      
-    push : Frame → M(1)
-    push(fr) := do
-      κl ← get-KAddr
-      κσ ← get-KStore
-      κl' ← κallocM
-      put-KStore(κσ `join` [κl' ↦ {fr∷κl}])
-      put-KAddr(κl')
 
-    pop : M(Frame)
-    pop := do
-      κl ← get-KAddr
-      κσ ← get-KStore
-      fr∷κl' ← ↑ₚ(κσ(κl))
-      put-KAddr(κl')
-      return(fr)
+`````indent```````````````````````````````````````
+push : Frame → M(1)
+push(fr) := do
+  κl ← get-KAddr
+  κσ ← get-KStore
+  κl' ← κallocM
+  put-KStore(κσ ⊔ [κl' ↦ {fr∷κl}])
+  put-KAddr(κl')
+pop : M(Frame)
+pop := do
+  κl ← get-KAddr
+  κσ ← get-KStore
+  fr∷κl' ← ↑ₚ(κσ(κl))
+  put-KAddr(κl')
+  return(fr)
+``````````````````````````````````````````````````
 
 We can now write a monadic interpreter for `λIF` using these monadic effects.
 
-    A⟦_⟧ ∈ Atom → M(Val)
-    A⟦i⟧ := return(int-I(i))
-    A⟦x⟧ := do
-      ρ ← get-Env
+`````indent```````````````````````````````````````
+A⟦_⟧ ∈ Atom → M(Val)
+A⟦i⟧ := return(int-I(i))
+A⟦x⟧ := do
+  ρ ← get-Env
+  σ ← get-Store
+  l ← ↑ₚ(ρ(x))
+  return(σ(x))
+A⟦[λ](x).e⟧ := do
+  ρ ← get-Env
+  return(clo-I(⟨[λ](x).e,ρ⟩))
+step : Exp → M(Exp)
+step(e₁ ⊙ e₂) := do
+  tickM(e₁ ⊙ e₂)
+  push(⟨□ ⊙ e₂⟩)
+  return(e₁)
+step(a) := do
+  tickM(a)
+  fr ← pop
+  v ← A⟦a⟧
+  case fr of
+    ⟨□ ⊙ e⟩ → do
+      push(⟨v ⊙ □⟩)
+      return(e)
+    ⟨v' @ □⟩ → do
+      ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
+      l ← alloc(x)
       σ ← get-Store
-      l ← ↑ₚ(ρ(x))
-      return(σ(x))
-    A⟦[λ](x).e⟧ := do
-      ρ ← get-Env
-      return(clo-I(⟨[λ](x).e,ρ⟩))
-
-    step : Exp → M(Exp)
-    step(e₁ ⊙ e₂) := do
-      tickM(e₁ ⊙ e₂)
-      push(⟨□ ⊙ e₂⟩)
-      return(e₁)
-    step(a) := do
-      tickM(a)
-      fr ← pop
-      v ← A⟦a⟧
-      case fr of
-        ⟨□ ⊙ e⟩ → do
-          push(⟨v ⊙ □⟩)
-          return(e)
-        ⟨v' @ □⟩ → do
-          ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
-          l ← alloc(x)
-          σ ← get-Store
-          put-Env(ρ'[x↦l])
-          put-Store(σ[l↦v])
-          return(e)
-        ⟨v' ⊕ □⟩ → do
-          return(δ(⊕,v',v))
-        ⟨if0(□){e₁}{e₂}⟩ → do
-          b ← ↑ₚ(int-if0-E(v))
-          if(b) then return(e₁) else return(e₂)
+      put-Env(ρ'[x↦l])
+      put-Store(σ[l↦v])
+      return(e)
+    ⟨v' ⊕ □⟩ → do
+      return(δ(⊕,v',v))
+    ⟨if0(□){e₁}{e₂}⟩ → do
+      b ← ↑ₚ(int-if0-E(v))
+      if(b) then return(e₁) else return(e₂)
+``````````````````````````````````````````````````
 
 We also implement abstract garbage collection monadically:
 
-    gc : Exp → M(1)
-    gc(e) := do
-      ρ ← get-Env
-      σ ← get-Store
-      κσ ← get-KStore
-      l*₀ ← R₀(ρ,e)
-      κl₀ ← get-KAddr
-      let l*' := μ(θ). l*₀ ∪ θ ∪ R[σ](θ)
-      let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ κR[κσ](κθ)
-      put-Store({l ↦ σ(l) | l ∈ l*'})
-      put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
+`````indent```````````````````````````````````````
+gc : Exp → M(1)
+gc(e) := do
+  ρ ← get-Env
+  σ ← get-Store
+  κσ ← get-KStore
+  l*₀ ← R₀(ρ,e)
+  κl₀ ← get-KAddr
+  let l*' := μ(θ). l*₀ ∪ θ ∪ R[σ](θ)
+  let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ KR[κσ](κθ)
+  put-Store({l ↦ σ(l) | l ∈ l*'})
+  put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
+``````````````````````````````````````````````````
 
-where `R₀` is defined as before and `R`, `κR` and `R-Clo` are defined:
+where `R₀` is defined as before and `R`, `KR` and `R-Clo` are defined:
 
-    R : Store → 𝒫(Addr) → 𝒫(Addr)
-    R[σ](θ) := { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
-
-    R-Clo : Clo → 𝒫(Addr)
-    R-Clo(⟨[λ](x).e,ρ⟩) := { ρ(x) | x ∈ FV([λ](x).e) }
-
-    κR : KStore → 𝒫(KAddr) → 𝒫(KAddr)
-    κR[σ](κθ) := { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
+`````indent```````````````````````````````````````
+R : Store → 𝒫(Addr) → 𝒫(Addr)
+R[σ](θ) := { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
+R-Clo : Clo → 𝒫(Addr)
+R-Clo(⟨[λ](x).e,ρ⟩) := { ρ(x) | x ∈ FV([λ](x).e) }
+KR : KStore → 𝒫(KAddr) → 𝒫(KAddr)
+KR[σ](κθ) := { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
+``````````````````````````````````````````````````
 
 There is one last parameter to our development: a connection between our monadic interpreter and a state space transition system.
 We state this connection formally as a Galois connection `(Σ → Σ)α⇄γ(Exp → M(Exp))`.
@@ -435,7 +457,9 @@ For example, given concrete and abstract versions of `Val`, we carry `CVal α⇄
 
 A collecting-semantics execution of our interpreter is defined as:
 
-    μ(ς). ς₀ `join` ς `join` γ(step)(ς)
+`````indent```````````````````````````````````````
+μ(ς). ς₀ ⊔ ς ⊔ γ(step)(ς)
+``````````````````````````````````````````````````
 
 where `ς₀` is the injection of the initial program `e` into `Σ `.
 
@@ -444,58 +468,70 @@ where `ς₀` is the injection of the initial program `e` into `Σ `.
 To recover a concrete interpreter we instantiate `M` to a path-sensitive monad: `Mᵖˢ`.
 The path sensitive monad is a simple powerset of products:
 
-    ψ ∈ Ψᵖˢ := Env × Store × KAddr × KStore × Time
-    m ∈ Mᵖˢ(α) := Ψᵖˢ → 𝒫(α × Ψᵖˢ)
+`````indent```````````````````````````````````````
+ψ ∈ Ψᵖˢ := Env × Store × KAddr × KStore × Time
+m ∈ Mᵖˢ(α) := Ψᵖˢ → 𝒫(α × Ψᵖˢ)
+``````````````````````````````````````````````````
 
 Monadic operators `bindᵖˢ` and `returnᵖˢ` are defined to encapsulate both state-passing and set-flattening:
 
-    bindᵖˢ : ∀ α, Mᵖˢ(α) → (α → Mᵖˢ(β)) → Mᵖˢ(β)
-    bindᵖˢ(m)(f)(ψ) := {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
-
-    returnᵖˢ : ∀ α, α → Mᵖˢ(α)
-    returnᵖˢ(a)(ψ) := {(a,ψ)}
+`````indent```````````````````````````````````````
+bindᵖˢ : ∀ α, Mᵖˢ(α) → (α → Mᵖˢ(β)) → Mᵖˢ(β)
+bindᵖˢ(m)(f)(ψ) := {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
+returnᵖˢ : ∀ α, α → Mᵖˢ(α)
+returnᵖˢ(a)(ψ) := {(a,ψ)}
+``````````````````````````````````````````````````
 
 State effects merely return singleton sets:
 
-    get-Envᵖˢ : Mᵖˢ(Env)
-    get-Envᵖˢ(⟨ρ,σ,κ,τ⟩) := {(ρ,⟨ρ,σ,κ,τ⟩)}
-
-    put-Envᵖˢ : Env → 𝒫(1)
-    put-Envᵖˢ(ρ')(⟨ρ,σ,κ,τ⟩) := {(1,⟨ρ',σ,κ,τ⟩)}
+`````indent```````````````````````````````````````
+get-Envᵖˢ : Mᵖˢ(Env)
+get-Envᵖˢ(⟨ρ,σ,κ,τ⟩) := {(ρ,⟨ρ,σ,κ,τ⟩)}
+put-Envᵖˢ : Env → 𝒫(1)
+put-Envᵖˢ(ρ')(⟨ρ,σ,κ,τ⟩) := {(1,⟨ρ',σ,κ,τ⟩)}
+``````````````````````````````````````````````````
 
 Nondeterminism effects are implemented with set union:
 
-    ⟨0⟩ᵖˢ : ∀ α, Mᵖˢ(α)
-    ⟨0⟩ᵖˢ(ψ) := {}
-
-    _⟨+⟩ᵖˢ_ : ∀ α, Mᵖˢ(α) × Mᵖˢ(α) → Mᵖˢ(α)
-    (m₁ ⟨+⟩ᵖˢ m₂)(ψ) := m₁(ψ) ∪ m₂(ψ)
+`````indent```````````````````````````````````````
+⟨0⟩ᵖˢ : ∀ α, Mᵖˢ(α)
+⟨0⟩ᵖˢ(ψ) := {}
+_⟨+⟩ᵖˢ_ : ∀ α, Mᵖˢ(α) × Mᵖˢ(α) → Mᵖˢ(α)
+(m₁ ⟨+⟩ᵖˢ m₂)(ψ) := m₁(ψ) ∪ m₂(ψ)
+``````````````````````````````````````````````````
 
 _Proposition: Mᵖˢ satisfies monad, state, and nondeterminism laws._
 
 For the value space `CVal` we use a powerset of semantic values `Val`:
 
-    v ∈ CVal := 𝒫(Val)
+`````indent```````````````````````````````````````
+v ∈ CVal := 𝒫(Val)
+``````````````````````````````````````````````````
 
 with introduction and elimination rules:
 
-    int-I : ℤ → CVal
-    int-I(i) := {i}
-
-    int-if0-E : CVal → 𝒫(Bool)
-    int-if0-E(v) := { true | 0 ∈ v } ∪ { false | i ∈ v ∧ i ≠ 0 }
+`````indent```````````````````````````````````````
+int-I : ℤ → CVal
+int-I(i) := {i}
+int-if0-E : CVal → 𝒫(Bool)
+int-if0-E(v) := { true | 0 ∈ v } ∪ { false | i ∈ v ∧ i ≠ 0 }
+``````````````````````````````````````````````````
 
 and `δ` to manipulate abstract values:
 
-    δ⟦_,_,_⟧ : IOp × CVal × CVal → CVal
-    δ⟦[+],v₁,v₂⟧ := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
-    δ⟦[-],v₁,v₂⟧ := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+`````indent```````````````````````````````````````
+δ⟦_,_,_⟧ : IOp × CVal × CVal → CVal
+δ⟦[+],v₁,v₂⟧ := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+δ⟦[-],v₁,v₂⟧ := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+``````````````````````````````````````````````````
 
 Abstract time and addresses are program contours in the concrete space:
 
-    τ  ∈ Time  := (Exp × KAddr)*
-    l  ∈ Addr  := Var × Time
-    κl ∈ KAddr := Time
+`````indent```````````````````````````````````````
+τ  ∈ Time  := (Exp × KAddr)*
+l  ∈ Addr  := Var × Time
+κl ∈ KAddr := Time
+``````````````````````````````````````````````````
 
 Operators `alloc` and `κalloc` are merely identity functions, and `tick` is just a cons operator.
 
@@ -503,15 +539,18 @@ Finally, we must establish a Galois connection between `Exp → Mᵖˢ(Exp)` and
 The state space `Σ` depends only on the monad `Mᵖˢ` and is independent of the choice for `CVal`, Addr or Time.
 For the path sensitive monad `Mᵖˢ` , `Σᵖˢ` is defined:
 
-    Σᵖˢ := 𝒫(Exp × Ψᵖˢ)
+`````indent```````````````````````````````````````
+Σᵖˢ := 𝒫(Exp × Ψᵖˢ)
+``````````````````````````````````````````````````
 
 and the Galois connection is:
 
-    γᵖˢ : (Exp → Mᵖˢ(Exp)) → Σᵖˢ → Σᵖˢ
-    γᵖˢ(f)(eψ*) := {(e,ψ') | (e,ψ') ∈ f(e)(ψ) ; (e,ψ) ∈ eψ*}
-    
-    αᵖˢ : (Σᵖˢ → Σᵖˢ) → Exp → Mᵖˢ(Exp)
-    αᵖˢ(f)(e)(ψ) := f({(e,ψ)})
+`````indent```````````````````````````````````````
+γᵖˢ : (Exp → Mᵖˢ(Exp)) → Σᵖˢ → Σᵖˢ
+γᵖˢ(f)(eψ*) := {(e,ψ') | (e,ψ') ∈ f(e)(ψ) ; (e,ψ) ∈ eψ*}
+αᵖˢ : (Σᵖˢ → Σᵖˢ) → Exp → Mᵖˢ(Exp)
+αᵖˢ(f)(e)(ψ) := f({(e,ψ)})
+``````````````````````````````````````````````````
 
 _Proposition: `γᵖˢ` and `αᵖˢ` form an isomorphism._
 
@@ -519,47 +558,60 @@ This implies Galois connnection.
 
 The injection `ςᵖˢ₀` for a program `e` is:
 
-    ςᵖˢ₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}
+`````indent```````````````````````````````````````
+ςᵖˢ₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}
+``````````````````````````````````````````````````
 
 To arrive at an abstract interpreter we seek a finite state space.
 First we abstract the value space `Val` as `AVal`, which only tracks integer parity:
 
-    AVal := 𝒫(Clo + {-,0,+})
+`````indent```````````````````````````````````````
+AVal := 𝒫(Clo + {-,0,+})
+``````````````````````````````````````````````````
 
 Introduction and elimination functions are defined:
 
-    int-I : ℤ → AVal
-    int-I(i) := [-] if i < 0
-                [0] if i = 0
-                [+] if i > 0
-
-    int-if0-E : AVal → 𝒫(Bool)
-    int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ + ∈ v }
+`````indent```````````````````````````````````````
+int-I : ℤ → AVal
+int-I(i) := [-] if i < 0
+            [0] if i = 0
+            [+] if i > 0
+int-if0-E : AVal → 𝒫(Bool)
+int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ + ∈ v }
+``````````````````````````````````````````````````
 
 Introduction and elmination for `Clo` is identical to the concrete domain.
 
 The abstract `δ` operator is defined:
 
-    Aδ : IOp × AVal × AVal → AVal 
-    Aδ(+,v₁,v₂) := { p     | [0] ∈ v₁ ∧ p ∈ v₂ }
-                 ∪ { p     | p ∈ v₁ ∧ [0] ∈ v₂ }
-                 ∪ { [+]     | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
-                 ∪ { [-]     | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
-                 ∪ { [-],[0],[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
-                 ∪ { [-],[0[,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
+`````indent```````````````````````````````````````
+Aδ : IOp × AVal × AVal → AVal 
+Aδ(+,v₁,v₂) := { p     | [0] ∈ v₁ ∧ p ∈ v₂ }
+             ∪ { p     | p ∈ v₁ ∧ [0] ∈ v₂ }
+             ∪ { [+]     | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
+             ∪ { [-]     | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
+             ∪ { [-],[0],[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
+             ∪ { [-],[0[,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
+``````````````````````````````````````````````````
 
 Next we abstract `Time` to the finite domain of a k-truncated list of execution contexts:
 
-    Time := (Exp × KAddr)*ₖ
+`````indent```````````````````````````````````````
+Time := (Exp × KAddr)*ₖ
+``````````````````````````````````````````````````
 
 The `tick` operator becomes cons followed by k-truncation:
 
-    tick : Exp × KAddr × Time → Time
-    tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
+`````indent```````````````````````````````````````
+tick : Exp × KAddr × Time → Time
+tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
+``````````````````````````````````````````````````
 
 After substituting abstract versions for `Val` and `Time`, the following state space for `Σᵖˢ` becomes finite:
 
-    𝒫(Exp × AEnv × AStore × AKAddr × AKStore × ATime)
+`````indent```````````````````````````````````````
+𝒫(Exp × AEnv × AStore × AKAddr × AKStore × ATime)
+``````````````````````````````````````````````````
 
 and the least-fixed-point iteration of the collecting semantics provides a sound and computable analysis.
 
@@ -568,58 +620,67 @@ and the least-fixed-point iteration of the collecting semantics provides a sound
 We are able to recover a flow-insensitive interpreter through a new definition for `M`: `Mᶠⁱ`.
 To do this we pull `Store` out of the powerset and use its join-semilattice structure:
 
-    Ψᶠⁱ := Env × KAddr × KStore × Time
-    Mᶠⁱ(α) := Ψᶠⁱ × Store × 𝒫(α × Ψᶠⁱ) × Store
+`````indent```````````````````````````````````````
+Ψᶠⁱ := Env × KAddr × KStore × Time
+Mᶠⁱ(α) := Ψᶠⁱ × Store × 𝒫(α × Ψᶠⁱ) × Store
+``````````````````````````````````````````````````
 
 The monad operator `bindᶠⁱ` must merge multiple stores back to one:
  
-    bindᶠⁱ : ∀ α β, Mᶠⁱ(α) → (α → Mᶠⁱ(β)) → Mᶠⁱ(β)
-    bindᶠⁱ(m)(f)(ψ,σ) := ({bs₁₁ .. bsₙ₁ .. bsₙₘ},σ₁ `join` .. `join` σₙ)
-      where
-        ({(a₁,ψ₁) .. (aₙ,ψₙ)},σ') := m(ψ,σ)
-        ({bψᵢ₁ .. bψᵢₘ},σᵢ) := f(aᵢ)(ψᵢ,σ')
+`````indent```````````````````````````````````````
+bindᶠⁱ : ∀ α β, Mᶠⁱ(α) → (α → Mᶠⁱ(β)) → Mᶠⁱ(β)
+bindᶠⁱ(m)(f)(ψ,σ) := ({bs₁₁ .. bsₙ₁ .. bsₙₘ},σ₁ ⊔ .. ⊔ σₙ)
+  where
+    ({(a₁,ψ₁) .. (aₙ,ψₙ)},σ') := m(ψ,σ)
+    ({bψᵢ₁ .. bψᵢₘ},σᵢ) := f(aᵢ)(ψᵢ,σ')
+``````````````````````````````````````````````````
  
 The unit for `bindᶠⁱ`:
 
-    returnᶠⁱ : ∀ α, α → Mᶠⁱ(α)
-    returnᶠⁱ(a)(ψ,σ) := ({a,ψ},σ)
+`````indent```````````````````````````````````````
+returnᶠⁱ : ∀ α, α → Mᶠⁱ(α)
+returnᶠⁱ(a)(ψ,σ) := ({a,ψ},σ)
+``````````````````````````````````````````````````
 
 State effects `get-Env` and `put-Env`:
  
-    get-Envᶠⁱ : Mᶠⁱ(Env)
-    get-Envᶠⁱ(⟨ρ,κ,τ⟩,σ) := ({(ρ,⟨ρ,κ,τ⟩)},σ)
- 
-    put-Envᶠⁱ : Env → Mᶠⁱ(1)
-    put-Envᶠⁱ(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
+`````indent```````````````````````````````````````
+get-Envᶠⁱ : Mᶠⁱ(Env)
+get-Envᶠⁱ(⟨ρ,κ,τ⟩,σ) := ({(ρ,⟨ρ,κ,τ⟩)},σ)
+put-Envᶠⁱ : Env → Mᶠⁱ(1)
+put-Envᶠⁱ(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
+``````````````````````````````````````````````````
 
 State effects `get-Store` and `put-Store`:
 
-    get-Storeᶠⁱ : Mᶠⁱ(Env)
-    get-Storeᶠⁱ(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
-
-    put-Storeᶠⁱ : Store → Mᶠⁱ(1)
-    put-Storeᶠⁱ(σ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ,κ,τ⟩)},σ')
+`````indent```````````````````````````````````````
+get-Storeᶠⁱ : Mᶠⁱ(Env)
+get-Storeᶠⁱ(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
+put-Storeᶠⁱ : Store → Mᶠⁱ(1)
+put-Storeᶠⁱ(σ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ,κ,τ⟩)},σ')
+``````````````````````````````````````````````````
 
 Nondeterminism operations:
  
-    ⟨0⟩ᶠⁱ : ∀ α, M(α)
-    ⟨0⟩ᶠⁱ(ψ,σ) := ({}, ⊥)
- 
-    _⟨+⟩_ : ∀ α, M(α) × M(α) → M α 
-    (m₁ ⟨+⟩ m₂)(ψ,σ) := (aψ*₁ ∪ aψ*₂,σ₁ `join` σ₂)  
-      where (aψ*ᵢ,σᵢ) := mᵢ(ψ,σ)
+`````indent```````````````````````````````````````
+⟨0⟩ᶠⁱ : ∀ α, M(α)
+⟨0⟩ᶠⁱ(ψ,σ) := ({}, ⊥)
+_⟨+⟩_ : ∀ α, M(α) × M(α) → M α 
+(m₁ ⟨+⟩ m₂)(ψ,σ) := (aψ*₁ ∪ aψ*₂,σ₁ ⊔ σ₂)  
+  where (aψ*ᵢ,σᵢ) := mᵢ(ψ,σ)
+``````````````````````````````````````````````````
 
 Finally, the Galois connection for relating `Mᶠⁱ` to a state space transition over `Σᶠⁱ`:
 
-    Σᶠⁱ := 𝒫(Exp × Ψᶠⁱ) × Store
-
-    γᶠⁱ : (Exp → Mᶠⁱ(Exp)) → (Σᶠⁱ → Σᶠⁱ)
-    γᶠⁱ(f)(eψ*,σ) := ({eψ₁₁ .. eψₙ₁  .. eψₙₘ}, σ₁ `join` .. `join` σₙ)
-      where {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ*
-            ({eψᵢ₁ .. eψᵢₘ},σᵢ) := f(eᵢ)(ψᵢ,σ)
-
-    αᶠⁱ  : (Σᶠⁱ → Σᶠⁱ) → (Exp → Mᶠⁱ(Exp))
-    αᶠⁱ(f)(e)(ψ,σ) := f({(e,ψ)},σ)
+`````indent```````````````````````````````````````
+Σᶠⁱ := 𝒫(Exp × Ψᶠⁱ) × Store
+γᶠⁱ : (Exp → Mᶠⁱ(Exp)) → (Σᶠⁱ → Σᶠⁱ)
+γᶠⁱ(f)(eψ*,σ) := ({eψ₁₁ .. eψₙ₁  .. eψₙₘ}, σ₁ ⊔ .. ⊔ σₙ)
+  where {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ*
+        ({eψᵢ₁ .. eψᵢₘ},σᵢ) := f(eᵢ)(ψᵢ,σ)
+αᶠⁱ  : (Σᶠⁱ → Σᶠⁱ) → (Exp → Mᶠⁱ(Exp))
+αᶠⁱ(f)(e)(ψ,σ) := f({(e,ψ)},σ)
+``````````````````````````````````````````````````
 
 _Proposition: `γᶠⁱ` and `αᶠⁱ` form an isomorphism._
 
@@ -645,67 +706,77 @@ Toward this goal we introduce a compositional framework for constructing monads 
 There are two types of monadic effects used in the monadic interprer: state and nondeterminism.
 There is a monad transformer for adding state effects to existing monads, called the state monad tranformer:
 
-    Sₜ[_] : (Type → Type) → (Type → Type)
-    Sₜ[s](m)(α) := s → m(α × s)
+`````indent```````````````````````````````````````
+Sₜ[_] : (Type → Type) → (Type → Type)
+Sₜ[s](m)(α) := s → m(α × s)
+``````````````````````````````````````````````````
 
 Monadic actions `bind` and `return` (and their laws) use the underlying monad:
 
-    bindˢ : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
-    bindˢ(m)(f)(s) := do
-      (x,s') ←ᵐ m(s)
-      f(x)(s')
-
-    returnˢ : ∀ α m, α → Sₜ[s](m)(α)
-    returnˢ(x)(s) := returnᵐ(x,s)
+`````indent```````````````````````````````````````
+bindˢ : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
+bindˢ(m)(f)(s) := do
+  (x,s') ←ᵐ m(s)
+  f(x)(s')
+returnˢ : ∀ α m, α → Sₜ[s](m)(α)
+returnˢ(x)(s) := returnᵐ(x,s)
+``````````````````````````````````````````````````
 
 State actions `get` and `put` expose the cell of state while interacting with the underlying monad `m`:
 
-    getˢ : Sₜ[s](m)(s)
-    getˢ(s) := returnᵐ(s,s)
-
-    putˢ : s → Sₜ[s](m)(1)
-    putˢ(s')(s) := returnᵐ(1,s')
+`````indent```````````````````````````````````````
+getˢ : Sₜ[s](m)(s)
+getˢ(s) := returnᵐ(s,s)
+putˢ : s → Sₜ[s](m)(1)
+putˢ(s')(s) := returnᵐ(1,s')
+``````````````````````````````````````````````````
 
 and the state monad transformer is able to transport nondeterminism effects from the underlying monad:
 
-    ⟨0⟩ : ∀ α, Sₜ[s](m)(α)
-    ⟨0⟩(s) := ⟨0⟩ᵐ 
+`````indent```````````````````````````````````````
+⟨0⟩ : ∀ α, Sₜ[s](m)(α)
+⟨0⟩(s) := ⟨0⟩ᵐ 
+_⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
+(m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ᵐ m₂(s) 
+``````````````````````````````````````````````````
 
-    _⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
-    (m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ᵐ m₂(s) 
-      
 The state monad transformer was introduced by Mark P. Jones in [[X](http://web.cecs.pdx.edu/~mpj/pubs/springschool95.pdf)].
 
 We develop a new monad transformer for nondeterminism which can compose with state in both directions.
 
-    𝒫ₜ : (Type → Type) → (Type → Type)
-    𝒫ₜ(m)(α) := m(𝒫(α))
+`````indent```````````````````````````````````````
+𝒫ₜ : (Type → Type) → (Type → Type)
+𝒫ₜ(m)(α) := m(𝒫(α))
+``````````````````````````````````````````````````
 
 Monadic actions `bind` and `return` require that the underlying monad be a join-semilattice functor:
 
-    bindᵖ : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
-    bindᵖ(m)(f) := do
-      {x₁ .. xₙ} ←ᵐ m
-      f(x₁) `join`ᵐ .. `join`ᵐ f(xₙ)
-
-    returnᵖ : ∀ α, α → 𝒫ₜ(m)(α)
-    returnᵖ(x) := returnᵐ({x})
+`````indent```````````````````````````````````````
+bindᵖ : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
+bindᵖ(m)(f) := do
+  {x₁ .. xₙ} ←ᵐ m
+  f(x₁) ⊔ᵐ .. ⊔ᵐ f(xₙ)
+returnᵖ : ∀ α, α → 𝒫ₜ(m)(α)
+returnᵖ(x) := returnᵐ({x})
+``````````````````````````````````````````````````
 
 Nondterminism actions `⟨0⟩ᵐ and `⟨+⟩ᵐ interact with the join-semilattice functorality of the underlying monad `m`:
 
-    ⟨0⟩ᵖ : ∀ α, 𝒫ₜ(m)(α)
-    ⟨0⟩ᵖ := ⊥ᵐ
-
-    _⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
-    m₁ ⟨+⟩ᵖ m₂ := m₁ `join`ᵐ m₂
+`````indent```````````````````````````````````````
+⟨0⟩ᵖ : ∀ α, 𝒫ₜ(m)(α)
+⟨0⟩ᵖ := ⊥ᵐ
+_⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
+m₁ ⟨+⟩ᵖ m₂ := m₁ ⊔ᵐ m₂
+``````````````````````````````````````````````````
 
 and the nondeterminism monad transformer is able to transport state effects from the underlying monad:
 
-    getᵖ : 𝒫ₜ(m)(s)
-    getᵖ = mapᵖ(λ(s).{s})(getᵐ)
-
-    putᵖ : s → 𝒫ₜ(m)(s)
-    putᵖ(s) = mapᵖ(λ(1).{1})(putᵐ(s))
+`````indent```````````````````````````````````````
+getᵖ : 𝒫ₜ(m)(s)
+getᵖ = mapᵖ(λ(s).{s})(getᵐ)
+putᵖ : s → 𝒫ₜ(m)(s)
+putᵖ(s) = mapᵖ(λ(1).{1})(putᵐ(s))
+``````````````````````````````````````````````````
 
 _Proposition: `𝒫ₜ` is a transformer for monads which are also join semi-lattice functors._
 
@@ -713,34 +784,44 @@ Our correctness framework requires that monadic actions in `M` map to state spac
 We establish this property in addition to monadic actions and effects for state and nondeterminism monad transformers.
 We call this property `MonadStep`, where monadic acations in `M` admit a Galois connection to transitions in `Σ`:
 
-    mstep : ∀ α β, (α → M(β)) α⇄γ (Σ(α) → Σ(β))
+`````indent```````````````````````````````````````
+mstep : ∀ α β, (α → M(β)) α⇄γ (Σ(α) → Σ(β))
+``````````````````````````````````````````````````
 
 We now show that the monad transformers for state and nondeterminism transport this property in addition to monadic operations.
 
 For the state monad transformer `Sₜ[s]` mstep is defined:
 
-    mstepˢ-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σᵐ(α × s) → Σᵐ(β × s))
-    mstepˢ-γ(f) := mstepᵐ-γ(λ(a,s). f(a)(s))
+`````indent```````````````````````````````````````
+mstepˢ-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σᵐ(α × s) → Σᵐ(β × s))
+mstepˢ-γ(f) := mstepᵐ-γ(λ(a,s). f(a)(s))
+``````````````````````````````````````````````````
 
 For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
 One where `Σ` is `Σᵐ ∘ P`:
 
-    mstepᵖ₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σᵐ(𝒫(α)) → Σᵐ(𝒫(β)))
-    mstepᵖ₁-γ(f) := mstepᵐ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+`````indent```````````````````````````````````````
+mstepᵖ₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σᵐ(𝒫(α)) → Σᵐ(𝒫(β)))
+mstepᵖ₁-γ(f) := mstepᵐ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+``````````````````````````````````````````````````
 
 and one where `Σ` is `P ∘ Σᵐ`:
 
-    mstepᵖ₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
-    mstepᵖ₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
-      where 
-        commuteP : ∀ α, Σᵐ(𝒫(α)) → 𝒫(Σᵐ(α))
-        aΣPᵢ := commuteP-γ(mstepᵐ-γ(f)(ςᵢ)) 
+`````indent```````````````````````````````````````
+mstepᵖ₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
+mstepᵖ₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
+  where 
+    commuteP : ∀ α, Σᵐ(𝒫(α)) → 𝒫(Σᵐ(α))
+    aΣPᵢ := commuteP-γ(mstepᵐ-γ(f)(ςᵢ)) 
+``````````````````````````````````````````````````
 
 The operation `computeP` must be defined for the underlying `Σᵐ`.
 This property is true for the identiy monad, and is preserved by `Sₜ[s]` when `Σᵐ` is also a functor:
 
-    commuteP-γ : ∀ α, Σᵐ(𝒫(α) × s) → 𝒫(Σᵐ(α × s))
-    commuteP-γ := commutePᵐ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
+`````indent```````````````````````````````````````
+commuteP-γ : ∀ α, Σᵐ(𝒫(α) × s) → 𝒫(Σᵐ(α × s))
+commuteP-γ := commutePᵐ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
+``````````````````````````````````````````````````
 
 The `γ` side of commuteP is the only Galois connection mapping that loses information in the `α` direction.
 Therefore, `mstepˢ` and `mstepᵖ₁` are really isomorphism transformers, and `mstepᵖ₂` is the only Galois connection transformer.

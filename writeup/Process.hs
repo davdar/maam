@@ -65,10 +65,12 @@ macroText :: Text -> Text
 macroText = appEndo $ execWriter $ forM_ (reverse allMacros) $ \ (s,r,m) -> do
   let escaped = escapeRegex s
       withMode = case m of
-        Word -> T.concat ["\\<",escaped,"\\>"]
+        Word -> T.concat ["([^-]|^)\\<",escaped,"\\>([^-]|$)"]
         Anywhere -> escaped
       regex = mkRegex $ T.unpack withMode
-      replace = T.unpack $ T.concat [" ", r, " "]
+      replace = T.unpack $ T.concat $ case m of
+        Word -> [" \\1", r, "\\2 "]
+        Anywhere -> [" ", r, " "]
   tell $ Endo $ \ t -> T.pack $ subRegex regex (T.unpack t) replace
 
 main :: IO ()
@@ -95,7 +97,7 @@ stripComments = newlines . map fixEmpties . filter (not . isComment) . T.lines
     fixEmpties s = if T.unpack s =~ ("^\\s*$" :: String) then "" else s
 
 addPars :: Text -> Text
-addPars = newlines . {- addPar . -} T.lines
+addPars = newlines . addPar . T.lines
   where
     addPar :: [Text] -> [Text]
     addPar = intercalate ["\n<!-- -->","\\par","<!-- -->\n"] . splitOn [""]
@@ -189,6 +191,6 @@ mapAllButLast _ [a] = [a]
 mapAllButLast f (x:xs) = f x:mapAllButLast f xs
 
 addAlignEndings :: [Text] -> [Text]
-addAlignEndings = {- mapAllButLast -} map $ \ t -> T.unwords [t, "\\\\"]
+addAlignEndings = mapAllButLast {- map -} $ \ t -> T.unwords [t, "\\\\"]
 
 -- }}}
