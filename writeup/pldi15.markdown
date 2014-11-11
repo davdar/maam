@@ -156,40 +156,38 @@ _~~>ᵍᶜ_ ∈ 𝒫(Σ × Σ)
 
 # Monadic Interpreter
 
-In this section we design a monadic interpreter for the `λIF` language.
-However, we will parameterize the interpreter in AAM[CITE] style.
-When finished, we will be able to recover a concrete interpreter, which respects the concrete semantics, and a family of abstract interpreters.
+In this section we design a monadic interpreter for the `λIF` language which is also parameterizedin AAM[CITE] style.
+When finished, we will be able to recover a concrete interpreter--which respects the concrete semantics--and a family of abstract interpreters.
 
 First we describe the parameters to the interpreter.
 Then we conclude the section with an implementation which is generic to these parameters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
 
-1. The monad.
+1. The monad, novel in this work.
    This is the execution engine of the interpreter and captures the flow-sensitivity of the analysis.
 2. The abstract domain.
-3. Abstract time, which captures the call-site sensitivity of the analysis.
+   For our language is merely an abstraction for integers.
+3. The abstraction for time. 
+   Abstract time captures the call-site sensitivity of the analysis, as introduced by [CITE].
 
+We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
+We will give each of these parameters reasoning principles as we introduce them.
+These reasoning principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
+The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
+An instantiation of the interpreter need only justify that each parameter meets their local interface.
 
+## The Monad
 
+The monad for the interpreter is capturing the _effects_ of interpretation.
+There are two effects we wish to model in the interpreter, state and nondeterminism.
+The state effect will mediate how the interpreter interacts with state cells in the state space, like `Env` and `Store`.
+The nondeterminism effect will mediate the branching of the execution from the interpreter.
+Our result is that path and flow sensitivities can be recovered by altering how these effects interact in the monad.
 
-We next design an interpreter for `λIF` as a monadic interpreter.
-This interpreter will support both concrete and abstract executions.
-To do this, there will be three parameters which the user can instantiate in any way they wish:
+We briefly review monad, state and nondeterminism operators and thier laws.
 
-We place each of these features behind an abstract interface and leave their implementations opaque.
-We will recover specific concrete and abstract interpreters in a later section.
-
-The goal is to implement as much of the interpreter as possible while leaving these things abstract.
-The more we can prove about the interpreter independent of these variables, the more proof-work we'll get for free.
-
-## The Monad Interface
-
-The interpreter will use a monad `M` in two ways.
-First, to manipulate components of the state space (like `Env` and `Store`).
-Second, to exhibit nondeterministic behavior, which is inherent in computable analysis.
-We capture these properties as monadic effects.
-
+### Monad Properties
 To be a monad, a type operator `M` must support the `bind` operation:
 `````indent```````````````````````````````````````
 bind : ∀ α β, M(α) → (α → M(β)) → M(β)
@@ -200,15 +198,16 @@ return : ∀ α, α → M(α)
 ``````````````````````````````````````````````````
 
 We use the monad laws to reason about our implementation in the absence of a particular implementatino of `bind` and `return`:
-
 `````indent```````````````````````````````````````
 bind-unit₁ : bind(return(a))(k) = k(a)
 bind-unit₂ : bind(m)(return) = m
 bind-assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
-
-These operators capture the essence of the explicit state-passing and set comprehension aspects of the interpreter.
-Our interpreter will use these operators and avoid referencing an explicit configuration `ς` or sets of results.
+`bind` and `return` mean something different for each monadic effect class.
+For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
+For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
+These operators capture the essence of the combination of explicit state-passing and set comprehension in the interpreter.
+Our interpreter will use these operators and avoid referencing an explicit configuration `ς` or explicit collections of results.
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
 For example:
@@ -226,26 +225,31 @@ are both just sugar for
 bind(m)(k)
 ``````````````````````````````````````````````````
 
-Interacting with `Env` is achieved through `get-Env` and `put-Env` effects:
+### Monad State Properties
+Interacting with a state component like `Env` is achieved through `get-Env` and `put-Env` effects:
 `````indent``````````````````````````````````````` 
 get-Env : M(Env)
 put-Env : Env → M(1)
 ``````````````````````````````````````````````````
-which have the following laws:
+
+We use the state monad laws to reason about state effects:
 `````indent``````````````````````````````````````` 
 put-put : put-Env(s₁) ; put-Env(s₂) = put-Env(s₂)
 put-get : put-Env(s) ; get-Env = return(s)
 get-put : s ← get-Env ; put-Env(s) = return(1)
 get-get : s₁ ← get-Env ; s₂ ← get-Env ; k(s₁,s₂) = s ← get-Env ; k(s,s)
 ``````````````````````````````````````````````````
-The effects for `get-Store`, `get-KAddr` and `get-Store` are identical.
+The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
+
+### Monad Nondeterminism Properties
 
 Nondeterminism is achieved through operators `⟨0⟩` and `⟨+⟩`:
 `````align```````````````````````````````````````` 
   ⟨0⟩ :  ∀ α, M(α)
 _⟨+⟩_ :  ∀ α, M(α) × M(α) → M(α)
 `````````````````````````````````````````````````` 
-which have the following laws:
+
+We use the nondeterminism laws to reason about nondeterminism effects:
 `````indent```````````````````````````````````````
 ⊥-zero₁ : bind(⟨0⟩)(k) = ⟨0⟩
 ⊥-zero₂ : bind(m)(λ(a).⟨0⟩) = ⟨0⟩
@@ -256,17 +260,16 @@ which have the following laws:
 +-dist : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
 ``````````````````````````````````````````````````
 
-The laws for monads, state and nondeterminism are important.
-They enable us to argue that our interpreter is correct w.r.t. the concrete semantics in the absence of a particular choice of monad.
+## The Abstract Domain
 
-## The Value Space Interface
-
-To abstract the value space we require the type `Val` be an opaque parameter
-We need only require that `Val` is a join-semilattice:
+The abstract domain is encapsulated by the `Val` type in the semantics.
+To parameterize over it, we leave `Val` opaque but require it support various operations.
+There is a constraint on `Val` its-self: it must be a join-semilattice:
 `````align````````````````````````````````````````
   ⊥ :   Val
 _⊔_ :   Val × Val → Val
 ``````````````````````````````````````````````````
+We require `Val` to be a join-semilattice so they can be merged in the `Store`.
 
 The interface for integers consists of introduction and elimiation rules:
 `````align````````````````````````````````````````
@@ -310,6 +313,9 @@ Introduction functions inject the type into `Val`.
 Elimination functions project a finite set of discrete observations.
 Introduction and elimination operators must follow a Galois connection discipline.
 
+Of note is our restraint from allowing operations over `Val` to have monadic effects.
+We set things up specifically in this way so that `Val` and the monad `M` can be varied independent of each other.
+
 ## Abstract Time 
 
 The interface for abstract time is familiar from the AAM literature:
@@ -327,9 +333,12 @@ Remarkably, we need not state laws for `tick`.
 Our interpreter will always merge values which reside at the same address to achieve soundness.
 Therefore, any supplied implementations of `tick` is valid.
 
+## Interpreter Definition
+
+We now present a generic monadic interpreter for `λIF` paramaterized over `M`, `Val` and `Time`.
+
 In moving our semantics to an analysis, we will need to reuse addresses in the state space.
 This induces `Store` and `KStore` to join when binding new values to in-use addresses.
-
 The state space for our interpreter will therefore use the following domain for `Store` and `KStore`:
 `````indent```````````````````````````````````````
 σ  ∈ Store  : Addr → Val
@@ -340,9 +349,6 @@ We have already established a join-semilattice structure for `Val`.
 Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
 For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
 
-## Interpreter Definition
-
-We use the three interfaces from above as opaque parameters to out interpreter.
 Before defining the interpreter we define some helper functions which interact with the underlying monad `M`.
 
 First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `⟨0⟩`, which we name `↑ₚ`:
@@ -351,7 +357,7 @@ First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `retur
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 ``````````````````````````````````````````````````
 
-We introduce monadic helper functions for allocation and manipulating time:
+Allocating addresses and updating time can be implemented using monadic state effects:
 `````indent```````````````````````````````````````
 allocM : Var → M(Addr)
 allocM(x) := do
@@ -368,7 +374,7 @@ tickM(e) = do
   put-Time(tick(e,κl,τ))
 ``````````````````````````````````````````````````
 
-Finally we introduce helper functions for manipulating stack frames:
+Finally, we introduce helper functions for manipulating stack frames:
 `````indent```````````````````````````````````````
 push : Frame → M(1)
 push(fr) := do
@@ -386,7 +392,8 @@ pop := do
   return(fr)
 ``````````````````````````````````````````````````
 
-We can now write a monadic interpreter for `λIF` using these monadic effects.
+To implement our interpreter we define a denotation function for atomic expressions and a step function for compound expressions.
+The denotation for atomic expressions is written as a monadic computation from atomic expresssions to values.
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -398,6 +405,9 @@ A⟦x⟧ := do
 A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
+``````````````````````````````````````````````````
+The step function is a monadic computation from 
+`````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
   tickM(e₁ ⊙ e₂)
