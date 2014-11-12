@@ -26,6 +26,9 @@
 \usepackage{bm}
 \usepackage{stmaryrd}
 \usepackage{galois}
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
 
 \newtheorem{proposition}{Proposition}
 \newtheorem{corollary}{Corollary}
@@ -39,14 +42,17 @@
 
 % Macros {-{
 
-\newcommand\CM{\mathtt{\mathbf{M}}}
-\newcommand\CVal{\mathtt{\mathbf{Val}}}
-\newcommand\CTime{\mathtt{\mathbf{Time}}}
-\newcommand\CStore{\mathtt{\mathbf{Store}}}
-\newcommand\AM{\widehat{\mathtt{\mathbf{M}}}}
-\newcommand\AVal{\widehat{\mathtt{\mathbf{Val}}}}
-\newcommand\ATime{\widehat{\mathtt{\mathbf{Time}}}}
-\newcommand\AStore{\widehat{\mathtt{\mathbf{Store}}}}
+\newcommand\litM{M}
+\newcommand\litTime{Time}
+\newcommand\litStore{Store}
+\newcommand\litVal{Val}
+
+\newcommand{\itop}[1]{\operatorname{\mathit{#1}}}
+\newcommand{\ttbfop}[1]{\operatorname{\mathtt{\boldsymbol{\mathbf{#1}}}}}
+\newcommand{\ttbfbin}[1]{\mathbin{\mathtt{\mathbf{\boldsymbol{#1}}}}}
+\newcommand{\ttop}[1]{\operatorname{\mathtt{#1}}}
+\newcommand{\Concrete}[1]{\mathtt{\mathbf{#1}}}
+\newcommand{\Abstract}[1]{\widehat{\mathtt{\mathbf{#1}}}}
 
 % }-}
 

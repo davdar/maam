@@ -44,7 +44,9 @@ Section [X][A Compositional Monadic Framework] demonstrates our compositional me
 
 # Semantics
 
-To demonsrate our framework we design an abstract interpreter for a simple applied lambda calculus: `λIF`.
+To demonsrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
+  which is shown in Figure`~\ref{Syntax}`{.raw}.
+`\begin{figure}`{.raw}
 `````align````````````````````````````````````````
   i ∈  ℤ
   x ∈  Var
@@ -53,6 +55,9 @@ To demonsrate our framework we design an abstract interpreter for a simple appli
   ⊙ ∈  Op    ::= ⊕ | @ 
   e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
 ``````````````````````````````````````````````````
+`\caption{`{.raw}
+`λIF`
+`} \label{Syntax} \end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtration and conditionals.
 We use the operator `@` as explicit syntax for function application.
 This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
@@ -181,7 +186,7 @@ Consider a simple if-statement in our example language `λIF` (extended with let
 3: e
 ``````````````````````````````````````````````````
 
-\paragraph{Path_Sensitive_Flow_Sensitive}
+`\paragraph{Path Sensitive Flow Sensitive}`{.raw}
 A path and flow sensitive analysis will track both control and data flow precisely.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
@@ -194,7 +199,7 @@ At program point 3 the analysis remains precise, resulting in environments:
 {N≠0,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-\paragraph{Path_Insensitive_Flow_Sensitive}
+`\paragraph{Path Insensitive Flow Sensitive}`{.raw}
 A path insensitive flow sensitive analysis will track control flow precisely but merge the heap after control flow branches.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
@@ -209,7 +214,7 @@ At program point 3 the analysis is forced to again consider both branches, resul
 {N=ANY,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-\paragraph{Path_Insensitive_Flow_Insensitive}
+`\paragraph{Path Insensitive Flow Insensitive}`{.raw}
 A path insensitive flow insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
 `````align````````````````````````````````````````
@@ -476,17 +481,17 @@ A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
-The step function is written as a monadic computation from expressions to the next expression to evaluate, in small step style.
-The definition for operators is simple: it merely pushes a stack from and returns the first operand:
+The step function is written as a small-step monadic computation from expressions to the next expression to evaluate, and is shown in 
+Figure`~\ref{Interpreter}`{.raw}.
+Interpreting compound expressions is simple, the interpreter pushes a stack frame and continues with the first operand.
+Interpreting atomic expressions must pop and inspect the stack and perform the denotation of the operation:
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
   tickM(e₁ ⊙ e₂)
   push(⟨□ ⊙ e₂⟩)
   return(e₁)
-``````````````````````````````````````````````````
-The definition for atomic expressions must pop and inspect the stack and perform the denotation of the operation:
-`````indent```````````````````````````````````````
 step(a) := do
   tickM(a)
   fr ← pop
@@ -508,6 +513,9 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
+`\caption{The Generic Monadic Interpreter}
+\label{Interpreter}
+\end{figure}`{.raw}
 
 We can also implement abstract garbage collection in a fully general away against the monadic effect interface:
 `````indent```````````````````````````````````````
@@ -577,9 +585,9 @@ and the concrete `δ` you would expect:
 δ⟦[-],v₁,v₂⟧ := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `CVal` satisfies the abstract domain laws from section [X][The Abstract Domain].
-\end{proposition}
+`\end{proposition}`{.raw}
 
 Concrete time `CTime` captures program contours as a product of `Exp` and `KAddr`:
 `````indent```````````````````````````````````````
@@ -622,9 +630,9 @@ _⟨+⟩_ : ∀ α, CM(α) × CM(α) → CM(α)
 (m₁ ⟨+⟩ m₂)(ψ) := m₁(ψ) ∪ m₂(ψ)
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `CM` satisfies monad, state, and nondeterminism laws.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 Finally, we must establish a Galois connection between `Exp → CM(Exp)` and `CΣ → CΣ` for some choice of `CΣ`.
 For the path sensitive monad `CM` instantiate with `CVal` and `CTime`, , `CΣ` is defined:
@@ -645,13 +653,13 @@ The injection `ς⸢CM⸣₀` for a program `e₀` is:
 ς₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}
 ``````````````````````````````````````````````````
 
-\begin{proposition} 
+`\begin{proposition}`{.raw}
 `γ` and `α` form an isomorphism.
-\end{proposition}
+`\end{proposition}`{.raw}
 
-\begin{corollary}
+`\begin{corollary}`{.raw}
 `γ` and `α` form a Galois connection.
-\end{corollary}
+``\end{corollary}`{.raw}`{.raw}
 
 ## Recovering an Abstract Interpreter
 
@@ -684,13 +692,13 @@ The abstract `δ` operator is defined:
 ``````````````````````````````````````````````````
 The definition for `δ(-,v₁,v₂)` is analagous.
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `AVal` satisfies the abstract domain laws from section [X][The Abstract Domain].
-\end{proposition}
+`\end{proposition}`{.raw}
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `CVal α⇄γ AVal` and their operations `int-I`, `int-if0-E` and `δ` are ordered `⊑` respectively through the Galois connection.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 Next we abstract `Time` to `ATime` as the finite domain of k-truncated lists of execution contexts:
 `````indent```````````````````````````````````````
@@ -702,9 +710,9 @@ tick : Exp × KAddr × ATime → ATime
 tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `CTime α⇄γ ATime` and `tick` is ordered `⊑` through the Galois connection.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The monad `AM` need not change in implementation from `CM`; they are identical up to choices for `AStore` (which maps to `AVal`) and `ATime`.
 `````indent```````````````````````````````````````
@@ -773,17 +781,17 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 α(f)(e)(ψ,σ) := f({(e,ψ)},σ)
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `γ` and `α` form an isomorphism.
-\end{proposition}
+`\end{proposition}`{.raw}
 
-\begin{corollary}
+`\begin{corollary}`{.raw}
 `γ` and `α` form a Galois connection.
-\end{corollary}
+`\end{corollary}`{.raw}
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 There exists Galois connection `CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ` and `α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂`.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The first Galois connection `CΣ α₁⇄γ₁ AΣ` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
 The second Galois connection `AΣ α₂⇄γ₂ AΣᶠⁱ` is justified by first calculating the Galois connection between monads `AM` and `CM`,
@@ -865,9 +873,9 @@ return : ∀ α, α → 𝒫ₜ(m)(α)
 return(x) := returnₘ({x})
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `bind` and `return` satisfy the monad laws.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The key lemma in this proof is the functorality of `m`, namely that:
 `````align````````````````````````````````````````
@@ -882,9 +890,9 @@ put : s → 𝒫ₜ(m)(s)
 put(s) = mapₘ(λ(1).{1})(putₘ(s))
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `get` and `put` satisfy the state monad laws.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The proof is by simpl calculation.
 
@@ -896,9 +904,9 @@ _⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
 m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `mzero` and `⟨+⟩` satisfy the nondterminism monad laws.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The proof is trivial as a consequence of the underlying monad being a join-semilattice functor.
 
@@ -945,15 +953,15 @@ The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially o
 
 For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow insensitive and flow sensitive respectively.
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `Σ⸤FSₜ⸥ α⇄γ Σ⸤FIₜ⸥`.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 The proof is by consequence of `commuteP`.
 
-\begin{proposition}
+`\begin{proposition}`{.raw}
 `Sₜ[s] ∘ 𝒫ₜ α⇄γ 𝒫ₜ ∘ Sₜ[s]`.
-\end{proposition}
+`\end{proposition}`{.raw}
 
 We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ` and `FSₜ` that have the following properties:
 

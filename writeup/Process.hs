@@ -27,44 +27,30 @@ data MatchMode =
   | Anywhere  -- "+" will match in "a+b"
   deriving (Read, Show)
 
-mathttNames :: [Text]
-mathttNames =
-    map (snd . head)
-  $ tableRows 
-  $ unsafePerformIO 
-  $ parseTableIO "Process_mathttNames.tbl"
+extractMacro :: [(Text, Text)] -> (Text, Text, MatchMode)
+extractMacro row = fromJust $ do
+  s <- lookup "Search For" row
+  r <- lookup "Replace With" row
+  let r' = if r == "_" then s else r
+  m <- liftM (read . T.unpack) $ lookup "Match Mode" row
+  return (s, r', m)
 
-mathttMacros :: [(Text,Text,MatchMode)]
-mathttMacros = flip map mathttNames $ \ n ->
-  (n, T.concat ["\\operatorname{\\mathtt{", n, "}}" ], Word)
+getMacros :: FilePath -> [(Text, Text, MatchMode)]
+getMacros = map extractMacro . tableRows . unsafePerformIO . parseTableIO
 
-mathitNames :: [Text]
-mathitNames =
-    map (snd . head)
-  $ tableRows
-  $ unsafePerformIO
-  $ parseTableIO "Process_mathitNames.tbl"
+alterMacro :: (Text -> Text) -> (Text, Text, MatchMode) -> (Text, Text, MatchMode)
+alterMacro f (s,r,m) = (s,f r,m)
 
-mathitMacros :: [(Text,Text,MatchMode)]
-mathitMacros = flip map mathitNames $ \ n ->
-  (n, T.concat ["\\mbox{\\emph{", n, "}}" ], Word)
-
-macros :: [(Text,Text,MatchMode)]
-macros = 
-    map extractMacro
-  $ tableRows
-  $ unsafePerformIO 
-  $ parseTableIO "Process_macros.tbl"
-  where
-    extractMacro :: [(Text, Text)] -> (Text, Text, MatchMode)
-    extractMacro row = fromJust $ do
-      s <- lookup "Search For" row
-      r <- lookup "Replace With" row
-      m <- liftM (read . T.unpack) $ lookup "Match Mode" row
-      return (s, r, m)
+wrapMacro :: Text -> (Text, Text, MatchMode) -> (Text, Text, MatchMode)
+wrapMacro c = alterMacro $ \ r -> T.concat [ "\\" , c ,  "{" , r , "}" ]
 
 allMacros :: [(Text,Text,MatchMode)]
-allMacros = macros ++ mathttMacros ++ mathitMacros
+allMacros = concat
+  [ getMacros "Process_pre_macros.tbl"
+  , map (wrapMacro "ttop") $ getMacros "Process_tt_op.tbl"
+  , map (wrapMacro "itop") $ getMacros "Process_it_op.tbl"
+  , getMacros "Process_post_macros.tbl"
+  ]
 
 regexmeta :: [Text]
 regexmeta = [ "\\" , "|" , "(" , ")" , "[" , "]" , "{" , "}" , "^" , "$" , "*" , "+" , "?" , "." ]
@@ -86,7 +72,13 @@ macroText = appEndo $ execWriter $ forM_ (reverse allMacros) $ \ (s,r,m) -> do
   tell $ Endo $ \ t -> T.pack $ subRegex regex (T.unpack t) replace
 
 ops :: ReaderOptions
-ops = def { readerExtensions = readerExtensions def Set.\\ Set.singleton Ext_raw_tex}
+ops = def 
+  { readerExtensions = 
+      readerExtensions def 
+      Set.\\ 
+      Set.empty
+      -- Set.fromList [ Ext_raw_tex , Ext_tex_math_dollars ]
+  }
 
 main :: IO ()
 main = do
@@ -122,14 +114,21 @@ addPars = newlines . addPar . T.lines
 -- Post Processing {{{
 
 postProcess :: Pandoc -> Pandoc
-postProcess = walkInlineCommand . walkInlineMath . walkBlocksMath
+postProcess = walkInlineMath . walkBlocksMath . walkInlineRaw . walkBlocksRaw
   where
+    walkBlocksRaw = walk $ \ (b :: Block) -> case b of
+      CodeBlock (_,[c],_) s
+        | "raw" `isPrefixOf` c -> RawBlock (Format "latex") s
+      _ -> b
+    walkInlineRaw = walk $ \ (i :: Inline) -> case i of
+      Code (_,[c],_) s
+        | "raw" `isPrefixOf` c -> RawInline (Format "latex") s
+      _ -> i
     walkBlocksMath :: Pandoc -> Pandoc
     walkBlocksMath = walk $ \ (b :: Block) -> case b of
       CodeBlock (_,[c],_) s 
         | "align" `isPrefixOf` c -> alignBlock $ T.pack s
         | "indent" `isPrefixOf` c -> indentBlock $ T.pack s
-      CodeBlock a s -> b
       _ -> b
     walkInlineMath :: Pandoc -> Pandoc
     walkInlineMath = walk $ \ (i :: Inline) -> case i of
@@ -138,12 +137,6 @@ postProcess = walkInlineCommand . walkInlineMath . walkBlocksMath
         , macroText $ T.pack s
         , "$"
         ]
-      _ -> i
-    walkInlineCommand :: Pandoc -> Pandoc
-    walkInlineCommand = walk $ \ (i :: Inline) -> case i of
-      Str s 
-        | "\\" `isPrefixOf` s -> RawInline (Format "latex") $ T.unpack $ T.replace "_" " " $ T.pack s
-        | otherwise -> Str s
       _ -> i
 
 -- Align {{{

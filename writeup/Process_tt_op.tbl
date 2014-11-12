@@ -1,0 +1,6 @@
+Search For    Replace With    Match Mode
+========================================
+do            _               Word      
+if            _               Word      
+case          _               Word      
+of            _               Word      
