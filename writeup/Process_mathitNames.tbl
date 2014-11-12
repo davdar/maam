@@ -14,6 +14,7 @@ M
 Op        
 R         
 R-Val     
+R-Clo     
 Store     
 Time      
 Val       
@@ -42,3 +43,4 @@ clo-I
 clo-E     
 return    
 mzero     
+commuteP  

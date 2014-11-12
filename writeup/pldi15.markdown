@@ -208,9 +208,9 @@ return : ∀ α, α → M(α)
 
 We use the monad laws to reason about our implementation in the absence of a particular implementatino of `bind` and `return`:
 `````indent```````````````````````````````````````
-bind-unit₁ : bind(return(a))(k) = k(a)
-bind-unit₂ : bind(m)(return) = m
-bind-assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
+unit₁ : bind(return(a))(k) = k(a)
+unit₂ : bind(m)(return) = m
+assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 `bind` and `return` mean something different for each monadic effect class.
 For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
@@ -243,10 +243,10 @@ put-Env : Env → M(1)
 
 We use the state monad laws to reason about state effects:
 `````indent``````````````````````````````````````` 
-put-put : put-Env(s₁) ; put-Env(s₂) = put-Env(s₂)
-put-get : put-Env(s) ; get-Env = return(s)
-get-put : s ← get-Env ; put-Env(s) = return(1)
-get-get : s₁ ← get-Env ; s₂ ← get-Env ; k(s₁,s₂) = s ← get-Env ; k(s,s)
+put-put : put(s₁) ; put(s₂) = put(s₂)
+put-get : put(s) ; get = return(s)
+get-put : s ← get ; put(s) = return(1)
+get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
 ``````````````````````````````````````````````````
 The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 
@@ -519,7 +519,7 @@ and the concrete `δ` you would expect:
 
 Concrete time `CTime` captures program contours as a product of `Exp` and `KAddr`:
 `````indent```````````````````````````````````````
-τ ∈ CTime := (Exp × KAddr)*
+τ ∈ CTime := (Exp × KAddr)⋆
 ``````````````````````````````````````````````````
 and `tick` is just a cons operator:
 `````indent```````````````````````````````````````
@@ -536,7 +536,8 @@ m ∈ CM(α) := Ψ → 𝒫(α × Ψ)
 Monadic operators `bind` and `return` encapsulate both state-passing and set-flattening:
 `````indent```````````````````````````````````````
 bind : ∀ α, CM(α) → (α → CM(β)) → CM(β)
-bind(m)(f)(ψ) := {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
+bind(m)(f)(ψ) := 
+  {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
 return : ∀ α, α → CM(α)
 return(a)(ψ) := {(a,ψ)}
 ``````````````````````````````````````````````````
@@ -629,7 +630,7 @@ The definition for `δ(-,v₁,v₂)` is analagous.
 
 Next we abstract `Time` to `ATime` as the finite domain of k-truncated lists of execution contexts:
 `````indent```````````````````````````````````````
-ATime := (Exp × KAddr)*ₖ
+ATime := (Exp × KAddr)⋆ₖ
 ``````````````````````````````````````````````````
 The `tick` operator becomes cons followed by k-truncation:
 `````indent```````````````````````````````````````
@@ -717,7 +718,7 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 \end{corollary}
 
 \begin{proposition}
-There exists Galois connection `CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ` and `α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂`
+There exists Galois connection `CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ` and `α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂`.
 \end{proposition}
 
 The first Galois connection `CΣ α₁⇄γ₁ AΣ` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
@@ -731,153 +732,184 @@ They both scale seamlessly to flow-sensitive and flow-insensitive variants when 
 
 # A Compositional Monadic Framework
 
-In our framework thus far, any modification to the interpreter requires redesigning the monad `M` and constructing new proofs.
+In our development thus far, any modification to the interpreter requires redesigning the monad `AM` and constructing new proofs.
 We want to avoid reconstructing complicated monads for our interpreters, especially as languages and analyses grow and change.
-Even more, we want to avoid reconstructing the _proofs_ that these changes will necessarily alter.
-Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction 
-  using a restricted class of monad transformer.
+Even more, we want to avoid reconstructing complicated _proofs_ that such changes will necessarily alter.
+Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction.
+To do this we build upon the well-known structure of monad transformer.
 
-There are two types of monadic effects used in the monadic interprer: state and nondeterminism.
-There is a monad transformer for adding state effects to existing monads, called the state monad tranformer:
+There are two types of monadic effects used in our monadic interprer: state and nondeterminism.
+Each of these effects have corresponding monad transformers.
+Monad transformers for state effects were described by Jones in [CITE].
+Our definition of a monad transformer for nondeterminism is novel in this work.
 
+## State Monad Transformer
+
+Briefly we review the state monad transformer, `Sₜ[s]`:
 `````indent```````````````````````````````````````
 Sₜ[_] : (Type → Type) → (Type → Type)
 Sₜ[s](m)(α) := s → m(α × s)
 ``````````````````````````````````````````````````
 
-Monadic actions `bind` and `return` (and their laws) use the underlying monad:
+For monad transformers, `bind` and `return` will use monad operations from the underlying `m`, which we notate `bindₘ` and `returnₘ`.
+When writing in do-notation, we write `doₘ` and `←ₘ` for clarity.
 
+The state monad transformer can transport monadic operations from `m` to `Sₜ[s](m)`:
 `````indent```````````````````````````````````````
-bindₛ : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
-bindₛ(m)(f)(s) := do
+bind : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
+bind(m)(f)(s) := doₘ
   (x,s') ←ₘ m(s)
   f(x)(s')
-returnₛ : ∀ α m, α → Sₜ[s](m)(α)
-returnₛ(x)(s) := returnₘ(x,s)
+return : ∀ α m, α → Sₜ[s](m)(α)
+return(x)(s) := returnₘ(x,s)
 ``````````````````````````````````````````````````
 
-State actions `get` and `put` expose the cell of state while interacting with the underlying monad `m`:
-
+The state monad transformer can also transport nondeterminism effects from `m` to `Sₜ[s](m)`:
 `````indent```````````````````````````````````````
-getₛ : Sₜ[s](m)(s)
-getₛ(s) := returnₘ(s,s)
-putₛ : s → Sₜ[s](m)(1)
-putₛ(s')(s) := returnₘ(1,s')
+mzero : ∀ α, Sₜ[s](m)(α)
+mzero(s) := mzeroₘ 
+_⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
+(m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ₘ m₂(s) 
 ``````````````````````````````````````````````````
 
-and the state monad transformer is able to transport nondeterminism effects from the underlying monad:
+Finally, the state monad transformer exposes `get` and `put` operations given that `m` is a monad:
 `````indent```````````````````````````````````````
-mzeroₛ : ∀ α, Sₜ[s](m)(α)
-mzeroₛ(s) := mzeroₘ 
-_⟨+⟩ₛ_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
-(m₁ ⟨+⟩ₛ m₂)(s) := m₁(s) ⟨+⟩ₘ m₂(s) 
+get : Sₜ[s](m)(s)
+get(s) := returnₘ(s,s)
+put : s → Sₜ[s](m)(1)
+put(s')(s) := returnₘ(1,s')
 ``````````````````````````````````````````````````
 
-The state monad transformer was introduced by Mark P. Jones in [[X](http://web.cecs.pdx.edu/~mpj/pubs/springschool95.pdf)].
+## Nondeterminism Monad Transformer
 
-We develop a new monad transformer for nondeterminism which can compose with state in both directions.
+We have developed a new monad transformer for nondeterminism which can compose with state in both directions.
+Previous attempts to define a monad transformer for nondeterminism have resulted in monad operations which do not respect monad laws.
 
+Our nondeterminism monad transformer shares the "expected" type, embedding `𝒫` inside `m`:
 `````indent```````````````````````````````````````
 𝒫ₜ : (Type → Type) → (Type → Type)
 𝒫ₜ(m)(α) := m(𝒫(α))
 ``````````````````````````````````````````````````
 
-Monadic actions `bind` and `return` require that the underlying monad be a join-semilattice functor:
-
+The nondeterminism monad transformer can transport monadic operations from `m` to `𝒫ₜ` _provided that `m` is also a join-semilattice functor_:
 `````indent```````````````````````````````````````
-bindₚ : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
-bindₚ(m)(f) := do
+bind : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
+bind(m)(f) := doₘ
   {x₁ .. xₙ} ←ₘ m
   f(x₁) ⊔ₘ .. ⊔ₘ f(xₙ)
-returnₚ : ∀ α, α → 𝒫ₜ(m)(α)
-returnₚ(x) := returnₘ({x})
+return : ∀ α, α → 𝒫ₜ(m)(α)
+return(x) := returnₘ({x})
 ``````````````````````````````````````````````````
 
-Nondterminism actions `mzero and `⟨+⟩ interact with the join-semilattice functorality of the underlying monad `m`:
+\begin{proposition}
+`bind` and `return` satisfy the monad laws.
+\end{proposition}
 
+The key lemma in this proof is the functorality of `m`, namely that:
+`````align````````````````````````````````````````
+returnₘ(x ⊔ y) = returnₘ(x) ⊔ returnₘ(y)
+``````````````````````````````````````````````````
+
+The nondeterminism monad transformer can transport state effects from `m` to `𝒫ₜ`:
 `````indent```````````````````````````````````````
-mzeroₚ : ∀ α, 𝒫ₜ(m)(α)
-mzeroₚ := ⊥ᵐ
-_⟨+⟩ₚ_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
-m₁ ⟨+⟩ₚ m₂ := m₁ ⊔ₘ m₂
+get : 𝒫ₜ(m)(s)
+get = mapₘ(λ(s).{s})(getₘ)
+put : s → 𝒫ₜ(m)(s)
+put(s) = mapₘ(λ(1).{1})(putₘ(s))
 ``````````````````````````````````````````````````
 
-and the nondeterminism monad transformer is able to transport state effects from the underlying monad:
+\begin{proposition}
+`get` and `put` satisfy the state monad laws.
+\end{proposition}
 
+The proof is by simpl calculation.
+
+Finally, our nondeterminism monad transformer expses nondeterminism effects as a trivial applciation of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
-getₚ : 𝒫ₜ(m)(s)
-getₚ = mapₘ(λ(s).{s})(getₘ)
-putₚ : s → 𝒫ₜ(m)(s)
-putₚ(s) = mapₘ(λ(1).{1})(putₘ(s))
+mzero : ∀ α, 𝒫ₜ(m)(α)
+mzero := ⊥ᵐ
+_⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
+m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
 
-_Proposition: `𝒫ₜ` is a transformer for monads which are also join semi-lattice functors._
+\begin{proposition}
+`mzero` and `⟨+⟩` satisfy the nondterminism monad laws.
+\end{proposition}
 
-Our correctness framework requires that monadic actions in `M` map to state space transitions in `Σ`.
-We establish this property in addition to monadic actions and effects for state and nondeterminism monad transformers.
-We call this property `MonadStep`, where monadic acations in `M` admit a Galois connection to transitions in `Σ`:
+The proof is trivial as a consequence of the underlying monad being a join-semilattice functor.
 
+## Mapping to State Spaces
+
+Both our execution and correctness frameworks requires that monadic actions in `M` map to some state space transitions `Σ`.
+We extend the earlier statement of Galois connection to the transformer setting:
 `````indent```````````````````````````````````````
 mstep : ∀ α β, (α → M(β)) α⇄γ (Σ(α) → Σ(β))
 ``````````````````````````````````````````````````
-
-We now show that the monad transformers for state and nondeterminism transport this property in addition to monadic operations.
+Here `M` must map _arbitrary_ monadic actions `α → M(β)` to state space transitions for a state space _functor_ `Σ(_)`
+We only show the `γ` sides of the mappings in this section, which allow one to execute the analyses.
 
 For the state monad transformer `Sₜ[s]` mstep is defined:
-
 `````indent```````````````````````````````````````
-mstepₛ-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
-mstepₛ-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
+mstep-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
+mstep-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
 ``````````````````````````````````````````````````
 
 For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
-One where `Σ` is `Σᵐ ∘ P`:
-
+One where `Σ` is `Σᵐ ∘ 𝒫`:
 `````indent```````````````````````````````````````
-mstepₚ₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
-mstepₚ₁-γ(f) := mstepₘ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+mstep₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
+mstep₁-γ(f) := mstepₘ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
 ``````````````````````````````````````````````````
-
-and one where `Σ` is `P ∘ Σᵐ`:
-
+and one where `Σ` is `𝒫 ∘ Σᵐ`:
 `````indent```````````````````````````````````````
-mstepₚ₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
-mstepₚ₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
+mstep₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
+mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
   where 
-    commuteP : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
+    commuteP-γ : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
     aΣPᵢ := commuteP-γ(mstepₘ-γ(f)(ςᵢ)) 
 ``````````````````````````````````````````````````
-
-The operation `computeP` must be defined for the underlying `Σᵐ`.
-This property is true for the identiy monad, and is preserved by `Sₜ[s]` when `Σᵐ` is also a functor:
-
+The operation `computeP-γ` must be defined for the underlying `Σᵐ`.
+In general, `commuteP` must form a Galois connection.
+However, this property exists for the identity monad, and is preserverd by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
 commuteP-γ : ∀ α, Σₘ(𝒫(α) × s) → 𝒫(Σₘ(α × s))
 commuteP-γ := commutePₘ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
 ``````````````````````````````````````````````````
+Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
+Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
+The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` to be functorial (i.e., homomorphic).
 
-The `γ` side of commuteP is the only Galois connection mapping that loses information in the `α` direction.
-Therefore, `mstepₛ` and `mstepₚ₁` are really isomorphism transformers, and `mstepₚ₂` is the only Galois connection transformer.
+For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow insensitive and flow sensitive respectively.
 
-[QUESTION: should I give the definitions for the `α` maps here? -DD]
+\begin{proposition}
+`Σ⸤FSₜ⸥ α⇄γ Σ⸤FIₜ⸥`.
+\end{proposition}
 
-For convenience, we name the pairing of `𝒫ₜ` with `mstepᵖ₁` `FIₜ`, and with `mstepₚ₂` `FSₜ` for flow insensitive and flow sensitive respectively.
+The proof is by consequence of `commuteP`.
+
+\begin{proposition}
+`Sₜ[s] ∘ 𝒫ₜ α⇄γ 𝒫ₜ ∘ Sₜ[s]`.
+\end{proposition}
 
 We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ` and `FSₜ` that have the following properties:
 
 - The resulting monad has the combined effects of all pieces of the transformer stack.
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
-- Galois connections between states `s₁` and `s₂` are transported along the Galois connection between 
-  `(α → Sₜ[s₁](m)(β)) α⇄γ (Σ[s₁](α) → Σ[s₁](β))` and `(α → Sₜ[s₂](m)(β)) α⇄γ (Σ[s₂](α) → Σ[s₂](β))`
-  resulting in `(Σ[s₁](α) → Σ[s₁](β)) α⇄β (Σ[s₂](α) → Σ[s₂](β))`.
+-- - Galois connections between states `s₁` and `s₂` are transported along the Galois connection between 
+--   `(α → Sₜ[s₁](m)(β)) α⇄γ (Σ[s₁](α) → Σ[s₁](β))` and `(α → Sₜ[s₂](m)(β)) α⇄γ (Σ[s₂](α) → Σ[s₂](β))`
+--   resulting in `(Σ[s₁](α) → Σ[s₁](β)) α⇄β (Σ[s₂](α) → Σ[s₂](β))`.
 
-We can now instantiate our interpreter to the following monad stacks.
-
-- `Sₜ[Env] ∘ Sₜ[AStore] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FSₜ`
-    - This yields a path-sensitive flow-sensitive analysis.
-- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FSₜ ∘ Sₜ[AStore]`
-    - This yeilds a path-insensitive flow-sensitive analysis.
-- `Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FIₜ ∘ Sₜ[AStore]`
-    - This yields a path-insensitive flow-insensitive analysis.
-
-Furthermore, the final Galois connection for each state space Σ is justified from individual Galois connections between state space components.
+We can now instantiate our interpreter to the following monad stacks in decreasing order of precision:
+`````align````````````````````````````````````````
+Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ Sₜ[AStore] ∘ FSₜ
+``````````````````````````````````````````````````
+which yields a path-sensitive flow-sensitive analysis,
+`````align````````````````````````````````````````
+Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FSₜ ∘ Sₜ[AStore]
+``````````````````````````````````````````````````
+which yeilds a path-insensitive flow-sensitive analysis, and
+`````align````````````````````````````````````````
+Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FIₜ ∘ Sₜ[AStore]
+``````````````````````````````````````````````````
+which yields a path-insensitive flow-insensitive analysis.
+Furthermore, the Galois connections for our interpreter instantiated to each state space `Σ` is justified fully by construction.
