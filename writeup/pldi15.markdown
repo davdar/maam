@@ -1,28 +1,36 @@
 # Introduction
 
-Writing abstract interpreters is hard.
-Writing proofs about abstract interpreters is extra hard.
-Modern practice in whole-program analysis requires multiple iterations in the design space of possible analyses.
-As we explore the design space of abstract interpreters, it would be nice if we didn't need to reprove all the properties we care about.
-What we lack is a reusable meta-theory for exploring the design space of _correct-by-construction_ abstract interpreters.
+Traditional practice in the program analysis literature, be it for points-to,
+flow, shape analysis or others, is to fix a language and its abstraction (a
+computable, sound approximation to the "concrete" semantics of the language)
+and investigate its effectiveness [CITE overload].   These one-off abstractions
+require effort to design and prove sound.  Consequently later work has focused
+on endowing the abstraction with a number of knobs, levers, and dials to tune
+precision and compute efficiently [CITE overload].  These parameters come in
+various forms with overloaded meanings such as object [CITE], context [CITE],
+path [CITE], and heap [CITE] sensitivities, or some combination thereof [CITE].
+These efforts develop families of analyses for a specific language and prove
+the framework sound.
 
-We propose a compositional meta-theory framework for general purpose static analysis.
-Our framework gives the analysis designer building blocks for building correct-by-construction abstract interpreters.
-These building blocks are compositional, and they carry both computational and correctness properties of an analysis.
-For example, we are able to tune the flow and path sensitivities of an analysis in our framework with no extra proof burden.
-We do this by capturing the essential properties of flow and path sensitivities into plug-and-play components.
-Comparably, we show how to design an analysis to be correct for all possible instantiations to flow and path sensitivity.
+But even this framework approach suffers from many of the same drawbacks as the
+one-off analyzers.  They are language specific, preventing reuse across
+languages and thus requiring similar abstraction implementations and soundness
+proofs.  This process is difficult and error prone.  It results in a cottage
+industry of research papers on varying frameworks for varying languages.  It
+prevents fruitful insights and results developed in one paradigm from being
+applied to others [PLDI'10].
 
-To achieve compositionality, our framework leverages monad transformers as the fundamental building blocks for an abstract interpreter.
-Monad transformers snap together to form a single monad which drives interpreter execution.
-Each piece of the monad transformer stack corresponds to either an element of the semantics' state space or a nondeterminism effect.
-Variations in the transformer stack to give rise to different path and flow sensitivities for the analysis.
-Interpreters written in our framework are proven correct w.r.t. all possible monads, and therefore to each choice of path and flow sensitivity.
-
-The monad abstraction provides the computational and proof properties for our interpreters, from the monad operators and laws respectively.
-Monad transformers are monad composition function; they consume and produce monads.
-We strengthen the monad transformer interface to require that the resulting monad have a relationship to a state machine transition space.
-We prove that a small set of monads transformers that meet this stronger interface can be used to write monadic abstract interpreters.
+In this paper, we propose an alternative approach to structuring and
+implementing program analysis.  We propose to use concrete interpreters in
+monadic style.  As we show, classical program abstractions can be embodied as
+language-independent monads.  Moveover, these abstractions can be written as
+monad transformers, thereby allowing their composition to achieve new forms of
+analysis.  Most significantly, these monad transformers can be proved sound
+once and for all.  Abstract interpreters, which take the form of monad
+transformer stacks coupled together with a monadic interpreter, inherit the
+soundness properties of each element in the stack.  This approach enables reuse
+of abstractions across languages and lays the foundation for a modular
+metatheory of program analysis.
 
 ## Contributions
 
