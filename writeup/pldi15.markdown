@@ -44,16 +44,21 @@ Our contributions are:
 ## Outline
 
 We will demonstrate our framework by example, walking the reader through the design and implementation of an abstract interpreter.
-Section [X][Semantics] gives the concrete semantics for a small functional language.
-Section [X][Monadic Interpreter] shows the full definition of a highly parameterized monadic interpreter.
-Section [X][Recovering Concrete and Abstract Interpreters] shows how to recover concrete and abstract interpreters.
-Section [X][Varying Path and Flow Sensitivity] shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
-Section [X][A Compositional Monadic Framework] demonstrates our compositional meta-theory framework built on monad transformers.
+Section [2][Semantics] gives the concrete semantics for a small functional language.
+Section [3][Flow Properties in Analysis] gives a brief tutorial on the path and flow sensitivity in the setting of our example language.
+Section [4][Analysis Parameters] describes the parameters of our analysis, one of which is the interpreter monad.
+Section [5][The Interpreter] shows the full definition of a highly parameterized monadic interpreter.
+Section [6][Recovering Analyses] shows how to recover concrete and abstract interpreters.
+Section [7][Varying Path and Flow Sensitivity] 
+  shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
+Section [8][A Compositional Monadic Framework] demonstrates our compositional meta-theory framework built on monad transformers.
+Section [9][Implementation] briefly discusses our implementation of the framework in Haskell.
+Section [10][Related Word] discusses related work and Section [11][Conclusion] concludes.
 
 # Semantics
 
 To demonsrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
-  which is shown in Figure`~\ref{Syntax}`{.raw}.
+  which is shown in Figure \ref{Syntax}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
   i ∈  ℤ
@@ -194,7 +199,7 @@ Consider a simple if-statement in our example language `λIF` (extended with let
 3: e
 ``````````````````````````````````````````````````
 
-`\paragraph{Path Sensitive Flow Sensitive}`{.raw}
+\paragraph{Path Sensitive Flow Sensitive}
 A path and flow sensitive analysis will track both control and data flow precisely.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
@@ -207,7 +212,7 @@ At program point 3 the analysis remains precise, resulting in environments:
 {N≠0,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-`\paragraph{Path Insensitive Flow Sensitive}`{.raw}
+\paragraph{Path Insensitive Flow Sensitive}
 A path insensitive flow sensitive analysis will track control flow precisely but merge the heap after control flow branches.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
@@ -222,7 +227,7 @@ At program point 3 the analysis is forced to again consider both branches, resul
 {N=ANY,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-`\paragraph{Path Insensitive Flow Insensitive}`{.raw}
+\paragraph{Path Insensitive Flow Insensitive}
 A path insensitive flow insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
 `````align````````````````````````````````````````
@@ -237,6 +242,8 @@ respectively.
 In our framework we capture both path and flow sensitivity as orthogonal parameters to our interpreter.
 Path sensitivity will arise from the order of monad transformers used to construct the analysis.
 Flow sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
+For brevity, and lack of better terms, we will abbreviate these analyses as "path sensitive", "flow sensitive" and "flow insensitive".
+This is only ambiguous for "flow sensitive", as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
 
 # Analysis Parameters
 
@@ -490,7 +497,7 @@ A⟦[λ](x).e⟧ := do
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
 The step function is written as a small-step monadic computation from expressions to the next expression to evaluate, and is shown in 
-Figure`~\ref{Interpreter}`{.raw}.
+Figure \ref{Interpreter}.
 Interpreting compound expressions is simple, the interpreter pushes a stack frame and continues with the first operand.
 Interpreting atomic expressions must pop and inspect the stack and perform the denotation of the operation:
 `\begin{figure}`{.raw}
@@ -521,9 +528,9 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
-`\caption{The Generic Monadic Interpreter}
+\caption{The Generic Monadic Interpreter}
 \label{Interpreter}
-\end{figure}`{.raw}
+`\end{figure}`{.raw}
 
 We can also implement abstract garbage collection in a fully general away against the monadic effect interface:
 `````indent```````````````````````````````````````
@@ -568,7 +575,7 @@ A collecting-semantics execution of our interpreter is defined as the least-fixe
 ``````````````````````````````````````````````````
 where `ς₀` is the injection of the initial program `e₀` into `Σ `.
 
-# Recovering Interpreters
+# Recovering Analyses
 
 To recover concrete and abstract interpreters we need only instantiate our generic monadic interpreter with concrete and abstract components.
 
@@ -993,3 +1000,56 @@ Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FIₜ ∘ Sₜ[AS
 ``````````````````````````````````````````````````
 which yields a path-insensitive flow-insensitive analysis.
 Furthermore, the Galois connections for our interpreter instantiated to each state space `Σ` is justified fully by construction.
+
+
+# Implementation
+
+We have implemented our framework in Haskell and applied it to compute analyses for `λIF`.
+Our implementation provides path sensitivity, flow sensitivity, and flow insensitivity as a semantics-independent monad library.
+The code shares a striking resemblance with the math.
+
+Our interpreter for `λIF` is paramaterized as discussed in Section [4][Analysis Parameters].
+We express a valid analysis with the following Haskell constraint:
+`````indent```````````````````````````````````````
+type Analysis(δ,μ,m) ∷ Constraint = 
+  (AAM(μ),Delta(δ),AnalysisMonad(δ,μ,m))
+``````````````````````````````````````````````````
+Constraints `AAM(μ)` and `Delta(δ)` are interfaces for abstract time and the abstract domain.
+The constraint `AnalysisMonad(m)` requires only that `m` has the required effects[^1]:
+`````indent```````````````````````````````````````
+type AnalysisMonad(δ,μ,m) ∷ Constraint = (
+   Monad(m(δ,μ)), 
+   MonadNondeterminism(m(δ,μ)),
+   MonadState(Env(μ))(m(δ,μ)),
+   MonadState(Store(δ,μ))(m(δ,μ)),
+   MonadState(Time(μ,Call))(m(δ,μ)))
+``````````````````````````````````````````````````
+Our interpreter is implemented against this interface and concrete and abstract interpreters are recovered by instantiating `δ`, `μ` and `m`.
+
+[^1]: 
+    We use a CPS representation and a single store in our implementation.
+    This requires `Time`, which is generic to the language, to take `Call` as a paramter rather than `Exp × KAddr`.
+
+Our implementation is publically available and can be installed as a cabal package by executing:
+`````align````````````````````````````````````````
+cabal install maam
+``````````````````````````````````````````````````
+
+# Related Work
+
+The most directly related work is the development of Monadic Abstract Interpreters (MAI) by Sergey et. al.\cite{davdar:Sergey:2013:Monalysis}.
+In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
+However, each monad in MAI is designed from scratch for a specific language to have specific analysis properties.
+Our work extends the ideas in MAI in a way that isolates each parameter to be independent of others.
+We factor out the monad as a truly semantics independent feature.
+This factorization reveals an orthogonal tuning knob for path and flow sensitivity
+Even more, we give the user building blocks for constructing monads that are correct and give the desired properties by construction.
+Our framework is also motivated by the needs of reasoning formally about abstract interpreters, no mention of which is made in MAI.
+
+We build directly on the work of Abstracting Abstract Machines (AAM) by Van Horn and Might\cite{davdar:van-horn:2010:aam}
+  in our parameterization of abstract time and call-site sensitivity.
+More notably, we follow the AAM philosophy of instrumenting a concrete semantics _first_ and performing a systematic abstraction _second_.
+This greatly simplifies the Galois connection arguments during systematic abstraction.
+However, this is at the cost of proving that the instrumented semantics simulate the original concrete semantics.
+
+# Conclusion

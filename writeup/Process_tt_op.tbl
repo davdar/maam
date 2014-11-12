@@ -4,3 +4,7 @@ do            _               Word
 if            _               Word      
 case          _               Word      
 of            _               Word      
+cabal         _               Word
+install       _               Word
+maam          _               Word
+type          _               Word
