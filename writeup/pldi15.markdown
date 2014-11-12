@@ -1,16 +1,18 @@
 # Introduction
 
-Traditional practice in the program analysis literature, be it for points-to,
-flow, shape analysis or others, is to fix a language and its abstraction (a
-computable, sound approximation to the "concrete" semantics of the language)
-and investigate its effectiveness [CITE overload].   These one-off abstractions
-require effort to design and prove sound.  Consequently later work has focused
-on endowing the abstraction with a number of knobs, levers, and dials to tune
-precision and compute efficiently [CITE overload].  These parameters come in
-various forms with overloaded meanings such as object [CITE], context [CITE],
-path [CITE], and heap [CITE] sensitivities, or some combination thereof [CITE].
-These efforts develop families of analyses for a specific language and prove
-the framework sound.
+Traditional practice in the program analysis literature, be it for
+points-to, flow, shape analysis or others, is to fix a language and
+its abstraction (a computable, sound approximation to the "concrete"
+semantics of the language) and investigate its effectiveness [CITE
+overload].  These one-off abstractions require effort to design and
+prove sound.  Consequently later work has focused on endowing the
+abstraction with a number of knobs, levers, and dials to tune
+precision and compute efficiently [CITE overload].  These parameters
+come in various forms with overloaded meanings such as
+object`~\cite{dvanhorn:Milanova2005Parameterized}`{.raw}, context [CITE],
+path [CITE], and heap [CITE] sensitivities, or some combination
+thereof [CITE].  These efforts develop families of analyses for a
+specific language and prove the framework sound.
 
 But even this framework approach suffers from many of the same drawbacks as the
 one-off analyzers.  They are language specific, preventing reuse across

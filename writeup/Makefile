@@ -28,6 +28,12 @@ clean:
 tidy:
 	runhaskell Tidy.hs
 
+WGETDVANHORNBIB=curl -o dvanhorn.bib "http://www.citeulike.org/bibtex/user/dvanhorn?fieldmap=posted-at:date-added&do_username_prefix=1&key_type=4&fieldmap=url:x-url&fieldmap=doi:x-doi&fieldmap=address:x-address&fieldmap=isbn:x-isbn&fieldmap=issn:x-issn&fieldmap=month:x-month&fieldmap=comment:booktitle&fieldmap=abstract:x-abstract&fieldmap=pages:xpages&fieldmap=volume:x-volume&fieldmap=editor:x-editor&fieldmap=number:x-number&fieldmap=booktitle:x-booktitle&fieldmap=publisher:x-publisher"
+
+getbib:
+	$(WGETDVANHORNBIB)
+
+
 # -- The old build system: passing to sed and then pandoc command line
 #
 # tmp/autogen/pldi15.markdown.tex: tmp/autogen/pldi15.markdown
