@@ -27,8 +27,8 @@
 \usepackage{stmaryrd}
 \usepackage{galois}
 
-\newtheorem{proposition}{Proposition}
-\newtheorem{corollary}{Corollary}
+\newtheorem*{proposition}{Proposition}
+\newtheorem*{corollary}{Corollary}
 
 % This makes newlines not introduce paragraphs.
 % Paragraphs must be explicitly marked with \par
@@ -39,12 +39,14 @@
 
 % Macros {-{
 
+\newcommand\CM{\mathtt{\mathbf{M}}}
 \newcommand\CVal{\mathtt{\mathbf{Val}}}
 \newcommand\CTime{\mathtt{\mathbf{Time}}}
-\newcommand\CM{\mathtt{\mathbf{M}}}
+\newcommand\CStore{\mathtt{\mathbf{Store}}}
+\newcommand\AM{\widehat{\mathtt{\mathbf{M}}}}
 \newcommand\AVal{\widehat{\mathtt{\mathbf{Val}}}}
 \newcommand\ATime{\widehat{\mathtt{\mathbf{Time}}}}
-\newcommand\letterM{M}
+\newcommand\AStore{\widehat{\mathtt{\mathbf{Store}}}}
 
 % }-}
 
