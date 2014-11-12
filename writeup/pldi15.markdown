@@ -75,14 +75,14 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
 
-The semantics of atomic terms is given denotationally with the denotation function `A⟦_,_,_⟧`:
+Atomic expressions are given meaning through the denotation function `A⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
 A⟦_,_,_⟧ ∈ Env × Store × Atom ⇀ Val
 A⟦ρ,σ,i⟧ := i
 A⟦ρ,σ,x⟧ := σ(ρ(x))
 A⟦ρ,σ,[λ](x).e⟧ := ⟨[λ](x).e,ρ⟩ 
 ``````````````````````````````````````````````````
-and primitive operations are likewise given a denotation function `δ⟦_,_,_⟧`:
+Primitive operations are given meaning through the denotation function `δ⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
 δ⟦_,_,_⟧ ∈ IOp × ℤ × ℤ → ℤ
 δ⟦[+],i₁,i₂⟧ := i₁ + i₂
@@ -161,11 +161,75 @@ An execution of the semantics is states as the least-fixed-point of a collecting
 `````indent```````````````````````````````````````
 μ(X).{ς₀} ∪ X ∪ { ς' | ς ~~>ᵍᶜ ς' ; ς ∈ X }
 ``````````````````````````````````````````````````
-We will justify our analyses as sound approximations of this collecting semantics.
+The analyses we present in this paper will be proven correct by establishing a Galois connection with this concrete collecting semantics.
 
-# Monadic Interpreter
+# Flow Properties in Analysis
 
-In this section we design a monadic interpreter for the `λIF` language which is also parameterizedin AAM[CITE] style.
+One key property of a static analysis is the way it tracks _flow_.
+The term "flow" is heavily overloaded in static analysis, for example CFA is literally the abbreviation of "control flow analysis".
+We wish to draw a sharper distinction on what is a flow property.
+First we identify three different types of flow in analysis:
+
+1. Path sensitive and flow sensitive
+2. Path insensitive and flow sensitive
+3. Path insensitive and flow insensitive
+
+Consider a simple if-statement in our example language `λIF` (extended with let-bindings) where an analysis cannot determine the value of `N`:
+`````indent```````````````````````````````````````
+1: let x := if0(N){1}{-1};
+2: let y := if0(N){1}{-1};
+3: e
+``````````````````````````````````````````````````
+
+\paragraph{Path_Sensitive_Flow_Sensitive}
+A path and flow sensitive analysis will track both control and data flow precisely.
+At program point 2 the analysis considers separate worlds:
+`````align````````````````````````````````````````
+{N=0,,  x=   1}
+{N≠0,,  x=-  1}
+``````````````````````````````````````````````````
+At program point 3 the analysis remains precise, resulting in environments:
+`````align````````````````````````````````````````
+{N=0,,  x=   1,,  y=   1} 
+{N≠0,,  x=-  1,,  y=-  1}
+``````````````````````````````````````````````````
+
+\paragraph{Path_Insensitive_Flow_Sensitive}
+A path insensitive flow sensitive analysis will track control flow precisely but merge the heap after control flow branches.
+At program point 2 the analysis considers separate worlds:
+`````align````````````````````````````````````````
+{N=ANY,,  x=   1}
+{N=ANY,,  x=-  1}
+``````````````````````````````````````````````````
+At program point 3 the analysis is forced to again consider both branches, resulting in environments:
+`````align````````````````````````````````````````
+{N=ANY,,  x=   1,,  y=   1}
+{N=ANY,,  x=   1,,  y=-  1}
+{N=ANY,,  x=-  1,,  y=   1}
+{N=ANY,,  x=-  1,,  y=-  1}
+``````````````````````````````````````````````````
+
+\paragraph{Path_Insensitive_Flow_Insensitive}
+A path insensitive flow insensitive analysis will compute a single global set of facts that must be true at all points of execution.
+At program points 2 and 3 the analysis considers a single world with environment:
+`````align````````````````````````````````````````
+{N=ANY,, x={-1, 1}}
+``````````````````````````````````````````````````
+and 
+`````align````````````````````````````````````````
+{N=ANY,, x={-1, 1},, y={-1, 1}}
+``````````````````````````````````````````````````
+respectively.
+
+In our framework we capture both path and flow sensitivity as orthogonal parameters to our interpreter.
+Path sensitivity will arise from the order of monad transformers used to construct the analysis.
+Flow sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
+
+# Analysis Parameters
+
+Before writing an abstract interpreter we first design its parameters.
+The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
+To do this we extend the ideas developed in AAM[CITE] with a new parameter for flow-sensitivity.
 When finished, we will be able to recover a concrete interpreter--which respects the concrete semantics--and a family of abstract interpreters.
 
 First we describe the parameters to the interpreter.
@@ -339,7 +403,7 @@ Remarkably, we need not state laws for `tick`.
 Our interpreter will always merge values which reside at the same address to achieve soundness.
 Therefore, any supplied implementations of `tick` is valid.
 
-## The Interpreter
+# The Interpreter
 
 We now present a generic monadic interpreter for `λIF` paramaterized over `M`, `Val` and `Time`.
 

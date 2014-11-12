@@ -85,11 +85,14 @@ macroText = appEndo $ execWriter $ forM_ (reverse allMacros) $ \ (s,r,m) -> do
         Anywhere -> [" ", r, " "]
   tell $ Endo $ \ t -> T.pack $ subRegex regex (T.unpack t) replace
 
+ops :: ReaderOptions
+ops = def { readerExtensions = readerExtensions def Set.\\ Set.singleton Ext_raw_tex}
+
 main :: IO ()
 main = do
   s <- T.readFile "pldi15.markdown"
   let pre = preProcess s
-      md = readMarkdown def { readerExtensions = readerExtensions def Set.\\ Set.singleton Ext_raw_tex} $ T.unpack pre
+      md = readMarkdown ops  $ T.unpack pre
       post = postProcess md
   system "mkdir -p tmp/autogen"
   T.writeFile "tmp/autogen/pldi15.markdown.pre" pre
@@ -139,7 +142,7 @@ postProcess = walkInlineCommand . walkInlineMath . walkBlocksMath
     walkInlineCommand :: Pandoc -> Pandoc
     walkInlineCommand = walk $ \ (i :: Inline) -> case i of
       Str s 
-        | "\\" `isPrefixOf` s -> RawInline (Format "latex") s
+        | "\\" `isPrefixOf` s -> RawInline (Format "latex") $ T.unpack $ T.replace "_" " " $ T.pack s
         | otherwise -> Str s
       _ -> i
 
