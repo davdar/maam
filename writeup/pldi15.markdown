@@ -1039,7 +1039,7 @@ cabal install maam
 
 # Related Work
 
-The most directly related work is the development of Monadic Abstract Interpreters (MAI) by Sergey et. al.\cite{davdar:Sergey:2013:Monalysis}.
+The most directly related work is the development of Monadic Abstract Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.
 In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
 However, each monad in MAI is designed from scratch for a specific language to have specific analysis properties.
 Our work extends the ideas in MAI in a way that isolates each parameter to be independent of others.
@@ -1048,7 +1048,7 @@ This factorization reveals an orthogonal tuning knob for path and flow sensitivi
 Even more, we give the user building blocks for constructing monads that are correct and give the desired properties by construction.
 Our framework is also motivated by the needs of reasoning formally about abstract interpreters, no mention of which is made in MAI.
 
-We build directly on the work of Abstracting Abstract Machines (AAM) by Van Horn and Might\cite{davdar:van-horn:2010:aam}
+We build directly on the work of Abstracting Abstract Machines (AAM) by \citet{davdar:van-horn:2010:aam}
   in our parameterization of abstract time and call-site sensitivity.
 More notably, we follow the AAM philosophy of instrumenting a concrete semantics _first_ and performing a systematic abstraction _second_.
 This greatly simplifies the Galois connection arguments during systematic abstraction.
