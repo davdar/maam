@@ -1143,11 +1143,11 @@
    \parfillskip = 0pt
    \spaceskip = .7em
    \noindent \LARGE \bfseries \@titletext \par}
-  \vskip 6pt
-  \noindent \Large \@subtitletext \par
-  \vskip 12pt
+  %\vskip 6pt
+  %\noindent \Large \@subtitletext \par
+  %\vskip 12pt
   \if \@blind
-    \vskip 64pt% vspace to compensate for missing author info
+  %  \vskip 64pt% vspace to compensate for missing author info
   \else
   \ifcase \@authorcount
     \@latex@error{No authors were specified for this paper}{}\or
