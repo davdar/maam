@@ -278,9 +278,11 @@ At program point 3 the analysis is forced to again consider both branches, resul
 \paragraph{Path-Insensitive Flow-Insensitive}
 A path-insensitive flow-insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
-`````align````````````````````````````````````````
-{N=ANY,, x={-1, 1}} \text{, and}
-{N=ANY,, x={-1, 1},, y={-1, 1}}\text{, respectively.}
+`````raw``````````````````````````````````````````
+\small\begin{alignat*}{4}
+ \{ N=ANY ,\;\;  & x= \{ -1, 1 \} \}     &&                    && \text{ and}  \\
+ \{ N=ANY ,\;\;  & x= \{ -1, 1 \}  ,\;\; && y= \{ -1, 1 \}  \} && \text{ respectively.} 
+\end{alignat*}\normalsize
 ``````````````````````````````````````````````````
 
 In our framework we capture both path- and flow-sensitivity as orthogonal parameters to our interpreter.
