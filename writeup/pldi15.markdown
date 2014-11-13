@@ -46,21 +46,21 @@ Our contributions are:
 ## Outline
 
 We will demonstrate our framework by example, walking the reader through the design and implementation of an abstract interpreter.
-Section [2][Semantics] gives the concrete semantics for a small functional language.
-Section [3][Flow Properties in Analysis] gives a brief tutorial on the path and flow sensitivity in the setting of our example language.
-Section [4][Analysis Parameters] describes the parameters of our analysis, one of which is the interpreter monad.
-Section [5][The Interpreter] shows the full definition of a highly parameterized monadic interpreter.
-Section [6][Recovering Analyses] shows how to recover concrete and abstract interpreters.
-Section [7][Varying Path and Flow Sensitivity] 
+Section`~\ref{semantics}`{.raw} gives the concrete semantics for a small functional language.
+Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the path and flow sensitivity in the setting of our example language.
+Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analysis, one of which is the interpreter monad.
+Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
+Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
+Section`~\ref{varying-path-and-flo-sensitivity}`{.raw}
   shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
-Section [8][A Compositional Monadic Framework] demonstrates our compositional meta-theory framework built on monad transformers.
-Section [9][Implementation] briefly discusses our implementation of the framework in Haskell.
-Section [10][Related Word] discusses related work and Section [11][Conclusion] concludes.
+Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
+Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
+Section`~\ref{related-work}`{.raw} discusses related work and Section`~\ref{conclusion}`{.raw} concludes.
 
 # Semantics
 
 To demonsrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
-  which is shown in Figure \ref{Syntax}.
+  which is shown in Figure`~\ref{Syntax}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
   i ∈  ℤ
@@ -276,7 +276,7 @@ We briefly review monad, state and nondeterminism operators and thier laws.
 
 \paragraph{Base Monad Operations}
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
-The monad interface is summarized in Figure \ref{Monad}.
+The monad interface is summarized in Figure`~\ref{Monad}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
      M  : Type → Type
@@ -303,7 +303,7 @@ We replace semicolons with line breaks headed by a `do` command for multiline mo
 
 \paragraph{Monadic State Operations}
 A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `bind` actions over `s`.
-The state monad interface is summarized in Figure \ref{StateMonad}.
+The state monad interface is summarized in Figure`~\ref{StateMonad}`{.raw}.
 `\begin{figure}`{.raw}
 `````align```````````````````````````````````````` 
   M  : Type → type
@@ -326,7 +326,7 @@ The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
-The nondeterminism interface is summarized in Figure \ref{Nondterminism}.
+The nondeterminism interface is summarized in Figure`~\ref{Nondterminism}`{.raw}.
 `\begin{figure}`{.raw}
 `````align```````````````````````````````````````` 
     M  : Type → Type
@@ -358,7 +358,7 @@ The abstract domain is encapsulated by the `Val` type in the semantics.
 To parameterize over it, we make `Val` opaque but require it support various operations.
 There is a constraint on `Val` its-self: it must be a join-semilattice with `⊥` and `⊔` respecting the usual laws.
 We require `Val` to be a join-semilattice so it can be merged in the `Store`.
-The interface for the abstract domain is shown in figure \ref{AbstractDomainInterface}.
+The interface for the abstract domain is shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
       Val  : Type
@@ -402,7 +402,7 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from the AAM literature and is shown in Figure \ref{AbstractTimeInterface}.
+The interface for abstract time is familiar from the AAM literature and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
@@ -495,7 +495,7 @@ A⟦[λ](x).e⟧ := do
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
 The step function is written as a small-step monadic computation from expressions to the next expression to evaluate, and is shown in 
-Figure \ref{Interpreter}.
+Figure`~\ref{Interpreter}`{.raw}.
 Interpreting compound expressions is simple, the interpreter pushes a stack frame and continues with the first operand.
 Interpreting atomic expressions must pop and inspect the stack and perform the denotation of the operation:
 `\begin{figure}`{.raw}
@@ -540,7 +540,7 @@ gc(e) := do
   put-Store({l ↦ σ(l) | l ∈ R[σ](ρ,e))
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
-where `R` and `KR` are as defined in Section~\ref{Semantics}.
+where `R` and `KR` are as defined in Section`~\ref{Semantics}`{.raw}.
 
 To execute the interpreter we must introduce one more parameter.
 In the concrete semantics, execution takes the form of a least-fixed-point computation over the collecting semantics
@@ -587,7 +587,7 @@ and the concrete `δ` you would expect:
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`CVal` satisfies the abstract domain laws from section [X][The Abstract Domain].
+`CVal` satisfies the abstract domain laws from section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 
 Concrete time `CTime` captures program contours as a product of `Exp` and `KAddr`:
@@ -694,7 +694,7 @@ The abstract `δ` operator is defined:
 The definition for `δ(-,v₁,v₂)` is analagous.
 
 `\begin{proposition}`{.raw}
-`AVal` satisfies the abstract domain laws from section [X][The Abstract Domain].
+`AVal` satisfies the abstract domain laws from section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -981,9 +981,6 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 
 - The resulting monad has the combined effects of all pieces of the transformer stack.
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
--- - Galois connections between states `s₁` and `s₂` are transported along the Galois connection between 
---   `(α → Sₜ[s₁](m)(β)) α⇄γ (Σ[s₁](α) → Σ[s₁](β))` and `(α → Sₜ[s₂](m)(β)) α⇄γ (Σ[s₂](α) → Σ[s₂](β))`
---   resulting in `(Σ[s₁](α) → Σ[s₁](β)) α⇄β (Σ[s₂](α) → Σ[s₂](β))`.
 
 We can now instantiate our interpreter to the following monad stacks in decreasing order of precision:
 `````align````````````````````````````````````````
@@ -1007,7 +1004,7 @@ We have implemented our framework in Haskell and applied it to compute analyses 
 Our implementation provides path sensitivity, flow sensitivity, and flow insensitivity as a semantics-independent monad library.
 The code shares a striking resemblance with the math.
 
-Our interpreter for `λIF` is paramaterized as discussed in Section [4][Analysis Parameters].
+Our interpreter for `λIF` is paramaterized as discussed in Section`~\ref{analysis-parameters}`{.raw}.
 We express a valid analysis with the following Haskell constraint:
 `````indent```````````````````````````````````````
 type Analysis(δ,μ,m) ∷ Constraint = 
