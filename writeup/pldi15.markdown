@@ -1016,6 +1016,8 @@ type Analysis(δ,μ,m) ∷ Constraint =
   (AAM(μ),Delta(δ),AnalysisMonad(δ,μ,m))
 ``````````````````````````````````````````````````
 Constraints `AAM(μ)` and `Delta(δ)` are interfaces for abstract time and the abstract domain.
+
+\noindent
 The constraint `AnalysisMonad(m)` requires only that `m` has the required effects[^1]:
 `````indent```````````````````````````````````````
 type AnalysisMonad(δ,μ,m) ∷ Constraint = (
