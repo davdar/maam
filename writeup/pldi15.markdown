@@ -8,8 +8,10 @@ overload].  These one-off abstractions require effort to design and
 prove sound.  Consequently later work has focused on endowing the
 abstraction with a number of knobs, levers, and dials to tune
 precision and compute efficiently [CITE overload].  These parameters
-come in various forms with overloaded meanings such as
-object`~\cite{dvanhorn:Milanova2005Parameterized}`{.raw}, context [CITE],
+come in various forms with overloaded meanings such as object
+\cite{dvanhorn:Milanova2005Parameterized,
+dvanhorn:Smaragdakis2011Pick}, context
+\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
 path [CITE], and heap [CITE] sensitivities, or some combination
 thereof [CITE].  These efforts develop families of analyses for a
 specific language and prove the framework sound.
