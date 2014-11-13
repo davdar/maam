@@ -8,6 +8,7 @@ mstep-γ       mstep-\gamma       Anywhere
 mstep₁-γ      mstep_1\gamma      Anywhere  
 mstep₂-γ      mstep_2\gamma      Anywhere  
 mstepₘ-γ      mstep_m\gamma      Anywhere  
+mstepₘ-α      mstep_m\alpha      Anywhere  
 ⊥-unit        \bot-unit          Anywhere  
 ⊥-zero        \bot-zero          Anywhere  
 Addr          _                  Word      
