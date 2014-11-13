@@ -1073,8 +1073,9 @@ come in various forms with overloaded meanings such as object
 \cite{dvanhorn:Milanova2005Parameterized,
 dvanhorn:Smaragdakis2011Pick}, context
 \cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path \cite{davdar:das:2002:esp}, and heap [CITE] sensitivities, or
-some combination thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
+path \cite{davdar:das:2002:esp}, and heap
+\cite{davdar:van-horn:2010:aam} sensitivities, or some combination
+thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
 
 These various forms can all be cast in the theory of abstraction
 interpretation of \citet{dvanhorn:Cousot:1977:AI,
@@ -1111,7 +1112,7 @@ could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
 
 
 The most directly related work is the development of Monadic Abstract
-Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.  In MAI,
+Interpreters (MAI) by \citet{dvanhorn:Sergey2013Monadic}.  In MAI,
 interpreters are also written in monadic style and variations in
 analysis are recovered through new monad implementations.  However,
 each monad in MAI is designed from scratch for a specific language to
