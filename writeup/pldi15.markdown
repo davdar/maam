@@ -559,7 +559,7 @@ To recover concrete and abstract interpreters we need only instantiate our gener
 
 For the concrete value space we instantiate `Val` to `CVal`, a powerset of values:
 `````indent```````````````````````````````````````
-v ∈ CVal := 𝒫(Clo + ℤ)
+v ∈ CVal := 𝒫(CClo + ℤ)
 ``````````````````````````````````````````````````
 
 The concrete value space `CVal` has straightforward introduction and elimination rules:
@@ -656,7 +656,7 @@ The injection `ς₀` for a program `e₀` is:
 
 We pick a simple abstraction for integers, `{[-],0,[+]}`, although our technique scales seamlessly to other domains.
 `````indent```````````````````````````````````````
-AVal := 𝒫(Clo + {[-],0,[+]})
+AVal := 𝒫(AClo + {[-],0,[+]})
 ``````````````````````````````````````````````````
 
 Introduction and elimination functions for `AVal` are defined:
@@ -668,7 +668,7 @@ int-I(i) := [+] if i > 0
 int-if0-E : AVal → 𝒫(Bool)
 int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ [+] ∈ v }
 ``````````````````````````````````````````````````
-Introduction and elimination for `Clo` is identical to the concrete domain.
+Introduction and elimination for `AClo` is identical to the concrete domain.
 
 The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
