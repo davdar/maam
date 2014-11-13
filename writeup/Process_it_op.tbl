@@ -23,6 +23,7 @@ KStore        _                  Word
 M             _                  Word      
 Op            _                  Word      
 R             _                  Word      
+KR            _                  Word      
 R-Clo         _                  Word      
 R-Val         _                  Word      
 Store         _                  Word      
@@ -55,3 +56,11 @@ put-get       _                  Word
 put-put       _                  Word      
 return        _                  Word      
 tick          _                  Word      
+Type          _                  Word      
+get           _                  Word      
+put           _                  Word      
+tickM         _            Word
+step          _            Word
+push        _       Word
+pop      _      Word
+gc    _       Word

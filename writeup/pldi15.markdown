@@ -53,7 +53,7 @@ Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the 
 Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analysis, one of which is the interpreter monad.
 Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
 Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
-Section`~\ref{varying-path-and-flo-sensitivity}`{.raw}
+Section`~\ref{varying-path-and-flow-sensitivity}`{.raw}
   shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
 Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
 Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
@@ -278,7 +278,7 @@ We briefly review monad, state and nondeterminism operators and thier laws.
 
 \paragraph{Base Monad Operations}
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
-The monad interface is summarized in Figure`~\ref{Monad}`{.raw}.
+The monad interface is summarized in Figure`~\ref{MonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
      M  : Type → Type
@@ -305,7 +305,7 @@ We replace semicolons with line breaks headed by a `do` command for multiline mo
 
 \paragraph{Monadic State Operations}
 A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `bind` actions over `s`.
-The state monad interface is summarized in Figure`~\ref{StateMonad}`{.raw}.
+The state monad interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align```````````````````````````````````````` 
   M  : Type → type
@@ -328,7 +328,7 @@ The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
-The nondeterminism interface is summarized in Figure`~\ref{Nondterminism}`{.raw}.
+The nondeterminism interface is summarized in Figure`~\ref{NondterminismInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align```````````````````````````````````````` 
     M  : Type → Type
@@ -364,6 +364,8 @@ The interface for the abstract domain is shown in Figure`~\ref{AbstractDomainInt
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
       Val  : Type
+        ⊥  : Val
+      _⊔_  : Val × Val → Val
     int-I  : ℤ → Val
 int-if0-E  : Val → 𝒫(Bool)
     clo-I  : Clo → Val
@@ -427,7 +429,7 @@ Therefore, any supplied implementations of `tick` is valid.
 
 We now present a generic monadic interpreter for `λIF` paramaterized over `M`, `Val` and `Time`.
 
-First we implement `A⟦_⟧`, the denotation for atomic expressions:
+First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions:
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -448,64 +450,7 @@ A⟦[λ](x).e⟧ := do
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 ``````````````````````````````````````````````````
 
-In moving our semantics to an analysis, we will need to reuse addresses in the state space.
-This induces `Store` and `KStore` to join when binding new values to in-use addresses.
-The state space for our interpreter will therefore use the following domain for `Store` and `KStore`:
-`````indent```````````````````````````````````````
-σ  ∈ Store  : Addr → Val
-κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
-``````````````````````````````````````````````````
-
-We have already established a join-semilattice structure for `Val`.
-Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
-For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
-
-Before defining the interpreter we define some helper functions which interact with the underlying monad `M`.
-
-First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `mzero`, which we name `↑ₚ`:
-
-Allocating addresses and updating time can be implemented using monadic state effects:
-`````indent```````````````````````````````````````
-allocM : Var → M(Addr)
-allocM(x) := do
-  τ ← get-Time
-  return(x,τ)
-κallocM : M(KAddr)
-κallocM := do
-  τ ← get-Time
-  return(τ)
-tickM : Exp → M(1)
-tickM(e) = do
-  τ ← get-Time
-  κl ← get-KAddr
-  put-Time(tick(e,κl,τ))
-``````````````````````````````````````````````````
-
-Finally, we introduce helper functions for manipulating stack frames:
-`````indent```````````````````````````````````````
-push : Frame → M(1)
-push(fr) := do
-  κl ← get-KAddr
-  κσ ← get-KStore
-  κl' ← κallocM
-  put-KStore(κσ ⊔ [κl' ↦ {fr∷κl}])
-  put-KAddr(κl')
-pop : M(Frame)
-pop := do
-  κl ← get-KAddr
-  κσ ← get-KStore
-  fr∷κl' ← ↑ₚ(κσ(κl))
-  put-KAddr(κl')
-  return(fr)
-``````````````````````````````````````````````````
-
-To implement our interpreter we define a denotation function for atomic expressions and a step function for compound expressions.
-The denotation for atomic expressions is written as a monadic computation from atomic expresssions to values.
-The step function is written as a small-step monadic computation from expressions to the next expression to evaluate, and is shown in 
-Figure`~\ref{Interpreter}`{.raw}.
-Interpreting compound expressions is simple, the interpreter pushes a stack frame and continues with the first operand.
-Interpreting atomic expressions must pop and inspect the stack and perform the denotation of the operation:
-`\begin{figure}`{.raw}
+Next we implement `step`, a _monadic_ small-step function for compound expressions:
 `````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
@@ -522,10 +467,10 @@ step(a) := do
       return(e)
     ⟨v' @ □⟩ → do
       ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
-      l ← alloc(x)
+      τ ← get-Time
       σ ← get-Store
-      put-Env(ρ'[x↦l])
-      put-Store(σ[l↦v])
+      put-Env(ρ'[x ↦ (x,τ)])
+      put-Store(σ ⊔ [(x,τ) ↦ {v}])
       return(e)
     ⟨v' ⊕ □⟩ → do
       return(δ(⊕,v',v))
@@ -533,9 +478,31 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
-\caption{The Generic Monadic Interpreter}
-\label{Interpreter}
-`\end{figure}`{.raw}
+`step` uses helper functions `push` and `pop` for manipulating stack frames:
+`````indent```````````````````````````````````````
+push : Frame → M(1)
+push(fr) := do
+  κl ← get-KAddr
+  κσ ← get-KStore
+  κl' ← get-Time
+  put-KStore(κσ ⊔ [κl' ↦ {fr∷κl}])
+  put-KAddr(κl')
+pop : M(Frame)
+pop := do
+  κl ← get-KAddr
+  κσ ← get-KStore
+  fr∷κl' ← ↑ₚ(κσ(κl))
+  put-KAddr(κl')
+  return(fr)
+``````````````````````````````````````````````````
+and a monadic version of `tick` called `tickM`:
+`````indent```````````````````````````````````````
+tickM : Exp → M(1)
+tickM(e) = do
+  τ ← get-Time
+  κl ← get-KAddr
+  put-Time(tick(e,κl,τ))
+``````````````````````````````````````````````````
 
 We can also implement abstract garbage collection in a fully general away against the monadic effect interface:
 `````indent```````````````````````````````````````
@@ -547,19 +514,28 @@ gc(e) := do
   put-Store({l ↦ σ(l) | l ∈ R[σ](ρ,e))
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
-where `R` and `KR` are as defined in Section`~\ref{Semantics}`{.raw}.
+where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
+
+The interpreter looks deterministic, however the nondeterminism is just hidden away behind `↑ₚ` and monadic bind.
+In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
+This is because we placed no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
+Our interpreter is therefore operating over a modified state space:
+`````indent```````````````````````````````````````
+σ  ∈ Store  : Addr → Val
+κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
+``````````````````````````````````````````````````
+We have already established a join-semilattice structure in the interface for `Val` in the abstract domain interface.
+Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
+For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
 
 To execute the interpreter we must introduce one more parameter.
 In the concrete semantics, execution takes the form of a least-fixed-point computation over the collecting semantics
 This in general requires a join-semilattice structure for some `Σ` and a transition function `Σ → Σ`.
 We bridge this gap between monadic interpreters and transition functions with an extra constraint on the monad `M`.
-We require that monadic actions `α → M(β)` form a Galois connection with a transition system `Σ → Σ`.
-
-There is one last parameter to our development: a connection between our monadic interpreter and a state space transition system.
-We state this connection formally as a Galois connection `(Σ → Σ)α⇄γ(Exp → M(Exp))`.
+We require that monadic actions `Exp → M(Exp)` form a Galois connection with a transition system `Σ → Σ`.
 This Galois connection serves two purposes.
 First, it allows us to implement the analysis by converting our interpreter to the transition system `Σ → Σ` through `γ`.
-Second, this Galois connection serves to _transport other Galois connections_.
+Second, this Galois connection serves to _transport other Galois connections_ as part of our correctness framework.
 For example, given concrete and abstract versions of `Val`, we carry `CVal α⇄γ AVal` through the Galois connection to establish `CΣ α⇄γ AΣ`.
 
 A collecting-semantics execution of our interpreter is defined as the least-fixed-point of `step` transported through the Galois connection.
@@ -780,12 +756,12 @@ _⟨+⟩_ : ∀ α, M(α) × M(α) → M α
 Finally, the Galois connection relating `AMᶠⁱ` to a state space transition over `AΣᶠⁱ` must also compute set unions and store joins:
 `````indent```````````````````````````````````````
 AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
-γ : (Exp → AMᶠⁱ(Exp)) → (Σᶠⁱ → Σᶠⁱ)
+γ : (Exp → AMᶠⁱ(Exp)) → (AΣᶠⁱ → AΣᶠⁱ)
 γ(f)(eψ*,σ) := ({eψ₁₁ .. eψₙ₁ .. eψₙₘ}, σ₁ ⊔ .. ⊔ σₙ)
   where 
     {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ*
     ({eψᵢ₁ .. eψᵢₘ},σᵢ) := f(eᵢ)(ψᵢ,σ)
-α  : (Σᶠⁱ → Σᶠⁱ) → (Exp → AMᶠⁱ(Exp))
+α  : (AΣᶠⁱ → AΣᶠⁱ) → (Exp → AMᶠⁱ(Exp))
 α(f)(e)(ψ,σ) := f({(e,ψ)},σ)
 ``````````````````````````````````````````````````
 
