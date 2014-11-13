@@ -6,6 +6,7 @@ Search For    Replace With                            Match Mode
 _             \_                                      Anywhere  
 AM            \Abstract{\litM}                        Word      
 AStore        \Abstract{\litStore}                    Word      
+AEnv          \Abstract{\litEnv}                      Word
 ATime         \Abstract{\litTime}                     Word      
 AVal          \Abstract{\litVal}                      Word      
 AΣ            \Abstract{\Sigma}                       Anywhere  

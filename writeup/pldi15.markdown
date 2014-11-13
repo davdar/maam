@@ -337,7 +337,7 @@ mzero  : ∀ α, M(α)
 _⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
 `````````````````````````````````````````````````` 
 \caption{Nondeterminism Interface}
-\label{Nondeterminism Interface}
+\label{NondeterminismInterface}
 `\end{figure}`{.raw}
 
 We use the nondeterminism laws to reason about nondeterminism effects:
@@ -407,7 +407,7 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from the AAM literature and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
+The interface for abstract time is familiar from AAM \cite{davdar:van-horn:2010:aam} and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
@@ -416,7 +416,7 @@ tick  : Exp × KAddr × Time → Time
 \caption{Abstract Time Interface}
 \label{AbstractTimeInterface}
 `\end{figure}`{.raw}
-In traditional AAM, `tick` is defined to have access to all of `Σ`.
+In AAM, `tick` is defined to have access to all of `Σ`.
 This comes from the generality of the framework--to account for all possible `tick` functions.
 We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
 Also in AAM is the opaque function `alloc : Var × Time → Addr`.
@@ -519,7 +519,7 @@ where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
 The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
 
 In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
-This is because we placed no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
+This is because we place no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
 Our interpreter is therefore operating over a modified state space:
 `````indent```````````````````````````````````````
 σ  ∈ Store  : Addr → Val
@@ -571,7 +571,7 @@ and the concrete `δ` you would expect:
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`CVal` satisfies the abstract domain laws from section`~\ref{the-abstract-domain}`{.raw}.
+`CVal` satisfies the abstract domain laws shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
 `\end{proposition}`{.raw}
 
 Concrete time `CTime` captures program contours as a product of `Exp` and `KAddr`:
