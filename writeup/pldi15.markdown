@@ -99,6 +99,7 @@ We make the following contributions:
 
 To demonstrate our framework we design an abstract interpreter for `λIF`, a simple applied lambda calculus shown in Figure`~\ref{Syntax}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
   i ∈  ℤ
   x ∈  Var
@@ -109,7 +110,7 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 ``````````````````````````````````````````````````
 `\caption{`{.raw} `λIF` `}`{.raw}
 \label{Syntax} 
-\vspace{-2em}
+\vspace{-1em}
 `\end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
 We use the operator `@` as explicit syntax for function application.
@@ -119,7 +120,10 @@ Before designing an abstract interpreter we first specify a formal semantics for
 Our semantics makes allocation explicit and separates values and continuations into separate stores.
 Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
 
-The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values:
+The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
+  shown in Figure \ref{SS}.
+`\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
  τ ∈  Time    := ℤ
  l ∈  Addr    := Var × Time
@@ -132,6 +136,10 @@ The state space `Σ` for `λIF` is a standard CESK machine augmented with a sepa
 fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
+\caption{Concrete State Space}
+\label{SS} 
+\vspace{-1em}
+`\end{figure}`{.raw}
 
 Atomic expressions are denoted by `A⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
@@ -147,7 +155,9 @@ Primitive operations are denotation denoted by `δ⟦_,_,_⟧`:
 δ⟦[-],i₁,i₂⟧ := i₁ - i₂
 ``````````````````````````````````````````````````
 
-The semantics of compound expressions are given relationally via the step relation `_~~>_`:
+The semantics of compound expressions are given relationally via the step relation `_~~>_` shown in Figure \ref{Sem}.
+`\begin{figure}`{.raw}
+\vspace{-1em}
 `````indent```````````````````````````````````````
 _~~>_ ∈ 𝒫(Σ × Σ)
 ⟨e₁ ⊙ e₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e₁,ρ,σ,τ,κσ',τ+1⟩
@@ -171,6 +181,10 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₁ when i = 0
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
+\caption{Concrete Step Relation}
+\label{Sem} 
+\vspace{-1em}
+`\end{figure}`{.raw}
 
 Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
@@ -320,6 +334,7 @@ We briefly review monad, state and nondeterminism operators and their laws.
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
 The monad interface is summarized in Figure`~\ref{MonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
      M  : Type → Type
   bind  : ∀ α β, M(α) → (α → M(β)) → M(β)
@@ -327,6 +342,7 @@ return  : ∀ α, α → M(α)
 ``````````````````````````````````````````````````
 \caption{Monad Interface}
 \label{MonadInterface}
+\vspace{-1em}
 `\end{figure}`{.raw}
 
 We use the monad laws to reason about our implementation in the absence of a particular implementation of `bind` and `return`:
@@ -348,6 +364,7 @@ We replace semicolons with line breaks headed by a `do` command for multiline mo
 A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `put` actions over `s`.
 The state monad interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align```````````````````````````````````````` 
   M  : Type → type
   s  : Type
@@ -356,6 +373,7 @@ put  : s → M(1)
 ``````````````````````````````````````````````````
 \caption{State Monad Interface}
 \label{StateMonadInterface}
+\vspace{-1em}
 `\end{figure}`{.raw}
 
 We use the state monad laws to reason about state effects:
@@ -370,6 +388,7 @@ get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
 The nondeterminism interface is summarized in Figure`~\ref{NondterminismInterface}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align```````````````````````````````````````` 
     M  : Type → Type
 mzero  : ∀ α, M(α)
@@ -377,6 +396,7 @@ _⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
 `````````````````````````````````````````````````` 
 \caption{Nondeterminism Interface}
 \label{NondeterminismInterface}
+\vspace{-1em}
 `\end{figure}`{.raw}
 
 We use the nondeterminism laws to reason about nondeterminism effects:
@@ -402,6 +422,7 @@ There is a constraint on `Val` its-self: it must be a join-semilattice with `⊥
 We require `Val` to be a join-semilattice so it can be merged in the `Store`.
 The interface for the abstract domain is shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
       Val  : Type
         ⊥  : Val
@@ -414,6 +435,7 @@ int-if0-E  : Val → 𝒫(Bool)
 ``````````````````````````````````````````````````
 \caption{Abstract Domain Interface}
 \label{AbstractDomainInterface}
+\vspace{-1em}
 `\end{figure}`{.raw}
 
 The laws for this interface are designed to induce a Galois connection between `ℤ` and `Val`:
@@ -449,12 +471,14 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 The interface for abstract time is familiar from Abstracting Abstract Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces 
   abstract time as a single parameter from variations in call-site-sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
 Time  : Type
 tick  : Exp × KAddr × Time → Time
 ``````````````````````````````````````````````````
 \caption{Abstract Time Interface}
 \label{AbstractTimeInterface}
+\vspace{-1em}
 `\end{figure}`{.raw}
 In AAM, `tick` is defined to have access to all of `Σ`.
 This comes from the generality of the framework--to account for all possible `tick` functions.
@@ -473,6 +497,7 @@ We now present a generic monadic interpreter for `λIF` parameterized over `M`, 
 First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions, shown in Figure \ref{InterpreterA}.
 
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -487,6 +512,7 @@ A⟦[λ](x).e⟧ := do
 ``````````````````````````````````````````````````
 \caption{Monadic denotation for atoms}
 \label{InterpreterA} 
+\vspace{-1em}
 `\end{figure}`{.raw}
 `get-Env` and `get-Store` are primitive operations for monadic state.
 `clo-I` comes from the abstract domain interface.
@@ -498,6 +524,7 @@ A⟦[λ](x).e⟧ := do
 
 Next we implement `step`, a _monadic_ small-step function for compound expressions, shown in Figure \ref{InterpreterStep}.
 `\begin{figure}`{.raw}
+\vspace{-1em}
 `````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
@@ -527,6 +554,7 @@ step(a) := do
 ``````````````````````````````````````````````````
 \caption{Monadic step function}
 \label{InterpreterStep} 
+\vspace{-1em}
 `\end{figure}`{.raw}
 `step` uses helper functions `push` and `pop` for manipulating stack frames:
 `````indent```````````````````````````````````````
