@@ -67,7 +67,7 @@
 \setlength{\belowdisplayshortskip}{0em}
 
 %\title{The Marriage of Monad Transformers and Abstract Interpreters: Modular Metatheory for Program Analysis}
-\title{Monad Transformers and Modular Abstract Interpreters:\\ Reusable Metatheory for Program Analysis}
+\title{Galois Transformers and Modular Abstract Interpreters:\\ Reusable Metatheory for Program Analysis}
 \authorinfo{David Darais}{Harvard University, USA}{darais@seas.harvard.edu}
 \authorinfo{Matthew Might}{University of Utah, USA}{might@cs.utah.edu}
 \authorinfo{David Van Horn}{University of Maryland, USA}{dvanhorn@cs.umd.edu}
@@ -76,14 +76,31 @@
 % Abstract {-{
 \begin{abstract}
 
-The design and implementation of static analyzers have becoming increasingly systematic.
-In fact, design and implementation have remained seemingly on the verge of full mechanization for several years.
-A stumbling block in full mechanization has been the ad hoc nature of soundness proofs accompanying each analyzer.
-While design and implementation is largely systematic, 
-  soundness proofs can change significantly with (apparently) minor changes to the semantics and analyzers themselves.
-We finally reconcile the systematic construction of static analyzers with their proofs of soundness 
-  via a mechanistic Galois-connection-based metatheory for static analyzers.
+The design and implementation of static analyzers have becoming
+increasingly systematic.  In fact, design and implementation have
+remained seemingly on the verge of full mechanization for several
+years.  A stumbling block in full mechanization has been the ad hoc
+nature of soundness proofs accompanying each analyzer.  While design
+and implementation is largely systematic, soundness proofs can change
+significantly with (apparently) minor changes to the semantics and
+analyzers themselves.
 
+\par We solve the problem of systematically constructing static
+analyzers by introducing the notion of a \emph{Galois transformer}, a
+monad transformer that satisfies the properties of a Galois
+connection.  In concert with a monadic interpreter, we are able to
+define a library of monad transfomers implementing classic context,
+path, and heap (in-)senstive building blocks which can be composed
+together to realize a program analysis monad, \emph{independent of the
+  language being analyzed}.
+
+\par Significantly, a Galois transformer can be proved sound once and
+for all, making it a reusable analysis component.  As new analaysis
+features and abstractions are developed and mixed in, soundness proofs
+need not be reconstructed as the composition of a monad transfomer
+stack is sound by virtue of its consituents.  We believe Galois
+transformers provide a viable foundation for resuable and composable 
+metatheory for program analysis.
 \end{abstract}
 % }-}
 
