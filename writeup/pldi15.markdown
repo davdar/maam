@@ -110,7 +110,6 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 
 Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
 Our semantics makes allocation explicit and separates value and continuation stores.
---Our approach to analysis will be to design a configurable interpreter that is capable of recovering these semantics.
 We will aim to recover these semantics from our generic abstract interpreter.
 
 The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
@@ -297,7 +296,7 @@ Flow-sensitivity will arise from the Galois connection used to map interpreters 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
 To do this we extend the ideas developed in \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
--- When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
+When finished, we will recover both the concrete semantics and a family of abstractions through instantiations of these parameters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
 
@@ -488,9 +487,7 @@ Therefore, any supplied implementations of `tick` is valid.
 # The Interpreter
 
 We now present a generic monadic interpreter for `λIF` parameterized over `M`, `Val` and `Time`.
-
 First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions, shown in Figure \ref{InterpreterA}.
-
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````indent```````````````````````````````````````
@@ -547,11 +544,14 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
-\caption{Monadic step function}
+\caption{Monadic step function and garbage collection}
 \label{InterpreterStep} 
 \vspace{-1em}
 `\end{figure}`{.raw}
-`step` uses helper functions `push` and `pop` for manipulating stack frames:
+`step` uses helper functions `push` and `pop` for manipulating stack frames,
+and a monadic version of `tick` called `tickM`, each of which are shown in Figure \ref{Push}.
+`\begin{figure}`{.raw}
+\vspace{-1em}
 `````indent```````````````````````````````````````
 push : Frame → M(1)
 push(fr) := do
@@ -567,17 +567,19 @@ pop := do
   fr∷κl' ← ↑ₚ(κσ(κl))
   put-KAddr(κl')
   return(fr)
-``````````````````````````````````````````````````
-and a monadic version of `tick` called `tickM`:
-`````indent```````````````````````````````````````
 tickM : Exp → M(1)
 tickM(e) = do
   τ ← get-Time
   κl ← get-KAddr
   put-Time(tick(e,κl,τ))
 ``````````````````````````````````````````````````
-
-We can also implement abstract garbage collection in a fully general away against the monadic effect interface:
+\caption{Interpreter Helper Functions}
+\label{Push} 
+\vspace{-1em}
+`\end{figure}`{.raw}
+--`````indent```````````````````````````````````````
+--``````````````````````````````````````````````````
+We also implement abstract garbage collection in a general away using the monadic effect interface:
 `````indent```````````````````````````````````````
 gc : Exp → M(1)
 gc(e) := do
@@ -587,7 +589,9 @@ gc(e) := do
   put-Store({l ↦ σ(l) | l ∈ R[σ](ρ,e))
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
-where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
+-- where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
+
+
 -- The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
 
 -- In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
@@ -604,8 +608,8 @@ To support the `⊔` operator for our stores (in observation of soundness), we m
 
 To execute the interpreter we must introduce one more parameter.
 In the concrete semantics, execution takes the form of a least-fixed-point computation over the collecting semantics
-This in general requires a join-semilattice structure for some `Σ` and a transition function `Σ → Σ`.
-We bridge this gap between monadic interpreters and transition functions with an extra constraint on the monad `M`.
+-- This in general requires a join-semilattice structure for some `Σ` and a transition function `Σ → Σ`.
+-- We bridge this gap between monadic interpreters and transition functions with an extra constraint on the monad `M`.
 We require that monadic actions `Exp → M(Exp)` form a Galois connection with a transition system `Σ → Σ`.
 This Galois connection serves two purposes.
 First, it allows us to implement the analysis by converting our interpreter to the transition system `Σ → Σ` through `γ`.
@@ -1257,10 +1261,11 @@ form Galois connections, are effective, language-inde\-pendent building
 blocks for constructing program analyzers and form the basis of a
 modular, reusable, and composable metatheory for program analysis.
 
--- In the end, we hope language independent characterizations of analysis
--- ingredients will both facilate the systematic construction of program
--- analyses and bridge the gap between various communities which often
--- work in isolation, despite the fruitful results of mapping between
+In the end, we hope language independent characterizations of analysis
+ingredients will both facilate the systematic construction of program
+analyses and bridge the gap between various communities which often
+work in isolation.
+-- --, despite the fruitful results of mapping between
 -- langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
 -- showing that object-oriented $k$-CFA can be applied to functional
 -- languages to avoid the exponential time lower bound
