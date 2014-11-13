@@ -413,7 +413,8 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from Abstracting Abstract Machines (AAM) \cite{davdar:van-horn:2010:aam} and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
+The interface for abstract time is familiar from Abstracting Abstract Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces 
+  abstract time as a single parameter from variations in call-site sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
