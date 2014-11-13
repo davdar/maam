@@ -139,7 +139,7 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
 
-Our abstract interpreter will support abstract garbage collection`~\citet{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
+Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
 We include garbage collection for two reasons.
 First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
@@ -253,7 +253,7 @@ This is only ambiguous for "flow-sensitive", as path-sensitivity implies flow-se
 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
-To do this we extend the ideas developed in AAM \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
+To do this we extend the ideas developed in \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
 When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
@@ -413,7 +413,7 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from AAM \cite{davdar:van-horn:2010:aam} and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
+The interface for abstract time is familiar from Abstracting Abstract Machines (AAM) \cite{davdar:van-horn:2010:aam} and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
@@ -1096,9 +1096,9 @@ cabal install maam
 # Related Work
 
 Program analysis comes in many forms such as points-to
-\citet{dvanhorn:Andersen1994Program}, flow
-\citet{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
-\citet{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
+\cite{dvanhorn:Andersen1994Program}, flow
+\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
+\cite{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
 surveys.)  Much of the research has focused on developing families or
 frameworks of analyses that endow the abstraction with a number of
@@ -1107,12 +1107,12 @@ knobs, levers, and dials to tune precision and compute efficiently
 dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
 davdar:van-horn:2010:aam}; there are many more).  These parameters
 come in various forms with overloaded meanings such as object
-\citet{dvanhorn:Milanova2005Parameterized,
+\cite{dvanhorn:Milanova2005Parameterized,
 dvanhorn:Smaragdakis2011Pick}, context
-\citet{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path \citet{davdar:das:2002:esp}, and heap
-\citet{davdar:van-horn:2010:aam} sensitivities, or some combination
-thereof \citet{dvanhorn:Kastrinis2013Hybrid}.
+\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
+path \cite{davdar:das:2002:esp}, and heap
+\cite{davdar:van-horn:2010:aam} sensitivities, or some combination
+thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
 
 These various forms can all be cast in the theory of abstraction
 interpretation of \citet{dvanhorn:Cousot:1977:AI,
@@ -1191,7 +1191,7 @@ In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program
 analyses and bridge the gap between various communities which often
 work in isolation, despite the fruitful results of mapping between
-langauge paradigms such as \citet{dvanhorn:Might2010Resolving} work,
+langauge paradigms such as \citet{dvanhorn:Might2010Resolving}' work,
 showing that object-oriented $k$-CFA can be applied to functional
 languages to avoid the exponential time lower bound
-\citet{dvanhorn:VanHorn-Mairson:ICFP08}.
+\cite{dvanhorn:VanHorn-Mairson:ICFP08}.
