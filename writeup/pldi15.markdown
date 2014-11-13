@@ -97,21 +97,13 @@ We make the following contributions:
 
 # Semantics
 
-To demonstrate our framework we design an abstract interpreter for `λIF`, a simple applied lambda calculus shown in Figure`~\ref{Syntax}`{.raw}.
-`\begin{figure}`{.raw}
-\vspace{-1em}
-`````align````````````````````````````````````````
-  i ∈  ℤ
-  x ∈  Var
-  a ∈  Atom  ::= i | x | [λ](x).e
-  ⊕ ∈  IOp   ::= [+] | [-]
-  ⊙ ∈  Op    ::= ⊕ | @ 
-  e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
-``````````````````````````````````````````````````
-`\caption{`{.raw} `λIF` `}`{.raw}
-\label{Syntax} 
-\vspace{-1em}
-`\end{figure}`{.raw}
+To demonstrate our framework we design an abstract interpreter for `λIF`, a simple applied lambda calculus shown in Figure`~\ref{SS}`{.raw}.
+-- `\begin{figure}`{.raw}
+-- \vspace{-1em}
+-- `\caption{`{.raw} `λIF` `}`{.raw}
+-- \label{Syntax} 
+-- \vspace{-1em}
+-- `\end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
 -- We use the operator `@` as explicit syntax for function application.
 -- This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
@@ -125,6 +117,14 @@ The state space `Σ` for `λIF` is a standard CESK machine augmented with a sepa
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````align````````````````````````````````````````
+  i ∈  ℤ
+  x ∈  Var
+  a ∈  Atom  ::= i | x | [λ](x).e
+  ⊕ ∈  IOp   ::= [+] | [-]
+  ⊙ ∈  Op    ::= ⊕ | @ 
+  e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
+``````````````````````````````````````````````````
+`````align````````````````````````````````````````
  τ ∈  Time    := ℤ
  l ∈  Addr    := Var × Time
  ρ ∈  Env     := Var ⇀ Addr
@@ -136,7 +136,7 @@ The state space `Σ` for `λIF` is a standard CESK machine augmented with a sepa
 fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
-\caption{Concrete State Space}
+`\caption{`{.raw} `λIF` Syntax and Concrete State Space `}`{.raw}
 \label{SS} 
 \vspace{-1em}
 `\end{figure}`{.raw}
@@ -302,7 +302,7 @@ There will be three parameters to our abstract interpreter, one of which is nove
 
 1. The monad, novel in this work, is the execution engine of the interpreter and captures the path- and flow-sensitivity of the analysis.
 2. The abstract domain, which for this language is merely the abstraction for integers.
-3. Abstract Time, capturing the call-site-sensitivity of the analysis.
+3. Abstract Time, capturing call-site-sensitivity.
 
 -- For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
@@ -369,8 +369,7 @@ put  : s → M(1)
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-We use the state monad laws to reason about state effects.
-We refer the reader to \citet{dvanhorn:Liang1995Monad} for these definitions.
+We use the state monad laws to reason about state effects, for which refer the reader to \citet{dvanhorn:Liang1995Monad} for these definitions.
 -- `````indent``````````````````````````````````````` 
 -- put-put : put(s₁) ; put(s₂) = put(s₂)
 -- put-get : put(s) ; get = return(s)
@@ -727,7 +726,7 @@ We pick a simple abstraction for integers, `{[-],0,[+]}`, although our technique
 AVal := 𝒫(AClo + {[-],0,[+]})
 ``````````````````````````````````````````````````
 
-Introduction and elimination functions for `AVal` are defined:
+Introduction and elimination for `AVal` are defined:
 `````indent```````````````````````````````````````
 int-I : ℤ → AVal
 int-I(i) := [-] if i < 0
