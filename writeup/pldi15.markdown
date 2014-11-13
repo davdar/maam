@@ -120,7 +120,10 @@ Before designing an abstract interpreter we first specify a formal semantics for
 Our semantics makes allocation explicit and separates values and continuations into separate stores.
 Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
 
-The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values:
+The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
+  shown in Figure \ref{SS}.
+`\begin{figure}`{.raw}
+\vspace{-1em}
 `````align````````````````````````````````````````
  τ ∈  Time    := ℤ
  l ∈  Addr    := Var × Time
@@ -133,6 +136,10 @@ The state space `Σ` for `λIF` is a standard CESK machine augmented with a sepa
 fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
+\caption{Concrete State Space}
+\label{SS} 
+\vspace{-1em}
+`\end{figure}`{.raw}
 
 Atomic expressions are denoted by `A⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
@@ -148,7 +155,9 @@ Primitive operations are denotation denoted by `δ⟦_,_,_⟧`:
 δ⟦[-],i₁,i₂⟧ := i₁ - i₂
 ``````````````````````````````````````````````````
 
-The semantics of compound expressions are given relationally via the step relation `_~~>_`:
+The semantics of compound expressions are given relationally via the step relation `_~~>_` shown in Figure \ref{Sem}.
+`\begin{figure}`{.raw}
+\vspace{-1em}
 `````indent```````````````````````````````````````
 _~~>_ ∈ 𝒫(Σ × Σ)
 ⟨e₁ ⊙ e₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e₁,ρ,σ,τ,κσ',τ+1⟩
@@ -172,6 +181,10 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₁ when i = 0
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
+\caption{Concrete Step Relation}
+\label{Sem} 
+\vspace{-1em}
+`\end{figure}`{.raw}
 
 Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
