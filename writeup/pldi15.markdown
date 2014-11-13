@@ -2,7 +2,7 @@
 
 Traditional practice in the program analysis literature, be it for
 points-to, flow, shape analysis or others, is to fix a language and
-its abstraction (a computable, sound approximation to the ``concrete''
+its abstraction (a computable, sound approximation to the "concrete"
 semantics of the language) and investigate its effectiveness [CITE
 overload].  These one-off abstractions require effort to design and
 prove sound.  Consequently later work has focused on endowing the
@@ -120,11 +120,11 @@ _~~>_ ∈ 𝒫(Σ × Σ)
   where 
     ⟨□ ⊙ e⟩∷κl' := κσ(κl)
     κσ' := κσ[τ ↦ ⟨A⟦ρ,σ,a⟧ ⊙ □⟩∷κl']
-⟨a,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ'',σ',κl',κσ,τ+1⟩
+⟨a,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ",σ',κl',κσ,τ+1⟩
   where 
     ⟨⟨[λ](x).e,ρ'⟩ @ □⟩∷κl':= κσ(κl)
     σ' := σ[(x,τ) ↦ A⟦ρ,σ,a⟧]
-    ρ'' := ρ'[x ↦ (x,τ)]
+    ρ" := ρ'[x ↦ (x,τ)]
 ⟨i₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨i,ρ,σ,κl',κσ,τ+1⟩
   where 
     ⟨i₁ ⊕ □⟩∷κl' := κσ(κl)
@@ -180,7 +180,7 @@ The analyses we present in this paper will be proven correct by establishing a G
 # Flow Properties in Analysis
 
 One key property of a static analysis is the way it tracks _flow_.
-The term ``flow'' is heavily overloaded in static analysis, for example CFA is literally the abbreviation of ``control flow analysis''.
+The term "flow" is heavily overloaded in static analysis, for example CFA is literally the abbreviation of "control flow analysis".
 We wish to draw a sharper distinction on what is a flow property.
 First we identify three different types of flow in analysis:
 
@@ -238,8 +238,8 @@ respectively.
 In our framework we capture both path and flow sensitivity as orthogonal parameters to our interpreter.
 Path sensitivity will arise from the order of monad transformers used to construct the analysis.
 Flow sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
-For brevity, and lack of better terms, we will abbreviate these analyses as ``path sensitive'', ``flow sensitive'' and ``flow insensitive''.
-This is only ambiguous for ``flow sensitive'', as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
+For brevity, and lack of better terms, we will abbreviate these analyses as "path sensitive", "flow sensitive" and "flow insensitive".
+This is only ambiguous for "flow sensitive", as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
 
 # Analysis Parameters
 
@@ -296,7 +296,7 @@ unit₂ : bind(m)(return) = m
 assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 `bind` and `return` mean something different for each monadic effect class.
-For state, `bind` is a sequencer of state and `return` is the ``no change in state'' effect.
+For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
 For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
@@ -427,6 +427,27 @@ Therefore, any supplied implementations of `tick` is valid.
 
 We now present a generic monadic interpreter for `λIF` paramaterized over `M`, `Val` and `Time`.
 
+First we implement `A⟦_⟧`, the denotation for atomic expressions:
+`````indent```````````````````````````````````````
+A⟦_⟧ ∈ Atom → M(Val)
+A⟦i⟧ := return(int-I(i))
+A⟦x⟧ := do
+  ρ ← get-Env
+  σ ← get-Store
+  l ← ↑ₚ(ρ(x))
+  return(σ(x))
+A⟦[λ](x).e⟧ := do
+  ρ ← get-Env
+  return(clo-I(⟨[λ](x).e,ρ⟩))
+``````````````````````````````````````````````````
+`get-Env` and `get-Store` are primitive operations for monadic state.
+`clo-I` comes from the abstract domain interface.
+`↑ₚ` is the lifting of values from powerset into the monad:
+`````indent```````````````````````````````````````
+↑ₚ : ∀ α, 𝒫(α) → M(α)
+↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
+``````````````````````````````````````````````````
+
 In moving our semantics to an analysis, we will need to reuse addresses in the state space.
 This induces `Store` and `KStore` to join when binding new values to in-use addresses.
 The state space for our interpreter will therefore use the following domain for `Store` and `KStore`:
@@ -442,10 +463,6 @@ For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for contin
 Before defining the interpreter we define some helper functions which interact with the underlying monad `M`.
 
 First, values in `𝒫(α)` can be lifted to monadic values `M(α)` using `return` and `mzero`, which we name `↑ₚ`:
-`````indent```````````````````````````````````````
-↑ₚ : ∀ α, 𝒫(α) → M(α)
-↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
-``````````````````````````````````````````````````
 
 Allocating addresses and updating time can be implemented using monadic state effects:
 `````indent```````````````````````````````````````
@@ -484,18 +501,6 @@ pop := do
 
 To implement our interpreter we define a denotation function for atomic expressions and a step function for compound expressions.
 The denotation for atomic expressions is written as a monadic computation from atomic expresssions to values.
-`````indent```````````````````````````````````````
-A⟦_⟧ ∈ Atom → M(Val)
-A⟦i⟧ := return(int-I(i))
-A⟦x⟧ := do
-  ρ ← get-Env
-  σ ← get-Store
-  l ← ↑ₚ(ρ(x))
-  return(σ(x))
-A⟦[λ](x).e⟧ := do
-  ρ ← get-Env
-  return(clo-I(⟨[λ](x).e,ρ⟩))
-``````````````````````````````````````````````````
 The step function is written as a small-step monadic computation from expressions to the next expression to evaluate, and is shown in 
 Figure`~\ref{Interpreter}`{.raw}.
 Interpreting compound expressions is simple, the interpreter pushes a stack frame and continues with the first operand.
@@ -612,7 +617,7 @@ Monadic operators `bind` and `return` encapsulate both state-passing and set-fla
 `````indent```````````````````````````````````````
 bind : ∀ α, CM(α) → (α → CM(β)) → CM(β)
 bind(m)(f)(ψ) := 
-  {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
+  {(y,ψ") | (y,ψ") ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
 return : ∀ α, α → CM(α)
 return(a)(ψ) := {(a,ψ)}
 ``````````````````````````````````````````````````
@@ -866,7 +871,7 @@ put(s')(s) := returnₘ(1,s')
 We have developed a new monad transformer for nondeterminism which can compose with state in both directions.
 Previous attempts to define a monad transformer for nondeterminism have resulted in monad operations which do not respect monad laws.
 
-Our nondeterminism monad transformer shares the ``expected'' type, embedding `𝒫` inside `m`:
+Our nondeterminism monad transformer shares the "expected" type, embedding `𝒫` inside `m`:
 `````indent```````````````````````````````````````
 𝒫ₜ : (Type → Type) → (Type → Type)
 𝒫ₜ(m)(α) := m(𝒫(α))

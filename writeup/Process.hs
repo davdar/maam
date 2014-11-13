@@ -78,6 +78,7 @@ ops = def
       Set.\\ 
       Set.empty
       -- Set.fromList [ Ext_raw_tex , Ext_tex_math_dollars ]
+  , readerSmart = True
   }
 
 main :: IO ()

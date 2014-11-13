@@ -8,6 +8,13 @@ All names NAME in Process_*_macros.tbl are macro expanded to REPLACEMENT.
 
 If a replacement is a literal '_' then REPLACEMENT is set to be NAME.
 
+Word mode will match 'foo' in 'foo bar' but not in 'fooey'.
+Anywhere mode matches, well, anywhere.
+
+Any line that starts with whitespace followed by '--' will be removed, like this one:
+           -- a comment
+-- also a comment
+
 You can write tex inline like \some\latex\here.
 There is one caveot: if you open a \begin{env}, everything inside will be literal tex and won't use my macro replacement.
 You can get away from this by writing:
@@ -18,4 +25,4 @@ or
 `\begin{env}`{.raw}
 to get literal latex into the document that won't gobble everything inside to be raw latex.
 
-
+Also, ", ---, -- and ... will automatically be converted to their tex counterparts ``, '', em-dash, en-dash, and elipses.
