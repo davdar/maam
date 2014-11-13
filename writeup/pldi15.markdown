@@ -623,7 +623,7 @@ To recover concrete and abstract interpreters we need only instantiate our gener
 
 ## Recovering a Concrete Interpreter
 
-For the concrete value space we instantiate `Val` to `CVal`, a powerset of values:
+For the concrete value space we instantiate `Val` to `CVal`:
 `````indent```````````````````````````````````````
 v ∈ CVal := 𝒫(CClo + ℤ)
 ``````````````````````````````````````````````````
@@ -1063,7 +1063,7 @@ Furthermore, the state monad transformer `Sₜ[s]` is Galois functorial in its s
 
 ## Building Transformer Stacks
 
-We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ` and `FSₜ` that have the following properties:
+We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ` and `FSₜ` with the following properties:
 
 - The resulting monad has the combined effects of all pieces of the transformer stack.
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
