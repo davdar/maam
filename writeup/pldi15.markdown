@@ -90,10 +90,10 @@ Our implementation is publicly accessible on Hackage\footnote{http://hackage.has
 We make the following contributions:
 
 - A framework for building abstract interpreters using monad transformers.
-- A framework for constructing _Galois connections_ for abstract interpreters using _Galois transformers_, 
+- A framework for constructing _Galois connections_ using _Galois transformers_, 
   an extension of monad transformers which also transport Galois connections.
 - A new monad transformer for nondeterminism which we show is also a Galois transformer.
-- An isolated understanding of flow- and path-sensitivity for static analysis as a property of the monad used for interpretation.
+- An isolated understanding of flow- and path-sensitivity for static analysis as a property of the interpreter monad.
 
 # Semantics
 
@@ -237,7 +237,7 @@ An execution of the semantics is states as the least-fixed-point of a collecting
 -- One key property of a static analysis is the way it tracks _flow_.
 The term "flow" is heavily overloaded in static analysis.
 We wish to draw a sharper distinction on what is a flow property.
-In this paper we identify three different types of flow in analysis:
+In this paper we identify three types of analysis flow:
 
 1. Path-sensitive and flow-sensitive
 2. Path-insensitive and flow-sensitive
@@ -277,7 +277,7 @@ At program point 3 the analysis is forced to again consider both branches, resul
 
 \paragraph{Path-Insensitive Flow-Insensitive}
 A path-insensitive flow-insensitive analysis will compute a single global set of facts that must be true at all points of execution.
-At program points 2 and 3 the analysis considers a single world with environment:
+At program points 2 and 3 the analysis considers a single abstract world:
 `````raw```````````````````````````````````````````
 \small\begin{alignat*}{4}
  \{ N=ANY ,\;\;  & x= \{ -1, 1 \} \}     &&                    && \text{ and}  \\
@@ -300,12 +300,9 @@ To do this we extend the ideas developed in \citet{davdar:van-horn:2010:aam} wit
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
 
-1. The monad, novel in this work.
-   This is the execution engine of the interpreter and captures the path- and flow-sensitivity of the analysis.
-2. The abstract domain.
-   For our language this is merely the abstraction for integers.
-3. Abstract Time.
-   Abstract time captures the call-site-sensitivity of the analysis.
+1. The monad, novel in this work, is the execution engine of the interpreter and captures the path- and flow-sensitivity of the analysis.
+2. The abstract domain, which for this language is merely the abstraction for integers.
+3. Abstract Time, capturing the call-site-sensitivity of the analysis.
 
 -- For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
@@ -373,7 +370,7 @@ put  : s → M(1)
 `\end{figure}`{.raw}
 
 We use the state monad laws to reason about state effects.
-We refer the reader to \citet{dvanhorn:Liang1995Monad} for definitions.
+We refer the reader to \citet{dvanhorn:Liang1995Monad} for these definitions.
 -- `````indent``````````````````````````````````````` 
 -- put-put : put(s₁) ; put(s₂) = put(s₂)
 -- put-get : put(s) ; get = return(s)
@@ -514,7 +511,7 @@ A⟦[λ](x).e⟧ := do
 `\end{figure}`{.raw}
 `get-Env` and `get-Store` are primitive operations for monadic state.
 `clo-I` comes from the abstract domain interface.
-`↑ₚ` is the lifting of values from powerset into the monad:
+`↑ₚ` is the lifting of values from `𝒫` into `M`:
 `````indent```````````````````````````````````````
 ↑ₚ : ∀ α, 𝒫(α) → M(α)
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
