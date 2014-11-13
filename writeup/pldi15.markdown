@@ -639,7 +639,7 @@ The injection `ς₀` for a program `e₀` is:
 
 `\begin{corollary}`{.raw}
 `γ` and `α` form a Galois connection.
-``\end{corollary}`{.raw}`{.raw}
+`\end{corollary}`{.raw}
 
 ## Recovering an Abstract Interpreter
 
