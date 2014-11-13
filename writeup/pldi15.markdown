@@ -40,19 +40,19 @@ Our contributions are:
 
 - A compositional meta-theory framework for building correct-by-construction abstract interpreters.
   This framework is built using a restricted class of monad transformers.
-- An isolated understanding of flow and path sensitivity for static analysis.
+- An isolated understanding of flow and path-sensitivity for static analysis.
   We understand this spectrum as mere variations in the order of monad transformer composition in our framework.
 
 ## Outline
 
 We will demonstrate our framework by example, walking the reader through the design and implementation of an abstract interpreter.
 Section`~\ref{semantics}`{.raw} gives the concrete semantics for a small functional language.
-Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the path and flow sensitivity in the setting of our example language.
+Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the path- and flow-sensitivity in the setting of our example language.
 Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analysis, one of which is the interpreter monad.
 Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
 Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
 Section`~\ref{varying-path-and-flow-sensitivity}`{.raw}
-  shows how to manipulate the path and flow sensitivity of the interpreter through variations in the monad.
+  shows how to manipulate the path- and flow-sensitivity of the interpreter through variations in the monad.
 Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
 Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
 Section`~\ref{related-work}`{.raw} discusses related work and Section`~\ref{conclusion}`{.raw} concludes.
@@ -133,7 +133,7 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
 
-Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
+Our abstract interpreter will support abstract garbage collection`~\citet{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
 We include garbage collection for two reasons.
 First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
@@ -182,13 +182,13 @@ The analyses we present in this paper will be proven correct by establishing a G
 # Flow Properties in Analysis
 
 One key property of a static analysis is the way it tracks _flow_.
-The term "flow" is heavily overloaded in static analysis, for example CFA is literally the abbreviation of "control flow analysis".
+The term "flow" is heavily overloaded in static analysis.
 We wish to draw a sharper distinction on what is a flow property.
-First we identify three different types of flow in analysis:
+In this paper we identify three different types of flow in analysis:
 
-1. Path sensitive and flow sensitive
-2. Path insensitive and flow sensitive
-3. Path insensitive and flow insensitive
+1. Path-sensitive and flow-sensitive
+2. Path-insensitive and flow-sensitive
+3. Path-insensitive and flow-insensitive
 
 Consider a simple if-statement in our example language `λIF` (extended with let-bindings) where an analysis cannot determine the value of `N`:
 `````indent```````````````````````````````````````
@@ -197,8 +197,8 @@ Consider a simple if-statement in our example language `λIF` (extended with let
 3: e
 ``````````````````````````````````````````````````
 
-\paragraph{Path Sensitive Flow Sensitive}
-A path and flow sensitive analysis will track both control and data flow precisely.
+\paragraph{Path-Sensitive Flow-Sensitive}
+A path- and flow-sensitive analysis will track both control and data flow precisely.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
 {N=0,,  x=   1}
@@ -210,8 +210,8 @@ At program point 3 the analysis remains precise, resulting in environments:
 {N≠0,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-\paragraph{Path Insensitive Flow Sensitive}
-A path insensitive flow sensitive analysis will track control flow precisely but merge the heap after control flow branches.
+\paragraph{Path-Insensitive Flow-Sensitive}
+A path-insensitive flow-sensitive analysis will track control flow precisely but merge the heap after control flow branches.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
 {N=ANY,,  x=   1}
@@ -225,8 +225,8 @@ At program point 3 the analysis is forced to again consider both branches, resul
 {N=ANY,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
-\paragraph{Path Insensitive Flow Insensitive}
-A path insensitive flow insensitive analysis will compute a single global set of facts that must be true at all points of execution.
+\paragraph{Path-Insensitive Flow-Insensitive}
+A path-insensitive flow-insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
 `````align````````````````````````````````````````
 {N=ANY,, x={-1, 1}}
@@ -237,30 +237,29 @@ and
 ``````````````````````````````````````````````````
 respectively.
 
-In our framework we capture both path and flow sensitivity as orthogonal parameters to our interpreter.
-Path sensitivity will arise from the order of monad transformers used to construct the analysis.
-Flow sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
-For brevity, and lack of better terms, we will abbreviate these analyses as "path sensitive", "flow sensitive" and "flow insensitive".
-This is only ambiguous for "flow sensitive", as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
+In our framework we capture both path- and flow-sensitivity as orthogonal parameters to our interpreter.
+Path-sensitivity will arise from the order of monad transformers used to construct the analysis.
+Flow-sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
+For brevity, and lack of better terms, we will abbreviate these analyses as "path-sensitive", "flow-sensitive" and "flow-insensitive".
+This is only ambiguous for "flow-sensitive", as path-sensitivity implies flow-sensitivity, and flow-insensitivity implies path-insensitivity.
 
 # Analysis Parameters
 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
-To do this we extend the ideas developed in AAM \citet{davdar:van-horn:2010:aam} with a new parameter for flow-sensitivity.
-When finished, we will be able to recover a concrete interpreter--which respects the concrete semantics--and a family of abstract interpreters.
-
-First we describe the parameters to the interpreter.
-Then we conclude the section with an implementation which is generic to these parameters.
+To do this we extend the ideas developed in AAM \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
+When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
 
 1. The monad, novel in this work.
-   This is the execution engine of the interpreter and captures the flow-sensitivity of the analysis.
+   This is the execution engine of the interpreter and captures the path- and flow-sensitivity of the analysis.
 2. The abstract domain.
-   For our language is merely an abstraction for integers.
-3. The abstraction for time. 
-   Abstract time captures the call-site sensitivity of the analysis, as introduced by [CITE].
+   For our language this is merely the abstraction for integers.
+3. Abstract Time.
+   Abstract time captures the call-site sensitivity of the analysis.
+
+For an object-oriented language, including a fourth parameter for object-sensitivity a la. citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
 We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
 We will give each of these parameters reasoning principles as we introduce them.
@@ -274,7 +273,7 @@ The monad for the interpreter is capturing the _effects_ of interpretation.
 There are two effects we wish to model in the interpreter, state and nondeterminism.
 The state effect will mediate how the interpreter interacts with state cells in the state space, like `Env` and `Store`.
 The nondeterminism effect will mediate the branching of the execution from the interpreter.
-Our result is that path and flow sensitivities can be recovered by altering how these effects interact in the monad.
+Our result is that path- and flow-sensitivities can be recovered by altering how these effects interact in the monad.
 
 We briefly review monad, state and nondeterminism operators and their laws.
 
@@ -621,7 +620,7 @@ _⟨+⟩_ : ∀ α, CM(α) × CM(α) → CM(α)
 `\end{proposition}`{.raw}
 
 Finally, we must establish a Galois connection between `Exp → CM(Exp)` and `CΣ → CΣ` for some choice of `CΣ`.
-For the path sensitive monad `CM` instantiate with `CVal` and `CTime`, , `CΣ` is defined:
+For the path-sensitive monad `CM` instantiate with `CVal` and `CTime`, , `CΣ` is defined:
 `````indent```````````````````````````````````````
 CΣ := 𝒫(Exp × Ψ)
 ``````````````````````````````````````````````````
@@ -707,7 +706,7 @@ The monad `AM` need not change in implementation from `CM`; they are identical u
 
 The resulting state space `AΣ` is finite, and its least-fixed-point iteration will give a sound and computable analysis.
 
-# Varying Path and Flow Sensitivity
+# Varying Path- and Flow-Sensitivity
 
 We are able to recover a flow-insensitivity in the analysis through a new definition for `AM`: `AMᶠⁱ`.
 To do this we pull `AStore` out of the powerset, exploiting its join-semilattice structure:
@@ -945,7 +944,7 @@ commuteP-γ := commutePₘ ∘ map(F)
 Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
 The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` to be functorial (i.e., homomorphic).
-For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow insensitive and flow sensitive respectively.
+For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow-insensitive and flow-sensitive respectively.
 
 `\begin{proposition}`{.raw}
 `Σ⸤FSₜ⸥ α⇄γ Σ⸤FIₜ⸥`.
@@ -994,7 +993,7 @@ We instantiate our interpreter to the following monad stacks in decreasing order
 \vspace{1em}
 
 \noindent
-From left to right, these give path sensitive, flow sensitive, and flow insensitive analyses.
+From left to right, these give path-sensitive, flow-sensitive, and flow-insensitive analyses.
 Furthermore, each monad stack with abstract components is assigned a Galois connection by-construction with their concrete analogues:
 
 \vspace{1em}
@@ -1028,7 +1027,7 @@ yielding analyses which are flow-sensitive and flow-insensitive for both the con
 # Implementation
 
 We have implemented our framework in Haskell and applied it to compute analyses for `λIF`.
-Our implementation provides path sensitivity, flow sensitivity, and flow insensitivity as a semantics-independent monad library.
+Our implementation provides path-sensitivity, flow-sensitivity, and flow-insensitivity as a semantics-independent monad library.
 The code shares a striking resemblance with the math.
 
 Our interpreter for `λIF` is parameterized as discussed in Section`~\ref{analysis-parameters}`{.raw}.
@@ -1063,9 +1062,9 @@ cabal install maam
 # Related Work
 
 Program analysis comes in many forms such as points-to
-\cite{dvanhorn:Andersen1994Program}, flow
-\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
-\cite{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
+\citet{dvanhorn:Andersen1994Program}, flow
+\citet{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
+\citet{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
 surveys.)  Much of the research has focused on developing families or
 frameworks of analyses that endow the abstraction with a number of
@@ -1074,12 +1073,12 @@ knobs, levers, and dials to tune precision and compute efficiently
 dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
 davdar:van-horn:2010:aam}; there are many more).  These parameters
 come in various forms with overloaded meanings such as object
-\cite{dvanhorn:Milanova2005Parameterized,
+\citet{dvanhorn:Milanova2005Parameterized,
 dvanhorn:Smaragdakis2011Pick}, context
-\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path \cite{davdar:das:2002:esp}, and heap
-\cite{davdar:van-horn:2010:aam} sensitivities, or some combination
-thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
+\citet{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
+path \citet{davdar:das:2002:esp}, and heap
+\citet{davdar:van-horn:2010:aam} sensitivities, or some combination
+thereof \citet{dvanhorn:Kastrinis2013Hybrid}.
 
 These various forms can all be cast in the theory of abstraction
 interpretation of \citet{dvanhorn:Cousot:1977:AI,
@@ -1111,7 +1110,7 @@ offers a limited ability to automate the calculation process by
 relying on monad transformers to combine different abstractions.
 
 [FIXME: Note how language independent characterizations of analyses
-could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
+could lead to more insights like: \citet{dvanhorn:Might2010Resolving}]
 
 
 
@@ -1127,7 +1126,7 @@ new language feature.  Our work extends the ideas in MAI in a way that
 isolates each parameter to be independent of others, similar to the
 approach of \citet{dvanhorn:Liang1995Monad}.  We factor out the monad
 as a truly semantics independent feature.  This factorization reveals
-an orthogonal tuning knob for path and flow sensitivity.  Even more, we
+an orthogonal tuning knob for path- and flow-sensitivity.  Even more, we
 give the user building blocks for constructing monads that are correct
 and give the desired properties by construction.  Our framework is
 also motivated by the needs of reasoning formally about abstract
