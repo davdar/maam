@@ -1084,11 +1084,23 @@ approximations of an underlying concrete interpreter.  Our work
 demonstrates that if this underlying concrete interpreter is written
 in monadic style, monad transformers are a useful way to organize and
 compose these various kinds of program abstractions in a modular and
-language-independent way.  \citet{dvanhorn:Liang1995Monad} first
-demonstrated how monad transformers could be used to define building
-blocks for constructing (concrete) interpreters.  Their interpreter
-monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblance to ours.
-We show this "building blocks" approach to interpreter construction
+language-independent way.  
+%
+This work inspired by the combination of
+ \citeauthor{dvanhorn:Cousot:1977:AI}'s theory of abstract
+ interpretation based on Galois connections
+ \citeyearpar{dvanhorn:Cousot:1977:AI, dvanhorn:Cousot1979Systematic,
+ dvanhorn:Cousot98-5}, \citeauthor{dvanhorn:Liang1995Monad}'s monad
+ transformers for modular interpreters
+ \citeyearpar{dvanhorn:Liang1995Monad}, and
+ \citeauthor{dvanhorn:Sergey2013Monadic}'s monadic abstract
+ interpreters \citeyearpar{dvanhorn:Sergey2013Monadic}.
+
+\citet{dvanhorn:Liang1995Monad} first demonstrated how monad
+transformers could be used to define building blocks for constructing
+(concrete) interpreters.  Their interpreter monad
+\mbox{\(\mathit{InterpM}\)} bears a strong resemblance to ours.  We
+show this "building blocks" approach to interpreter construction
 extends to \emph{abstract} interpreter construction, too, by using
 Galois transfomers.  Moreover, we show that these monad transformers
 can be proved sound via a Galois connection to their concrete
@@ -1106,24 +1118,19 @@ connections.  These calculations are done by hand.  Our approach
 offers a limited ability to automate the calculation process by
 relying on monad transformers to combine different abstractions.
 
-[FIXME: Note how language independent characterizations of analyses
-could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
-
-
-
-The most directly related work is the development of Monadic Abstract
-Interpreters (MAI) by \citet{dvanhorn:Sergey2013Monadic}.  In MAI,
-interpreters are also written in monadic style and variations in
-analysis are recovered through new monad implementations.  However,
-each monad in MAI is designed from scratch for a specific language to
-have specific analysis properties.  The MAI work is analogous to
-monadic interpreter of \citet{dvanhorn:Wadler1992Essence}, in which
-the monad structure is monolithic and must be reconstructed for each
-new language feature.  Our work extends the ideas in MAI in a way that
-isolates each parameter to be independent of others, similar to the
-approach of \citet{dvanhorn:Liang1995Monad}.  We factor out the monad
-as a truly semantics independent feature.  This factorization reveals
-an orthogonal tuning knob for path and flow sensitivity.  Even more, we
+\citet{dvanhorn:Sergey2013Monadic} first introduced Monadic Abstract
+Interpreters (MAI), in which interpreters are also written in monadic
+style and variations in analysis are recovered through new monad
+implementations.  However, each monad in MAI is designed from scratch
+for a specific language to have specific analysis properties.  The MAI
+work is analogous to monadic interpreter of
+\citet{dvanhorn:Wadler1992Essence}, in which the monad structure is
+monolithic and must be reconstructed for each new language feature.
+Our work extends the ideas in MAI in a way that isolates each
+parameter to be independent of others, similar to the approach of
+\citet{dvanhorn:Liang1995Monad}.  We factor out the monad as a truly
+semantics independent feature.  This factorization reveals an
+orthogonal tuning knob for path and flow sensitivity.  Even more, we
 give the user building blocks for constructing monads that are correct
 and give the desired properties by construction.  Our framework is
 also motivated by the needs of reasoning formally about abstract
@@ -1135,4 +1142,19 @@ More notably, we follow the AAM philosophy of instrumenting a concrete semantics
 This greatly simplifies the Galois connection arguments during systematic abstraction.
 However, this is at the cost of proving that the instrumented semantics simulate the original concrete semantics.
 
+
 # Conclusion
+
+We have shown that \emph{Galois transfomers}, monad transfomers that
+form Galois connections, are effective, language-inde\-pendent building
+blocks for constructing program analyzers and form the basis of a
+modular, reusable, and composable metatheory for program analysis.
+
+In the end, we hope language independent characterizations of analysis
+ingredients will both facilate the systematic construction of program
+analyses and bridge the gap between various communities which often
+work in isolation, despite the fruitful results of mapping between
+langauge paradigms such as \citet{dvanhorn:Might2010Resolving} work,
+showing that object-oriented $k$-CFA can be applied to functional
+languages to avoid the exponential time lower bound
+\cite{dvanhorn:VanHorn-Mairson:ICFP08}.
