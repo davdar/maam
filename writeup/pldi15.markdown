@@ -931,7 +931,7 @@ mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
     commuteP-γ : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
     aΣPᵢ := commuteP-γ(mstepₘ-γ(f)(ςᵢ)) 
 ``````````````````````````````````````````````````
-The operation `computeP-γ` must be defined for the underlying `Σᵐ`.
+The operation `commuteP-γ` must be defined for the underlying `Σᵐ`.
 In general, `commuteP` must form a Galois connection.
 However, this property exists for the identity monad, and is preserverd by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
