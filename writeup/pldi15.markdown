@@ -2,7 +2,7 @@
 
 Traditional practice in the program analysis literature, be it for
 points-to, flow, shape analysis or others, is to fix a language and
-its abstraction (a computable, sound approximation to the "concrete"
+its abstraction (a computable, sound approximation to the ``concrete''
 semantics of the language) and investigate its effectiveness [CITE
 overload].  These one-off abstractions require effort to design and
 prove sound.  Consequently later work has focused on endowing the
@@ -22,7 +22,7 @@ languages and thus requiring similar abstraction implementations and soundness
 proofs.  This process is difficult and error prone.  It results in a cottage
 industry of research papers on varying frameworks for varying languages.  It
 prevents fruitful insights and results developed in one paradigm from being
-applied to others [PLDI'10].
+applied to others \cite{dvanhorn:Might2010Resolving}.
 
 In this paper, we propose an alternative approach to structuring and
 implementing program analysis.  We propose to use concrete interpreters in
