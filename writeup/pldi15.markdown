@@ -57,7 +57,7 @@ Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the 
 Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analysis, one of which is the interpreter monad.
 Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
 Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
-Section`~\ref{varying-path-and-flow-sensitivity}`{.raw}
+Section`~\ref{varying-path--and-flow-sensitivity}`{.raw}
   shows how to manipulate the path- and flow-sensitivity of the interpreter through variations in the monad.
 Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
 Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
@@ -580,19 +580,19 @@ and the concrete `δ` you would expect:
 `CVal` satisfies the abstract domain laws shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
 `\end{proposition}`{.raw}
 
-Concrete time `CTime` captures program contours as a product of `Exp` and `KAddr`:
+Concrete time `CTime` captures program contours as a product of `Exp` and `CKAddr`:
 `````indent```````````````````````````````````````
 τ ∈ CTime := (Exp × KAddr)⋆
 ``````````````````````````````````````````````````
 and `tick` is just a cons operator:
 `````indent```````````````````````````````````````
-tick : Exp × KAddr × CTime → CTime
+tick : Exp × CKAddr × CTime → CTime
 tick (e,κl,τ) := (e,κl)∷τ
 ``````````````````````````````````````````````````
 
 For the concrete monad we instantiate `M` to a path-sensitive `CM` which contains a powerset of concrete state space components.
 `````indent```````````````````````````````````````
-ψ ∈ Ψ := Env × CStore × KAddr × KStore × CTime
+ψ ∈ Ψ := CEnv × CStore × CKAddr × CKStore × CTime
 m ∈ CM(α) := Ψ → 𝒫(α × Ψ)
 ``````````````````````````````````````````````````
 
@@ -607,9 +607,9 @@ return(a)(ψ) := {(a,ψ)}
 
 State effects merely return singleton sets:
 `````indent```````````````````````````````````````
-get-Env : CM(Env)
+get-Env : CM(CEnv)
 get-Env(⟨ρ,σ,κ,τ⟩) := {(ρ,⟨ρ,σ,κ,τ⟩)}
-put-Env : Env → 𝒫(1)
+put-Env : CEnv → 𝒫(1)
 put-Env(ρ')(⟨ρ,σ,κ,τ⟩) := {(1,⟨ρ',σ,κ,τ⟩)}
 ``````````````````````````````````````````````````
 
@@ -693,11 +693,11 @@ The definition for `δ(-,v₁,v₂)` is analogous.
 
 Next we abstract `Time` to `ATime` as the finite domain of k-truncated lists of execution contexts:
 `````indent```````````````````````````````````````
-ATime := (Exp × KAddr)⋆ₖ
+ATime := (Exp × AKAddr)⋆ₖ
 ``````````````````````````````````````````````````
 The `tick` operator becomes cons followed by k-truncation:
 `````indent```````````````````````````````````````
-tick : Exp × KAddr × ATime → ATime
+tick : Exp × AKAddr × ATime → ATime
 tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 ``````````````````````````````````````````````````
 
@@ -707,7 +707,7 @@ tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 
 The monad `AM` need not change in implementation from `CM`; they are identical up to choices for `AStore` (which maps to `AVal`) and `ATime`.
 `````indent```````````````````````````````````````
-ψ ∈ Ψ := Env × AStore × KAddr × KStore × ATime
+ψ ∈ Ψ := AEnv × AStore × AKAddr × AKStore × ATime
 ``````````````````````````````````````````````````
 
 The resulting state space `AΣ` is finite, and its least-fixed-point iteration will give a sound and computable analysis.
@@ -717,7 +717,7 @@ The resulting state space `AΣ` is finite, and its least-fixed-point iteration w
 We are able to recover a flow-insensitivity in the analysis through a new definition for `AM`: `AMᶠⁱ`.
 To do this we pull `AStore` out of the powerset, exploiting its join-semilattice structure:
 `````indent```````````````````````````````````````
-Ψ := Env × KAddr × KStore × ATime
+Ψ := AEnv × AKAddr × AKStore × ATime
 AMᶠⁱ(α) := Ψ × AStore → 𝒫(α × Ψ) × AStore
 ``````````````````````````````````````````````````
 
@@ -737,15 +737,15 @@ return(a)(ψ,σ) := ({a,ψ},σ)
 
 State effects `get-Env` and `put-Env` are also straightforward, returning one branch of nondeterminism:
 `````indent```````````````````````````````````````
-get-Env : AMᶠⁱ(Env)
+get-Env : AMᶠⁱ(AEnv)
 get-Env(⟨ρ,κ,τ⟩,σ) := ({(ρ,⟨ρ,κ,τ⟩)},σ)
-put-Env : Env → AMᶠⁱ(1)
+put-Env : AEnv → AMᶠⁱ(1)
 put-Env(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
 ``````````````````````````````````````````````````
 
 State effects `get-Store` and `put-Store` are analogous to `get-Env` and `put-Env`:
 `````indent```````````````````````````````````````
-get-Store : AMᶠⁱ(Env)
+get-Store : AMᶠⁱ(AEnv)
 get-Store(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
 put-Store : AStore → AMᶠⁱ(1)
 put-Store(σ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ,κ,τ⟩)},σ')
@@ -989,9 +989,9 @@ We instantiate our interpreter to the following monad stacks in decreasing order
 
 \vspace{1em}
 `\begin{tabular}{l l l}`{.raw}
-`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
-`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
-`Sₜ[KStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
+`Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
+`Sₜ[AKStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
 `Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
 `Sₜ[AStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
 `FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
@@ -1004,9 +1004,9 @@ Furthermore, each monad stack with abstract components is assigned a Galois conn
 
 \vspace{1em}
 `\begin{tabular}{l l l}`{.raw}
-`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
-`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
-`Sₜ[KStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`Sₜ[CEnv]`      `&`{.raw} `Sₜ[CEnv]`       `&`{.raw} `Sₜ[CEnv]`     `\\`{.raw}
+`Sₜ[CKAddr]`    `&`{.raw} `Sₜ[CKAddr]`     `&`{.raw} `Sₜ[CKAddr]`   `\\`{.raw}
+`Sₜ[CKStore]`   `&`{.raw} `Sₜ[CKStore]`    `&`{.raw} `Sₜ[CKStore]`  `\\`{.raw}
 `Sₜ[CTime]`    `&`{.raw} `Sₜ[CTime]`     `&`{.raw} `Sₜ[CTime]`   `\\`{.raw}
 `Sₜ[CStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
 `FSₜ`          `&`{.raw} `Sₜ[CStore]`    `&`{.raw} `Sₜ[CStore]`  `\\`{.raw}
@@ -1018,11 +1018,11 @@ To do this we merely swap the order of transformers:
 
 \vspace{1em}
 `\begin{tabular}{l l l}`{.raw}
-`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
-`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
+`Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
+`Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
 `Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
-`Sₜ[KStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
-`Sₜ[AStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`Sₜ[AKStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
+`Sₜ[AStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
 `FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
 `\end{tabular}`{.raw}
 \vspace{1em}
