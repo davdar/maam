@@ -8,7 +8,7 @@ one-off abstractions require effort to design and prove sound.
 Consequently later work has focused on endowing the abstraction with a
 number of knobs, levers, and dials to tune precision and compute
 efficiently.  These parameters come in various forms with overloaded
-meanings such as object, context, path, and heap sensitivities, or
+meanings such as object-, context-, path-, and heap-sensitivities, or
 some combination thereof.  These efforts develop families of analyses
 for a specific language and prove the framework sound.
 
@@ -46,7 +46,7 @@ Our contributions are:
 
 - A compositional meta-theory framework for building correct-by-construction abstract interpreters.
   This framework is built using a restricted class of monad transformers.
-- An isolated understanding of flow and path-sensitivity for static analysis.
+- An isolated understanding of flow- and path-sensitivity for static analysis.
   We understand this spectrum as mere variations in the order of monad transformer composition in our framework.
 
 ## Outline
@@ -263,7 +263,7 @@ There will be three parameters to our abstract interpreter, one of which is nove
 2. The abstract domain.
    For our language this is merely the abstraction for integers.
 3. Abstract Time.
-   Abstract time captures the call-site sensitivity of the analysis.
+   Abstract time captures the call-site-sensitivity of the analysis.
 
 For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
@@ -414,7 +414,7 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 ## Abstract Time 
 
 The interface for abstract time is familiar from Abstracting Abstract Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces 
-  abstract time as a single parameter from variations in call-site sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
+  abstract time as a single parameter from variations in call-site-sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
@@ -1107,11 +1107,11 @@ knobs, levers, and dials to tune precision and compute efficiently
 (some examples include \citet{dvanhorn:Shivers:1991:CFA,
 dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
 davdar:van-horn:2010:aam}; there are many more).  These parameters
-come in various forms with overloaded meanings such as object
+come in various forms with overloaded meanings such as object-
 \cite{dvanhorn:Milanova2005Parameterized,
-dvanhorn:Smaragdakis2011Pick}, context
+dvanhorn:Smaragdakis2011Pick}, context-
 \cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path \cite{davdar:das:2002:esp}, and heap
+path- \cite{davdar:das:2002:esp}, and heap-
 \cite{davdar:van-horn:2010:aam} sensitivities, or some combination
 thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
 
@@ -1175,7 +1175,7 @@ also motivated by the needs of reasoning formally about abstract
 interpreters, no mention of which is made in MAI.
 
 We build directly on the work of Abstracting Abstract Machines (AAM) by \citet{davdar:van-horn:2010:aam}
-  in our parameterization of abstract time and call-site sensitivity.
+  in our parameterization of abstract time and call-site-sensitivity.
 More notably, we follow the AAM philosophy of instrumenting a concrete semantics _first_ and performing a systematic abstraction _second_.
 This greatly simplifies the Galois connection arguments during systematic abstraction.
 However, this is at the cost of proving that the instrumented semantics simulate the original concrete semantics.
