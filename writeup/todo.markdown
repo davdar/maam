@@ -3,6 +3,16 @@
 - summarize more in the outline
     - make it a lovely short novel
     - "sax and violins" says DVH
+
+# After Deadline
+
+- upload maam to hackage
+
+# Done
+
+- talk about monad transformers being Galois connection transformers.
+- redo the interpreter section top down, starting with A[[ ]]
+- change title in hotcrp
 - contributions
     - add Galois Transformers
     - 
@@ -14,13 +24,3 @@
           transformers can form Galois connections
     - make it last thing in introduction section
 - cite Moggi somwhere
-
-# After Deadline
-
-- upload maam to hackage
-
-# Done
-
-- talk about monad transformers being Galois connection transformers.
-- redo the interpreter section top down, starting with A[[ ]]
-- change title in hotcrp

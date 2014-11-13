@@ -1128,16 +1128,16 @@ demonstrates that if this underlying concrete interpreter is written
 in monadic style, monad transformers are a useful way to organize and
 compose these various kinds of program abstractions in a modular and
 language-independent way.  
-%
-This work inspired by the combination of
+
+This work is inspired by the combination of
  \citeauthor{dvanhorn:Cousot:1977:AI}'s theory of abstract
  interpretation based on Galois connections
  \citeyearpar{dvanhorn:Cousot:1977:AI, dvanhorn:Cousot1979Systematic,
  dvanhorn:Cousot98-5}, \citeauthor{dvanhorn:Liang1995Monad}'s monad
  transformers for modular interpreters
- \citeyearpar{dvanhorn:Liang1995Monad}, and
+ \citeyearpar{dvanhorn:Liang1995Monad} and
  \citeauthor{dvanhorn:Sergey2013Monadic}'s monadic abstract
- interpreters \citeyearpar{dvanhorn:Sergey2013Monadic}.
+ interpreters \citeyearpar{dvanhorn:Sergey2013Monadic}, and continues in the tradition of applying monads to programming language semantics pioneered by \citet{davdar:Moggi:1989:Monads}.
 
 \citet{dvanhorn:Liang1995Monad} first demonstrated how monad
 transformers could be used to define building blocks for constructing
