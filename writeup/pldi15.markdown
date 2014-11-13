@@ -8,65 +8,93 @@ semantics.  Thus, each pairing of abstraction and semantics requires a one-off
 manual derivation of the abstract semantics and a construction of a proof of
 soundness.
 
-Work has focused on endowing abstractions with a knobs, levers,
-and dials to tune precision and compute efficiently.  These parameters come with
-overloaded meanings such as object-, context-, path-, and
-heap-sensitivities, or some combination thereof.  These efforts develop
-families of analyses _for a specific language_ and prove the framework sound.
+Work has focused on endowing abstractions with knobs, levers, and dials to tune
+precision and compute efficiently.  These parameters come with overloaded
+meanings such as object-, context-, path-, and heap-sensitivities, or some
+combination thereof.  These efforts develop families of analyses _for a
+specific language_ and prove the framework sound.
 
 But this framework approach suffers from many of the same drawbacks as the
-one-off analyzers.  They are language-specific, preventing reuse of concepts across
-languages and require similar re-implementations and soundness
-proofs.  This process is still manual, tedious, difficult and error-prone.    And, changes to the structure of the parameter-space require a completely new proof of soundness.  And, it
-prevents fruitful insights and results developed in one paradigm from being
-applied to others, e.g., functional to object-oriented and _vice versa_.
+one-off analyzers.  They are language-specific, preventing reuse of concepts
+across languages and require similar re-implementations and soundness proofs.
+This process is still manual, tedious, difficult and error-prone.    And,
+changes to the structure of the parameter-space require a completely new proof
+of soundness.  And, it prevents fruitful insights and results developed in one
+paradigm from being applied to others, e.g., functional to object-oriented and
+_vice versa_.
 
-We propose an automated alternative approach to structuring and
-implementing program analysis.  Inspired by
-\citeauthor*{dvanhorn:Liang1995Monad}'s \emph{Monad transformers for
-modular interpreters} \citeyearpar{dvanhorn:Liang1995Monad}, we
-propose to start with concrete interpreters in a specific monadic style.  
-Changing the monad will change the interpreter from a concrete interpreter
-into an abstract interpreter.
-As we show,
-classical program abstractions can be embodied as language-independent
-monads.  Moreover, these abstractions can be written as monad
-transformers, thereby allowing their composition to achieve new forms
-of analysis.  We show that these monad transfomers obey the properties
-of \emph{Galois connections} \cite{dvanhorn:Cousot1979Systematic} and
-introduce the concept of a \emph{Galois transfomer}, a monad
-transfomer that forms a Galois connection.
+We propose an automated alternative approach to structuring and implementing
+program analysis.  Inspired by \citeauthor*{dvanhorn:Liang1995Monad}'s
+\emph{Monad transformers for modular interpreters}
+\citeyearpar{dvanhorn:Liang1995Monad}, we propose to start with concrete
+interpreters in a specific monadic style. Changing the monad will change the
+interpreter from a concrete interpreter into an abstract interpreter. As we
+show, classical program abstractions can be embodied as language-independent
+monads.  Moreover, these abstractions can be written as monad transformers,
+thereby allowing their composition to achieve new forms of analysis.  We show
+that these monad transformers obey the properties of \emph{Galois connections}
+\cite{dvanhorn:Cousot1979Systematic} and introduce the concept of a
+\emph{Galois transformer}, a monad transformer transports Galois connection.
 
-Most significantly, these Galois transformers can be proved sound once
-and used everywhere.  Abstract interpreters, which take the form of monad
-transformer stacks coupled together with a monadic interpreter,
-inherit the soundness properties of each element in the stack.  This
-approach enables reuse of abstractions across languages and lays the
-foundation for a modular metatheory of program analysis.
+Most significantly, these Galois transformers can be proved sound once and used
+everywhere.  Abstract interpreters, which take the form of monad transformer
+stacks coupled together with a monadic interpreter, inherit the soundness
+properties of each element in the stack.  This approach enables reuse of
+abstractions across languages and lays the foundation for a modular metatheory
+of program analysis.
+
+Using Galois transformers, we enable arbitrary composition of choices for various analysis components.
+For example, our implementation, called `maam` supports command-line flags for garbage collection, k-CFA, and path- and flow-sensitivity.
+``````````````````````````````````````````````````
+./maam --gc --CFA=0 --flow-sen prog.lam
+``````````````````````````````````````````````````
+These flags are implemented completely independent of one another, 
+  and their combination is applied to a single parameterized monadic interpreter.
+Furthermore, using Galois transformers allows us to prove each combination correct in one fell swoop.
+
+\paragraph{Setup}
+We describe a simple language and a garbage-collecting allocating semantics as the 
+  starting point of analysis design (Section \ref{semantics}).
+We then briefly discuss three types of flow- and path-sensitivities and their corresponding variations 
+  in analysis precision (Section \ref{flow-properties-in-analysis}).
+
+\paragraph{Monadic Abstract Interpreters}
+We develop an abstract interpreter for our example language as a monadic function with various parameters (Section \ref{analysis-parameters}), 
+  one of which is a monadic effect interface combining state and nondeterminism effects (Section \ref{the-analysis-monad}).
+Interpreters written in this style can be reasoned about using laws that must hold for each of these interfaces.
+Likewise, instantiations for these parameters can be reasoned about in isolation from their instantiation.
+When instantiated, our generic interpreter is capable of recovering the concrete semantics and a family of abstract interpreters, 
+  with variations in abstract domain, call-site-sensitivity, and flow- and path-sensitivity (Section \ref{recovering-analyses}).
+
+\paragraph{Isolating Path- and Flow-Sensitivity}
+We give specific monads for instantiating the interpreter from Section \ref{the-interpreter} which give rise to path-sensitive and flow-insensitive 
+  analyses (Section \ref{varying-path--and-flow-sensitivity}).
+This leads to an isolated understanding of path- and flow-sensitivity as mere variations in the monad used for execution.
+Furthermore, these monads are language independent, allowing one to reuse the same path- and flow-sensitive machinery for any language of interest.
+
+\paragraph{Galois Transformers}
+To ease the construction of monads for building abstract interpreters and their proofs of correctness, 
+  we develop a framework of Galois transformers (Section \ref{a-compositional-monadic-framework}).
+Galois transformers are an extension of monad transformers which transport Galois connections in addition to monadic operations.
+Our Galois transformer framework allows us to reason about the correctness of an abstract interpreter piecewise for 
+  each transformer in a stack.
+These Galois transformers are also language independent, and they can be proven correct one and for all in isolation from a particular semantics.
+
+\paragraph{Implementation}
+We have implemented our technique in Haskell and briefly discuss how the parameters from Section \ref{analysis-parameters} translate into 
+  code (Section \ref{implementation-1}).
+Our implementation is publicly accessible through Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's online package manager.
 
 
 ## Contributions
 
-Our contributions are:
+We make the following contributions:
 
-- A framework for building abstract interpreters with monad transformers.
-- A generalization of monad transformers to Galois transformers as a framework for constructing Galois connections for abstract interpreters.
+- A framework for building abstract interpreters using monad transformers.
+- A framework for constructing _Galois connections_ for abstract interpreters using _Galois transformers_, 
+  an extension of monad transformers which also transport Galois connections.
 - A new monad transformer for nondeterminism which we show is also a Galois transformer.
 - An isolated understanding of flow- and path-sensitivity for static analysis as a property of the monad used for interpretation.
-
-## Outline
-
-We will demonstrate our framework by example, walking the reader through the design and implementation of an abstract interpreter.
-Section`~\ref{semantics}`{.raw} gives the concrete semantics for a small functional language.
-Section`~\ref{flow-properties-in-analysis}`{.raw} gives a brief tutorial on the path- and flow-sensitivity in the setting of our example language.
-Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analysis, one of which is the interpreter monad.
-Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
-Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
-Section`~\ref{varying-path--and-flow-sensitivity}`{.raw}
-  shows how to manipulate the path- and flow-sensitivity of the interpreter through variations in the monad.
-Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
-Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
-Section`~\ref{related-work}`{.raw} discusses related work and Section`~\ref{conclusion}`{.raw} concludes.
 
 # Semantics
 
@@ -1093,6 +1121,15 @@ Our interpreter is implemented against this interface and concrete and abstract 
 [^1]: 
     We use a CPS representation and a single store in our implementation.
     This requires `Time`, which is generic to the language, to take `Call` as a parameter rather than `Exp × KAddr`.
+
+Using Galois transformers, we enable arbitrary composition of choices for various analysis components.
+For example, our implementation, called `maam` supports command-line flags for garbage collection, k-CFA, and path- and flow-sensitivity.
+``````````````````````````````````````````````````
+./maam --gc --CFA=0 --flow-sen prog.lam
+``````````````````````````````````````````````````
+These flags are implemented completely independent of one another, 
+  and their combination is applied to a single parameterized monadic interpreter.
+Furthermore, using Galois transformers allows us to prove each combination correct in one fell swoop.
 
 Our implementation is publicly available and can be installed as a cabal package by executing:
 `````align````````````````````````````````````````
