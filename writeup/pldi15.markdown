@@ -1192,7 +1192,7 @@ In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program
 analyses and bridge the gap between various communities which often
 work in isolation, despite the fruitful results of mapping between
-langauge paradigms such as \citet{dvanhorn:Might2010Resolving}' work,
+langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
 showing that object-oriented $k$-CFA can be applied to functional
 languages to avoid the exponential time lower bound
 \cite{dvanhorn:VanHorn-Mairson:ICFP08}.
