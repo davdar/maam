@@ -286,7 +286,7 @@ We briefly review monad, state and nondeterminism operators and thier laws.
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
 The monad interface is summarized in Figure \ref{Monad}.
 `\begin{figure}`{.raw}
-`````align ```````````````````````````````````````
+`````align````````````````````````````````````````
      M  : Type → Type
   bind  : ∀ α β, M(α) → (α → M(β)) → M(β)
 return  : ∀ α, α → M(α)
