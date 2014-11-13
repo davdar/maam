@@ -358,7 +358,7 @@ We replace semicolons with line breaks headed by a `do` command for multiline mo
 
 \paragraph{Monadic State Operations}
 A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `put` actions over `s`.
-The state monad interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
+The interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````align```````````````````````````````````````` 
@@ -373,7 +373,7 @@ put  : s → M(1)
 `\end{figure}`{.raw}
 
 We use the state monad laws to reason about state effects.
-We refer the reader to \citet{dvanhorn:Liang1995Monad} for their description.
+We refer the reader to \citet{dvanhorn:Liang1995Monad} for definitions.
 -- `````indent``````````````````````````````````````` 
 -- put-put : put(s₁) ; put(s₂) = put(s₂)
 -- put-get : put(s) ; get = return(s)
