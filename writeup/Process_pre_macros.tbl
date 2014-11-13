@@ -4,10 +4,11 @@ Search For    Replace With                            Match Mode
 }             \}                                      Anywhere  
 ;             \;;\;                                   Anywhere  
 _             \_                                      Anywhere  
+AMᶠⁱ          \Abstract{\litM}^{fi}                   Anywhere
 AM            \Abstract{\litM}                        Word      
 AStore        \Abstract{\litStore}                    Word      
 AEnv          \Abstract{\litEnv}                      Word      
-AKAddr        \Abstract{\litKAddr}                     Word      
+AKAddr        \Abstract{\litKAddr}                    Word      
 AKStore       \Abstract{\litKStore}                   Word      
 ATime         \Abstract{\litTime}                     Word      
 AVal          \Abstract{\litVal}                      Word      
@@ -17,8 +18,8 @@ Aγ            \Abstract{\gamma}                       Anywhere
 CM            \Concrete{\litM}                        Word      
 CStore        \Concrete{\litStore}                    Word      
 CEnv          \Concrete{\litEnv}                      Word      
-CKAddr         \Concrete{\litKAddr}                     Word      
-CKStore        \Concrete{\litKStore}                    Word      
+CKAddr         \Concrete{\litKAddr}                    Word      
+CKStore        \Concrete{\litKStore}                   Word      
 CTime         \Concrete{\litTime}                     Word      
 CVal          \Concrete{\litVal}                      Word      
 CClo          \Concrete{\litClo}                      Word

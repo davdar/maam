@@ -577,7 +577,7 @@ and the concrete `δ` you would expect:
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`CVal` satisfies the abstract domain laws shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
+`CVal` satisfies the abstract domain laws shown in Section \ref{the-abstract-domain} Figure`~\ref{AbstractDomainInterface}`{.raw}.
 `\end{proposition}`{.raw}
 
 Concrete time `CTime` captures program contours as a product of `Exp` and `CKAddr`:
@@ -622,7 +622,8 @@ _⟨+⟩_ : ∀ α, CM(α) × CM(α) → CM(α)
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`CM` satisfies monad, state, and nondeterminism laws.
+`CM` satisfies monad, state, and nondeterminism laws shown in 
+  Section \ref{the-analysis-monad} Figures \ref{MonadInterface}, \ref{StateMonadInterface} and \ref{NondeterminismInterface}.
 `\end{proposition}`{.raw}
 
 Finally, we must establish a Galois connection between `Exp → CM(Exp)` and `CΣ → CΣ` for some choice of `CΣ`.
@@ -684,7 +685,7 @@ The abstract `δ` operator is defined:
 The definition for `δ(-,v₁,v₂)` is analogous.
 
 `\begin{proposition}`{.raw}
-`AVal` satisfies the abstract domain laws from section`~\ref{the-abstract-domain}`{.raw}.
+`AVal` satisfies the abstract domain laws shown in  Section`~\ref{the-abstract-domain}`{.raw} Figure \ref{AbstractDomainInterface}.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -705,7 +706,7 @@ tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 `CTime α⇄γ ATime` and `tick` is ordered `⊑` through the Galois connection.
 `\end{proposition}`{.raw}
 
-The monad `AM` need not change in implementation from `CM`; they are identical up to choices for `AStore` (which maps to `AVal`) and `ATime`.
+The monad `AM` need not change in implementation from `CM`; they are identical up the choice of `Ψ`.
 `````indent```````````````````````````````````````
 ψ ∈ Ψ := AEnv × AStore × AKAddr × AKStore × ATime
 ``````````````````````````````````````````````````
@@ -714,7 +715,7 @@ The resulting state space `AΣ` is finite, and its least-fixed-point iteration w
 
 # Varying Path- and Flow-Sensitivity
 
-We are able to recover a flow-insensitivity in the analysis through a new definition for `AM`: `AMᶠⁱ`.
+We are able to recover a flow-insensitivity in the analysis through a new definition for `M`: `AMᶠⁱ`.
 To do this we pull `AStore` out of the powerset, exploiting its join-semilattice structure:
 `````indent```````````````````````````````````````
 Ψ := AEnv × AKAddr × AKStore × ATime
@@ -731,7 +732,7 @@ bind(m)(f)(ψ,σ) := ({bs₁₁ .. bsₙ₁ .. bsₙₘ},σ₁ ⊔ .. ⊔ σₙ)
 ``````````````````````````````````````````````````
 The unit for `bind` returns one nondeterminism branch and a single store:
 `````indent```````````````````````````````````````
-return : ∀ α, α → AM(α)
+return : ∀ α, α → AMᶠⁱ(α)
 return(a)(ψ,σ) := ({a,ψ},σ)
 ``````````````````````````````````````````````````
 
@@ -760,7 +761,7 @@ _⟨+⟩_ : ∀ α, M(α) × M(α) → M α
   where (aψ*ᵢ,σᵢ) := mᵢ(ψ,σ)
 ``````````````````````````````````````````````````
 
-Finally, the Galois connection relating `AMᶠⁱ` to a state space transition over `AΣᶠⁱ` must also compute set unions and store joins:
+Finally, the Galois connection relating `AMᶠⁱ` to a state space transition over `AΣᶠⁱ` must also compute set unions and store joins pairwise:
 `````indent```````````````````````````````````````
 AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 γ : (Exp → AMᶠⁱ(Exp)) → (AΣᶠⁱ → AΣᶠⁱ)
@@ -783,21 +784,31 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 `\begin{proposition}`{.raw}
 There exists Galois connections:
 `````align````````````````````````````````````````
+CM α₁⇄γ₁ AM α₂⇄γ₂ AMᶠⁱ
+``````````````````````````````````````````````````
+`\end{proposition}`{.raw}
+The first Galois connection `CM α₁⇄γ₁ AM` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
+The second Galois connection `AM α₂⇄γ₂ AMᶠⁱ` is justified by calculation over their definitions.
+We aim to recover this proof more easily through compositional components in Section \ref{a-compositional-monadic-framework}.
+
+`\begin{corollary}`{.raw}
+`````align````````````````````````````````````````
 CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ
 ``````````````````````````````````````````````````
-and the following properties hold:
+`\end{corollary}`{.raw}
+This property is derived by transporting each Galois connection between monads through their respective Galois connections to `Σ`.
+
+
+`\begin{proposition}`{.raw}
+The following orderings hold between the three induced transition relations:
 `````align````````````````````````````````````````
 α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
-The first Galois connection `CΣ α₁⇄γ₁ AΣ` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
-The second Galois connection `AΣ α₂⇄γ₂ AΣᶠⁱ` is justified by first calculating the Galois connection between monads `AM` and `CM`,
-  and then transporting it through their respective Galois connections to `AΣ` and `AΣᶠⁱ`.
-These proofs are tedious calculations over the definitions which we do not repeat here.
-However, we will recover these proof in a later section through our compositional framework which greatly reduces the proof burden.
+This is a direct consequence of the monotonicity of step and the Galois connections between monads.
 
-We note that the implementation for our interpreter and abstract garbage collector remain the same.
-They both scale seamlessly to flow-sensitive and flow-insensitive variants when instantiated with the appropriate monad.
+We note that the implementation for our interpreter and abstract garbage collector remain the same for each interpreter.
+They scale seamlessly to flow-sensitive and flow-insensitive variants when instantiated with the appropriate monad.
 
 # A Compositional Monadic Framework
 
@@ -805,12 +816,14 @@ In our development thus far, any modification to the interpreter requires redesi
 We want to avoid reconstructing complicated monads for our interpreters, especially as languages and analyses grow and change.
 Even more, we want to avoid reconstructing complicated _proofs_ that such changes will necessarily alter.
 Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction.
-To do this we build upon the well-known structure of monad transformer.
+To do this we extend the well-known structure of monad transformer that that of _Galois transformer_.
 
 There are two types of monadic effects used in our monadic interpreter: state and nondeterminism.
 Each of these effects have corresponding monad transformers.
-Monad transformers for state effects were described by Jones in [CITE].
 Our definition of a monad transformer for nondeterminism is novel in this work.
+
+In the proceeding definitions, we must necessarily use `bind`, `return`, and other operations from the underlying monad.
+We notate these `bindₘ`, `returnₘ`, `doₘ`, `←ₘ`,  etc. for clarity.
 
 ## State Monad Transformer
 
@@ -820,8 +833,6 @@ Sₜ[_] : (Type → Type) → (Type → Type)
 Sₜ[s](m)(α) := s → m(α × s)
 ``````````````````````````````````````````````````
 
-For monad transformers, `bind` and `return` will use monad operations from the underlying `m`, which we notate `bindₘ` and `returnₘ`.
-When writing in do-notation, we write `doₘ` and `←ₘ` for clarity.
 
 The state monad transformer can transport monadic operations from `m` to `Sₜ[s](m)`:
 `````indent```````````````````````````````````````
@@ -837,7 +848,7 @@ The state monad transformer can also transport nondeterminism effects from `m` t
 `````indent```````````````````````````````````````
 mzero : ∀ α, Sₜ[s](m)(α)
 mzero(s) := mzeroₘ 
-_⟨+⟩_ : ∀ α, Sₜ[s](m)(α) x Sₜ[s](m)(α) → Sₜ[s](m)(α)
+_⟨+⟩_ : ∀ α, Sₜ[s](m)(α) × Sₜ[s](m)(α) → Sₜ[s](m)(α)
 (m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ₘ m₂(s) 
 ``````````````````````````````````````````````````
 
@@ -851,7 +862,7 @@ put(s')(s) := returnₘ(1,s')
 
 ## Nondeterminism Monad Transformer
 
-We have developed a new monad transformer for nondeterminism which can compose with state in both directions.
+We have developed a new monad transformer for nondeterminism which composes with state in both directions.
 Previous attempts to define a monad transformer for nondeterminism have resulted in monad operations which do not respect monad laws.
 
 Our nondeterminism monad transformer shares the "expected" type, embedding `𝒫` inside `m`:
