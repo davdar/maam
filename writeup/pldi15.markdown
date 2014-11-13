@@ -259,17 +259,17 @@ There will be three parameters to our abstract interpreter, one of which is nove
 3. Abstract Time.
    Abstract time captures the call-site sensitivity of the analysis.
 
-For an object-oriented language, including a fourth parameter for object-sensitivity a la. citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
+For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
 We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
 We will give each of these parameters reasoning principles as we introduce them.
-These reasoning principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
+These principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
 The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
 An instantiation of the interpreter need only justify that each parameter meets their local interface.
 
 ## The Analysis Monad
 
-The monad for the interpreter is capturing the _effects_ of interpretation.
+The monad for the interpreter captures the _effects_ of interpretation.
 There are two effects we wish to model in the interpreter, state and nondeterminism.
 The state effect will mediate how the interpreter interacts with state cells in the state space, like `Env` and `Store`.
 The nondeterminism effect will mediate the branching of the execution from the interpreter.
@@ -291,10 +291,11 @@ return  : ∀ α, α → M(α)
 `\end{figure}`{.raw}
 
 We use the monad laws to reason about our implementation in the absence of a particular implementation of `bind` and `return`:
-`````indent```````````````````````````````````````
-unit₁ : bind(return(a))(k) = k(a)
-unit₂ : bind(m)(return) = m
-assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
+`````align````````````````````````````````````````
+unit₁ :  bind(return(a))(k) = k(a)
+unit₂ :  bind(m)(return) = m
+assoc :  bind(bind(m)(k₁))(k₂) 
+      =  bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 `bind` and `return` mean something different for each monadic effect class.
 For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
