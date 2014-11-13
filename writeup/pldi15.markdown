@@ -110,7 +110,8 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 
 Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
 Our semantics makes allocation explicit and separates value and continuation stores.
--- Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
+--Our approach to analysis will be to design a configurable interpreter that is capable of recovering these semantics.
+We will aim to recover these semantics from our generic abstract interpreter.
 
 The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
   shown in Figure \ref{SS}.
@@ -188,9 +189,9 @@ _~~>_ ∈ 𝒫(Σ × Σ)
 
 Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
--- We include garbage collection for two reasons.
--- First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
--- Second, later we will show how to write a monadic garbage collector, recovering both concrete and abstract garbage collection in one fell swoop.
+We include garbage collection for two reasons.
+First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
+Second, later we will show how to write a monadic garbage collector, recovering both concrete and abstract garbage collection in one fell swoop.
 
 Garbage collection is defined with a reachability function `R` which computes the transitively reachable address from `(ρ,e)` in `σ`:
 `````indent```````````````````````````````````````
@@ -230,7 +231,7 @@ An execution of the semantics is states as the least-fixed-point of a collecting
 `````indent```````````````````````````````````````
 μ(X).{ς₀} ∪ X ∪ { ς' | ς ~~>ᵍᶜ ς' ; ς ∈ X }
 ``````````````````````````````````````````````````
--- The analyses we present in this paper will be proven correct by establishing a Galois connection with this concrete collecting semantics.
+The analyses we present in this paper will be proven correct by establishing a Galois connection with this concrete collecting semantics.
 
 # Flow Properties in Analysis
 
@@ -306,11 +307,11 @@ There will be three parameters to our abstract interpreter, one of which is nove
 
 -- For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
--- We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
--- We will give each of these parameters reasoning principles as we introduce them.
--- These principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
--- The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
--- An instantiation of the interpreter need only justify that each parameter meets their local interface.
+We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
+We will give each of these parameters reasoning principles as we introduce them.
+These principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
+The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
+An instantiation of the interpreter need only justify that each parameter meets their local interface.
 
 ## The Analysis Monad
 
@@ -324,18 +325,16 @@ We briefly review monad, state and nondeterminism operators and their laws.
 
 \paragraph{Base Monad Operations}
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
-The monad interface is summarized in Figure`~\ref{MonadInterface}`{.raw}.
-`\begin{figure}`{.raw}
-\vspace{-1em}
-`````align````````````````````````````````````````
-     M  : Type → Type
-  bind  : ∀ α β, M(α) → (α → M(β)) → M(β)
-return  : ∀ α, α → M(α)
-``````````````````````````````````````````````````
-\caption{Monad Interface}
-\label{MonadInterface}
-\vspace{-1em}
-`\end{figure}`{.raw}
+The monad interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
+-- `\begin{figure}`{.raw}
+-- \vspace{-1em}
+-- `````align````````````````````````````````````````
+--      M  : Type → Type
+-- ``````````````````````````````````````````````````
+-- \caption{Monad Interface}
+-- \label{MonadInterface}
+-- \vspace{-1em}
+-- `\end{figure}`{.raw}
 
 We use the monad laws (left and right units and associativity) to reason about our 
   implementation in the absence of a particular implementation of `bind` and `return`.
@@ -361,10 +360,14 @@ The interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
 `````align```````````````````````````````````````` 
   M  : Type → type
   s  : Type
+  bind  : ∀ α β, M(α) → (α → M(β)) → M(β)
+return  : ∀ α, α → M(α)
 get  : M(s)
 put  : s → M(1)
+mzero  : ∀ α, M(α)
+_⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
 ``````````````````````````````````````````````````
-\caption{State Monad Interface}
+\caption{Combined Monad Interface}
 \label{StateMonadInterface}
 \vspace{-1em}
 `\end{figure}`{.raw}
@@ -379,18 +382,16 @@ We use the state monad laws to reason about state effects, for which refer the r
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
-The nondeterminism interface is summarized in Figure`~\ref{NondeterminismInterface}`{.raw}.
-`\begin{figure}`{.raw}
-\vspace{-1em}
-`````align```````````````````````````````````````` 
-    M  : Type → Type
-mzero  : ∀ α, M(α)
-_⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
-`````````````````````````````````````````````````` 
-\caption{Nondeterminism Interface}
-\label{NondeterminismInterface}
-\vspace{-1em}
-`\end{figure}`{.raw}
+The nondeterminism interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
+-- `\begin{figure}`{.raw}
+-- \vspace{-1em}
+-- `````align```````````````````````````````````````` 
+--     M  : Type → Type
+-- `````````````````````````````````````````````````` 
+-- \caption{Nondeterminism Interface}
+-- \label{NondeterminismInterface}
+-- \vspace{-1em}
+-- `\end{figure}`{.raw}
 
 Nondeterminism laws state that the monad must have a join-semilattice structure, and that `mzero` be a zero for `bind`.
 -- We use the nondeterminism laws to reason about nondeterminism effects, w
@@ -426,8 +427,10 @@ int-if0-E  : Val → 𝒫(Bool)
     clo-I  : Clo → Val
     clo-E  : Val → 𝒫(Clo)
  δ⟦_,_,_⟧  : IOp × Val × Val → Val
+Time  : Type
+tick  : Exp × KAddr × Time → Time
 ``````````````````````````````````````````````````
-\caption{Abstract Domain Interface}
+\caption{Abstract Domain and Abstract Time Interfaces}
 \label{AbstractDomainInterface}
 \vspace{-1em}
 `\end{figure}`{.raw}
@@ -463,17 +466,15 @@ int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧
 ## Abstract Time 
 
 The interface for abstract time is familiar from Abstracting Abstract Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces 
-  abstract time as a single parameter from variations in call-site-sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
-`\begin{figure}`{.raw}
-\vspace{-1em}
-`````align````````````````````````````````````````
-Time  : Type
-tick  : Exp × KAddr × Time → Time
-``````````````````````````````````````````````````
-\caption{Abstract Time Interface}
-\label{AbstractTimeInterface}
-\vspace{-1em}
-`\end{figure}`{.raw}
+  abstract time as a single parameter from variations in call-site-sensitivity--and is shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
+-- `\begin{figure}`{.raw}
+-- \vspace{-1em}
+-- `````align````````````````````````````````````````
+-- ``````````````````````````````````````````````````
+-- \caption{Abstract Time Interface}
+-- \label{AbstractTimeInterface}
+-- \vspace{-1em}
+-- `\end{figure}`{.raw}
 -- In AAM, `tick` is defined to have access to all of `Σ`.
 -- This comes from the generality of the framework--to account for all possible `tick` functions.
 -- We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
@@ -689,7 +690,7 @@ _⟨+⟩_ : ∀ α, CM(α) × CM(α) → CM(α)
 
 `\begin{proposition}`{.raw}
 `CM` satisfies monad, state, and nondeterminism laws shown in 
-  Section \ref{the-analysis-monad} Figures \ref{MonadInterface}, \ref{StateMonadInterface} and \ref{NondeterminismInterface}.
+  Section \ref{the-analysis-monad} Figure \ref{StateMonadInterface}.
 `\end{proposition}`{.raw}
 
 Finally, we must establish a Galois connection between `Exp → CM(Exp)` and `CΣ → CΣ` for some choice of `CΣ`.
@@ -1098,7 +1099,7 @@ Furthermore, each monad stack with abstract components is assigned a Galois conn
 `\end{tabular}`{.raw}
 \vspace{1em}
 
-Another benefit of our approach is that we can selectively widen the value store and the continuation store independent of each other.
+Another benefit of our approach is that we can selectively widen the value and continuation stores independent of each other.
 To do this we merely swap the order of transformers:
 
 \vspace{1em}
@@ -1130,20 +1131,22 @@ type Analysis(δ,μ,m) ∷ Constraint =
 Constraints `AAM(μ)` and `Delta(δ)` are interfaces for abstract time and the abstract domain.
 
 \noindent
-The constraint `AnalysisMonad(m)` requires only that `m` has the required effects[^1]:
+The constraint `AnalysisMonad(m)` requires only that `m` has the required effects:
+-- [^1]:
 `````indent```````````````````````````````````````
 type AnalysisMonad(δ,μ,m) ∷ Constraint = (
    Monad(m(δ,μ)), 
    MonadNondeterminism(m(δ,μ)),
    MonadState(Env(μ))(m(δ,μ)),
    MonadState(Store(δ,μ))(m(δ,μ)),
-   MonadState(Time(μ,Call))(m(δ,μ)))
+-- MonadState(Time(μ,Call))(m(δ,μ))
+   MonadState(Time(μ,Exp))(m(δ,μ)))
 ``````````````````````````````````````````````````
 Our interpreter is implemented against this interface and concrete and abstract interpreters are recovered by instantiating `δ`, `μ` and `m`.
 
-[^1]: 
-    We use a CPS representation and a single store in our implementation.
-    This requires `Time`, which is generic to the language, to take `Call` as a parameter rather than `Exp × KAddr`.
+-- [^1]: 
+--     We use a CPS representation and a single store in our implementation.
+--     This requires `Time`, which is generic to the language, to take `Call` as a parameter rather than `Exp × KAddr`.
 
 Using Galois transformers, we enable arbitrary composition of choices for various analysis components.
 For example, our implementation, called `maam` supports command-line flags for garbage collection, k-CFA, and path- and flow-sensitivity.
@@ -1167,7 +1170,8 @@ Program analysis comes in many forms such as points-to
 \cite{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
 surveys.)  Much of the research has focused on developing families or
-frameworks of analyses that endow the abstraction with a number of
+frameworks of analyses that endow the abstraction with 
+-- a number of
 knobs, levers, and dials to tune precision and compute efficiently
 (some examples include \citet{dvanhorn:Shivers:1991:CFA,
 dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
