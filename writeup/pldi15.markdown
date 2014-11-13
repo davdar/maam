@@ -21,11 +21,17 @@ prevents fruitful insights and results developed in one paradigm from being
 applied to others.
 
 In this paper, we propose an alternative approach to structuring and
-implementing program analysis.  We propose to use concrete interpreters in
-monadic style.  As we show, classical program abstractions can be embodied as
-language-independent monads.  Moreover, these abstractions can be written as
-monad transformers, thereby allowing their composition to achieve new forms of
-analysis.  
+implementing program analysis.  Inspired by
+\citeauthor*{dvanhorn:Liang1995Monad}'s \emph{Monad transformers for
+modular interpreters} \citeyearpar{dvanhorn:Liang1995Monad}, we
+propose to use concrete interpreters in monadic style.  As we show,
+classical program abstractions can be embodied as language-independent
+monads.  Moreover, these abstractions can be written as monad
+transformers, thereby allowing their composition to achieve new forms
+of analysis.  We show that these monad transfomers obey the properties
+of \emph{Galois connections} \cite{dvanhorn:Cousot:1977:AI} and
+introduce the concept of a \emph{Galois transfomer}, a monad
+transfomer that forms a Galois connection.
 
 Most significantly, these Galois transformers can be proved sound once
 and for all.  Abstract interpreters, which take the form of monad
