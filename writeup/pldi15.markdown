@@ -36,20 +36,20 @@ that these monad transformers obey the properties of \emph{Galois connections}
 \cite{dvanhorn:Cousot1979Systematic} and introduce the concept of a
 \emph{Galois transformer}, a monad transformer transports Galois connection.
 
-Most significantly, these Galois transformers can be proved sound once and used
+Most significantly, Galois transformers can be proved sound once and used
 everywhere.  Abstract interpreters, which take the form of monad transformer
 stacks coupled together with a monadic interpreter, inherit the soundness
 properties of each element in the stack.  This approach enables reuse of
 abstractions across languages and lays the foundation for a modular metatheory
 of program analysis.
 
-Using Galois transformers, we enable arbitrary composition of choices for various analysis components.
-For example, our implementation, called `maam` supports command-line flags for garbage collection, k-CFA, and path- and flow-sensitivity.
+Using Galois transformers, we enable arbitrary composition of analysis parameters.
+For example, our implementation--called `maam`--supports command-line flags for garbage collection, k-CFA, and path- and flow-sensitivity.
 ``````````````````````````````````````````````````
 ./maam --gc --CFA=0 --flow-sen prog.lam
 ``````````````````````````````````````````````````
 These flags are implemented completely independent of one another, 
-  and their combination is applied to a single parameterized monadic interpreter.
+  and are applied to a single parameterized monadic interpreter.
 Furthermore, using Galois transformers allows us to prove each combination correct in one fell swoop.
 
 \paragraph{Setup}
@@ -81,9 +81,9 @@ Our Galois transformer framework allows us to reason about the correctness of an
 These Galois transformers are also language independent, and they can be proven correct one and for all in isolation from a particular semantics.
 
 \paragraph{Implementation}
-We have implemented our technique in Haskell and briefly discuss how the parameters from Section \ref{analysis-parameters} translate into 
+We implement our technique in Haskell and briefly discuss how the parameters from Section \ref{analysis-parameters} translate into 
   code (Section \ref{implementation-1}).
-Our implementation is publicly accessible through Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's online package manager.
+Our implementation is publicly accessible on Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's package manager.
 
 
 \paragraph{Contributions}
@@ -117,7 +117,7 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 -- This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
 
 Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
-Our semantics makes allocation explicit and separates values and continuations into separate stores.
+Our semantics makes allocation explicit and separates value and continuation stores.
 -- Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
 
 The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
@@ -256,7 +256,7 @@ At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
 {N=0,,  x=   1} \quad {N≠0,,  x=-  1}
 ``````````````````````````````````````````````````
-At program point 3 the analysis remains precise, resulting in environments:
+At program point 3 the analysis remains precise:
 `````align````````````````````````````````````````
 {N=0,,  x=   1,,  y=   1} \quad {N≠0,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````

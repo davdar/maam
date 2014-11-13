@@ -89,20 +89,20 @@ have remained seemingly (and now stubbornly) on the verge of full mechanization
 for several years.  A stumbling block in full mechanization has been the
 \emph{ad hoc} nature of soundness proofs accompanying each analyzer. While
 design and implementation is largely systematic, soundness proofs can change
-significantly with what seem like minor changes to the semantics and analyzers
-themselves.  An achievement of this work is to systematize, parameterize and
-modularize the proofs of soundness, so as to make them composable across
-analytic properties.
+significantly with seemingly minor changes to the semantics or analyzers.  An
+achievement of this work is to systematize, parameterize and modularize the
+proofs of soundness, so as to make them composable across analytic properties.
 
 \par 
 
 We solve the problem of systematically constructing static analyzers by
-introducing the notion of a \emph{Galois transformer}, a monad transformer that
+introducing \emph{Galois transformers}: monad transformers that
 transports Galois connection properties.  In concert with a monadic
-interpreter, we are able to define a library of monad transformers that
-implement and represent classic context-, path-, and heap-(in-)sensitive
-building blocks.  Moreover, these can be composed together to realize a program
-analysis monad, \emph{independent of the language being analyzed}.
+interpreter, we define a library of monad transformers that
+implement building blocks for classic analysis parameters like context-, path-,
+and heap-(in-)sensitivity. Moreover, these can be composed together 
+% to realize a program analysis monad, 
+\emph{independent of the language being analyzed}.
 
 \par 
 
