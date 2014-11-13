@@ -180,7 +180,7 @@ The analyses we present in this paper will be proven correct by establishing a G
 # Flow Properties in Analysis
 
 One key property of a static analysis is the way it tracks _flow_.
-The term "flow" is heavily overloaded in static analysis, for example CFA is literally the abbreviation of "control flow analysis".
+The term ``flow'' is heavily overloaded in static analysis, for example CFA is literally the abbreviation of ``control flow analysis''.
 We wish to draw a sharper distinction on what is a flow property.
 First we identify three different types of flow in analysis:
 
@@ -238,8 +238,8 @@ respectively.
 In our framework we capture both path and flow sensitivity as orthogonal parameters to our interpreter.
 Path sensitivity will arise from the order of monad transformers used to construct the analysis.
 Flow sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
-For brevity, and lack of better terms, we will abbreviate these analyses as "path sensitive", "flow sensitive" and "flow insensitive".
-This is only ambiguous for "flow sensitive", as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
+For brevity, and lack of better terms, we will abbreviate these analyses as ``path sensitive'', ``flow sensitive'' and ``flow insensitive''.
+This is only ambiguous for ``flow sensitive'', as path sensitivity implies flow sensitivity, and flow insensitivity implies path insensitivity.
 
 # Analysis Parameters
 
@@ -296,7 +296,7 @@ unit₂ : bind(m)(return) = m
 assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 ``````````````````````````````````````````````````
 `bind` and `return` mean something different for each monadic effect class.
-For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
+For state, `bind` is a sequencer of state and `return` is the ``no change in state'' effect.
 For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
@@ -651,7 +651,7 @@ The Galois connection between `CM` and `CΣ` is straightforward:
 α(f)(e)(ψ) := f({(e,ψ)})
 ``````````````````````````````````````````````````
 
-The injection `ς⸢CM⸣₀` for a program `e₀` is:
+The injection `ς₀` for a program `e₀` is:
 `````indent```````````````````````````````````````
 ς₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}
 ``````````````````````````````````````````````````
@@ -866,7 +866,7 @@ put(s')(s) := returnₘ(1,s')
 We have developed a new monad transformer for nondeterminism which can compose with state in both directions.
 Previous attempts to define a monad transformer for nondeterminism have resulted in monad operations which do not respect monad laws.
 
-Our nondeterminism monad transformer shares the "expected" type, embedding `𝒫` inside `m`:
+Our nondeterminism monad transformer shares the ``expected'' type, embedding `𝒫` inside `m`:
 `````indent```````````````````````````````````````
 𝒫ₜ : (Type → Type) → (Type → Type)
 𝒫ₜ(m)(α) := m(𝒫(α))
