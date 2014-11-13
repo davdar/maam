@@ -23,7 +23,7 @@ applied to others.
 In this paper, we propose an alternative approach to structuring and
 implementing program analysis.  We propose to use concrete interpreters in
 monadic style.  As we show, classical program abstractions can be embodied as
-language-independent monads.  Moveover, these abstractions can be written as
+language-independent monads.  Moreover, these abstractions can be written as
 monad transformers, thereby allowing their composition to achieve new forms of
 analysis.  Most significantly, these monad transformers can be proved sound
 once and for all.  Abstract interpreters, which take the form of monad
@@ -50,14 +50,14 @@ Section`~\ref{analysis-parameters}`{.raw} describes the parameters of our analys
 Section`~\ref{the-interpreter}`{.raw} shows the full definition of a highly parameterized monadic interpreter.
 Section`~\ref{recovering-analyses}`{.raw} shows how to recover concrete and abstract interpreters.
 Section`~\ref{varying-path-and-flow-sensitivity}`{.raw}
-  shows how to manipulate the path and flow sensitivity of the interpreter through varyations in the monad.
+  shows how to manipulate the path and flow sensitivity of the interpreter through variations in the monad.
 Section`~\ref{a-compositional-monadic-framework}`{.raw} demonstrates our compositional meta-theory framework built on monad transformers.
 Section`~\ref{implementation}`{.raw} briefly discusses our implementation of the framework in Haskell.
 Section`~\ref{related-work}`{.raw} discusses related work and Section`~\ref{conclusion}`{.raw} concludes.
 
 # Semantics
 
-To demonsrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
+To demonstrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
   which is shown in Figure`~\ref{Syntax}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
@@ -71,7 +71,7 @@ To demonsrate our framework we design an abstract interpreter for `λIF` a simpl
 `\caption{`{.raw} `λIF` `}`{.raw}
 \label{Syntax} 
 `\end{figure}`{.raw}
-`λIF` extends traditional lambda calculus with integers, addition, subtration and conditionals.
+`λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
 We use the operator `@` as explicit syntax for function application.
 This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
 
@@ -132,7 +132,7 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
 
-Our abstract intepreter will support abstract garbage collection [CITE], the concrete analogue of which is just standard garbage collection.
+Our abstract interpreter will support abstract garbage collection [CITE], the concrete analogue of which is just standard garbage collection.
 Garbage collection is defined with a reachability function `R` which computes the transitively reachable address from `(ρ,e)` in `σ`:
 `````indent```````````````````````````````````````
 R[_] ∈ Store → Env × Exp → 𝒫(Addr)
@@ -140,7 +140,7 @@ R[σ](ρ,e) := μ(X).
   R₀(ρ,e) ∪ X ∪ {l' | l' ∈ R-Val(σ(l)) ; l ∈ X}
 ``````````````````````````````````````````````````
 We write `μ(X). f(X)` as the least-fixed-point of a function `f`.
-This definition uses two helper functions: `R₀` for computing the initial reachable set adn `R-Val` for computing addresses reachable from addresses.
+This definition uses two helper functions: `R₀` for computing the initial reachable set and `R-Val` for computing addresses reachable from addresses.
 `````indent```````````````````````````````````````
 R₀ ∈ Env × Exp → 𝒫(Addr)
 R₀(ρ,e) := {ρ(x) | x ∈ FV(e)}
@@ -150,7 +150,7 @@ R-Val(⟨[λ](x).e,ρ⟩) := {ρ(x) | y ∈ FV([λ](x).e)}
 ``````````````````````````````````````````````````
 where `FV` is the standard recursive definition for computing free variables of an expression.
 
-Analagously, `KR` is the set of transitively reachabel continuation addresses in `κσ`:
+Analogously, `KR` is the set of transitively reachable continuation addresses in `κσ`:
 `````indent```````````````````````````````````````
 KR[_] ∈ KStore → KAddr → 𝒫(KAddr)
 KR[κσ](κl₀) := μ(kl*). {κl₀} ∪ κl* ∪ {π₂(κσ(κl)) | κl ∈ kl*}
@@ -240,7 +240,7 @@ This is only ambiguous for "flow sensitive", as path sensitivity implies flow se
 # Analysis Parameters
 
 Before writing an abstract interpreter we first design its parameters.
-The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
+The interpreter will be designed such that variations in these parameters recover the concrete and a family of abstract interpreters.
 To do this we extend the ideas developed in AAM[CITE] with a new parameter for flow-sensitivity.
 When finished, we will be able to recover a concrete interpreter--which respects the concrete semantics--and a family of abstract interpreters.
 
@@ -270,7 +270,7 @@ The state effect will mediate how the interpreter interacts with state cells in 
 The nondeterminism effect will mediate the branching of the execution from the interpreter.
 Our result is that path and flow sensitivities can be recovered by altering how these effects interact in the monad.
 
-We briefly review monad, state and nondeterminism operators and thier laws.
+We briefly review monad, state and nondeterminism operators and their laws.
 
 \paragraph{Base Monad Operations}
 A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
@@ -285,7 +285,7 @@ return  : ∀ α, α → M(α)
 \label{MonadInterface}
 `\end{figure}`{.raw}
 
-We use the monad laws to reason about our implementation in the absence of a particular implementatino of `bind` and `return`:
+We use the monad laws to reason about our implementation in the absence of a particular implementation of `bind` and `return`:
 `````indent```````````````````````````````````````
 unit₁ : bind(return(a))(k) = k(a)
 unit₂ : bind(m)(return) = m
@@ -392,7 +392,7 @@ int-I(i₁ + i₂) ⊑ δ⟦[+],int-I(i₁),int-I(i₂)⟧
 int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
 ``````````````````````````````````````````````````
 
-Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analagous.
+Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analogous.
 Introduction functions inject the type into `Val`.
 Elimination functions project a finite set of discrete observations.
 Introduction and elimination operators must follow a Galois connection discipline.
@@ -412,7 +412,7 @@ tick  : Exp × KAddr × Time → Time
 \label{AbstractTimeInterface}
 `\end{figure}`{.raw}
 In traditional AAM, `tick` is defined to have access to all of `Σ`.
-This comes from the generality of the framework--to account for all possibile `tick` functions.
+This comes from the generality of the framework--to account for all possible `tick` functions.
 We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
 Also in AAM is the opaque function `alloc : Var × Time → Addr`.
 Because we will only ever use the identity function for `alloc`, we omit its abstraction and instantiation in our development.
@@ -423,7 +423,7 @@ Therefore, any supplied implementations of `tick` is valid.
 
 # The Interpreter
 
-We now present a generic monadic interpreter for `λIF` paramaterized over `M`, `Val` and `Time`.
+We now present a generic monadic interpreter for `λIF` parameterized over `M`, `Val` and `Time`.
 
 First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions:
 `````indent```````````````````````````````````````
@@ -657,7 +657,7 @@ int-I(i) := [+] if i > 0
 int-if0-E : AVal → 𝒫(Bool)
 int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ [+] ∈ v }
 ``````````````````````````````````````````````````
-Introduction and elmination for `Clo` is identical to the concrete domain.
+Introduction and elimination for `Clo` is identical to the concrete domain.
 
 The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
@@ -670,7 +670,7 @@ The abstract `δ` operator is defined:
   ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
   ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
-The definition for `δ(-,v₁,v₂)` is analagous.
+The definition for `δ(-,v₁,v₂)` is analogous.
 
 `\begin{proposition}`{.raw}
 `AVal` satisfies the abstract domain laws from section`~\ref{the-abstract-domain}`{.raw}.
@@ -732,7 +732,7 @@ put-Env : Env → AMᶠⁱ(1)
 put-Env(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
 ``````````````````````````````````````````````````
 
-State effects `get-Store` and `put-Store` are analagous to `get-Env` and `put-Env`:
+State effects `get-Store` and `put-Store` are analogous to `get-Env` and `put-Env`:
 `````indent```````````````````````````````````````
 get-Store : AMᶠⁱ(Env)
 get-Store(⟨ρ,κ,τ⟩,σ) := ({(σ,⟨ρ,κ,τ⟩},σ)
@@ -796,7 +796,7 @@ Even more, we want to avoid reconstructing complicated _proofs_ that such change
 Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction.
 To do this we build upon the well-known structure of monad transformer.
 
-There are two types of monadic effects used in our monadic interprer: state and nondeterminism.
+There are two types of monadic effects used in our monadic interpreter: state and nondeterminism.
 Each of these effects have corresponding monad transformers.
 Monad transformers for state effects were described by Jones in [CITE].
 Our definition of a monad transformer for nondeterminism is novel in this work.
@@ -880,7 +880,7 @@ put(s) = mapₘ(λ(1).{1})(putₘ(s))
 `\end{proposition}`{.raw}
 The proof is by simple calculation.
 
-Finally, our nondeterminism monad transformer expses nondeterminism effects as a trivial applciation of the underlying monad's join-semilattice functorality:
+Finally, our nondeterminism monad transformer exposes nondeterminism effects as a straightforward application of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
 mzero : ∀ α, 𝒫ₜ(m)(α)
 mzero := ⊥ᵐ
@@ -889,7 +889,7 @@ m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`mzero` and `⟨+⟩` satisfy the nondterminism monad laws.
+`mzero` and `⟨+⟩` satisfy the nondeterminism monad laws.
 `\end{proposition}`{.raw}
 The proof is trivial as a consequence of the underlying monad being a join-semilattice functor.
 
@@ -929,7 +929,7 @@ mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
 ``````````````````````````````````````````````````
 The operation `commuteP-γ` must be defined for the underlying `Σᵐ`.
 In general, `commuteP` must form a Galois connection.
-However, this property exists for the identity monad, and is preserverd by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
+However, this property exists for the identity monad, and is preserved by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
 commuteP-γ : ∀ α, Σₘ(𝒫(α) × s) → 𝒫(Σₘ(α × s))
 commuteP-γ := commutePₘ ∘ map(F)
@@ -1025,7 +1025,7 @@ We have implemented our framework in Haskell and applied it to compute analyses 
 Our implementation provides path sensitivity, flow sensitivity, and flow insensitivity as a semantics-independent monad library.
 The code shares a striking resemblance with the math.
 
-Our interpreter for `λIF` is paramaterized as discussed in Section`~\ref{analysis-parameters}`{.raw}.
+Our interpreter for `λIF` is parameterized as discussed in Section`~\ref{analysis-parameters}`{.raw}.
 We express a valid analysis with the following Haskell constraint:
 `````indent```````````````````````````````````````
 type Analysis(δ,μ,m) ∷ Constraint = 
@@ -1047,9 +1047,9 @@ Our interpreter is implemented against this interface and concrete and abstract 
 
 [^1]: 
     We use a CPS representation and a single store in our implementation.
-    This requires `Time`, which is generic to the language, to take `Call` as a paramter rather than `Exp × KAddr`.
+    This requires `Time`, which is generic to the language, to take `Call` as a parameter rather than `Exp × KAddr`.
 
-Our implementation is publically available and can be installed as a cabal package by executing:
+Our implementation is publicly available and can be installed as a cabal package by executing:
 `````align````````````````````````````````````````
 cabal install maam
 ``````````````````````````````````````````````````
@@ -1081,10 +1081,10 @@ compose these various kinds of program abstractions in a modular and
 language-independent way.  \citet{dvanhorn:Liang1995Monad} first
 demonstrated how monad transformers could be used to define building
 blocks for constructing (concrete) interpreters.  Their interpreter
-monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblence to ours.
-We show this ``building blocks'' approach to interpreter construction
+monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblance to ours.
+We show this "building blocks" approach to interpreter construction
 extends to \emph{abstract} interpreter construction, too.  Moreover,
-we show that these monad transfomers can be proved sound via a Galois
+we show that these monad transformers can be proved sound via a Galois
 connection to their concrete counterparts, ensuring the soundness of
 any stack built from sound blocks of Galois transformers.  Soundness
 proofs of various forms of analysis are notoriously brittle with

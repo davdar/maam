@@ -59,8 +59,8 @@ tick          _                  Word
 Type          _                  Word      
 get           _                  Word      
 put           _                  Word      
-tickM         _            Word
-step          _            Word
-push        _       Word
-pop      _      Word
-gc    _       Word
+tickM         _                  Word      
+step          _                  Word      
+push          _                  Word      
+pop           _                  Word      
+gc            _                  Word      
