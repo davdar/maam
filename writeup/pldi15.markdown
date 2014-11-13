@@ -436,7 +436,9 @@ Therefore, any supplied implementations of `tick` is valid.
 
 We now present a generic monadic interpreter for `λIF` parameterized over `M`, `Val` and `Time`.
 
-First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions:
+First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions, shown in Figure \ref{InterpreterA}.
+
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -449,6 +451,9 @@ A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
+\caption{Monadic denotation for atoms}
+\label{InterpreterA} 
+`\end{figure}`{.raw}
 `get-Env` and `get-Store` are primitive operations for monadic state.
 `clo-I` comes from the abstract domain interface.
 `↑ₚ` is the lifting of values from powerset into the monad:
@@ -457,7 +462,8 @@ A⟦[λ](x).e⟧ := do
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 ``````````````````````````````````````````````````
 
-Next we implement `step`, a _monadic_ small-step function for compound expressions:
+Next we implement `step`, a _monadic_ small-step function for compound expressions, shown in Figure \ref{InterpreterStep}.
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
@@ -485,6 +491,9 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
+\caption{Monadic step function}
+\label{InterpreterStep} 
+`\end{figure}`{.raw}
 `step` uses helper functions `push` and `pop` for manipulating stack frames:
 `````indent```````````````````````````````````````
 push : Frame → M(1)
