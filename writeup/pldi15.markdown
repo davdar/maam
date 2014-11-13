@@ -254,13 +254,11 @@ Consider a simple if-statement in our example language `λIF` (extended with let
 A path- and flow-sensitive analysis will track both control and data flow precisely.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
-{N=0,,  x=   1}
-{N≠0,,  x=-  1}
+{N=0,,  x=   1} \quad {N≠0,,  x=-  1}
 ``````````````````````````````````````````````````
 At program point 3 the analysis remains precise, resulting in environments:
 `````align````````````````````````````````````````
-{N=0,,  x=   1,,  y=   1} 
-{N≠0,,  x=-  1,,  y=-  1}
+{N=0,,  x=   1,,  y=   1} \quad {N≠0,,  x=-  1,,  y=-  1}
 ``````````````````````````````````````````````````
 
 \paragraph{Path-Insensitive Flow-Sensitive}
