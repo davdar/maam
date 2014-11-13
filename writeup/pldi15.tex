@@ -89,17 +89,17 @@ analyzers themselves.
 analyzers by introducing the notion of a \emph{Galois transformer}, a
 monad transformer that satisfies the properties of a Galois
 connection.  In concert with a monadic interpreter, we are able to
-define a library of monad transfomers implementing classic context,
-path, and heap (in-)senstive building blocks which can be composed
+define a library of monad transformers implementing classic context,
+path, and heap (in-)sensitive building blocks which can be composed
 together to realize a program analysis monad, \emph{independent of the
   language being analyzed}.
 
 \par Significantly, a Galois transformer can be proved sound once and
-for all, making it a reusable analysis component.  As new analaysis
+for all, making it a reusable analysis component.  As new analysis
 features and abstractions are developed and mixed in, soundness proofs
-need not be reconstructed as the composition of a monad transfomer
-stack is sound by virtue of its consituents.  We believe Galois
-transformers provide a viable foundation for resuable and composable 
+need not be reconstructed as the composition of a monad transformer
+stack is sound by virtue of its constituents.  We believe Galois
+transformers provide a viable foundation for reusable and composable 
 metatheory for program analysis.
 \end{abstract}
 % }-}
