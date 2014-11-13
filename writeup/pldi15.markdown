@@ -1113,7 +1113,7 @@ analysis are notoriously brittle with respect to language and analysis
 features.  A reusable framework of Galois transformers offers a
 potential way forward for a modular metatheory of program analysis.
 
-\citet{dvanhorn:Cousot98-5} develops a ``calculational approach'' to
+\citet{dvanhorn:Cousot98-5} develops a "calculational approach" to
 analysis design whereby analyses are not designed and then verified
 \emph{post facto} but rather derived by positing an abstraction and
 calculating it through the concrete interpreter using Galois
