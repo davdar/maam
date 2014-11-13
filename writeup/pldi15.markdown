@@ -44,10 +44,10 @@ foundation for a modular metatheory of program analysis.
 
 Our contributions are:
 
-- A compositional meta-theory framework for building correct-by-construction abstract interpreters.
-  This framework is built using a restricted class of monad transformers.
-- An isolated understanding of flow- and path-sensitivity for static analysis.
-  We understand this spectrum as mere variations in the order of monad transformer composition in our framework.
+- A framework for building abstract interpreters with monad transformers.
+- A generalization of monad transformers to Galois transformers as a framework for constructing Galois connections for abstract interpreters.
+- A new monad transformer for nondeterminism which we show is also a Galois transformer.
+- An isolated understanding of flow- and path-sensitivity for static analysis as a property of the monad used for interpretation.
 
 ## Outline
 
