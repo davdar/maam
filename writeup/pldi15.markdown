@@ -312,7 +312,7 @@ For example: `a ← m ; k(a)` is just sugar for `bind(m)(k)`.
 We replace semicolons with line breaks headed by a `do` command for multiline monadic definitions.
 
 \paragraph{Monadic State Operations}
-A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `bind` actions over `s`.
+A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `put` actions over `s`.
 The state monad interface is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align```````````````````````````````````````` 
@@ -332,7 +332,6 @@ put-get : put(s) ; get = return(s)
 get-put : s ← get ; put(s) = return(1)
 get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
 ``````````````````````````````````````````````````
-The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
