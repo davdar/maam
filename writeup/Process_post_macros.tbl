@@ -83,3 +83,4 @@ Search For    Replace With        Match Mode
 ⌊             \lfloor             Anywhere  
 ⌋             \rfloor             Anywhere  
 ,,            ,\;\;               Anywhere  
+⇒             \implies            Anywhere

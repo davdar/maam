@@ -962,8 +962,11 @@ Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mappin
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
 The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` be homomorphic, i.e. that:
 `````align````````````````````````````````````````
-id ⊑ γ(return)
+α(id) ⊑ return
+α(f ∘ g) ⊑ α(f) ⟨∘⟩ α(g)
 ``````````````````````````````````````````````````
+and likewise for `γ`, where `⟨∘⟩ ` is composition in the Kleisli category for the monad `M`.
+
 For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow-insensitive and flow-sensitive respectively.
 
 `\begin{proposition}`{.raw}
@@ -978,11 +981,11 @@ The proof is by calculation after unfolding the definitions.
 
 ## Galois Transformers
 
-The final piece of our compositional framework is the fact that monad transformers `Sₜ[s]` and `𝒫ₜ` are also _Galois transformers_.
-Whereas a monad transformer is a functor between monads, a Galois transformer is a functor between Galois connections.
+The capstone of our compositional framework is the fact that monad transformers `Sₜ[s]` and `𝒫ₜ` are also _Galois transformers_.
+Whereas a monad transformer is a functor between functors, a Galois transformer is a functor between Galois functors.
 
 `\begin{definition}`{.raw}
-A monad transformer `T` is a Galois transformer if for every `m₁ α⇄γ m₂`, `T(m₁) α⇄γ T(m₂)`.
+A monad transformer `T` is a Galois transformer if for Galois functors `m₁` and `m₂`, `m₁ α⇄γ m₂ ⇒ T(m₁) α⇄γ T(m₂)`.
 `\end{definition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -998,6 +1001,8 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 
 - The resulting monad has the combined effects of all pieces of the transformer stack.
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
+- Galois connections between `CΣ` and `AΣ` are established piecewise from monad transformer components.
+- Monad transformer components are proven correct once and for all.
 
 We instantiate our interpreter to the following monad stacks in decreasing order of precision:
 
