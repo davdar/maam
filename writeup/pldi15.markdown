@@ -1,44 +1,49 @@
 # Introduction
 
-Traditional practice in the program analysis literature, be it for
-points-to, flow, shape analysis or others, is to fix a language and
-its abstraction (a computable, sound approximation to the "concrete"
-semantics of the language) and investigate its effectiveness.  These
-one-off abstractions require effort to design and prove sound.
-Consequently later work has focused on endowing the abstraction with a
-number of knobs, levers, and dials to tune precision and compute
-efficiently.  These parameters come in various forms with overloaded
-meanings such as object, context, path, and heap sensitivities, or
-some combination thereof.  These efforts develop families of analyses
-for a specific language and prove the framework sound.
+Traditional practice in the program analysis via abstract interpretation is to
+fix a language (as a concrete semantics) and an abstraction (as an abstraction
+map, concretization map or Galois connection) before constructing a static
+analyzer that it sound with respect to both the abstraction and the concrete
+semantics.  Thus, each pairing of abstraction and semantics requires a one-off
+manual derivation of the abstract semantics and a construction of a proof of
+soundness.
 
-But even this framework approach suffers from many of the same drawbacks as the
-one-off analyzers.  They are language specific, preventing reuse across
-languages and thus requiring similar abstraction implementations and soundness
-proofs.  This process is difficult and error prone.  It results in a cottage
-industry of research papers on varying frameworks for varying languages.  It
+Work has focused on endowing abstractions with a knobs, levers,
+and dials to tune precision and compute efficiently.  These parameters come with
+overloaded meanings such as object-, context-, path-, and
+heap-sensitivities, or some combination thereof.  These efforts develop
+families of analyses _for a specific language_ and prove the framework sound.
+
+But this framework approach suffers from many of the same drawbacks as the
+one-off analyzers.  They are language-specific, preventing reuse of concepts across
+languages and require similar re-implementations and soundness
+proofs.  This process is still manual, tedious, difficult and error-prone.    And, changes to the structure of the parameter-space require a completely new proof of soundness.  And, it
 prevents fruitful insights and results developed in one paradigm from being
-applied to others.
+applied to others, e.g., functional to object-oriented and _vice versa_.
 
-In this paper, we propose an alternative approach to structuring and
+We propose an automated alternative approach to structuring and
 implementing program analysis.  Inspired by
 \citeauthor*{dvanhorn:Liang1995Monad}'s \emph{Monad transformers for
 modular interpreters} \citeyearpar{dvanhorn:Liang1995Monad}, we
-propose to use concrete interpreters in monadic style.  As we show,
+propose to start with concrete interpreters in a specific monadic style.  
+Changing the monad will change the interpreter from a concrete interpreter
+into an abstract interpreter.
+As we show,
 classical program abstractions can be embodied as language-independent
 monads.  Moreover, these abstractions can be written as monad
 transformers, thereby allowing their composition to achieve new forms
 of analysis.  We show that these monad transfomers obey the properties
-of \emph{Galois connections} \cite{dvanhorn:Cousot:1977:AI} and
+of \emph{Galois connections} \cite{dvanhorn:Cousot1979Systematic} and
 introduce the concept of a \emph{Galois transfomer}, a monad
 transfomer that forms a Galois connection.
 
 Most significantly, these Galois transformers can be proved sound once
-and for all.  Abstract interpreters, which take the form of monad
+and used everywhere.  Abstract interpreters, which take the form of monad
 transformer stacks coupled together with a monadic interpreter,
 inherit the soundness properties of each element in the stack.  This
 approach enables reuse of abstractions across languages and lays the
 foundation for a modular metatheory of program analysis.
+
 
 ## Contributions
 
