@@ -1017,7 +1017,7 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 We instantiate our interpreter to the following monad stacks in decreasing order of precision:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
 `Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
 `Sₜ[AKStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
@@ -1032,7 +1032,7 @@ From left to right, these give path-sensitive, flow-sensitive, and flow-insensit
 Furthermore, each monad stack with abstract components is assigned a Galois connection by-construction with their concrete analogues:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[CEnv]`      `&`{.raw} `Sₜ[CEnv]`       `&`{.raw} `Sₜ[CEnv]`     `\\`{.raw}
 `Sₜ[CKAddr]`    `&`{.raw} `Sₜ[CKAddr]`     `&`{.raw} `Sₜ[CKAddr]`   `\\`{.raw}
 `Sₜ[CKStore]`   `&`{.raw} `Sₜ[CKStore]`    `&`{.raw} `Sₜ[CKStore]`  `\\`{.raw}
@@ -1046,7 +1046,7 @@ Another benefit of our approach is that we can selectively widen the value store
 To do this we merely swap the order of transformers:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
 `Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
 `Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
