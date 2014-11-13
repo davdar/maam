@@ -456,10 +456,10 @@ int-I(i₁ + i₂) ⊑ δ⟦[+],int-I(i₁),int-I(i₂)⟧
 int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
 ``````````````````````````````````````````````````
 
-Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analogous.
-Introduction functions inject the type into `Val`.
-Elimination functions project a finite set of discrete observations.
-Introduction and elimination operators must follow a Galois connection discipline.
+-- Supporting additional primitive types like booleans, lists, or arbitrary inductive datatypes is analogous.
+-- Introduction functions inject the type into `Val`.
+-- Elimination functions project a finite set of discrete observations.
+-- Introduction and elimination operators must follow a Galois connection discipline.
 
 -- Of note is our restraint from allowing operations over `Val` to have monadic effects.
 -- We set things up specifically in this way so that `Val` and the monad `M` can be varied independent of each other.
@@ -591,7 +591,7 @@ gc(e) := do
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
 where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
-The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
+-- The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
 
 -- In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
 -- This is because we place no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
@@ -613,7 +613,7 @@ We require that monadic actions `Exp → M(Exp)` form a Galois connection with a
 This Galois connection serves two purposes.
 First, it allows us to implement the analysis by converting our interpreter to the transition system `Σ → Σ` through `γ`.
 Second, this Galois connection serves to _transport other Galois connections_ as part of our correctness framework.
-For example, given concrete and abstract versions of `Val`, we carry `CVal α⇄γ AVal` through the Galois connection to establish `CΣ α⇄γ AΣ`.
+-- For example, given concrete and abstract versions of `Val`, we carry `CVal α⇄γ AVal` through the Galois connection to establish `CΣ α⇄γ AΣ`.
 
 A collecting-semantics execution of our interpreter is defined as the least-fixed-point of `step` transported through the Galois connection.
 `````indent```````````````````````````````````````
@@ -719,9 +719,9 @@ The injection `ς₀` for a program `e₀` is:
 `γ` and `α` form an isomorphism.
 `\end{proposition}`{.raw}
 
-`\begin{corollary}`{.raw}
-`γ` and `α` form a Galois connection.
-`\end{corollary}`{.raw}
+-- `\begin{corollary}`{.raw}
+-- `γ` and `α` form a Galois connection.
+-- `\end{corollary}`{.raw}
 
 ## Recovering an Abstract Interpreter
 
@@ -847,9 +847,9 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 `γ` and `α` form an isomorphism.
 `\end{proposition}`{.raw}
 
-`\begin{corollary}`{.raw}
-`γ` and `α` form a Galois connection.
-`\end{corollary}`{.raw}
+-- `\begin{corollary}`{.raw}
+-- `γ` and `α` form a Galois connection.
+-- `\end{corollary}`{.raw}
 
 `\begin{proposition}`{.raw}
 There exists Galois connections:
