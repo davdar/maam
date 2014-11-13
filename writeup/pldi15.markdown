@@ -515,8 +515,8 @@ gc(e) := do
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
 where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
+The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
 
-The interpreter looks deterministic, however the nondeterminism is just hidden away behind `↑ₚ` and monadic bind.
 In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
 This is because we placed no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
 Our interpreter is therefore operating over a modified state space:
@@ -978,7 +978,7 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 - The resulting monad has the combined effects of all pieces of the transformer stack.
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
 
-We can now instantiate our interpreter to the following monad stacks in decreasing order of precision:
+We instantiate our interpreter to the following monad stacks in decreasing order of precision:
 
 \vspace{1em}
 `\begin{tabular}{l l l}`{.raw}
