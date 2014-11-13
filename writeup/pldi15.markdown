@@ -278,7 +278,7 @@ At program point 3 the analysis is forced to again consider both branches, resul
 \paragraph{Path-Insensitive Flow-Insensitive}
 A path-insensitive flow-insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
-`````raw``````````````````````````````````````````
+`````raw```````````````````````````````````````````
 \small\begin{alignat*}{4}
  \{ N=ANY ,\;\;  & x= \{ -1, 1 \} \}     &&                    && \text{ and}  \\
  \{ N=ANY ,\;\;  & x= \{ -1, 1 \}  ,\;\; && y= \{ -1, 1 \}  \} && \text{ respectively.} 
@@ -340,14 +340,15 @@ return  : ∀ α, α → M(α)
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-We use the monad laws to reason about our implementation in the absence of a particular implementation of `bind` and `return`:
-`````align````````````````````````````````````````
-unit₁ :  bind(return(a))(k) = k(a)
-unit₂ :  bind(m)(return) = m
-assoc :  bind(bind(m)(k₁))(k₂) 
-      =  bind(m)(λ(a).bind(k₁(a))(k₂))
-``````````````````````````````````````````````````
-`bind` and `return` mean something different for each monadic effect class.
+We use the monad laws (left and right units and associativity) to reason about our 
+  implementation in the absence of a particular implementation of `bind` and `return`.
+-- `````align````````````````````````````````````````
+-- unit₁ :  bind(return(a))(k) = k(a)
+-- unit₂ :  bind(m)(return) = m
+-- assoc :  bind(bind(m)(k₁))(k₂) 
+--       =  bind(m)(λ(a).bind(k₁(a))(k₂))
+-- ``````````````````````````````````````````````````
+-- `bind` and `return` mean something different for each monadic effect class.
 For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
 For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
 
@@ -371,13 +372,14 @@ put  : s → M(1)
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-We use the state monad laws to reason about state effects:
-`````indent``````````````````````````````````````` 
-put-put : put(s₁) ; put(s₂) = put(s₂)
-put-get : put(s) ; get = return(s)
-get-put : s ← get ; put(s) = return(1)
-get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
-``````````````````````````````````````````````````
+We use the state monad laws to reason about state effects.
+We refer the reader to \citet{dvanhorn:Liang1995Monad} for their description.
+-- `````indent``````````````````````````````````````` 
+-- put-put : put(s₁) ; put(s₂) = put(s₂)
+-- put-get : put(s) ; get = return(s)
+-- get-put : s ← get ; put(s) = return(1)
+-- get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
+-- ``````````````````````````````````````````````````
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
@@ -394,17 +396,18 @@ _⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-We use the nondeterminism laws to reason about nondeterminism effects:
-`````indent```````````````````````````````````````
-⊥-zero₁ : bind(mzero)(k) = mzero
-⊥-zero₂ : bind(m)(λ(a).mzero) = mzero
-⊥-unit₁ : mzero ⟨+⟩ m = m
-⊥-unit₂ : m ⟨+⟩ mzero = m 
-+-assoc : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
-+-comm : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
-+-dist : 
-  bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
-``````````````````````````````````````````````````
+Nondeterminism laws state that the monad must have a join-semilattice structure, and that `mzero` be a zero for `bind`.
+-- We use the nondeterminism laws to reason about nondeterminism effects, w
+-- `````indent```````````````````````````````````````
+-- ⊥-zero₁ : bind(mzero)(k) = mzero
+-- ⊥-zero₂ : bind(m)(λ(a).mzero) = mzero
+-- ⊥-unit₁ : mzero ⟨+⟩ m = m
+-- ⊥-unit₂ : m ⟨+⟩ mzero = m 
+-- +-assoc : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
+-- +-comm : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
+-- +-dist : 
+--   bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
+-- ``````````````````````````````````````````````````
 
 Together, all the monadic operators we have shown capture the essence of combining explicit state-passing and set comprehension.
 Our interpreter will use these operators and avoid referencing an explicit configuration `ς` or explicit collections of results.
@@ -458,8 +461,8 @@ Introduction functions inject the type into `Val`.
 Elimination functions project a finite set of discrete observations.
 Introduction and elimination operators must follow a Galois connection discipline.
 
-Of note is our restraint from allowing operations over `Val` to have monadic effects.
-We set things up specifically in this way so that `Val` and the monad `M` can be varied independent of each other.
+-- Of note is our restraint from allowing operations over `Val` to have monadic effects.
+-- We set things up specifically in this way so that `Val` and the monad `M` can be varied independent of each other.
 
 ## Abstract Time 
 
@@ -475,11 +478,11 @@ tick  : Exp × KAddr × Time → Time
 \label{AbstractTimeInterface}
 \vspace{-1em}
 `\end{figure}`{.raw}
-In AAM, `tick` is defined to have access to all of `Σ`.
-This comes from the generality of the framework--to account for all possible `tick` functions.
-We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
-Also in AAM is the opaque function `alloc : Var × Time → Addr`.
-Because we will only ever use the identity function for `alloc`, we omit its abstraction and instantiation in our development.
+-- In AAM, `tick` is defined to have access to all of `Σ`.
+-- This comes from the generality of the framework--to account for all possible `tick` functions.
+-- We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
+-- Also in AAM is the opaque function `alloc : Var × Time → Addr`.
+-- Because we will only ever use the identity function for `alloc`, we omit its abstraction and instantiation in our development.
 
 Remarkably, we need not state laws for `tick`.
 Our interpreter will always merge values which reside at the same address to achieve soundness.
@@ -590,16 +593,17 @@ gc(e) := do
 where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}.
 The interpreter looks deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and monadic bind.
 
-In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
-This is because we place no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
-Our interpreter is therefore operating over a modified state space:
+-- In generalizing the semantics to account for nondeterminism, updates to both the value and continuation store must merge rather than strong update.
+-- This is because we place no restriction on the semantics for `Time`, and we must preserve soundness in the presence of reused addresses.
+To support the `⊔` operator for our stores (in observation of soundness), we modify our definitions of `Store` and `KStore`
+-- Our interpreter is therefore operating over a modified state space (noting that `Val` comes with a join-semilattice structure):
 `````indent```````````````````````````````````````
 σ  ∈ Store  : Addr → Val
 κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
 ``````````````````````````````````````````````````
-We have already established a join-semilattice structure in the interface for `Val` in the abstract domain interface.
-Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
-For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
+-- We have already established a join-semilattice structure in the interface for `Val` in the abstract domain interface.
+-- Developing a custom join-semilattice for continuations is possible, and is the key component of recent developments in pushdown abstraction.
+-- For this presentation we use `𝒫(Frame × KAddr)` as an abstraction for continuations for simplicity.
 
 To execute the interpreter we must introduce one more parameter.
 In the concrete semantics, execution takes the form of a least-fixed-point computation over the collecting semantics
@@ -881,15 +885,15 @@ They scale seamlessly to flow-sensitive and flow-insensitive variants when insta
 In our development thus far, any modification to the interpreter requires redesigning the monad `AM` and constructing new proofs.
 We want to avoid reconstructing complicated monads for our interpreters, especially as languages and analyses grow and change.
 Even more, we want to avoid reconstructing complicated _proofs_ that such changes will necessarily alter.
-Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction.
+-- Toward this goal we introduce a compositional framework for constructing monads which are correct-by-construction.
 To do this we extend the well-known structure of monad transformer that that of _Galois transformer_.
 
 There are two types of monadic effects used in our monadic interpreter: state and nondeterminism.
 Each of these effects have corresponding monad transformers.
 Our definition of a monad transformer for nondeterminism is novel in this work.
 
-In the proceeding definitions, we must necessarily use `bind`, `return`, and other operations from the underlying monad.
-We notate these `bindₘ`, `returnₘ`, `doₘ`, `←ₘ`,  etc. for clarity.
+-- In the proceeding definitions, we must necessarily use `bind`, `return`, and other operations from the underlying monad.
+-- We notate these `bindₘ`, `returnₘ`, `doₘ`, `←ₘ`,  etc. for clarity.
 
 ## State Monad Transformer
 
@@ -1155,7 +1159,7 @@ These flags are implemented completely independent of one another,
 Furthermore, using Galois transformers allows us to prove each combination correct in one fell swoop.
 
 Our implementation is publicly available and can be installed as a cabal package by executing:
-`````align````````````````````````````````````````
+``````````````````````````````````````````````````
 cabal install maam
 ``````````````````````````````````````````````````
 
