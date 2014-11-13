@@ -113,8 +113,8 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 \vspace{-1em}
 `\end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
-We use the operator `@` as explicit syntax for function application.
-This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
+-- We use the operator `@` as explicit syntax for function application.
+-- This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
 
 Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
 Our semantics makes allocation explicit and separates values and continuations into separate stores.
@@ -383,7 +383,7 @@ We refer the reader to \citet{dvanhorn:Liang1995Monad} for their description.
 
 \paragraph{Nondeterminism Operations}
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
-The nondeterminism interface is summarized in Figure`~\ref{NondterminismInterface}`{.raw}.
+The nondeterminism interface is summarized in Figure`~\ref{NondeterminismInterface}`{.raw}.
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````align```````````````````````````````````````` 
@@ -1257,11 +1257,11 @@ form Galois connections, are effective, language-inde\-pendent building
 blocks for constructing program analyzers and form the basis of a
 modular, reusable, and composable metatheory for program analysis.
 
-In the end, we hope language independent characterizations of analysis
-ingredients will both facilate the systematic construction of program
-analyses and bridge the gap between various communities which often
-work in isolation, despite the fruitful results of mapping between
-langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
-showing that object-oriented $k$-CFA can be applied to functional
-languages to avoid the exponential time lower bound
-\cite{dvanhorn:VanHorn-Mairson:ICFP08}.
+-- In the end, we hope language independent characterizations of analysis
+-- ingredients will both facilate the systematic construction of program
+-- analyses and bridge the gap between various communities which often
+-- work in isolation, despite the fruitful results of mapping between
+-- langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
+-- showing that object-oriented $k$-CFA can be applied to functional
+-- languages to avoid the exponential time lower bound
+-- \cite{dvanhorn:VanHorn-Mairson:ICFP08}.
