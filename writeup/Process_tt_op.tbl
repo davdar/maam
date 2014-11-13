@@ -4,7 +4,7 @@ do            _               Word
 if            _               Word      
 case          _               Word      
 of            _               Word      
-cabal         \;cabal\;               Word      
-install       \;install\;               Word      
-maam          \;maam\;               Word      
+cabal         \;cabal\;       Word      
+install       \;install\;     Word      
+maam          \;maam\;        Word      
 type          _               Word      

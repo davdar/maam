@@ -9,13 +9,13 @@ AStore        \Abstract{\litStore}                    Word
 ATime         \Abstract{\litTime}                     Word      
 AVal          \Abstract{\litVal}                      Word      
 AΣ            \Abstract{\Sigma}                       Anywhere  
-Aγ            \Abstract{\gamma}                       Anywhere
+Aγ            \Abstract{\gamma}                       Anywhere  
 CM            \Concrete{\litM}                        Word      
-CStore        \Concrete{\litStore}                     Word      
+CStore        \Concrete{\litStore}                    Word      
 CTime         \Concrete{\litTime}                     Word      
 CVal          \Concrete{\litVal}                      Word      
 CΣ            \Concrete{\Sigma}                       Anywhere  
-Cγ            \Concrete{\gamma}                       Anywhere
+Cγ            \Concrete{\gamma}                       Anywhere  
 [+]           \ttbfbin{+}                             Anywhere  
 [-]           \ttbfbin{-}                             Anywhere  
 [λ]           \underline{\ttbfop{\lambda}}            Anywhere  
@@ -31,3 +31,5 @@ where         \text{where}\;\;                        Word
 ↑ₚ            \itop{\uparrow_p}                       Anywhere  
 ⟨+⟩           \mathbin{⟨+⟩}                           Anywhere  
 if0           \underline{\ttbfop{if0}}                Word      
+true          \ttbfop{true}      Word
+false         \ttbfop{false}     Word
