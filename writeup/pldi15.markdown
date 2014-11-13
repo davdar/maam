@@ -109,8 +109,8 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a sim
 ``````````````````````````````````````````````````
 `\caption{`{.raw} `λIF` `}`{.raw}
 \label{Syntax} 
-`\end{figure}`{.raw}
 \vspace{-2em}
+`\end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
 We use the operator `@` as explicit syntax for function application.
 This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
