@@ -1037,6 +1037,12 @@ cabal install maam
 
 # Related Work
 
+Program analysis comes in many forms such as points-to \cite{}, flow
+\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis \cite{} and
+many others and the literature is vast. (See
+\citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
+surveys.)
+
 The most directly related work is the development of Monadic Abstract Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.
 In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
 However, each monad in MAI is designed from scratch for a specific language to have specific analysis properties.
