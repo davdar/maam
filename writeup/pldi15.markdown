@@ -800,7 +800,6 @@ and the following properties hold:
 α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
-
 The first Galois connection `CΣ α₁⇄γ₁ AΣ` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
 The second Galois connection `AΣ α₂⇄γ₂ AΣᶠⁱ` is justified by first calculating the Galois connection between monads `AM` and `CM`,
   and then transporting it through their respective Galois connections to `AΣ` and `AΣᶠⁱ`.
@@ -884,7 +883,6 @@ return(x) := returnₘ({x})
 `\begin{proposition}`{.raw}
 `bind` and `return` satisfy the monad laws.
 `\end{proposition}`{.raw}
-
 The key lemma in this proof is the functorality of `m`, namely that:
 `````align````````````````````````````````````````
 returnₘ(x ⊔ y) = returnₘ(x) ⊔ returnₘ(y)
@@ -901,7 +899,6 @@ put(s) = mapₘ(λ(1).{1})(putₘ(s))
 `\begin{proposition}`{.raw}
 `get` and `put` satisfy the state monad laws.
 `\end{proposition}`{.raw}
-
 The proof is by simple calculation.
 
 Finally, our nondeterminism monad transformer expses nondeterminism effects as a trivial applciation of the underlying monad's join-semilattice functorality:
@@ -915,7 +912,6 @@ m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 `\begin{proposition}`{.raw}
 `mzero` and `⟨+⟩` satisfy the nondterminism monad laws.
 `\end{proposition}`{.raw}
-
 The proof is trivial as a consequence of the underlying monad being a join-semilattice functor.
 
 ## Mapping to State Spaces
@@ -964,18 +960,35 @@ commuteP-γ := commutePₘ ∘ map(F)
 Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
 The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` to be functorial (i.e., homomorphic).
-
 For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow insensitive and flow sensitive respectively.
 
 `\begin{proposition}`{.raw}
 `Σ⸤FSₜ⸥ α⇄γ Σ⸤FIₜ⸥`.
 `\end{proposition}`{.raw}
-
 The proof is by consequence of `commuteP`.
 
 `\begin{proposition}`{.raw}
 `Sₜ[s] ∘ 𝒫ₜ α⇄γ 𝒫ₜ ∘ Sₜ[s]`.
 `\end{proposition}`{.raw}
+The proof is by calculation after unfolding the definitions.
+
+## Galois Transformers
+
+The final piece of our compositional framework is the fact that monad transformers `Sₜ[s]` and `𝒫ₜ` are also _Galois transformers_.
+Whereas a monad transformer is a functor between monads, a Galois transformer is a functor between Galois connections.
+
+`\begin{definition}`{.raw}
+A monad transformer `T` is a Galois transformer if for every `m₁ α⇄γ m₂`, `T(m₁) α⇄γ T(m₂)`.
+`\end{definition}`{.raw}
+
+`\begin{proposition}`{.raw}
+`Sₜ[s]` and `𝒫ₜ` are Galois transformers.
+`\end{proposition}`{.raw}
+The proofs are straightforward applications of the underlying `m₁ α⇄γ m₂`.
+
+Furthermore, the state monad transformer `Sₜ[s]` is Galois functorial in its state parameter `s`.
+
+## Building Transformer Stacks
 
 We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ` and `FSₜ` that have the following properties:
 
@@ -983,20 +996,49 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 - Actions in the resulting monad map to a state space transition system `Σ → Σ` for some `Σ`.
 
 We can now instantiate our interpreter to the following monad stacks in decreasing order of precision:
-`````align````````````````````````````````````````
-Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ Sₜ[AStore] ∘ FSₜ
-``````````````````````````````````````````````````
-which yields a path-sensitive flow-sensitive analysis,
-`````align````````````````````````````````````````
-Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FSₜ ∘ Sₜ[AStore]
-``````````````````````````````````````````````````
-which yeilds a path-insensitive flow-sensitive analysis, and
-`````align````````````````````````````````````````
-Sₜ[Env] ∘ Sₜ[KAddr] ∘ Sₜ[KStore] ∘ Sₜ[ATime] ∘ FIₜ ∘ Sₜ[AStore]
-``````````````````````````````````````````````````
-which yields a path-insensitive flow-insensitive analysis.
-Furthermore, the Galois connections for our interpreter instantiated to each state space `Σ` is justified fully by construction.
 
+\vspace{1em}
+`\begin{tabular}{l l l}`{.raw}
+`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
+`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
+`Sₜ[KStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
+`Sₜ[AStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
+`FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
+`\end{tabular}`{.raw}
+\vspace{1em}
+
+\noindent
+From left to right, these give path sensitive, flow sensitive, and flow insensitive analyses.
+Furthermore, each monad stack with abstract components is assigned a Galois connection by-construction with their concrete analogues:
+
+\vspace{1em}
+`\begin{tabular}{l l l}`{.raw}
+`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
+`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
+`Sₜ[KStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`Sₜ[CTime]`    `&`{.raw} `Sₜ[CTime]`     `&`{.raw} `Sₜ[CTime]`   `\\`{.raw}
+`Sₜ[CStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
+`FSₜ`          `&`{.raw} `Sₜ[CStore]`    `&`{.raw} `Sₜ[CStore]`  `\\`{.raw}
+`\end{tabular}`{.raw}
+\vspace{1em}
+
+Another benefit of our approach is that we can selectively widen the value store and the continuation store independent of each other.
+To do this we merely swap the order of transformers:
+
+\vspace{1em}
+`\begin{tabular}{l l l}`{.raw}
+`Sₜ[Env]`      `&`{.raw} `Sₜ[Env]`       `&`{.raw} `Sₜ[Env]`     `\\`{.raw}
+`Sₜ[KAddr]`    `&`{.raw} `Sₜ[KAddr]`     `&`{.raw} `Sₜ[KAddr]`   `\\`{.raw}
+`Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
+`Sₜ[KStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
+`Sₜ[AStore]`   `&`{.raw} `Sₜ[KStore]`    `&`{.raw} `Sₜ[KStore]`  `\\`{.raw}
+`FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
+`\end{tabular}`{.raw}
+\vspace{1em}
+
+\noindent
+yielding analyses which are flow-sensitive and flow-insensitive for both the continuation and value stores.
 
 # Implementation
 
