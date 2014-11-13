@@ -15,7 +15,7 @@ tmp/autogen/pldi15.markdown.tex: pldi15.markdown Process.hs *.tbl
 
 tmp/davdar.bib:
 	mkdir -p tmp
-	curl -o tmp/davdar.bib "http://www.citeulike.org/bibtex/user/davdar?fieldmap=posted-at:date-added&do_username_prefix=1&key_type=4&fieldmap=url:x-url&fieldmap=doi:x-doi&fieldmap=address:x-address&fieldmap=isbn:x-isbn&fieldmap=issn:x-issn&fieldmap=month:x-month&fieldmap=comment:booktitle&fieldmap=booktitle:x-booktitle&fieldmap=abstract:x-abstract&fieldmap=pages:xpages&fieldmap=volume:x-volume&fieldmap=editor:x-editor&fieldmap=number:x-number"
+	curl -o tmp/davdar.bib "http://www.citeulike.org/bibtex/user/davdar?fieldmap=posted-at:date-added&do_username_prefix=1&key_type=4&fieldmap=url:x-url&fieldmap=doi:x-doi&fieldmap=address:x-address&fieldmap=isbn:x-isbn&fieldmap=issn:x-issn&fieldmap=month:x-month&fieldmap=abstract:x-abstract&fieldmap=pages:xpages&fieldmap=volume:x-volume&fieldmap=editor:x-editor&fieldmap=number:x-number"
 
 open:
 	open pldi15.pdf
@@ -37,4 +37,4 @@ tidy:
 
 tmp/dvanhorn.bib:
 	mkdir -p tmp
-	curl -o tmp/dvanhorn.bib "http://www.citeulike.org/bibtex/user/dvanhorn?fieldmap=posted-at:date-added&do_username_prefix=1&key_type=4&fieldmap=url:x-url&fieldmap=doi:x-doi&fieldmap=address:x-address&fieldmap=isbn:x-isbn&fieldmap=issn:x-issn&fieldmap=month:x-month&fieldmap=comment:booktitle&fieldmap=booktitle:x-booktitle&fieldmap=abstract:x-abstract&fieldmap=pages:xpages&fieldmap=volume:x-volume&fieldmap=editor:x-editor&fieldmap=number:x-number"
+	curl -o tmp/dvanhorn.bib "http://www.citeulike.org/bibtex/user/dvanhorn?fieldmap=posted-at:date-added&do_username_prefix=1&key_type=4&fieldmap=url:x-url&fieldmap=doi:x-doi&fieldmap=address:x-address&fieldmap=isbn:x-isbn&fieldmap=issn:x-issn&fieldmap=month:x-month&fieldmap=abstract:x-abstract&fieldmap=pages:xpages&fieldmap=volume:x-volume&fieldmap=editor:x-editor&fieldmap=number:x-number"

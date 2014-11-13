@@ -2,14 +2,16 @@
 
 Traditional practice in the program analysis literature, be it for
 points-to, flow, shape analysis or others, is to fix a language and
-its abstraction (a computable, sound approximation to the "concrete"
+its abstraction (a computable, sound approximation to the ``concrete''
 semantics of the language) and investigate its effectiveness [CITE
 overload].  These one-off abstractions require effort to design and
 prove sound.  Consequently later work has focused on endowing the
 abstraction with a number of knobs, levers, and dials to tune
 precision and compute efficiently [CITE overload].  These parameters
-come in various forms with overloaded meanings such as
-object`~\cite{dvanhorn:Milanova2005Parameterized}`{.raw}, context [CITE],
+come in various forms with overloaded meanings such as object
+\cite{dvanhorn:Milanova2005Parameterized,
+dvanhorn:Smaragdakis2011Pick}, context
+\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
 path [CITE], and heap [CITE] sensitivities, or some combination
 thereof [CITE].  These efforts develop families of analyses for a
 specific language and prove the framework sound.
@@ -20,7 +22,7 @@ languages and thus requiring similar abstraction implementations and soundness
 proofs.  This process is difficult and error prone.  It results in a cottage
 industry of research papers on varying frameworks for varying languages.  It
 prevents fruitful insights and results developed in one paradigm from being
-applied to others [PLDI'10].
+applied to others \cite{dvanhorn:Might2010Resolving}.
 
 In this paper, we propose an alternative approach to structuring and
 implementing program analysis.  We propose to use concrete interpreters in
