@@ -70,9 +70,9 @@ To demonsrate our framework we design an abstract interpreter for `λIF` a simpl
   ⊙ ∈  Op    ::= ⊕ | @ 
   e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
 ``````````````````````````````````````````````````
-`\caption{`{.raw}
-`λIF`
-`} \label{Syntax} \end{figure}`{.raw}
+`\caption{`{.raw} `λIF` `}`{.raw}
+\label{Syntax} 
+`\end{figure}`{.raw}
 `λIF` extends traditional lambda calculus with integers, addition, subtration and conditionals.
 We use the operator `@` as explicit syntax for function application.
 This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
@@ -272,7 +272,7 @@ These reasoning principles allow us to reason about the correctness of the gener
 The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
 An instantiation of the interpreter need only justify that each parameter meets their local interface.
 
-## The Monad
+## The Analysis Monad
 
 The monad for the interpreter is capturing the _effects_ of interpretation.
 There are two effects we wish to model in the interpreter, state and nondeterminism.
@@ -282,15 +282,18 @@ Our result is that path and flow sensitivities can be recovered by altering how 
 
 We briefly review monad, state and nondeterminism operators and thier laws.
 
-### Monad Properties
-To be a monad, a type operator `M` must support the `bind` operation:
-`````indent```````````````````````````````````````
-bind : ∀ α β, M(α) → (α → M(β)) → M(β)
+\paragraph{Base Monad Operations}
+A type operator `M` is a monad if it support `bind`, a sequencing operator, and its unit `return`.
+The monad interface is summarized in Figure \ref{Monad}.
+`\begin{figure}`{.raw}
+`````align ```````````````````````````````````````
+     M  : Type → Type
+  bind  : ∀ α β, M(α) → (α → M(β)) → M(β)
+return  : ∀ α, α → M(α)
 ``````````````````````````````````````````````````
-as well as a unit for `bind` called `return`:
-`````indent```````````````````````````````````````
-return : ∀ α, α → M(α)
-``````````````````````````````````````````````````
+\caption{Monad Interface}
+\label{MonadInterface}
+`\end{figure}`{.raw}
 
 We use the monad laws to reason about our implementation in the absence of a particular implementatino of `bind` and `return`:
 `````indent```````````````````````````````````````
@@ -301,8 +304,6 @@ assoc : bind(bind(m)(k₁))(k₂) = bind(m)(λ(a).bind(k₁(a))(k₂))
 `bind` and `return` mean something different for each monadic effect class.
 For state, `bind` is a sequencer of state and `return` is the "no change in state" effect.
 For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
-These operators capture the essence of the combination of explicit state-passing and set comprehension in the interpreter.
-Our interpreter will use these operators and avoid referencing an explicit configuration `ς` or explicit collections of results.
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
 For example:
@@ -320,12 +321,17 @@ are both just sugar for
 bind(m)(k)
 ``````````````````````````````````````````````````
 
-### Monad State Properties
-Interacting with a state component like `Env` is achieved through `get-Env` and `put-Env` effects:
+\paragraph{Monadic State Operations}
+A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `bind` actions over `s`.
+The state monad interface is summarized in Figure \ref{StateMonad}.
+`\begin{figure}`{.raw}
 `````indent``````````````````````````````````````` 
-get-Env : M(Env)
-put-Env : Env → M(1)
+get : M(s)
+put : s → M(1)
 ``````````````````````````````````````````````````
+\caption{State Monad Interface}
+\label{StateMonadInterface}
+`\end{figure}`{.raw}
 
 We use the state monad laws to reason about state effects:
 `````indent``````````````````````````````````````` 
@@ -336,13 +342,17 @@ get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
 ``````````````````````````````````````````````````
 The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 
-### Monad Nondeterminism Properties
-
-Nondeterminism is achieved through operators `mzero` and `⟨+⟩`:
+\paragraph{Nondeterminism Operations}
+A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
+The nondeterminism interface is summarized in Figure \ref{Nondterminism}.
+`\begin{figure}`{.raw}
 `````indent``````````````````````````````````````` 
 mzero : ∀ α, M(α)
 _⟨+⟩_ : ∀ α, M(α) × M(α) → M(α)
 `````````````````````````````````````````````````` 
+\caption{Nondeterminism Interface}
+\label{Nondeterminism Interface}
+`\end{figure}`{.raw}
 
 We use the nondeterminism laws to reason about nondeterminism effects:
 `````indent```````````````````````````````````````
@@ -355,12 +365,16 @@ We use the nondeterminism laws to reason about nondeterminism effects:
 +-dist : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
 ``````````````````````````````````````````````````
 
+Together, all the monadic operators we have shown capture the essence of combining explicit state-passing and set comprehension.
+Our interpreter will use these operators and avoid referencing an explicit configuration `ς` or explicit collections of results.
+
 ## The Abstract Domain
 
 The abstract domain is encapsulated by the `Val` type in the semantics.
 To parameterize over it, we make `Val` opaque but require it support various operations.
 There is a constraint on `Val` its-self: it must be a join-semilattice with `⊥` and `⊔` respecting the usual laws.
 We require `Val` to be a join-semilattice so it can be merged in the `Store`.
+The interface for the abstract domain is shown in figure \ref{AbstractDomain}.
 
 The interface for integers consists of introduction and elimiation rules:
 `````indent```````````````````````````````````````
