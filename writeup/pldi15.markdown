@@ -230,11 +230,11 @@ An execution of the semantics is states as the least-fixed-point of a collecting
 `````indent```````````````````````````````````````
 μ(X).{ς₀} ∪ X ∪ { ς' | ς ~~>ᵍᶜ ς' ; ς ∈ X }
 ``````````````````````````````````````````````````
-The analyses we present in this paper will be proven correct by establishing a Galois connection with this concrete collecting semantics.
+-- The analyses we present in this paper will be proven correct by establishing a Galois connection with this concrete collecting semantics.
 
 # Flow Properties in Analysis
 
-One key property of a static analysis is the way it tracks _flow_.
+-- One key property of a static analysis is the way it tracks _flow_.
 The term "flow" is heavily overloaded in static analysis.
 We wish to draw a sharper distinction on what is a flow property.
 In this paper we identify three different types of flow in analysis:
@@ -312,7 +312,7 @@ There will be three parameters to our abstract interpreter, one of which is nove
 3. Abstract Time.
    Abstract time captures the call-site-sensitivity of the analysis.
 
-For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
+-- For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
 We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
 We will give each of these parameters reasoning principles as we introduce them.
