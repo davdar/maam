@@ -49,10 +49,10 @@ foundation for a modular metatheory of program analysis.
 
 Our contributions are:
 
-- A compositional meta-theory framework for building correct-by-construction abstract interpreters.
-  This framework is built using a restricted class of monad transformers.
-- An isolated understanding of flow and path-sensitivity for static analysis.
-  We understand this spectrum as mere variations in the order of monad transformer composition in our framework.
+- A framework for building abstract interpreters with monad transformers.
+- A generalization of monad transformers to Galois transformers as a framework for constructing Galois connections for abstract interpreters.
+- A new monad transformer for nondeterminism which we show is also a Galois transformer.
+- An isolated understanding of flow- and path-sensitivity for static analysis as a property of the monad used for interpretation.
 
 ## Outline
 
@@ -144,7 +144,7 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
 
-Our abstract interpreter will support abstract garbage collection`~\citet{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
+Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
 We include garbage collection for two reasons.
 First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
@@ -258,7 +258,7 @@ This is only ambiguous for "flow-sensitive", as path-sensitivity implies flow-se
 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
-To do this we extend the ideas developed in AAM \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
+To do this we extend the ideas developed in \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
 When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
@@ -268,7 +268,7 @@ There will be three parameters to our abstract interpreter, one of which is nove
 2. The abstract domain.
    For our language this is merely the abstraction for integers.
 3. Abstract Time.
-   Abstract time captures the call-site sensitivity of the analysis.
+   Abstract time captures the call-site-sensitivity of the analysis.
 
 For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
@@ -418,7 +418,8 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from AAM \cite{davdar:van-horn:2010:aam} and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
+The interface for abstract time is familiar from Abstracting Abstract Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces 
+  abstract time as a single parameter from variations in call-site-sensitivity--and is shown in Figure`~\ref{AbstractTimeInterface}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
 Time  : Type
@@ -441,7 +442,9 @@ Therefore, any supplied implementations of `tick` is valid.
 
 We now present a generic monadic interpreter for `λIF` parameterized over `M`, `Val` and `Time`.
 
-First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions:
+First we implement `A⟦_⟧`, a _monadic_ denotation for atomic expressions, shown in Figure \ref{InterpreterA}.
+
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -454,6 +457,9 @@ A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
+\caption{Monadic denotation for atoms}
+\label{InterpreterA} 
+`\end{figure}`{.raw}
 `get-Env` and `get-Store` are primitive operations for monadic state.
 `clo-I` comes from the abstract domain interface.
 `↑ₚ` is the lifting of values from powerset into the monad:
@@ -462,7 +468,8 @@ A⟦[λ](x).e⟧ := do
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
 ``````````````````````````````````````````````````
 
-Next we implement `step`, a _monadic_ small-step function for compound expressions:
+Next we implement `step`, a _monadic_ small-step function for compound expressions, shown in Figure \ref{InterpreterStep}.
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 step : Exp → M(Exp)
 step(e₁ ⊙ e₂) := do
@@ -490,6 +497,9 @@ step(a) := do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
+\caption{Monadic step function}
+\label{InterpreterStep} 
+`\end{figure}`{.raw}
 `step` uses helper functions `push` and `pop` for manipulating stack frames:
 `````indent```````````````````````````````````````
 push : Frame → M(1)
@@ -1012,7 +1022,7 @@ We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ
 We instantiate our interpreter to the following monad stacks in decreasing order of precision:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
 `Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
 `Sₜ[AKStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
@@ -1027,7 +1037,7 @@ From left to right, these give path-sensitive, flow-sensitive, and flow-insensit
 Furthermore, each monad stack with abstract components is assigned a Galois connection by-construction with their concrete analogues:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[CEnv]`      `&`{.raw} `Sₜ[CEnv]`       `&`{.raw} `Sₜ[CEnv]`     `\\`{.raw}
 `Sₜ[CKAddr]`    `&`{.raw} `Sₜ[CKAddr]`     `&`{.raw} `Sₜ[CKAddr]`   `\\`{.raw}
 `Sₜ[CKStore]`   `&`{.raw} `Sₜ[CKStore]`    `&`{.raw} `Sₜ[CKStore]`  `\\`{.raw}
@@ -1041,7 +1051,7 @@ Another benefit of our approach is that we can selectively widen the value store
 To do this we merely swap the order of transformers:
 
 \vspace{1em}
-`\begin{tabular}{l l l}`{.raw}
+`\begin{tabular}{l | l | l}`{.raw}
 `Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
 `Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
 `Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
@@ -1092,9 +1102,9 @@ cabal install maam
 # Related Work
 
 Program analysis comes in many forms such as points-to
-\citet{dvanhorn:Andersen1994Program}, flow
-\citet{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
-\citet{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
+\cite{dvanhorn:Andersen1994Program}, flow
+\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
+\cite{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
 surveys.)  Much of the research has focused on developing families or
 frameworks of analyses that endow the abstraction with a number of
@@ -1102,13 +1112,13 @@ knobs, levers, and dials to tune precision and compute efficiently
 (some examples include \citet{dvanhorn:Shivers:1991:CFA,
 dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
 davdar:van-horn:2010:aam}; there are many more).  These parameters
-come in various forms with overloaded meanings such as object
-\citet{dvanhorn:Milanova2005Parameterized,
-dvanhorn:Smaragdakis2011Pick}, context
-\citet{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path \citet{davdar:das:2002:esp}, and heap
-\citet{davdar:van-horn:2010:aam} sensitivities, or some combination
-thereof \citet{dvanhorn:Kastrinis2013Hybrid}.
+come in various forms with overloaded meanings such as object-
+\cite{dvanhorn:Milanova2005Parameterized,
+dvanhorn:Smaragdakis2011Pick}, context-
+\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
+path- \cite{davdar:das:2002:esp}, and heap-
+\cite{davdar:van-horn:2010:aam} sensitivities, or some combination
+thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
 
 These various forms can all be cast in the theory of abstraction
 interpretation of \citet{dvanhorn:Cousot:1977:AI,
@@ -1170,7 +1180,7 @@ also motivated by the needs of reasoning formally about abstract
 interpreters, no mention of which is made in MAI.
 
 We build directly on the work of Abstracting Abstract Machines (AAM) by \citet{davdar:van-horn:2010:aam}
-  in our parameterization of abstract time and call-site sensitivity.
+  in our parameterization of abstract time and call-site-sensitivity.
 More notably, we follow the AAM philosophy of instrumenting a concrete semantics _first_ and performing a systematic abstraction _second_.
 This greatly simplifies the Galois connection arguments during systematic abstraction.
 However, this is at the cost of proving that the instrumented semantics simulate the original concrete semantics.
@@ -1187,7 +1197,7 @@ In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program
 analyses and bridge the gap between various communities which often
 work in isolation, despite the fruitful results of mapping between
-langauge paradigms such as \citet{dvanhorn:Might2010Resolving} work,
+langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
 showing that object-oriented $k$-CFA can be applied to functional
 languages to avoid the exponential time lower bound
-\citet{dvanhorn:VanHorn-Mairson:ICFP08}.
+\cite{dvanhorn:VanHorn-Mairson:ICFP08}.
