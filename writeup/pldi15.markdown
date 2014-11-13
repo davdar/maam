@@ -57,8 +57,7 @@ Section`~\ref{related-work}`{.raw} discusses related work and Section`~\ref{conc
 
 # Semantics
 
-To demonstrate our framework we design an abstract interpreter for `λIF` a simple applied lambda calculus, 
-  which is shown in Figure`~\ref{Syntax}`{.raw}.
+To demonstrate our framework we design an abstract interpreter for `λIF`, a simple applied lambda calculus shown in Figure`~\ref{Syntax}`{.raw}.
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
   i ∈  ℤ
@@ -93,14 +92,14 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
 
-Atomic expressions are given meaning through the denotation function `A⟦_,_,_⟧`:
+Atomic expressions are denoted by `A⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
 A⟦_,_,_⟧ ∈ Env × Store × Atom ⇀ Val
 A⟦ρ,σ,i⟧ := i
 A⟦ρ,σ,x⟧ := σ(ρ(x))
 A⟦ρ,σ,[λ](x).e⟧ := ⟨[λ](x).e,ρ⟩ 
 ``````````````````````````````````````````````````
-Primitive operations are given meaning through the denotation function `δ⟦_,_,_⟧`:
+Primitive operations are denotation denoted by `δ⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
 δ⟦_,_,_⟧ ∈ IOp × ℤ × ℤ → ℤ
 δ⟦[+],i₁,i₂⟧ := i₁ + i₂
@@ -116,11 +115,11 @@ _~~>_ ∈ 𝒫(Σ × Σ)
   where 
     ⟨□ ⊙ e⟩∷κl' := κσ(κl)
     κσ' := κσ[τ ↦ ⟨A⟦ρ,σ,a⟧ ⊙ □⟩∷κl']
-⟨a,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ",σ',κl',κσ,τ+1⟩
+⟨a,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ'',σ',κl',κσ,τ+1⟩
   where 
     ⟨⟨[λ](x).e,ρ'⟩ @ □⟩∷κl':= κσ(κl)
     σ' := σ[(x,τ) ↦ A⟦ρ,σ,a⟧]
-    ρ" := ρ'[x ↦ (x,τ)]
+    ρ'' := ρ'[x ↦ (x,τ)]
 ⟨i₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨i,ρ,σ,κl',κσ,τ+1⟩
   where 
     ⟨i₁ ⊕ □⟩∷κl' := κσ(κl)
@@ -132,7 +131,12 @@ _~~>_ ∈ 𝒫(Σ × Σ)
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
 
-Our abstract interpreter will support abstract garbage collection [CITE], the concrete analogue of which is just standard garbage collection.
+Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
+  the concrete analogue of which is just standard garbage collection.
+We include garbage collection for two reasons.
+First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
+Second, later we will show how to write a monadic garbage collector, recovering both concrete and abstract garbage collection in one fell swoop.
+
 Garbage collection is defined with a reachability function `R` which computes the transitively reachable address from `(ρ,e)` in `σ`:
 `````indent```````````````````````````````````````
 R[_] ∈ Store → Env × Exp → 𝒫(Addr)
@@ -161,7 +165,7 @@ Our final semantics is given via the step relation `_~~>ᵍᶜ_` which nondeterm
 _~~>ᵍᶜ_ ∈ 𝒫(Σ × Σ)
 ς ~~>ᵍᶜ ς' 
   where ς ~~> ς'
-⟨e,ρ,σ,κl,κσ,τ⟩ ~~>ᵍᶜ ⟨e,ρ,σ',κl,κσ,τ⟩
+⟨e,ρ,σ,κl,κσ,τ⟩ ~~>ᵍᶜ ⟨e,ρ,σ',κl,κσ',τ⟩
   where 
     σ' := {l ↦ σ(l) | l ∈ R[σ](ρ,e)}
     κσ' := {κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)}
@@ -589,7 +593,7 @@ Monadic operators `bind` and `return` encapsulate both state-passing and set-fla
 `````indent```````````````````````````````````````
 bind : ∀ α, CM(α) → (α → CM(β)) → CM(β)
 bind(m)(f)(ψ) := 
-  {(y,ψ") | (y,ψ") ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
+  {(y,ψ'') | (y,ψ'') ∈ f(a)(ψ') ; (a,ψ') ∈ m(ψ)}
 return : ∀ α, α → CM(α)
 return(a)(ψ) := {(a,ψ)}
 ``````````````````````````````````````````````````
