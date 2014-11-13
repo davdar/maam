@@ -905,7 +905,7 @@ The proof is by simple calculation.
 Finally, our nondeterminism monad transformer exposes nondeterminism effects as a straightforward application of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
 mzero : ∀ α, 𝒫ₜ(m)(α)
-mzero := ⊥ᵐ
+mzero := ⊥ₘ
 _⟨+⟩_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
 m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
@@ -933,14 +933,14 @@ mstep-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
 ``````````````````````````````````````````````````
 
 For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
-One where `Σ` is `Σᵐ ∘ 𝒫`:
+One where `Σ` is `Σₘ ∘ 𝒫`:
 `````indent```````````````````````````````````````
 mstep₁-γ : ∀ α β m, 
   (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
 mstep₁-γ(f) := mstepₘ-γ(F)
   where F({x₁ .. xₙ}) = f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
 ``````````````````````````````````````````````````
-and one where `Σ` is `𝒫 ∘ Σᵐ`:
+and one where `Σ` is `𝒫 ∘ Σₘ`:
 `````indent```````````````````````````````````````
 mstep₂-γ : ∀ α β m, 
   (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
@@ -949,7 +949,7 @@ mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
     commuteP-γ : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
     aΣPᵢ := commuteP-γ(mstepₘ-γ(f)(ςᵢ)) 
 ``````````````````````````````````````````````````
-The operation `commuteP-γ` must be defined for the underlying `Σᵐ`.
+The operation `commuteP-γ` must be defined for the underlying `Σₘ`.
 In general, `commuteP` must form a Galois connection.
 However, this property exists for the identity monad, and is preserved by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
@@ -960,7 +960,10 @@ commuteP-γ := commutePₘ ∘ map(F)
 ``````````````````````````````````````````````````
 Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
-The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` to be functorial (i.e., homomorphic).
+The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` be homomorphic, i.e. that:
+`````align````````````````````````````````````````
+id ⊑ γ(return)
+``````````````````````````````````````````````````
 For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with `mstep₂` `FSₜ` for flow-insensitive and flow-sensitive respectively.
 
 `\begin{proposition}`{.raw}
