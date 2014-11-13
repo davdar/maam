@@ -267,8 +267,7 @@ At program point 3 the analysis remains precise, resulting in environments:
 A path-insensitive flow-sensitive analysis will track control flow precisely but merge the heap after control flow branches.
 At program point 2 the analysis considers separate worlds:
 `````align````````````````````````````````````````
-{N=ANY,,  x=   1}
-{N=ANY,,  x=-  1}
+{N=ANY,,  x=   1} \quad {N=ANY,,  x=-  1}
 ``````````````````````````````````````````````````
 At program point 3 the analysis is forced to again consider both branches, resulting in environments:
 `````align````````````````````````````````````````
@@ -282,13 +281,9 @@ At program point 3 the analysis is forced to again consider both branches, resul
 A path-insensitive flow-insensitive analysis will compute a single global set of facts that must be true at all points of execution.
 At program points 2 and 3 the analysis considers a single world with environment:
 `````align````````````````````````````````````````
-{N=ANY,, x={-1, 1}}
+{N=ANY,, x={-1, 1}} \text{, and}
+{N=ANY,, x={-1, 1},, y={-1, 1}}\text{, respectively.}
 ``````````````````````````````````````````````````
-and 
-`````align````````````````````````````````````````
-{N=ANY,, x={-1, 1},, y={-1, 1}}
-``````````````````````````````````````````````````
-respectively.
 
 In our framework we capture both path- and flow-sensitivity as orthogonal parameters to our interpreter.
 Path-sensitivity will arise from the order of monad transformers used to construct the analysis.
