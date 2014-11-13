@@ -3,18 +3,14 @@
 Traditional practice in the program analysis literature, be it for
 points-to, flow, shape analysis or others, is to fix a language and
 its abstraction (a computable, sound approximation to the "concrete"
-semantics of the language) and investigate its effectiveness [CITE
-overload].  These one-off abstractions require effort to design and
-prove sound.  Consequently later work has focused on endowing the
-abstraction with a number of knobs, levers, and dials to tune
-precision and compute efficiently [CITE overload].  These parameters
-come in various forms with overloaded meanings such as object
-\cite{dvanhorn:Milanova2005Parameterized,
-dvanhorn:Smaragdakis2011Pick}, context
-\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path [CITE], and heap [CITE] sensitivities, or some combination
-thereof [CITE].  These efforts develop families of analyses for a
-specific language and prove the framework sound.
+semantics of the language) and investigate its effectiveness.  These
+one-off abstractions require effort to design and prove sound.
+Consequently later work has focused on endowing the abstraction with a
+number of knobs, levers, and dials to tune precision and compute
+efficiently.  These parameters come in various forms with overloaded
+meanings such as object, context, path, and heap sensitivities, or
+some combination thereof.  These efforts develop families of analyses
+for a specific language and prove the framework sound.
 
 But even this framework approach suffers from many of the same drawbacks as the
 one-off analyzers.  They are language specific, preventing reuse across
@@ -22,7 +18,7 @@ languages and thus requiring similar abstraction implementations and soundness
 proofs.  This process is difficult and error prone.  It results in a cottage
 industry of research papers on varying frameworks for varying languages.  It
 prevents fruitful insights and results developed in one paradigm from being
-applied to others \cite{dvanhorn:Might2010Resolving}.
+applied to others.
 
 In this paper, we propose an alternative approach to structuring and
 implementing program analysis.  We propose to use concrete interpreters in
@@ -1084,13 +1080,46 @@ cabal install maam
 
 # Related Work
 
-Program analysis comes in many forms such as points-to \cite{}, flow
-\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis \cite{} and
-many others and the literature is vast. (See
+Program analysis comes in many forms such as points-to
+\cite{dvanhorn:Andersen1994Program}, flow
+\cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
+\cite{dvanhorn:Chase1990Analysis}, and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
-surveys.)  They can all be cast in the theory of abstraction
-interpretation of \citet{dvanhorn:Cousot:1977:AI} and understood as
-computable approximations of an underlying concrete interpreter.
+surveys.)  Much of the research has focused on developing families or
+frameworks of analyses that endow the abstraction with a number of
+knobs, levers, and dials to tune precision and compute efficiently.
+These parameters come in various forms with overloaded meanings such
+as object \cite{dvanhorn:Milanova2005Parameterized,
+dvanhorn:Smaragdakis2011Pick}, context
+\cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
+path [CITE], and heap [CITE] sensitivities, or some combination
+thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
+
+These various forms can all be cast in the theory of abstraction
+interpretation of \citet{dvanhorn:Cousot:1977:AI,
+dvanhorn:Cousot1979Systematic} and understood as computable
+approximations of an underlying concrete interpreter.  Our work
+demonstrates that if this underlying concrete interpreter is written
+in monadic style, monad transformers are a useful way to organize and
+compose these various kinds of program abstractions in a modular and
+language-independent way.  \citet{dvanhorn:Liang1995Monad} first
+demonstrated how monad transformers could be used to define building
+blocks for constructing (concrete) interpreters.  Their interpreter
+monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblence to ours.
+We show this ``building blocks'' approach to interpreter construction
+extends to \emph{abstract} interpreter construction, too.  Moreover,
+we show that these monad transfomers can be proved sound via a Galois
+connection to their concrete counterparts, ensuring the soundness of
+any stack built from sound blocks of Galois transformers.  Soundness
+proofs of various forms of analysis are notoriously brittle with
+respect to language and analysis features.  A reusable framework of
+Galois transformers offers a potential way forward for a modular
+metatheory of program analysis.
+
+[FIXME: Note how language independent characterizations of analyses
+could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
+
+
 
 The most directly related work is the development of Monadic Abstract Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.
 In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
