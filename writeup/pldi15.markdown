@@ -902,7 +902,7 @@ put(s) = mapₘ(λ(1).{1})(putₘ(s))
 `get` and `put` satisfy the state monad laws.
 `\end{proposition}`{.raw}
 
-The proof is by simpl calculation.
+The proof is by simple calculation.
 
 Finally, our nondeterminism monad transformer expses nondeterminism effects as a trivial applciation of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
@@ -930,19 +930,23 @@ We only show the `γ` sides of the mappings in this section, which allow one to 
 
 For the state monad transformer `Sₜ[s]` mstep is defined:
 `````indent```````````````````````````````````````
-mstep-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
+mstep-γ : ∀ α β m, 
+  (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
 mstep-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
 ``````````````````````````````````````````````````
 
 For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
 One where `Σ` is `Σᵐ ∘ 𝒫`:
 `````indent```````````````````````````````````````
-mstep₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
-mstep₁-γ(f) := mstepₘ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+mstep₁-γ : ∀ α β m, 
+  (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
+mstep₁-γ(f) := mstepₘ-γ(F)
+  where F({x₁ .. xₙ}) = f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
 ``````````````````````````````````````````````````
 and one where `Σ` is `𝒫 ∘ Σᵐ`:
 `````indent```````````````````````````````````````
-mstep₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
+mstep₂-γ : ∀ α β m, 
+  (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
 mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
   where 
     commuteP-γ : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
@@ -953,7 +957,9 @@ In general, `commuteP` must form a Galois connection.
 However, this property exists for the identity monad, and is preserverd by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
 commuteP-γ : ∀ α, Σₘ(𝒫(α) × s) → 𝒫(Σₘ(α × s))
-commuteP-γ := commutePₘ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
+commuteP-γ := commutePₘ ∘ map(F)
+  where
+    F({α₁ .. αₙ}) = {(α₁,s) .. (αₙ,s)})
 ``````````````````````````````````````````````````
 Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
