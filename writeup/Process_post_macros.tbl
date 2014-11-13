@@ -19,6 +19,7 @@ Search For    Replace With        Match Mode
 ⱼ             _j                  Anywhere  
 ₚ             _p                  Anywhere  
 ₜ             _t                  Anywhere  
+ₖ             _k                  Anywhere
 ⸢             ^{                  Anywhere  
 ⸣             }                   Anywhere  
 ᵍᶜ            ^{gc}               Anywhere  
@@ -76,7 +77,7 @@ Search For    Replace With        Match Mode
 ]             \rbrack             Anywhere  
 ⟦             \llbracket          Anywhere  
 ⟧             \rrbracket          Anywhere  
-∈             \;\in\;             Anywhere  
+∈             \in                 Anywhere  
 ∘             \circ               Anywhere  
 |             \;|\;               Anywhere  
 ⌊             \lfloor             Anywhere  

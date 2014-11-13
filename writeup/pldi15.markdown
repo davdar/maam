@@ -152,20 +152,12 @@ R-Val ∈ Val → 𝒫(Addr)
 R-Val(i) := {}
 R-Val(⟨[λ](x).e,ρ⟩) := {ρ(x) | y ∈ FV([λ](x).e)}
 ``````````````````````````````````````````````````
-`FV` is the standard recursive definition for computing free variables of an expression:
-`````indent```````````````````````````````````````
-FV ∈ Exp → 𝒫(Var)
-FV(x) := {x}
-FV(i) := {}
-FV([λ](x).e) := FV(e) - {x}
-FV(e₁ ⊙ e₂) := FV(e₁) ∪ FV(e₂)
-FV(if0(e₁){e₂}{e₃}) := FV(e₁) ∪ FV(e₂) ∪ FV(e₃)
-``````````````````````````````````````````````````
+where `FV` is the standard recursive definition for computing free variables of an expression.
 
 Analagously, `KR` is the set of transitively reachabel continuation addresses in `κσ`:
 `````indent```````````````````````````````````````
 KR[_] ∈ KStore → KAddr → 𝒫(KAddr)
-KR[κσ](κl) := μ(kθ). κθ₀ ∪ κθ ∪ {π₂(κσ(κl)) | κl ∈ κθ}
+KR[κσ](κl₀) := μ(kl*). {κl₀} ∪ κl* ∪ {π₂(κσ(κl)) | κl ∈ kl*}
 ``````````````````````````````````````````````````
 
 Our final semantics is given via the step relation `_~~>ᵍᶜ_` which nondeterministically either takes a semantic step or performs garbage collection.
@@ -308,28 +300,18 @@ For state, `bind` is a sequencer of state and `return` is the "no change in stat
 For nondeterminism, `bind` implements a merging of multiple branches and `return` is the singleton branch.
 
 As is traditional with monadic programming, we use `do` and semicolon notation as syntactic sugar for `bind`.
-For example:
-`````indent```````````````````````````````````````
-do 
-  a ← m 
-  k(a)
-``````````````````````````````````````````````````
-and
-`````indent```````````````````````````````````````
-a ← m ; k(a)
-``````````````````````````````````````````````````
-are both just sugar for
-`````indent``````````````````````````````````````` 
-bind(m)(k)
-``````````````````````````````````````````````````
+For example: `a ← m ; k(a)` is just sugar for `bind(m)(k)`.
+We replace semicolons with line breaks headed by a `do` command for multiline monadic definitions.
 
 \paragraph{Monadic State Operations}
 A type operator `M` supports the monadic state effect for a type `s` if it supports `get` and `bind` actions over `s`.
 The state monad interface is summarized in Figure \ref{StateMonad}.
 `\begin{figure}`{.raw}
-`````indent``````````````````````````````````````` 
-get : M(s)
-put : s → M(1)
+`````align```````````````````````````````````````` 
+  M  : Type → type
+  s  : Type
+get  : M(s)
+put  : s → M(1)
 ``````````````````````````````````````````````````
 \caption{State Monad Interface}
 \label{StateMonadInterface}
@@ -348,9 +330,10 @@ The effects for `get-Store`, `get-KAddr` and `get-KStore` are identical.
 A type operator `M` support the nondeterminism effect if it supports an alternation operator `⟨+⟩` and its unit `mzero`.
 The nondeterminism interface is summarized in Figure \ref{Nondterminism}.
 `\begin{figure}`{.raw}
-`````indent``````````````````````````````````````` 
-mzero : ∀ α, M(α)
-_⟨+⟩_ : ∀ α, M(α) × M(α) → M(α)
+`````align```````````````````````````````````````` 
+    M  : Type → Type
+mzero  : ∀ α, M(α)
+_⟨+⟩_  : ∀ α, M(α) × M(α) → M(α)
 `````````````````````````````````````````````````` 
 \caption{Nondeterminism Interface}
 \label{Nondeterminism Interface}
@@ -364,7 +347,8 @@ We use the nondeterminism laws to reason about nondeterminism effects:
 ⊥-unit₂ : m ⟨+⟩ mzero = m 
 +-assoc : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
 +-comm : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
-+-dist : bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
++-dist : 
+  bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
 ``````````````````````````````````````````````````
 
 Together, all the monadic operators we have shown capture the essence of combining explicit state-passing and set comprehension.
@@ -376,13 +360,19 @@ The abstract domain is encapsulated by the `Val` type in the semantics.
 To parameterize over it, we make `Val` opaque but require it support various operations.
 There is a constraint on `Val` its-self: it must be a join-semilattice with `⊥` and `⊔` respecting the usual laws.
 We require `Val` to be a join-semilattice so it can be merged in the `Store`.
-The interface for the abstract domain is shown in figure \ref{AbstractDomain}.
-
-The interface for integers consists of introduction and elimiation rules:
-`````indent```````````````````````````````````````
-int-I : ℤ → Val
-int-if0-E : Val → 𝒫(Bool)
+The interface for the abstract domain is shown in figure \ref{AbstractDomainInterface}.
+`\begin{figure}`{.raw}
+`````align````````````````````````````````````````
+      Val  : Type
+    int-I  : ℤ → Val
+int-if0-E  : Val → 𝒫(Bool)
+    clo-I  : Clo → Val
+    clo-E  : Val → 𝒫(Clo)
+ δ⟦_,_,_⟧  : IOp × Val × Val → Val
 ``````````````````````````````````````````````````
+\caption{Abstract Domain Interface}
+\label{AbstractDomainInterface}
+`\end{figure}`{.raw}
 
 The laws for this interface are designed to induce a Galois connection between `ℤ` and `Val`:
 `````indent```````````````````````````````````````
@@ -393,24 +383,12 @@ v ⊒ ⨆⸤b ∈ int-if0-E(v)⸥ θ(b)
     θ(true)  = int-I(0)
     θ(false) = ⨆⸤i ∈ ℤ | i ≠ 0⸥ int-I(i)
 ``````````````````````````````````````````````````
-
-Additionally we must abstract closures:
-`````indent```````````````````````````````````````
-clo-I : Clo → Val
-clo-E : Val → 𝒫(Clo)
-``````````````````````````````````````````````````
-which follow similar laws:
+Closures must follow similar laws:
 `````indent```````````````````````````````````````
 {c} ⊑ clo-E(cloI(c))
 v ⊑ ⨆⸤c ∈ clo-E(v)⸥ clo-I(c)
 ``````````````````````````````````````````````````
-
-The denotation for primitive operations `δ` must also be opaque:
-`````indent```````````````````````````````````````
-δ⟦_,_,_⟧ : IOp × Val × Val → Val
-``````````````````````````````````````````````````
-
-We can also give soundness laws for `δ` using int-I and int-if0-E:
+And `δ` must be sound w.r.t. the abstract semantics:
 `````indent```````````````````````````````````````
 int-I(i₁ + i₂) ⊑ δ⟦[+],int-I(i₁),int-I(i₂)⟧
 int-I(i₁ - i₂) ⊑ δ⟦[-],int-I(i₁),int-I(i₂)⟧ 
@@ -426,11 +404,15 @@ We set things up specifically in this way so that `Val` and the monad `M` can be
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from the AAM literature:
-`````indent```````````````````````````````````````
-tick : Exp × KAddr × Time → Time
+The interface for abstract time is familiar from the AAM literature and is shown in Figure \ref{AbstractTimeInterface}.
+`\begin{figure}`{.raw}
+`````align````````````````````````````````````````
+Time  : Type
+tick  : Exp × KAddr × Time → Time
 ``````````````````````````````````````````````````
-
+\caption{Abstract Time Interface}
+\label{AbstractTimeInterface}
+`\end{figure}`{.raw}
 In traditional AAM, `tick` is defined to have access to all of `Σ`.
 This comes from the generality of the framework--to account for all possibile `tick` functions.
 We only discuss instantiating `Addr` to support k-CFA, so we specialize the `Σ` parameter to `Exp × KAddr`.
@@ -557,22 +539,10 @@ gc(e) := do
   ρ ← get-Env
   σ ← get-Store
   κσ ← get-KStore
-  l*₀ ← R₀(ρ,e)
-  κl₀ ← get-KAddr
-  let l*' := μ(θ). l*₀ ∪ θ ∪ R[σ](θ)
-  let κl*' := μ(κθ). {κl₀} ∪ κθ ∪ KR[κσ](κθ)
-  put-Store({l ↦ σ(l) | l ∈ l*'})
-  put-KStore({κl ↦ κσ(κl) | κl ∈ κl*'})
+  put-Store({l ↦ σ(l) | l ∈ R[σ](ρ,e))
+  put-KStore({κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)})
 ``````````````````````````````````````````````````
-where `R₀` is defined as before and `R`, `KR` and `R-Clo` are defined:
-`````indent```````````````````````````````````````
-R : Store → 𝒫(Addr) → 𝒫(Addr)
-R[σ](θ) := { l' | l' ∈ R-Clo(c) ; c ∈ clo-E(v) ; v ∈ σ(l) ; l ∈ θ }
-R-Clo : Clo → 𝒫(Addr)
-R-Clo(⟨[λ](x).e,ρ⟩) := { ρ(x) | x ∈ FV([λ](x).e) }
-KR : KStore → 𝒫(KAddr) → 𝒫(KAddr)
-KR[σ](κθ) := { π₂(fr) | fr ∈ κσ(κl) ; κl ∈ θ }
-``````````````````````````````````````````````````
+where `R` and `KR` are as defined in Section~\ref{Semantics}.
 
 To execute the interpreter we must introduce one more parameter.
 In the concrete semantics, execution takes the form of a least-fixed-point computation over the collecting semantics
@@ -823,7 +793,14 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 `\end{corollary}`{.raw}
 
 `\begin{proposition}`{.raw}
-There exists Galois connection `CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ` and `α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂`.
+There exists Galois connections:
+`````align````````````````````````````````````````
+CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ
+``````````````````````````````````````````````````
+and the following properties hold:
+`````align````````````````````````````````````````
+α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂
+``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
 
 The first Galois connection `CΣ α₁⇄γ₁ AΣ` is justified by the Galois connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`.
@@ -927,7 +904,7 @@ put(s) = mapₘ(λ(1).{1})(putₘ(s))
 `get` and `put` satisfy the state monad laws.
 `\end{proposition}`{.raw}
 
-The proof is by simpl calculation.
+The proof is by simple calculation.
 
 Finally, our nondeterminism monad transformer expses nondeterminism effects as a trivial applciation of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
@@ -955,19 +932,23 @@ We only show the `γ` sides of the mappings in this section, which allow one to 
 
 For the state monad transformer `Sₜ[s]` mstep is defined:
 `````indent```````````````````````````````````````
-mstep-γ : ∀ α β m, (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
+mstep-γ : ∀ α β m, 
+  (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
 mstep-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
 ``````````````````````````````````````````````````
 
 For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
 One where `Σ` is `Σᵐ ∘ 𝒫`:
 `````indent```````````````````````````````````````
-mstep₁-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
-mstep₁-γ(f) := mstepₘ-γ(λ({x₁ .. xₙ}). f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+mstep₁-γ : ∀ α β m, 
+  (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
+mstep₁-γ(f) := mstepₘ-γ(F)
+  where F({x₁ .. xₙ}) = f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
 ``````````````````````````````````````````````````
 and one where `Σ` is `𝒫 ∘ Σᵐ`:
 `````indent```````````````````````````````````````
-mstep₂-γ : ∀ α β m, (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
+mstep₂-γ : ∀ α β m, 
+  (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
 mstep₂-γ(f)({ς₁ .. ςₙ}) := aΣP₁ ∪ .. ∪ aΣPₙ
   where 
     commuteP-γ : ∀ α, Σₘ(𝒫(α)) → 𝒫(Σₘ(α))
@@ -978,7 +959,9 @@ In general, `commuteP` must form a Galois connection.
 However, this property exists for the identity monad, and is preserverd by `Sₜ[s]`, the only monad we will compose `𝒫ₜ` with in this work.
 `````indent```````````````````````````````````````
 commuteP-γ : ∀ α, Σₘ(𝒫(α) × s) → 𝒫(Σₘ(α × s))
-commuteP-γ := commutePₘ ∘ map(λ({α₁ .. αₙ},s). {(α₁,s) .. (αₙ,s)})
+commuteP-γ := commutePₘ ∘ map(F)
+  where
+    F({α₁ .. αₙ}) = {(α₁,s) .. (αₙ,s)})
 ``````````````````````````````````````````````````
 Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping that loses information in the `α` direction.
 Therefore, `mstep⸤Sₜ[s]⸥` and `mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only Galois connection transformer.
