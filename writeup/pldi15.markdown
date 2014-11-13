@@ -118,7 +118,7 @@ This allows for `Op` to be a single syntactic class for all operators and simpli
 
 Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
 Our semantics makes allocation explicit and separates values and continuations into separate stores.
-Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
+-- Our approach to analysis will be to design a configurable interpreter that is capable of mirroring these semantics.
 
 The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
   shown in Figure \ref{SS}.
@@ -188,9 +188,9 @@ _~~>_ ∈ 𝒫(Σ × Σ)
 
 Our abstract interpreter will support abstract garbage collection`~\cite{dvanhorn:Might:2006:GammaCFA}`{.raw}, 
   the concrete analogue of which is just standard garbage collection.
-We include garbage collection for two reasons.
-First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
-Second, later we will show how to write a monadic garbage collector, recovering both concrete and abstract garbage collection in one fell swoop.
+-- We include garbage collection for two reasons.
+-- First, it is one of the few techniques that results in both performance _and_ precision improvements for abstract interpreters.
+-- Second, later we will show how to write a monadic garbage collector, recovering both concrete and abstract garbage collection in one fell swoop.
 
 Garbage collection is defined with a reachability function `R` which computes the transitively reachable address from `(ρ,e)` in `σ`:
 `````indent```````````````````````````````````````
@@ -288,15 +288,15 @@ At program points 2 and 3 the analysis considers a single world with environment
 In our framework we capture both path- and flow-sensitivity as orthogonal parameters to our interpreter.
 Path-sensitivity will arise from the order of monad transformers used to construct the analysis.
 Flow-sensitivity will arise from the Galois connection used to map interpreters to state space transition systems.
-For brevity, and lack of better terms, we will abbreviate these analyses as "path-sensitive", "flow-sensitive" and "flow-insensitive".
-This is only ambiguous for "flow-sensitive", as path-sensitivity implies flow-sensitivity, and flow-insensitivity implies path-insensitivity.
+-- For brevity, and lack of better terms, we will abbreviate these analyses as "path-sensitive", "flow-sensitive" and "flow-insensitive".
+-- This is only ambiguous for "flow-sensitive", as path-sensitivity implies flow-sensitivity, and flow-insensitivity implies path-insensitivity.
 
 # Analysis Parameters
 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
 To do this we extend the ideas developed in \citet{davdar:van-horn:2010:aam} with a new parameter for path- and flow-sensitivity.
-When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
+-- When finished, we will be able to recover a concrete interpreter which respects the concrete semantics, and a family of abstract interpreters.
 
 There will be three parameters to our abstract interpreter, one of which is novel in this work:
 
@@ -309,11 +309,11 @@ There will be three parameters to our abstract interpreter, one of which is nove
 
 -- For an object-oriented language, including a fourth parameter for object-sensitivity a la. \citet{dvanhorn:Smaragdakis2011Pick} is straightforward.
 
-We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
-We will give each of these parameters reasoning principles as we introduce them.
-These principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
-The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
-An instantiation of the interpreter need only justify that each parameter meets their local interface.
+-- We place each of these parameters behind an abstract interface and leave their implementations opaque for the generic monadic interpreter.
+-- We will give each of these parameters reasoning principles as we introduce them.
+-- These principles allow us to reason about the correctness of the generic interpreter independent of a particular instantiation.
+-- The goal is to factor as much of the proof-effort into what we can say about the generic interpreter.
+-- An instantiation of the interpreter need only justify that each parameter meets their local interface.
 
 ## The Analysis Monad
 
