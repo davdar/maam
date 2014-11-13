@@ -1083,7 +1083,9 @@ Program analysis comes in many forms such as points-to \cite{}, flow
 \cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis \cite{} and
 many others and the literature is vast. (See
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
-surveys.)
+surveys.)  They can all be cast in the theory of abstraction
+interpretation of \citet{dvanhorn:Cousot:1977:AI} and understood as
+computable approximations of an underlying concrete interpreter.
 
 The most directly related work is the development of Monadic Abstract Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.
 In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
