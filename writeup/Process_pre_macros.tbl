@@ -31,5 +31,5 @@ where         \text{where}\;\;                        Word
 ↑ₚ            \itop{\uparrow_p}                       Anywhere  
 ⟨+⟩           \mathbin{⟨+⟩}                           Anywhere  
 if0           \underline{\ttbfop{if0}}                Word      
-true          \ttbfop{true}      Word
-false         \ttbfop{false}     Word
+true          \ttbfop{true}                           Word      
+false         \ttbfop{false}                          Word      
