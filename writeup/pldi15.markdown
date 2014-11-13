@@ -241,7 +241,7 @@ This is only ambiguous for "flow sensitive", as path sensitivity implies flow se
 
 Before writing an abstract interpreter we first design its parameters.
 The interpreter will be designed such that variations in these paramaters recover the concrete and a family of abstract interpretrs.
-To do this we extend the ideas developed in AAM[CITE] with a new parameter for flow-sensitivity.
+To do this we extend the ideas developed in AAM \citet{davdar:van-horn:2010:aam} with a new parameter for flow-sensitivity.
 When finished, we will be able to recover a concrete interpreter--which respects the concrete semantics--and a family of abstract interpreters.
 
 First we describe the parameters to the interpreter.
@@ -1063,9 +1063,12 @@ Program analysis comes in many forms such as points-to
 \citet{dvanhorn:hind-paste01,dvanhorn:Midtgaard2012Controlflow} for
 surveys.)  Much of the research has focused on developing families or
 frameworks of analyses that endow the abstraction with a number of
-knobs, levers, and dials to tune precision and compute efficiently.
-These parameters come in various forms with overloaded meanings such
-as object \cite{dvanhorn:Milanova2005Parameterized,
+knobs, levers, and dials to tune precision and compute efficiently
+(some examples include \citet{dvanhorn:Shivers:1991:CFA,
+dvanhorn:nielson-nielson-popl97, dvanhorn:Milanova2005Parameterized,
+davdar:van-horn:2010:aam}; there are many more).  These parameters
+come in various forms with overloaded meanings such as object
+\cite{dvanhorn:Milanova2005Parameterized,
 dvanhorn:Smaragdakis2011Pick}, context
 \cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
 path [CITE], and heap [CITE] sensitivities, or some combination
@@ -1097,14 +1100,23 @@ could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
 
 
 
-The most directly related work is the development of Monadic Abstract Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.
-In MAI, interpreters are also written in monadic style and variations in analysis are recovered through new monad implementations.
-However, each monad in MAI is designed from scratch for a specific language to have specific analysis properties.
-Our work extends the ideas in MAI in a way that isolates each parameter to be independent of others.
-We factor out the monad as a truly semantics independent feature.
-This factorization reveals an orthogonal tuning knob for path and flow sensitivity
-Even more, we give the user building blocks for constructing monads that are correct and give the desired properties by construction.
-Our framework is also motivated by the needs of reasoning formally about abstract interpreters, no mention of which is made in MAI.
+The most directly related work is the development of Monadic Abstract
+Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.  In MAI,
+interpreters are also written in monadic style and variations in
+analysis are recovered through new monad implementations.  However,
+each monad in MAI is designed from scratch for a specific language to
+have specific analysis properties.  The MAI work is analogous to
+monadic interpreter of \citet{dvanhorn:Wadler1992Essence}, in which
+the monad structure is monolithic and must be reconstructed for each
+new language feature.  Our work extends the ideas in MAI in a way that
+isolates each parameter to be independent of others, similar to the
+approach of \citet{dvanhorn:Liang1995Monad}.  We factor out the monad
+as a truly semantics independent feature.  This factorization reveals
+an orthogonal tuning knob for path and flow sensitivity.  Even more, we
+give the user building blocks for constructing monads that are correct
+and give the desired properties by construction.  Our framework is
+also motivated by the needs of reasoning formally about abstract
+interpreters, no mention of which is made in MAI.
 
 We build directly on the work of Abstracting Abstract Machines (AAM) by \citet{davdar:van-horn:2010:aam}
   in our parameterization of abstract time and call-site sensitivity.
