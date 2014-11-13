@@ -25,12 +25,14 @@ implementing program analysis.  We propose to use concrete interpreters in
 monadic style.  As we show, classical program abstractions can be embodied as
 language-independent monads.  Moreover, these abstractions can be written as
 monad transformers, thereby allowing their composition to achieve new forms of
-analysis.  Most significantly, these monad transformers can be proved sound
-once and for all.  Abstract interpreters, which take the form of monad
-transformer stacks coupled together with a monadic interpreter, inherit the
-soundness properties of each element in the stack.  This approach enables reuse
-of abstractions across languages and lays the foundation for a modular
-metatheory of program analysis.
+analysis.  
+
+Most significantly, these Galois transformers can be proved sound once
+and for all.  Abstract interpreters, which take the form of monad
+transformer stacks coupled together with a monadic interpreter,
+inherit the soundness properties of each element in the stack.  This
+approach enables reuse of abstractions across languages and lays the
+foundation for a modular metatheory of program analysis.
 
 ## Contributions
 
@@ -1075,7 +1077,8 @@ come in various forms with overloaded meanings such as object
 \cite{dvanhorn:Milanova2005Parameterized,
 dvanhorn:Smaragdakis2011Pick}, context
 \cite{dvanhorn:Sharir:Interprocedural, dvanhorn:Shivers:1991:CFA},
-path [CITE], and heap [CITE] sensitivities, or some combination
+path \cite{davdar:das:2002:esp}, and heap
+\cite{davdar:van-horn:2010:aam} sensitivities, or some combination
 thereof \cite{dvanhorn:Kastrinis2013Hybrid}.
 
 These various forms can all be cast in the theory of abstraction
@@ -1090,14 +1093,22 @@ demonstrated how monad transformers could be used to define building
 blocks for constructing (concrete) interpreters.  Their interpreter
 monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblance to ours.
 We show this "building blocks" approach to interpreter construction
-extends to \emph{abstract} interpreter construction, too.  Moreover,
-we show that these monad transformers can be proved sound via a Galois
-connection to their concrete counterparts, ensuring the soundness of
-any stack built from sound blocks of Galois transformers.  Soundness
-proofs of various forms of analysis are notoriously brittle with
-respect to language and analysis features.  A reusable framework of
-Galois transformers offers a potential way forward for a modular
-metatheory of program analysis.
+extends to \emph{abstract} interpreter construction, too, by using
+Galois transfomers.  Moreover, we show that these monad transformers
+can be proved sound via a Galois connection to their concrete
+counterparts, ensuring the soundness of any stack built from sound
+blocks of Galois transformers.  Soundness proofs of various forms of
+analysis are notoriously brittle with respect to language and analysis
+features.  A reusable framework of Galois transformers offers a
+potential way forward for a modular metatheory of program analysis.
+
+\citet{dvanhorn:Cousot98-5} develops a ``calculational approach'' to
+analysis design whereby analyses are not designed and then verified
+\emph{post facto} but rather derived by positing an abstraction and
+calculating it through the concrete interpreter using Galois
+connections.  These calculations are done by hand.  Our approach
+offers a limited ability to automate the calculation process by
+relying on monad transformers to combine different abstractions.
 
 [FIXME: Note how language independent characterizations of analyses
 could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
@@ -1105,7 +1116,7 @@ could lead to more insights like: \cite{dvanhorn:Might2010Resolving}]
 
 
 The most directly related work is the development of Monadic Abstract
-Interpreters (MAI) by \citet{davdar:Sergey:2013:Monalysis}.  In MAI,
+Interpreters (MAI) by \citet{dvanhorn:Sergey2013Monadic}.  In MAI,
 interpreters are also written in monadic style and variations in
 analysis are recovered through new monad implementations.  However,
 each monad in MAI is designed from scratch for a specific language to
