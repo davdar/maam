@@ -33,16 +33,16 @@ tokenP :: P Token
 tokenP = P
 
 white :: Parser Char String
-white = fromChars ^$ oneOrMoreList $ litP charP isSpace $ P.text "a space"
+white = fromChars ^$ oneOrMoreList $ satisfies isSpace $ P.text "a space"
 
 string :: String -> Parser Char String
-string = fromChars ^. word charP . toChars
+string = fromChars ^. word . toChars
 
 numLit :: Parser Char String
-numLit = fromChars ^$ oneOrMoreList $ litP charP isDigit $ P.text "a digit"
+numLit = fromChars ^$ oneOrMoreList $ satisfies isDigit $ P.text "a digit"
 
 ident :: Parser Char String
-ident = fromChars ^$ oneOrMoreList $ litP charP (isLetter \/ isDigit \/ (==) '-' \/ (==) '_') $ P.text "a valid identifier"
+ident = fromChars ^$ oneOrMoreList $ satisfies (isLetter \/ isDigit \/ (==) '-' \/ (==) '_') $ P.text "a valid identifier"
 
 token :: Parser Char Token
 token = mconcat
@@ -71,16 +71,16 @@ token = mconcat
   ] 
 
 pun :: String -> Parser Token ()
-pun = void . lit tokenP . Token Key
+pun = void . lit . Token Key
 
 nameExp :: Parser Token Name
-nameExp = Name . tokenVal ^$ litP tokenP ((==) Id . tokenType) $ P.text "an identifier"
+nameExp = Name . tokenVal ^$ satisfies ((==) Id . tokenType) $ P.text "an identifier"
 
 litExp :: Parser Token Lit
 litExp = mconcat
-  [ I . Prelude.read . toChars . tokenVal ^$ litP tokenP ((==) Num . tokenType) $ P.text "a number"
-  , const (B True) ^$ lit tokenP $ Token Key "T"
-  , const (B False) ^$ lit tokenP $ Token Key "T"
+  [ I . Prelude.read . toChars . tokenVal ^$ satisfies ((==) Num . tokenType) $ P.text "a number"
+  , const (B True) ^$ lit $ Token Key "T"
+  , const (B False) ^$ lit $ Token Key "T"
   ]
 
 letExp :: Parser Token Exp
@@ -135,7 +135,7 @@ parseLam :: String -> Doc :+: Exp
 parseLam = parseExp openExp
 
 parseExp :: Parser Token Exp -> String -> Doc :+: Exp
-parseExp p input = Inl $ pretty $ parse token whitespaceFilter (final tokenP p) $ toChars input
+parseExp p input = Inl $ pretty $ parse token whitespaceFilter (final p) $ toChars input
 
 testInput :: String
 testInput = "let x := 5 in y"

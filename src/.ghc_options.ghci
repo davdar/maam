@@ -1,5 +1,0 @@
-:set -Wall
-:set -fno-warn-amp
-:set -fno-warn-orphans
-:set -auto-all
-:set -caf-all

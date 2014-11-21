@@ -18,9 +18,11 @@ library
                      , FP.Core
                      , FP.Free
                      , FP.Monads
+                     , FP.Parser
                      , FP.Pretty
                      , Lang.Lam
                      , Lang.Lam.Analyses
+                     , Lang.Lam.Parser
                      , Lang.Lam.Syntax
                      , Lang.Lam.CPS.Syntax
                      , Lang.Lam.CPS.MonadicSemantics
@@ -70,6 +72,7 @@ library
                      , TypeSynonymInstances
                      , UndecidableInstances
                      , ViewPatterns
+                     , DataKinds
 
 executable runquals
   build-depends: maam == 0.1.*

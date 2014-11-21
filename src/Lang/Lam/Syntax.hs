@@ -25,12 +25,22 @@ sgNameFromSName (Stamped i x) = Stamped i $ GName Nothing x
 data Lit = I Int | B Bool
   deriving (Eq, Ord)
 instance PartialOrder Lit where pcompare = discreteOrder
-coerceI :: Lit -> Maybe Int
-coerceI (I i) = Just i
-coerceI _ = Nothing
-coerceB :: Lit -> Maybe Bool
-coerceB (B b) = Just b
-coerceB _ = Nothing
+
+iL :: Prism Lit Int
+iL = Prism
+  { coerce = \ l -> case l of
+      I i -> Just i
+      _ -> Nothing
+  , inject = I
+  }
+
+bL :: Prism Lit Bool
+bL = Prism
+  { coerce = \ l -> case l of
+      B b -> Just b
+      _ -> Nothing
+  , inject = B
+  }
 
 data Op = Add1 | Sub1 | IsNonNeg
   deriving (Eq, Ord)

@@ -91,7 +91,7 @@ type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState 
 text :: (MonadPretty m) => String -> m ()
 text o = do
   tellP outP $ unit $ Text o
-  modifyL columnL $ (+) $ length o
+  modifyL columnL $ (+) $ size o
   modifyL ribbonL $ (+) $ countNonSpace o
   f <- askL failureL
   when (f == CanFail) $ do
@@ -102,10 +102,10 @@ text o = do
     when (c > cmax) abort
     when (r > rmax) abort
   where
-    countNonSpace = iter (cond isSpace id psuc) 0
+    countNonSpace = iter (cond isSpace id suc) 0
 
 space :: (MonadPretty m) => Int -> m ()
-space = text . otimes " "
+space = text . flip iterateAppend " "
 
 ifFlat :: (MonadPretty m) => m a -> m a -> m a
 ifFlat flatAction breakAction = do
@@ -338,9 +338,9 @@ instance (Pretty a) => Pretty [a] where
   pretty = collection "[" "]" "," . map pretty
 instance Functorial Pretty [] where functorial = W
 instance (Pretty a) => Pretty (Set a) where
-  pretty = collection "{" "}" "," . map pretty . toList
+  pretty = collection "{" "}" "," . map pretty . fromSet
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
-  pretty = collection "{" "}" "," . map prettyMapping . toList
+  pretty = collection "{" "}" "," . map prettyMapping . fromMap
     where
       prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
 
@@ -354,10 +354,6 @@ instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ parensIfWrapped $
     exec [pretty a, pun ":", pretty f]
-
-instance (Pretty e, Pretty a) => Pretty (ErrorList e a) where
-  pretty (ErrorListFailure e) = app [con "Failure", pretty e]
-  pretty (ErrorListSuccess x xs) = app [con "Success", pretty (x:xs)]
 
 instance (Pretty a) => Pretty (ID a) where
   --pretty (ID a) = app [con "ID", pretty a]
@@ -377,13 +373,4 @@ instance (Functorial Pretty m, Pretty a) => Pretty (ListT m a) where
     --app [con "ListT", pretty aM]
     pretty aM
     
-instance (Functorial Pretty m, Pretty e, Pretty a) => Pretty (ErrorListT e m a) where
-  pretty (ErrorListT aM) = 
-    with (functorial :: W (Pretty (m (ErrorList e a)))) $
-    -- app [con "ErrorListT", pretty aM]
-    pretty aM
-instance (Functorial Pretty m, Pretty e) => Functorial Pretty (ErrorListT e m) where
-  functorial = W
-
-
 -- }}}

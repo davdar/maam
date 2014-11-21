@@ -23,7 +23,7 @@ stampL = lens lin lout
     lin (St cid bid _) = Stamp.St cid bid
     lout (St _ _ gid) (Stamp.St cid bid) = St cid bid gid
 st0 :: St
-st0 = St pzero pzero pzero
+st0 = St zer zer zer
 
 type M m = (MonadOpaqueKon CPSKon SGCall m, MonadState St m)
 
@@ -36,13 +36,13 @@ fresh x = do
 data CPSKon r m a where
   MetaKon :: (a -> m r) -> CPSKon r m a
   ObjectKon :: SGPico -> (SGPico -> m SGCall) -> CPSKon SGCall m SGPico
-instance FFMorphism (KFun r) (CPSKon r) where
-  ffmorph (KFun mk) = MetaKon mk
-instance FFMorphism (CPSKon r) (KFun r) where
-  ffmorph :: CPSKon r ~~> KFun r
-  ffmorph (MetaKon mk) = KFun mk
-  ffmorph (ObjectKon _ mk) = KFun mk
-instance FFIsomorphism (KFun r) (CPSKon r) where
+instance Morphism3 (KFun r) (CPSKon r) where
+  morph3 (KFun mk) = MetaKon mk
+instance Morphism3 (CPSKon r) (KFun r) where
+  morph3 :: CPSKon r ~~> KFun r
+  morph3 (MetaKon mk) = KFun mk
+  morph3 (ObjectKon _ mk) = KFun mk
+instance Isomorphism3 (KFun r) (CPSKon r) where
 instance Balloon CPSKon SGCall where
   inflate :: (Monad m) => CPSKon SGCall m ~> CPSKon SGCall (OpaqueKonT CPSKon SGCall m)
   inflate (MetaKon mk) = MetaKon $ \ a -> makeMetaKonT $ \ k -> k *$ mk a
