@@ -19,6 +19,8 @@ library
                      , FP.Free
                      , FP.Monads
                      , FP.Pretty
+                     , Lang.JS.JS
+                     , Lang.JS.Syntax
                      , Lang.Lam
                      , Lang.Lam.Analyses
                      , Lang.Lam.Syntax
