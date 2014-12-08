@@ -96,7 +96,7 @@ konP = P
 storeP :: P Store
 storeP = P
 
-class 
+class
   ( Monad m
   , MonadStateE Store m
   , MonadStateE Kon m
@@ -323,7 +323,7 @@ newtype FI a = FI { runFI :: FIguts a }
 
 -- instance MonadStateE Store FI where
 --   stateE = FI . mtMap stateE . stateCommute . mtMap runFI
--- 
+--
 -- runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
 -- runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
 
