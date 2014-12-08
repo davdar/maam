@@ -170,9 +170,9 @@ eval _ e =
     Func x b -> kreturn $ singleton $ CloA $ Clo x b
     ObjE [] -> do
       kreturn $ singleton $ ObjA $ Obj []
-    ObjE ((n,e):nes) -> do
-      modifyP konP (ObjK [] n nes)
-      return e
+    ObjE ((n',e'):nes) -> do
+      modifyP konP (ObjK [] n' nes)
+      return e'
     -- Prim o e' -> do
     --   modifyP konP (PrimK o)
     --   return e'
@@ -241,10 +241,10 @@ kreturn' k v = case k of
     return (i, FieldSetN v e κ)
   FieldSetN o e κ -> do
     return (e, FieldSetV o v κ)
-  FieldSetV o i {- i not used -} κ -> do
+  FieldSetV o i κ -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
-          fieldname <- coerceStrSet *$ v
+          fieldname <- coerceStrSet *$ i
           singleton $ ObjA $ Obj $
             mapModify (\_ -> v) fieldname fields
     kreturn' κ o'
