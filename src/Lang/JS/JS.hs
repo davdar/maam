@@ -28,6 +28,11 @@ data Kon = HaltK
          | DeleteL SExp         Kon
          | DeleteR (Set AValue) Kon
          -- | IfK SExp SExp Kon
+           -- Fig 2. Mutable References
+         | RefSetL SExp Kon
+         | RefSetR (Set AValue) Kon
+         | RefK Kon
+         | DeRefK Kon
          deriving (Eq, Ord)
 
 instance Pretty Kon where
@@ -89,6 +94,17 @@ instance Pretty Kon where
                                , P.lit "]"
                                ]
   -- pretty (IfK tb fb k) = P.app [P.lit "□", pretty tb, pretty fb, pretty k]
+  -- Fig 2. Mutable References
+  pretty (RefSetL e k) = P.app [ P.lit "□"
+                               , P.lit " := "
+                               , pretty e
+                               ]
+  pretty (RefSetR v k)  = P.app [ pretty v
+                                , P.lit " := "
+                                , P.lit "□"
+                                ]
+  pretty (RefK k) = P.lit "RefK"
+  pretty (DeRefK k) = P.lit "DeRefK"
 
 konP :: P Kon
 konP = P
@@ -98,6 +114,7 @@ storeP = P
 
 class
   ( Monad m
+  , MonadStateE Int m
   , MonadStateE Store m
   , MonadStateE Kon m
   , MonadZero m
@@ -153,6 +170,8 @@ data AValue =
   | StrA
   | CloA Clo
   | ObjA Obj
+    -- Fig 2. Mutable References
+  | LocA Int
   deriving (Eq, Ord)
 
 instance Pretty AValue where
@@ -161,6 +180,7 @@ instance Pretty AValue where
   pretty StrA = P.con "S"
   pretty (CloA c) = pretty c
   pretty (ObjA o) = pretty o
+  pretty (LocA l) = pretty l
 
 eval :: (Analysis ς m) => P m -> SExp -> m SExp
 eval _ e =

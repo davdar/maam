@@ -52,6 +52,10 @@ data PreExp n e =
   | FieldSet e e e
   | Delete e e
   -- | If e e e
+    -- Fig 2. Mutable References
+  | RefSet e e
+  | Ref e
+  | DeRef e
   deriving (Eq, Ord)
 type Exp = Fix (PreExp Name)
 type SExp = StampedFix LocNum (PreExp SName)
