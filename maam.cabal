@@ -25,28 +25,9 @@ library
                      , Lang.JS.Syntax
                      , FP.TH
                      , MAAM
-                     , MAAM.Classes
-                     , MAAM.Classes.AAM
-                     , MAAM.Classes.MonadStep
-                     , MAAM.Classes.Temporal
-                     , MAAM.Instances
-                     , MAAM.Instances.AAM
-                     , MAAM.Instances.MonadStep
-                     , MAAM.Instances.Temporal
-                     -- , Examples
-                     -- , Lang.Lam
-                     -- , Lang.Lam.Analyses
-                     -- , Lang.Lam.CPS.Classes.Delta
-                     -- , Lang.Lam.CPS.Instances.Delta
-                     -- , Lang.Lam.CPS.Instances.Monads
-                     -- , Lang.Lam.CPS.Instances.PrettySyntax
-                     -- , Lang.Lam.CPS.MonadicSemantics
-                     -- , Lang.Lam.CPS.Syntax
-                     -- , Lang.Lam.Instances.PrettySyntax
-                     -- , Lang.Lam.Parser
-                     -- , Lang.Lam.Passes.A_Stamp
-                     -- , Lang.Lam.Passes.B_CPSConvert
-                     -- , Lang.Lam.Syntax
+                     , MAAM.Initial
+                     , MAAM.MonadStep
+                     , MAAM.Time
   build-depends:       base
                      , containers
                      , text

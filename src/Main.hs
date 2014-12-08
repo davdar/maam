@@ -1,7 +1,6 @@
 module Main where
 
-import Examples
-import Lang.Lam.Pushdown
+import FP
 
 main :: IO ()
-main = pprint result
+main = return ()
