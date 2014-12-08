@@ -235,7 +235,7 @@ kreturn' k v = case k of
     let v' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ v
-          maybeElim empty id $ fields # fieldname
+          maybeElim (singleton $ LitA UndefinedL) id $ fields # fieldname
     kreturn' κ v'
   FieldSetA i e κ -> do
     return (i, FieldSetN v e κ)
