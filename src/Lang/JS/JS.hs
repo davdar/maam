@@ -3,10 +3,13 @@ module Lang.JS.JS where
 import FP hiding (Kon)
 import Lang.JS.Syntax
 import MAAM
-import qualified Lang.Lam.SyntaxHelpers as H
-import Lang.Lam.Passes.A_Stamp
 import qualified FP.Pretty as P
-import Lang.Lam.CPS.Instances.PrettySyntax (prettyLam)
+import Lang.CPS.Syntax (prettyLam)
+
+-- what changed
+-- msumVals -> mset
+-- pmodify -> mapModify (and other friends, no more p prefixing)
+-- ssingleton -> singleton
 
 data Kon = HaltK
          -- | PrimK Op Kon
@@ -87,26 +90,23 @@ instance Pretty Kon where
                                ]
   -- pretty (IfK tb fb k) = P.app [P.lit "□", pretty tb, pretty fb, pretty k]
 
-instance HasBot Kon where
-  bot = HaltK
-
 konP :: P Kon
 konP = P
 
 storeP :: P Store
 storeP = P
 
-type Analysis m =
-  ( MonadStateE Store m
+class 
+  ( Monad m
+  , MonadStateE Store m
   , MonadStateE Kon m
-  , MonadFail m
   , MonadZero m
   , MonadPlus m
-  , MonadStep m
-  , JoinLattice (SS m SExp)
-  , PartialOrder (SS m SExp)
-  , SSC m SExp
-  )
+  , MonadStep ς m
+  , JoinLattice (ς SExp)
+  , Inject ς
+  , PartialOrder (ς SExp)
+  ) => Analysis ς m | m -> ς where
 
 type Store = Map SName (Set AValue)
 
@@ -129,9 +129,6 @@ instance (Eq a) => (Indexed a v [(a, v)]) where
   [] # _        = Nothing
 
 instance (Eq a) => (MapLike a v [(a, v)]) where
-  -- fuck it
-
-instance (MonadFail Set) where
   -- fuck it
 
 instance Pretty Clo where
@@ -165,14 +162,14 @@ instance Pretty AValue where
   pretty (CloA c) = pretty c
   pretty (ObjA o) = pretty o
 
-eval :: (Analysis m) => P m -> SExp -> m SExp
+eval :: (Analysis ς m) => P m -> SExp -> m SExp
 eval _ e =
   case stampedFix e of
-    Lit l -> kreturn $ ssingleton $ LitA l
+    Lit l -> kreturn $ singleton $ LitA l
     Var x -> var x
-    Func x b -> kreturn $ ssingleton $ CloA $ Clo x b
+    Func x b -> kreturn $ singleton $ CloA $ Clo x b
     ObjE [] -> do
-      kreturn $ ssingleton $ ObjA $ Obj []
+      kreturn $ singleton $ ObjA $ Obj []
     ObjE ((n,e):nes) -> do
       modifyP konP (ObjK [] n nes)
       return e
@@ -198,11 +195,11 @@ eval _ e =
     --   modifyP konP (IfK tb fb)
     --   return c
 
-bind :: (Analysis m) => SName -> Set AValue -> m ()
+bind :: (Analysis ς m) => SName -> Set AValue -> m ()
 bind x v = do
-  modifyP storeP $ pinsertWith (\/) x v
+  modifyP storeP $ mapInsertWith (\/) x v
 
-kreturn :: (Analysis m) => Set AValue -> m SExp
+kreturn :: (Analysis ς m) => Set AValue -> m SExp
 kreturn v = do
   κ <- getP konP
   (s, κ') <- kreturn' κ v
@@ -212,7 +209,7 @@ kreturn v = do
 snameToString :: SName -> String
 snameToString = getName . stamped
 
-kreturn' :: (Analysis m) => Kon -> Set AValue -> m (SExp, Kon)
+kreturn' :: (Analysis ς m) => Kon -> Set AValue -> m (SExp, Kon)
 kreturn' k v = case k of
   HaltK -> mzero
   -- PrimK o κ -> kreturn' κ $ op o v
@@ -222,7 +219,7 @@ kreturn' k v = case k of
   AppL e κ ->
     return (e, AppR v κ)
   AppR vs κ -> do
-    Clo x b <- coerceClo *$ msumVals vs
+    Clo x b <- coerceClo *$ mset vs
     bind x v
     return (b, κ)
   ObjK nvs n ((n',e'):nes) κ -> do
@@ -231,25 +228,25 @@ kreturn' k v = case k of
   ObjK nvs n [] κ -> do
     let nvs' = (snameToString n, v) : nvs
         o    = ObjA $ Obj nvs'
-    kreturn' κ $ ssingleton o
+    kreturn' κ $ singleton o
   FieldRefL i κ -> do
     return (i, FieldRefR v κ)
   FieldRefR o κ -> do
     let v' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ v
-          maybe sempty id $ fields # fieldname
+          maybeElim empty id $ fields # fieldname
     kreturn' κ v'
   FieldSetA i e κ -> do
     return (i, FieldSetN v e κ)
   FieldSetN o e κ -> do
     return (e, FieldSetV o v κ)
-  FieldSetV o i κ -> do
+  FieldSetV o i {- i not used -} κ -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ v
-          ssingleton $ ObjA $ Obj $
-            pmodify (\_ -> v) fieldname fields
+          singleton $ ObjA $ Obj $
+            mapModify (\_ -> v) fieldname fields
     kreturn' κ o'
   DeleteL e κ -> do
     return (e, DeleteR v κ)
@@ -257,33 +254,33 @@ kreturn' k v = case k of
     let o' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ v
-          ssingleton $ ObjA $ Obj $
+          singleton $ ObjA $ Obj $
             filter (\(k,_) -> k /= fieldname) fields
     kreturn' κ o'
   -- IfK tb fb κ -> do
   --   v' <- coerceBool *$ msumVals v
   --   return $ ifThenElse v' (tb, κ) (fb, κ)
 
-var :: (Analysis m) => SName -> m SExp
+var :: (Analysis ς m) => SName -> m SExp
 var x = do
   σ <- getP storeP
-  kreturn *$ useMaybeZero $ σ # x
+  kreturn *$ liftMaybeZero $ σ # x
 
-coerceClo :: (Analysis m) => AValue -> m Clo
+coerceClo :: (Analysis ς m) => AValue -> m Clo
 coerceClo (CloA c) = return c
 coerceClo _ = mzero
 
-coerceBool :: (Analysis m) => AValue -> m Bool
+coerceBool :: (Analysis ς m) => AValue -> m Bool
 coerceBool (LitA (B b)) = return b
 coerceBool _ = mzero
 
-coerceStr :: (Analysis m) => AValue -> m String
+coerceStr :: (Analysis ς m) => AValue -> m String
 coerceStr = undefined
 
 coerceStrSet :: AValue -> Set String
 coerceStrSet = undefined
 
-coerceObj :: (Analysis m) => AValue -> m Obj
+coerceObj :: (Analysis ς m) => AValue -> m Obj
 coerceObj = undefined
 
 coerceObjSet :: AValue -> Set Obj
@@ -295,16 +292,16 @@ coerceObjSet = undefined
 -- op = extend . opOne
 
 -- opOne :: Op -> AValue -> Set AValue
--- opOne Add1 IA = ssingleton IA
--- opOne Sub1 IA = ssingleton IA
+-- opOne Add1 IA = singleton IA
+-- opOne Sub1 IA = singleton IA
 -- opOne IsNonNeg IA = fromList $ map (LitA . B) [ True, False ]
--- opOne Add1 (LitA (I _)) = ssingleton IA
--- opOne Sub1 (LitA (I _)) = ssingleton IA
+-- opOne Add1 (LitA (I _)) = singleton IA
+-- opOne Sub1 (LitA (I _)) = singleton IA
 -- opOne IsNonNeg (LitA (I _)) = fromList $ map (LitA . B) [ True, False ]
 -- opOne _ _ = sempty
 
-execCollect :: (Analysis m) => P m -> SExp -> SS m SExp
-execCollect m s = collect (mstep (eval m)) $ munit m s
+-- execCollect :: (Analysis ς m) => P m -> SExp -> ς SExp
+-- execCollect m s = collect (mstep (eval m)) $ munit m s
 
 type FIguts = StateT Kon (ListSetT (StateT Store ID))
 newtype FI a = FI { runFI :: FIguts a }
@@ -318,19 +315,16 @@ newtype FI a = FI { runFI :: FIguts a }
                       , Bind
                       , Monad
                       )
-instance MonadFail FI where
-  fail = error . fromChars
+-- instance MonadStep FI where
+--   type SS FI = SS FIguts
+--   type SSC FI = SSC FIguts
+--   mstep f = mstep (runFI . f)
+--   munit _ = munit (P :: P FIguts)
 
-instance MonadStep FI where
-  type SS FI = SS FIguts
-  type SSC FI = SSC FIguts
-  mstep f = mstep (runFI . f)
-  munit _ = munit (P :: P FIguts)
-
-instance MonadStateE Store FI where
-  stateE = FI . mtMap stateE . stateCommute . mtMap runFI
-
-runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
-runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
+-- instance MonadStateE Store FI where
+--   stateE = FI . mtMap stateE . stateCommute . mtMap runFI
+-- 
+-- runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
+-- runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
 
 -- result = runFI_SS $ execCollect (P :: P FI) somega

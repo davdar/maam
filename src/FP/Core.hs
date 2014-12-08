@@ -1650,8 +1650,8 @@ instance Iterable a [a] where
   foldr f i (x:xs) = f x $ foldr f i xs
 instance (Eq a) => Container a [a] where
   (?) = flip isElem
-instance Indexed Integer a [a] where
-  (#) = flip elemAtN
+-- instance Indexed Integer a [a] where
+--   (#) = flip elemAtN
 instance Monoid [a] where
   null = []
   xs ++ ys = foldr (:) ys xs

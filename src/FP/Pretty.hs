@@ -184,6 +184,9 @@ atLevel i' aM = do
     then local (set levelL i' . set bumpedL False) aM
     else parens aM
 
+parensIfWrapped :: a -> a
+parensIfWrapped = id
+
 bump :: (MonadPretty m) => m a -> m a
 bump = local $ set bumpedL True
 
