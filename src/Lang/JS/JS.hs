@@ -96,7 +96,7 @@ konP = P
 storeP :: P Store
 storeP = P
 
-class 
+class
   ( Monad m
   , MonadStateE Store m
   , MonadStateE Kon m
@@ -170,9 +170,9 @@ eval _ e =
     Func x b -> kreturn $ singleton $ CloA $ Clo x b
     ObjE [] -> do
       kreturn $ singleton $ ObjA $ Obj []
-    ObjE ((n,e):nes) -> do
-      modifyP konP (ObjK [] n nes)
-      return e
+    ObjE ((n',e'):nes) -> do
+      modifyP konP (ObjK [] n' nes)
+      return e'
     -- Prim o e' -> do
     --   modifyP konP (PrimK o)
     --   return e'
@@ -241,10 +241,10 @@ kreturn' k v = case k of
     return (i, FieldSetN v e κ)
   FieldSetN o e κ -> do
     return (e, FieldSetV o v κ)
-  FieldSetV o i {- i not used -} κ -> do
+  FieldSetV o i κ -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
-          fieldname <- coerceStrSet *$ v
+          fieldname <- coerceStrSet *$ i
           singleton $ ObjA $ Obj $
             mapModify (\_ -> v) fieldname fields
     kreturn' κ o'
@@ -323,7 +323,7 @@ newtype FI a = FI { runFI :: FIguts a }
 
 -- instance MonadStateE Store FI where
 --   stateE = FI . mtMap stateE . stateCommute . mtMap runFI
--- 
+--
 -- runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
 -- runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
 
