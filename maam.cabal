@@ -21,6 +21,8 @@ library
                      , FP.Monads
                      , FP.Parser
                      , FP.Pretty
+                     , Lang.JS.JS
+                     , Lang.JS.Syntax
                      , FP.TH
                      , MAAM
                      , MAAM.Classes
