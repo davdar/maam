@@ -1,6 +1,7 @@
 module Examples where
 
 import Lang.Lam.Syntax
+import Lang.Lam.SyntaxHelpers
 import FP
 import qualified FP.Pretty as P
 import qualified Lang.Lam.Analyses as A

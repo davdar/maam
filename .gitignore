@@ -10,3 +10,7 @@
 *.dtx
 *.ins
 .DS_Store
+.options*
+.extensions*
+README.html
+*.agdai

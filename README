@@ -1,0 +1,54 @@
+# Building
+
+    make init configure build
+
+# Running
+
+To run src/Main
+
+    ./ghci.sh
+
+To run FILE and/or with command line options ARGS ...
+
+    ./ghci.sh FILE ARGS ...
+
+(the default for FILE is src/Main)
+
+# Example
+
+Here is what it looks like for me:
+
+    »=  maam git:(pushdown) ✗ make init configure build
+    runhaskell EnvSetup.hs
+    cabal configure --disable-library-profiling
+    Resolving dependencies...
+    Configuring maam-0.1.0.0...
+    cabal build
+    Building maam-0.1.0.0...
+    Preprocessing library maam-0.1.0.0...
+    << ... compiler output ... >>
+
+and
+  
+    »=  maam git:(pushdown) ✗ ./ghci.sh 
+    << ... ghci loader output ... >>
+    *Main System.Directory> result 
+    Loading package containers-0.5.5.1 ... linking ... done.
+    Loading package text-1.2.0.0 ... linking ... done.
+    ( { ( 0:(1:λ 0:x. 2:(3:0:x) (4:0:x)) (5:λ 1:x. 6:(7:1:x) (8:1:x))
+        , HALT
+        )
+      , (1:λ 0:x. 2:(3:0:x) (4:0:x),[ ] (5:λ 1:x. 6:(7:1:x) (8:1:x)) HALT)
+      , (2:(3:0:x) (4:0:x),HALT)
+      , (3:0:x,[ ] (4:0:x) HALT)
+      , (4:0:x,{λ 1:x. 6:(7:1:x) (8:1:x)} [ ] HALT)
+      , (5:λ 1:x. 6:(7:1:x) (8:1:x),{λ 0:x. 2:(3:0:x) (4:0:x)} [ ] HALT)
+      , (6:(7:1:x) (8:1:x),HALT)
+      , (7:1:x,[ ] (8:1:x) HALT)
+      , (8:1:x,{λ 1:x. 6:(7:1:x) (8:1:x)} [ ] HALT)
+      }
+    , {0:x => {λ 1:x. 6:(7:1:x) (8:1:x)},1:x => {λ 1:x. 6:(7:1:x) (8:1:x)}}
+    )
+    *Main System.Directory> 
+
+ 
