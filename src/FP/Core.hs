@@ -6,6 +6,7 @@ module FP.Core
   , module FP.Core
   , module GHC.Exts
   , module Data.Char
+  , module Language.Haskell.TH
   ) where
 
 -- }}}
@@ -28,6 +29,7 @@ import GHC.Exts (type Constraint)
 import qualified Data.Text as Text
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import Language.Haskell.TH (Q)
 import Data.Char (isSpace, isAlphaNum, isLetter, isDigit)
 
 -- }}}
@@ -272,6 +274,19 @@ isofrom3 = morph3
 
 -- }}}
 
+-- HasLens {{{
+
+class HasLens a b where
+  view :: Lens a b
+
+instance HasLens a a where
+  view = catid
+
+viewP :: (HasLens a b) => P b -> Lens a b
+viewP P = view
+
+-- }}}
+
 -- PartialOrder {{{
 
 data POrdering = PEQ | PLT | PGT | PUN
@@ -297,6 +312,18 @@ class PartialOrder a where
   x <. y = case pcompare x y of
     PLT -> True
     _ -> False
+
+(<=>) :: (Ord a) => a -> a -> Ordering
+(<=>) = compare
+
+(<~>) :: (PartialOrder a) => a -> a -> POrdering
+(<~>) = pcompare
+
+(>~) :: (PartialOrder a) => a -> a -> Bool
+x >~ y = y <~ x
+
+(>.) :: (PartialOrder a) => a -> a -> Bool
+x >. y = y <. x
 
 class PartialOrderF t where
   partialOrderF :: (PartialOrder a) => W (PartialOrder (t a))
@@ -392,8 +419,8 @@ class FunctorM t where
 (^*.) :: (FunctorM t, Monad m) => (b -> m c) -> (a -> m b) -> t a -> m (t c)
 (g ^*. f) aT = mapM g *$ f ^*$ aT
 
-mapMOn :: (FunctorM t, Monad m) => t a -> (a -> m b) -> m (t b)
-mapMOn = flip mapM
+mapOnM :: (FunctorM t, Monad m) => t a -> (a -> m b) -> m (t b)
+mapOnM = flip mapM
 
 sequence :: (FunctorM t, Monad m) => t (m a) -> m (t a)
 sequence = mapM id
@@ -512,9 +539,9 @@ guard :: (Unit m, MonadZero m) => Bool -> m ()
 guard True = unit ()
 guard False = mzero
 
-maybe :: (Unit m, MonadZero m) => Maybe a -> m a
-maybe Nothing = mzero
-maybe (Just a) = unit a
+liftMaybeZero :: (Unit m, MonadZero m) => Maybe a -> m a
+liftMaybeZero Nothing = mzero
+liftMaybeZero (Just a) = unit a
 
 -- }}}
 
@@ -562,14 +589,14 @@ class (Monad m) => MonadMaybeE m where
   maybeE :: MaybeT m ~> m
 class (MonadMaybeI m, MonadMaybeE m) => MonadMaybe m where
 
-maybeM :: (MonadMaybeE m) => m (Maybe a) -> m a
-maybeM = maybeE . MaybeT
+maybeEM :: (MonadMaybeE m) => m (Maybe a) -> m a
+maybeEM = maybeE . MaybeT
 
 lookMaybe :: (MonadMaybeI m) => m a -> m (Maybe a)
 lookMaybe = runMaybeT . maybeI
 
 abort :: (MonadMaybeE m) => m a
-abort = maybeM $ return Nothing
+abort = maybeEM $ return Nothing
 
 (<|>) :: (MonadMaybeI m) => m a -> m a -> m a
 aM1 <|> aM2 = do
@@ -578,24 +605,20 @@ aM1 <|> aM2 = do
     Just a -> return a
     Nothing -> aM2
 
-maybeZero :: (Unit m, MonadZero m) => Maybe a -> m a
-maybeZero Nothing = mzero
-maybeZero (Just x) = unit x
-
 -- }}}
 
 -- MonadError {{{
 
 newtype ErrorT e m a = ErrorT { runErrorT :: m (e :+: a) }
 
-class (Monad m) => MonadErrorI e m where
-  errorI :: m ~> ErrorT e m
 class (Monad m) => MonadErrorE e m where
   errorE :: ErrorT e m ~> m
-class (MonadErrorI e m, MonadErrorE e m) => MonadError e m where
+class (Monad m) => MonadErrorI e m where
+  errorI :: m ~> ErrorT e m
+class (MonadErrorE e m, MonadErrorI e m) => MonadError e m where
 
-useSum :: (MonadErrorE e m) => e :+: a -> m a
-useSum = errorE . ErrorT . return
+liftSum :: (MonadErrorE e m) => e :+: a -> m a
+liftSum = errorE . ErrorT . return
 
 throw :: (MonadErrorE e m) => e -> m a
 throw e = errorE $ ErrorT $ return $ Inl e
@@ -654,11 +677,11 @@ localSetL l = localL l . const
 
 newtype WriterT o m a = WriterT { runWriterT :: m (a, o) }
 
-class (Monad m) => MonadWriterI o m where
+class (Monad m) => MonadWriterI o m | m -> o where
   writerI :: m ~> WriterT o m
-class (Monad m) => MonadWriterE o m where
+class (Monad m) => MonadWriterE o m | m -> o where
   writerE :: WriterT o m ~> m
-class (MonadWriterI o m, MonadWriterE o m) => MonadWriter o m where
+class (MonadWriterI o m, MonadWriterE o m) => MonadWriter o m | m -> o where
 
 tell :: (MonadWriterE o m) => o -> m ()
 tell = writerE . WriterT . return . ((),)
@@ -675,46 +698,46 @@ hijack = runWriterT . writerI
 
 newtype StateT s m a = StateT { unStateT :: s -> m (a, s) }
 
-class (Monad m) => MonadStateI s m where
+class MonadStateI s m | m -> s where
   stateI :: m ~> StateT s m
-class (Monad m) => MonadStateE s m where
+class MonadStateE s m | m -> s where
   stateE :: StateT s m ~> m
-class (MonadStateI s m, MonadStateE s m) => MonadState s m where
+class (MonadStateI s m, MonadStateE s m) => MonadState s m | m -> s where
 
-get :: (MonadStateE s m) => m s
+get :: (Monad m, MonadStateE s m) => m s
 get = stateE $ StateT $ \ s -> return (s, s)
 
-getP :: (MonadStateE s m) => P s -> m s
+getP :: (Monad m, MonadStateE s m) => P s -> m s
 getP P = get
 
-getL :: (MonadStateE s m) => Lens s a -> m a
+getL :: (Monad m, MonadStateE s m) => Lens s a -> m a
 getL l = map (access l) get
 
-put :: (MonadStateE s m) => s -> m ()
+put :: (Monad m, MonadStateE s m) => s -> m ()
 put s = stateE $ StateT $ \ _ -> return ((), s)
 
-putP :: (MonadStateE s m) => P s -> s -> m ()
+putP :: (Monad m, MonadStateE s m) => P s -> s -> m ()
 putP P = put
 
-putL :: (MonadStateE s m) => Lens s a -> a -> m ()
+putL :: (Monad m, MonadStateE s m) => Lens s a -> a -> m ()
 putL = modify .: set
 
-modifyM :: (MonadStateE s m) => (s -> m s) -> m ()
+modifyM :: (Monad m, MonadStateE s m) => (s -> m s) -> m ()
 modifyM f = stateE $ StateT $ \ s -> return () <*> f s
 
-modify :: (MonadStateE s m) => (s -> s) -> m ()
+modify :: (Monad m, MonadStateE s m) => (s -> s) -> m ()
 modify = modifyM . kleisli
 
-modifyP :: (MonadStateE s m) => P s -> (s -> s) -> m ()
+modifyP :: (Monad m, MonadStateE s m) => P s -> (s -> s) -> m ()
 modifyP P = modify
 
-modifyL :: (MonadStateE s m) => Lens s a -> (a -> a) -> m ()
+modifyL :: (Monad m, MonadStateE s m) => Lens s a -> (a -> a) -> m ()
 modifyL = modify .: update
 
-modifyLM :: (MonadStateE s m) => Lens s a -> (a -> m a) -> m ()
+modifyLM :: (Monad m, MonadStateE s m) => Lens s a -> (a -> m a) -> m ()
 modifyLM = modifyM .: updateM
 
-localStateSet :: (MonadStateI s m) => s -> m a -> m (a, s)
+localStateSet :: (Monad m, MonadStateI s m) => s -> m a -> m (a, s)
 localStateSet s aM = unStateT (stateI aM) s
 
 -- these have strange behavior, maybe they shouldn't be used to avoid
@@ -742,19 +765,19 @@ localStateSet s aM = unStateT (stateI aM) s
 -- localStateSetL :: (MonadState s m) => Lens s b -> b -> m a -> m (a, b)
 -- localStateSetL l = localStateL l . const
 
-next :: (MonadStateE s m, Peano s) => m s
+next :: (Monad m, MonadStateE s m, Peano s) => m s
 next = do
   i <- get
   put $ suc i
   return i
 
-nextL :: (MonadStateE s m, Peano a) => Lens s a -> m a
+nextL :: (Monad m, MonadStateE s m, Peano a) => Lens s a -> m a
 nextL l = do
   i <- getL l
   putL l $ suc i
   return i
 
-bumpL :: (MonadStateE s m, Peano a) => Lens s a -> m ()
+bumpL :: (Monad m, MonadStateE s m, Peano a) => Lens s a -> m ()
 bumpL l = modifyL l suc
 
 -- }}}
@@ -781,6 +804,9 @@ class (Monad m) => MonadListE m where
   listE :: ListT m ~> m
 class (MonadListI m, MonadListE m) => MonadList m where
 
+liftList :: (Monad m, MonadListE m) => [a] -> m a
+liftList = listE . ListT . return
+
 listAbort :: (MonadListE m) => m a
 listAbort = listE $ ListT $ unit []
 
@@ -798,6 +824,19 @@ class (MonadListSetI m, MonadListSetE m) => MonadListSet m where
 
 -- }}}
 
+-- MonadIO {{{
+
+class MonadIO m where
+  liftIO :: IO ~> m
+
+-- }}}
+
+-- MonadQ {{{
+
+class MonadQ m where
+  liftQ :: Q ~> m
+
+-- }}}
 
 -- MonadSet {{{
 
@@ -857,13 +896,14 @@ class (MonadKon r m, MonadOpaqueKonI k r m, MonadOpaqueKonE k r m) => MonadOpaqu
 class Iterable a t | t -> a where
   -- the left fold, exposing the fold continuation
   foldlk :: forall b. (a -> b -> (b -> b) -> b) -> b -> t -> b
-  foldlk f i t = foldl (\ a (bK :: (b -> b) -> b) (k :: b -> b) -> bK $ \ b -> f a b k) ($ i) t id
+  foldlk f i0 t = foldl (\ a (iK :: (b -> b) -> b) (k :: b -> b) ->
+    iK $ \ i -> f a i k) ($ i0) t id
   -- the left fold
   foldl :: (a -> b -> b) -> b -> t -> b
-  foldl f = foldlk $ \ a b k -> k $ f a b
+  foldl f = foldlk $ \ a i k -> let i' = f a i in i' `seq` k i'
   -- the right fold
   foldr :: (a -> b -> b) -> b -> t -> b
-  foldr f = foldlk $ \ a b k -> f a $ k b
+  foldr f = foldlk $ \ a i k -> f a $ k i
   -- the most efficient fold (unspecified order)
   iter :: (a -> b -> b) -> b -> t -> b
   iter = foldl
@@ -876,6 +916,9 @@ concat = foldr (++) null
 mconcat :: (Iterable (m a) t, MonadZero m, MonadConcat m) => t -> m a
 mconcat = foldr (<++>) mzero
 
+mlist :: (Iterable a t, MonadZero m, Unit m, MonadConcat m) => t -> m a
+mlist = foldr ((<++>) . unit) mzero
+
 mtry :: (MonadMaybe m) => [m a] -> m a
 mtry = foldr (<|>) abort
 
@@ -885,8 +928,8 @@ joins = iter (\/) bot
 msum :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
 msum = iter (<+>) mzero
 
-munion :: (Iterable a t, MonadZero m, Unit m, MonadPlus m) => t -> m a
-munion = iter ((<+>) . unit) mzero
+mset :: (Iterable a t, MonadZero m, Unit m, MonadPlus m) => t -> m a
+mset = iter ((<+>) . unit) mzero
 
 iterOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
 iterOn = mirror iter
@@ -894,8 +937,20 @@ iterOn = mirror iter
 iterFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
 iterFrom = flip iter
 
+foldlOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
+foldlOn = mirror foldl
+
+foldlFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
+foldlFrom = flip foldl
+
+foldrOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
+foldrOn = mirror foldr
+
+foldrFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
+foldrFrom = flip foldr
+
 findMax :: (Iterable a t, PartialOrder b) => (a -> b) -> a -> t -> a
-findMax p i0 = iterFrom i0 $ \ a i -> if p a <~ p i then a else i
+findMax p i0 = iterFrom i0 $ \ a i -> if p a >. p i then a else i
 
 findMaxFrom :: (Iterable a t, PartialOrder b) => a -> (a -> b) -> t -> a
 findMaxFrom = flip findMax
@@ -912,7 +967,7 @@ elemAtN n t = case foldlk ff (Inr zer) t of
     ff _ (Inl _) _ = error "internal error"
 
 traverse :: (Iterable a t, Monad m) => (a -> m ()) -> t -> m ()
-traverse f = foldr (\ a m -> m >> f a) $ return ()
+traverse f = foldl (\ a m -> m >> f a) $ return ()
 
 traverseOn :: (Iterable a t, Monad m) => t -> (a -> m ()) -> m ()
 traverseOn = flip traverse
@@ -922,6 +977,17 @@ exec = traverse id
 
 toList :: (Iterable a t) => t -> [a]
 toList = foldr (:) []
+
+-- }}}
+
+-- Buildable {{{
+
+class Buildable a t | t -> a where
+  nil :: t
+  cons :: a -> t -> t
+
+fromList :: (Buildable a t) => [a] -> t
+fromList = foldr cons nil
 
 -- }}}
 
@@ -940,6 +1006,9 @@ elem = flip (?)
 class Indexed k v t | t -> k, t -> v where
   (#) :: t -> k -> Maybe v
 
+index :: (Indexed k v t) => t -> k -> Maybe v
+index = (#)
+
 (#!) :: (Indexed k v t) => t -> k -> v
 (#!) = unsafe_coerce justL .: (#)
 
@@ -951,11 +1020,9 @@ lookup = flip (#)
 -- ListLike {{{
 
 -- Minimal definitino: nil cons uncons
-class (Iterable a t) => ListLike a t | t -> a where
-  nil :: t
+class (Iterable a t, Buildable a t) => ListLike a t | t -> a where
   isNil :: t -> Bool
   isNil = isL nothingL . uncons
-  cons :: a -> t -> t
   uncons :: t -> Maybe (a, t)
 
 toListLike :: (ListLike a t) => [a] -> t
@@ -969,6 +1036,9 @@ single = flip (:) []
 
 filter :: (a -> Bool) -> [a] -> [a]
 filter p = foldr (\ x -> if p x then (x :) else id) []
+
+uniques :: (Eq a) => [a] -> [a]
+uniques = foldlFrom [] $ \ x xs -> x : filter ((/=) x) xs
 
 zip :: [a] -> [b] -> Maybe [(a, b)]
 zip [] [] = return []
@@ -1003,9 +1073,13 @@ intersperse i (x:xs) = x : recur xs
     recur [] = []
     recur (x':xs') = i : x' : recur xs'
 
-mapRest :: (a -> a) -> [a] -> [a]
-mapRest _ [] = []
-mapRest f (x:xs) = x:map f xs
+mapHead :: (a -> a) -> [a] -> [a]
+mapHead _ [] = []
+mapHead f (x:xs) = f x:xs
+
+mapTail :: (a -> a) -> [a] -> [a]
+mapTail _ [] = []
+mapTail f (x:xs) = x:map f xs
 
 head :: [a] -> Maybe a
 head [] = Nothing
@@ -1014,6 +1088,10 @@ head (x:_) = Just x
 tail :: [a] -> Maybe [a]
 tail [] = Nothing
 tail (_:xs) = Just xs
+
+length :: (Peano n) => [a] -> n
+length [] = zer
+length (_:xs) = suc $ length xs
 
 -- }}}
 
@@ -1040,14 +1118,14 @@ singleton = flip insert empty
 setMap :: (Ord b) => (a -> b) -> Set a -> Set b
 setMap f = iter (insert . f) empty
 
-maybeSet :: (Ord a) => Maybe a -> Set a
-maybeSet Nothing = empty
-maybeSet (Just a) = singleton a
+liftMaybeSet :: (Ord a) => Maybe a -> Set a
+liftMaybeSet Nothing = empty
+liftMaybeSet (Just a) = singleton a
 
-toSet :: (SetLike a t, Ord a) => [a] -> t
+toSet :: (Ord a) => [a] -> Set a
 toSet = iter insert empty
 
-fromSet :: (SetLike a t) => t -> [a]
+fromSet :: Set a -> [a]
 fromSet = iter (:) []
 
 -- }}}
@@ -1087,10 +1165,10 @@ mapInsert = mapInsertWith $ const id
 onlyKeys :: (SetLike k t, MapLike k v u) => t -> u -> u
 onlyKeys t u = learnMap u mapEmpty $ iter (\ k -> maybeElim id (mapInsert k) $ u # k) mapEmpty t
 
-toMap :: (MapLike k v t, Ord k) => [(k,v)] -> t
+toMap :: (Ord k) => [(k,v)] -> Map k v
 toMap = iter (uncurry mapInsert) mapEmpty
 
-fromMap :: (MapLike k v t) => t -> [(k,v)]
+fromMap :: Map k v -> [(k,v)]
 fromMap = iter (:) []
 
 -- }}}
@@ -1354,6 +1432,9 @@ instance PartialOrder Int where
 instance JoinLattice Int where
   bot = Prelude.minBound
   x \/ y = Prelude.max x y
+instance Monoid Int where
+  null = 0
+  (++) = (+)
 
 -- }}}
 
@@ -1455,9 +1536,13 @@ instance MonadErrorI a ((:+:) a) where
   errorI :: a :+: b -> ErrorT a ((:+:) a) b
   errorI ab = ErrorT $ Inr ab
 
+sumElim :: (a -> c) -> (b -> c) -> a :+: b -> c
+sumElim f _ (Inl a) = f a
+sumElim _ g (Inr b) = g b
+
 inlL :: Prism (a :+: b) a
 inlL = Prism
-  { coerce = \ ab -> case ab of
+  { coerce = \ case
       Inl a -> Just a
       Inr _ -> Nothing
   , inject = Inl
@@ -1465,7 +1550,7 @@ inlL = Prism
 
 inrL :: Prism (a :+: b) b
 inrL = Prism
-  { coerce = \ ab -> case ab of
+  { coerce = \ case
       Inl _ -> Nothing
       Inr b -> Just b
   , inject = Inr
@@ -1526,7 +1611,7 @@ instance Monoid (Maybe a) where
 
 nothingL :: Prism (Maybe a) ()
 nothingL = Prism
-  { coerce = \ aM -> case aM of
+  { coerce = \ case
       Nothing -> Just ()
       Just _ -> Nothing
   , inject = \ () -> Nothing
@@ -1573,9 +1658,10 @@ instance Monoid [a] where
 instance Functorial Monoid [] where functorial = W
 instance Unit [] where
   unit = (:[])
-instance ListLike a [a] where
+instance Buildable a [a] where
   nil = []
   cons = (:)
+instance ListLike a [a] where
   uncons = coerce consL
 instance Bind [] where
   []     >>= _ = []
@@ -1601,17 +1687,25 @@ instance FunctorM [] where
 
 nilL :: Prism [a] ()
 nilL = Prism
-  { coerce = \ xs -> case xs of
+  { coerce = \ case
       [] -> Just ()
       _:_ -> Nothing
   , inject = \ () -> []
   }
 consL :: Prism [a] (a,[a])
 consL = Prism
-  { coerce = \ xs -> case xs of
+  { coerce = \ case
       [] -> Nothing
       x:xs' -> Just (x,xs')
   , inject = uncurry (:)
+  }
+
+singleL :: Prism [a] a
+singleL = Prism
+  { coerce = \ case
+      [a] -> Just a
+      _ -> Nothing
+  , inject = single
   }
 
 pluck :: [a] -> [[a]] -> Maybe ([a], [[a]])
@@ -1644,6 +1738,9 @@ instance Iterable a (Set a) where
   foldl f i (Set s) = Set.foldl' (flip f) i s
   foldr _ i EmptySet = i
   foldr f i (Set s) = Set.foldr' f i s
+instance (Ord a) => Buildable a (Set a) where
+  nil = empty
+  cons = insert
 instance Eq (Set a) where
   s1 == s2 = (s1 <= s2) /\ (s2 <= s1)
 instance Ord (Set a) where
@@ -1691,7 +1788,9 @@ setTranspose aMM = loop $ fromSet aMM
 -- ListSet {{{
 
 newtype ListSet a = ListSet { runListSet :: [a] }
-  deriving (Monoid, Unit, Functor, Product, Applicative, Bind, Monad, Iterable a, Container a)
+  deriving (Monoid, Unit, Functor, Product, Applicative, Bind, Monad, Iterable a, Buildable a, Container a)
+instance (Ord a) => PartialOrder (ListSet a) where
+  pcompare = pcompare `on` (toSet . toList)
 instance JoinLattice (ListSet a) where
   bot = ListSet []
   xs1 \/ xs2 = ListSet $ runListSet xs1 ++ runListSet xs2
@@ -1748,25 +1847,6 @@ instance (Eq v, JoinLattice v) => JoinLattice (Map k v) where
 
 -- }}}
 
--- IO {{{
-
-instance Unit IO where
-  unit = Prelude.return
-instance Functor IO where
-  map = mmap
-instance Applicative IO where
-  (<@>) = mapply
-instance Product IO where
-  (<*>) = mpair
-instance Bind IO where
-  (>>=) = (Prelude.>>=)
-instance Monad IO where
-
-print :: String -> IO ()
-print = Prelude.putStrLn . toChars
-
--- }}}
-
 -- Annotated {{{
 
 data Annotated ann a = Annotated
@@ -1796,5 +1876,55 @@ instance (Eq a) => Eq (StampedFix a f) where
   (==) = (==) `on` stampedFixID
 instance (Ord a) => Ord (StampedFix a f) where
   compare = compare `on` stampedFixID
+instance (PartialOrder a) => PartialOrder (StampedFix a f) where
+  pcompare = pcompare `on` stampedFixID
 
 -- }}}
+
+-- IO {{{
+
+instance Unit IO where
+  unit = Prelude.return
+instance Functor IO where
+  map = mmap
+instance Applicative IO where
+  (<@>) = mapply
+instance Product IO where
+  (<*>) = mpair
+instance Bind IO where
+  (>>=) = (Prelude.>>=)
+instance Monad IO where
+instance MonadIO IO where
+  liftIO = id
+instance MonadErrorE String IO where
+  errorE :: ErrorT String IO ~> IO
+  errorE = sumElim (Prelude.fail . toChars) return *. runErrorT
+
+print :: String -> IO ()
+print = Prelude.putStrLn . toChars
+
+-- }}}
+
+-- Q {{{
+
+instance Unit Q where
+  unit = Prelude.return
+instance Functor Q where
+  map = mmap
+instance Applicative Q where
+  (<@>) = mapply
+instance Product Q where
+  (<*>) = mpair
+instance Bind Q where
+  (>>=) = (Prelude.>>=)
+instance Monad Q where
+instance MonadQ Q where
+  liftQ = id
+instance MonadZero Q where
+  mzero = Prelude.fail $ toChars "mzero"
+instance MonadErrorE String Q where
+  errorE :: ErrorT String Q ~> Q
+  errorE = sumElim (Prelude.fail . toChars) return *. runErrorT
+
+-- }}}
+

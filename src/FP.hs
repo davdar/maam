@@ -1,13 +1,21 @@
 module FP
-  ( module FP.Core
+  ( module FP.Console
+  , module FP.Core
+  , module FP.DerivingLens
+  , module FP.DerivingPrism
+  , module FP.DerivingMonoid
+  , module FP.DerivingJoinLattice
   , module FP.Free
   , module FP.Monads
   , module FP.Pretty
-  , module FP.Console
   ) where
 
+import FP.Console (pprint, pprintWith, pprintWidth, ptrace)
 import FP.Core
+import FP.DerivingLens
+import FP.DerivingPrism
 import FP.Free
 import FP.Monads
-import FP.Pretty (Pretty(..), Doc, ptoString)
-import FP.Console (pprint, pprintWith, pprintWidth, ptrace)
+import FP.Pretty (Pretty(..), Doc, DocM, ptoString)
+import FP.DerivingMonoid
+import FP.DerivingJoinLattice

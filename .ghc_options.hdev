@@ -1,0 +1,4 @@
+-g-Wall
+-g-fno-warn-amp
+-g-fno-warn-orphans
+-g-isrc

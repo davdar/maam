@@ -3,6 +3,8 @@ module FP.Pretty where
 import FP.Core
 import FP.Free
 import FP.Monads
+import FP.DerivingLens
+import FP.DerivingMonoid
 
 -- Setup {{{ --
 
@@ -10,7 +12,7 @@ newtype Color256 = Color256 { color256Raw :: Int }
   deriving (ToInteger, ToString)
 instance FromInteger Color256 where
   fromInteger i | i >= 0 && i < 256 = Color256 $ fromInteger i
-                | otherwise = error "Color256 values must be [0 <= n < 256] (duh!)"
+                | otherwise = error "Color256 values must be [0 <= n < 256]"
 
 data Format = Format
   { foreground :: Maybe Color256
@@ -18,9 +20,8 @@ data Format = Format
   , underline :: Bool
   , bold :: Bool
   }
-instance Monoid Format where
-  null = Format null null null null
-  Format fg1 bg1 ul1 bd1 ++ Format fg2 bg2 ul2 bd2 = Format (fg1 ++ fg2) (bg1 ++ bg2) (ul1 ++ ul2) (bd1 ++ bd2)
+makeMonoid ''Format
+
 setFG :: Color256 -> Format
 setFG fg = null { foreground = Just fg }
 setBG :: Color256 -> Format
@@ -32,8 +33,6 @@ setBD = null { bold = True }
 
 data Chunk = Text String | Newline
 type POut = FreeMonoidFunctor ((,) Format) Chunk
-outP :: P POut
-outP = P
 
 data Layout = Flat | Break
   deriving (Eq, Ord)
@@ -45,20 +44,11 @@ data PEnv = PEnv
   , layout :: Layout
   , failure :: Failure
   , nesting :: Int
-  , wrap :: Bool
+  , level :: Int
+  , bumped :: Bool
   }
-maxColumnWidthL :: Lens PEnv Int
-maxColumnWidthL = lens maxColumnWidth $ \ e w -> e { maxColumnWidth = w }
-maxRibbonWidthL :: Lens PEnv Int
-maxRibbonWidthL = lens maxRibbonWidth $ \ e w -> e { maxRibbonWidth = w }
-layoutL :: Lens PEnv Layout
-layoutL = lens layout $ \ e l -> e { layout = l }
-failureL :: Lens PEnv Failure
-failureL = lens failure $ \ e f -> e { failure = f }
-nestingL :: Lens PEnv Int
-nestingL = lens nesting $ \ e n -> e { nesting = n }
-wrapL :: Lens PEnv Bool
-wrapL = lens wrap $ \ e p -> e { wrap = p }
+makeLenses ''PEnv
+
 env0 :: PEnv
 env0 = PEnv
   { maxColumnWidth = 100
@@ -66,17 +56,15 @@ env0 = PEnv
   , layout = Break
   , failure = CantFail
   , nesting = 0
-  , wrap = False
+  , level = 0
+  , bumped = False
   }
 
 data PState = PState
   { column :: Int
   , ribbon :: Int
   }
-columnL :: Lens PState Int
-columnL = lens column $ \ s c -> s { column = c }
-ribbonL :: Lens PState Int
-ribbonL = lens ribbon $ \ s r -> s { ribbon = r }
+makeLenses ''PState
 state0 :: PState
 state0 = PState
   { column = 0
@@ -84,13 +72,14 @@ state0 = PState
   }
 
 type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadMaybe m)
+
 -- }}} ---
 
 -- Low Level Interface {{{ --
 
 text :: (MonadPretty m) => String -> m ()
 text o = do
-  tellP outP $ unit $ Text o
+  tell $ unit $ Text o
   modifyL columnL $ (+) $ size o
   modifyL ribbonL $ (+) $ countNonSpace o
   f <- askL failureL
@@ -125,7 +114,7 @@ mustBreak = (>>) $ whenFlat abort
 
 hardLine :: (MonadPretty m) => m ()
 hardLine = do
-  tellP outP $ unit $ Text "\n"
+  tell $ unit $ Text "\n"
   putL columnL 0
   putL ribbonL 0
 
@@ -156,7 +145,7 @@ align aM = do
 format :: (MonadPretty m) => Format -> m a -> m a
 format f aM = do
   (a, o) <- hijack aM
-  tellP outP $ MFApply (f, o)
+  tell $ MFApply (f, o)
   return a
 
 -- }}} --
@@ -178,32 +167,44 @@ hsepTight = exec . intersperse (ifFlat (return ()) (space 1))
 hvsepTight :: (MonadPretty m) => [m ()] -> m ()
 hvsepTight = group . exec . intersperse (ifFlat (return ()) newline)
 
+botLevel :: (MonadPretty m) => m () -> m ()
+botLevel = local $ set levelL 0 . set bumpedL False
+
 parens :: (MonadPretty m) => m () -> m ()
 parens aM = do
   format punFmt $ text "("
-  align aM
+  botLevel $ align aM
   format punFmt $ text ")"
 
-wrapped :: (MonadPretty m) => m () -> m ()
-wrapped = localSetL wrapL True
+atLevel :: (MonadPretty m) => Int -> m () -> m ()
+atLevel i' aM = do
+  i <- askL levelL 
+  b <- askL bumpedL
+  if i < i' || (i == i' && not b)
+    then local (set levelL i' . set bumpedL False) aM
+    else parens aM
 
-unwrapped :: (MonadPretty m) => m () -> m ()
-unwrapped = localSetL wrapL False
+bump :: (MonadPretty m) => m a -> m a
+bump = local $ set bumpedL True
 
-parensIfWrapped :: (MonadPretty m) => m () -> m ()
-parensIfWrapped aM = do
-  w <- askL wrapL
-  if w then parens $ unwrapped aM else unwrapped aM
+inf :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
+inf i oM x1M x2M = atLevel i $ bump x1M >> oM >> bump x2M
+
+infL :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
+infL i oM x1M x2M = atLevel i $ x1M >> oM >> bump x2M
+
+infR :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
+infR i oM x1M x2M = atLevel i $ bump x1M >> oM >> x2M
 
 app :: (MonadPretty m) => [m ()] -> m ()
-app = align . parensIfWrapped . wrapped . hvsep .^ align
+app = atLevel 100 . hvsep . map (align . bump)
 
 collection :: (MonadPretty m) => String -> String -> String -> [m ()] -> m ()
-collection open close _ [] = pun open >> pun close
-collection open close sep (x:xs) = group $ unwrapped $ hvsepTight $ concat
-  [ return $ hsepTight [pun open, align x]
-  , mapOn xs $ \ x' -> hsepTight [pun sep, align x']
-  , return $ pun close
+collection open close _   []     = pun open >> pun close
+collection open close sep (x:xs) = group $ hvsepTight $ concat
+  [ single $ hsepTight [pun open, botLevel $ align x]
+  , mapOn xs $ \ x' -> hsepTight [pun sep, botLevel $ align x']
+  , single $ pun close
   ]
 
 keyPunFmt :: Format
@@ -260,12 +261,7 @@ heading = format headingFmt . text
 
 newtype DocM a = DocM { unDocM :: RWST PEnv POut PState Maybe a }
   deriving 
-    ( Unit
-    , Functor
-    , Product
-    , Applicative
-    , Bind
-    , Monad
+    ( Unit, Functor, Product, Applicative, Bind, Monad
     , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
     , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
     , MonadStateI PState, MonadStateE PState, MonadState PState
@@ -334,6 +330,9 @@ instance Bifunctorial Pretty (,) where
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
   pretty (Inl a) = app [con "Inl", pretty a]
   pretty (Inr b) = app [con "Inr", pretty b]
+instance (Pretty a) => Pretty (Maybe a) where
+  pretty (Just a) = pretty a
+  pretty Nothing = con "Nothing"
 instance (Pretty a) => Pretty [a] where
   pretty = collection "[" "]" "," . map pretty
 instance Functorial Pretty [] where functorial = W
@@ -349,14 +348,13 @@ instance (Functorial Pretty f) => Pretty (Fix f) where
     with (functorial :: W (Pretty (f (Fix f)))) $
     pretty f
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
-  pretty (Stamped a f) = parensIfWrapped $ exec [pretty a, pun ":", pretty f]
+  pretty (Stamped a f) = exec [pretty a, pun ":", pretty f]
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
-    with (functorial :: W (Pretty (f (StampedFix a f)))) $ parensIfWrapped $
+    with (functorial :: W (Pretty (f (StampedFix a f)))) $ 
     exec [pretty a, pun ":", pretty f]
 
 instance (Pretty a) => Pretty (ID a) where
-  --pretty (ID a) = app [con "ID", pretty a]
   pretty (ID a) = pretty a
 instance Functorial Pretty ID where
   functorial = W
@@ -364,13 +362,11 @@ instance Functorial Pretty ID where
 instance (Functorial Pretty m, Pretty e, Pretty a) => Pretty (ErrorT e m a) where
   pretty (ErrorT aM) =
     with (functorial :: W (Pretty (m (e :+: a)))) $
-    -- app [con "ErrorT", pretty aM]
     pretty aM
 
 instance (Functorial Pretty m, Pretty a) => Pretty (ListT m a) where
   pretty (ListT aM) =
     with (functorial :: W (Pretty (m [a]))) $
-    --app [con "ListT", pretty aM]
     pretty aM
     
 -- }}}

@@ -12,40 +12,47 @@ version:             0.1.0.0
 library
   hs-source-dirs:      src
   exposed-modules:     FP
-                     , MAAM
-                     , Examples
                      , FP.Console
                      , FP.Core
+                     , FP.DerivingLens
+                     , FP.DerivingPrism
                      , FP.Free
+                     , FP.GHCI
                      , FP.Monads
                      , FP.Parser
                      , FP.Pretty
-                     , Lang.Lam
-                     , Lang.Lam.Analyses
-                     , Lang.Lam.Parser
-                     , Lang.Lam.Syntax
-                     , Lang.Lam.CPS.Syntax
-                     , Lang.Lam.CPS.MonadicSemantics
-                     , Lang.Lam.CPS.Classes.Delta
-                     , Lang.Lam.CPS.Instances.Delta
-                     , Lang.Lam.CPS.Instances.Monads
-                     , Lang.Lam.CPS.Instances.PrettySyntax
-                     , Lang.Lam.Instances.PrettySyntax
-                     , Lang.Lam.Passes.A_Stamp
-                     , Lang.Lam.Passes.B_CPSConvert
+                     , FP.TH
+                     , MAAM
                      , MAAM.Classes
-                     , MAAM.Instances
                      , MAAM.Classes.AAM
                      , MAAM.Classes.MonadStep
                      , MAAM.Classes.Temporal
+                     , MAAM.Instances
                      , MAAM.Instances.AAM
                      , MAAM.Instances.MonadStep
                      , MAAM.Instances.Temporal
+                     -- , Examples
+                     -- , Lang.Lam
+                     -- , Lang.Lam.Analyses
+                     -- , Lang.Lam.CPS.Classes.Delta
+                     -- , Lang.Lam.CPS.Instances.Delta
+                     -- , Lang.Lam.CPS.Instances.Monads
+                     -- , Lang.Lam.CPS.Instances.PrettySyntax
+                     -- , Lang.Lam.CPS.MonadicSemantics
+                     -- , Lang.Lam.CPS.Syntax
+                     -- , Lang.Lam.Instances.PrettySyntax
+                     -- , Lang.Lam.Parser
+                     -- , Lang.Lam.Passes.A_Stamp
+                     -- , Lang.Lam.Passes.B_CPSConvert
+                     -- , Lang.Lam.Syntax
   build-depends:       base
                      , containers
                      , text
+                     , template-haskell
+                     , directory
+                     , Cabal
   default-language:    Haskell2010
-  ghc-options:         -Wall -fno-warn-amp -fno-warn-orphans
+  ghc-options:         -Wall -fno-warn-amp -fno-warn-orphans -isrc
   default-extensions:  ConstraintKinds
                      , ExplicitNamespaces
                      , FlexibleContexts
@@ -73,6 +80,7 @@ library
                      , UndecidableInstances
                      , ViewPatterns
                      , DataKinds
+                     , TemplateHaskell
 
 executable runquals
   build-depends: maam == 0.1.*

@@ -30,8 +30,8 @@ applyFormat :: Format -> String -> String
 applyFormat (Format fg bg ul bd) s = concat
   [ leader 
   , concat $ intersperse ";" $ mconcat
-    [ maybe $ fgCode ^$ fg
-    , maybe $ bgCode ^$ bg
+    [ liftMaybeZero $ fgCode ^$ fg
+    , liftMaybeZero $ bgCode ^$ bg
     , guard ul >> return ulCode
     , guard bd >> return bdCode
     ]

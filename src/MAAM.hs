@@ -1,7 +1,9 @@
 module MAAM
-  ( module MAAM.Classes
-  , module MAAM.Instances
+  ( module MAAM.Initial
+  , module MAAM.MonadStep
+  , module MAAM.Time
   ) where
 
-import MAAM.Classes
-import MAAM.Instances
+import MAAM.Initial
+import MAAM.MonadStep
+import MAAM.Time

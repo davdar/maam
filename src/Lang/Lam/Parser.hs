@@ -4,8 +4,8 @@ import FP
 import FP.Parser
 import qualified FP.Pretty as P
 import Lang.Lam.Syntax
+import Lang.Common
 import qualified Prelude as Prelude
-import Lang.Lam.Instances.PrettySyntax ()
 
 data TokenType =
     White
@@ -24,118 +24,105 @@ data Token = Token
   }
   deriving (Eq, Ord)
 instance Pretty Token where
-  pretty (Token t s) = P.app [P.con "Token", pretty t, pretty s]
+  pretty (Token t s) = P.app [pretty t, pretty s]
 
-charP :: P Char
-charP = P
-
-tokenP :: P Token
-tokenP = P
+-- Lexing {{{
 
 white :: Parser Char String
-white = fromChars ^$ oneOrMoreList $ satisfies isSpace $ P.text "a space"
+white = fromChars ^$ oneOrMoreList $ satisfies isSpace
 
-string :: String -> Parser Char String
-string = fromChars ^. word . toChars
+litTok :: String -> Parser Char String
+litTok = fromChars ^. word . toChars
 
 numLit :: Parser Char String
-numLit = fromChars ^$ oneOrMoreList $ satisfies isDigit $ P.text "a digit"
+numLit = fromChars ^$ oneOrMoreList $ satisfies isDigit
 
 ident :: Parser Char String
-ident = fromChars ^$ oneOrMoreList $ satisfies (isLetter \/ isDigit \/ (==) '-' \/ (==) '_') $ P.text "a valid identifier"
+ident = fromChars ^$ oneOrMoreList $ satisfies (isLetter \/ isDigit \/ (==) '-' \/ (==) '_')
 
 token :: Parser Char Token
 token = mconcat
   [ Token White ^$ white
-  , Token Key ^$ mconcat
-      [ string "("
-      , string ")"
-      , string "let"
-      , string ":="
-      , string "in"
-      , string "λ"
-      , string "."
-      , string "begin"
-      , string "end"
-      , string "if"
-      , string "then"
-      , string "else"
-      , string "T"
-      , string "F"
-      , string "+"
-      , string "*"
-      , string "-"
+  , Token Key ^$ mconcat $ map litTok
+      [ "("
+      , ")"
+      , "let"
+      , ":="
+      , "in"
+      , "lam"
+      , "."
+      , "begin"
+      , "end"
+      , "if"
+      , "then"
+      , "else"
+      , "T"
+      , "F"
+      , "+"
+      , "*"
+      , "-"
       ]
   , Token Num ^$ numLit
   , Token Id ^$ ident
   ] 
 
-pun :: String -> Parser Token ()
-pun = void . lit . Token Key
+-- }}}
 
-nameExp :: Parser Token Name
-nameExp = Name . tokenVal ^$ satisfies ((==) Id . tokenType) $ P.text "an identifier"
+-- Parsing {{{
+
+key :: String -> Parser Token ()
+key = void . lit . Token Key
 
 litExp :: Parser Token Lit
 litExp = mconcat
-  [ I . Prelude.read . toChars . tokenVal ^$ satisfies ((==) Num . tokenType) $ P.text "a number"
+  [ I . Prelude.read . toChars . tokenVal ^$ satisfies ((==) Num . tokenType)
   , const (B True) ^$ lit $ Token Key "T"
   , const (B False) ^$ lit $ Token Key "T"
   ]
 
+nameExp :: Parser Token Name
+nameExp = Name . tokenVal ^$ satisfies ((==) Id . tokenType)
+
 letExp :: Parser Token Exp
-letExp = do
-  pun "let"
+letExp = ff ^$ pre 0 "let" letin exp
+  where
+    ff (xe1s, e2) = foldrOn xe1s e2 $ \ (x, e1) e -> Fix $ Let x e1 e
+
+letin :: Parser Token (Name, Exp)
+letin = closed (key "let") (key "in") $ do
   x <- nameExp
-  pun ":="
-  e1 <- openExp
-  pun "in"
-  e2 <- openExp
-  return $ Fix $ Let x e1 e2
+  key ":="
+  e1 <- exp
+  return (x, e1)
 
 lamExp :: Parser Token Exp
-lamExp = do
-  pun "λ"
-  x <- nameExp
-  pun "."
-  e <- openExp
-  return $ Fix $ Lam x e
+lamExp = ff ^$ pre 0 "lam" lamdot exp
+  where
+    ff (bs, e) = foldrOn bs e $ Fix .: Lam
 
-parenExp :: Parser Token Exp
-parenExp = do
-  pun "("
-  e <- openExp
-  pun ")"
-  return e
+lamdot :: Parser Token Name
+lamdot = closed (key "lam") (key ".") nameExp
 
 appExp :: Parser Token Exp
-appExp = do
-  (e1, e2, es) <- twoOrMore closedExp
-  return $ iter (\ a f -> Fix $ App f a) (Fix $ App e1 e2) es
+appExp = juxtL 100 "app" exp $ Fix .: App
 
-openExp :: Parser Token Exp
-openExp = mconcat
-  [ appExp
-  , closedExp
-  ]
-
-closedExp :: Parser Token Exp
-closedExp = mconcat
-  [ letExp
-  , lamExp
-  , Fix . Lit ^$ litExp
+exp :: Parser Token Exp
+exp = mconcat
+  [ Fix . Lit ^$ litExp
   , Fix . Var ^$ nameExp
-  , parenExp
+  , closed (key "(") (key ")") exp
+  , letExp
+  , lamExp
+  , appExp
   ]
+
+-- }}}
 
 whitespaceFilter :: Token -> Bool
 whitespaceFilter = (==) White . tokenType
 
-parseLam :: String -> Doc :+: Exp
-parseLam = parseExp openExp
+parseE :: (Pretty a) => Parser Token a -> String -> ParseError Char Token a :+: a
+parseE p input = parse token whitespaceFilter (final p) $ toChars input
 
-parseExp :: Parser Token Exp -> String -> Doc :+: Exp
-parseExp p input = Inl $ pretty $ parse token whitespaceFilter (final p) $ toChars input
-
-testInput :: String
-testInput = "let x := 5 in y"
+parseExp :: String -> ParseError Char Token Exp :+: Exp
+parseExp = parseE exp
