@@ -271,10 +271,9 @@ kreturn' k v = case k of
   FieldRefL i κ -> do
     return (i, FieldRefR v κ)
   FieldRefR o κ -> do
-    let v' = do
-          Obj fields <- coerceObjSet *$ o
-          fieldname <- coerceStrSet *$ v
-          maybeElim (singleton $ LitA UndefinedL) id $ fields # fieldname
+    σ <- getL storeL
+    let fieldnames = coerceStrSet *$ v
+        v' = prototypalLookup σ o *$ fieldnames
     kreturn' κ v'
   FieldSetA i e κ -> do
     return (i, FieldSetN v e κ)
@@ -319,6 +318,31 @@ kreturn' k v = case k of
         v'   = mjoin . liftMaybeSet . index σ *$ locs
     kreturn' κ v'
 
+prototypalLookup :: Store -> Set AValue -> String -> Set AValue
+prototypalLookup σ o fieldname = do
+  Obj fields <- coerceObjSet *$ o
+  case fields # fieldname of
+    Just v -> v
+    Nothing ->
+      case fields # "__proto__" of
+        Nothing ->
+          singleton $ LitA UndefinedL
+        Just avs ->
+          avs >>= lookupInParent
+  where
+    lookupInParent av =
+      case av of
+        LitA NullL ->
+          singleton $ LitA UndefinedL
+        (LocA l) ->
+          case σ # l of
+            Nothing -> singleton $ LitA UndefinedL
+            Just vs -> prototypalLookup σ vs fieldname
+        _ ->
+          -- __proto__ has been set to something other than an object
+          -- I *think* this case is exactly the same as LitA NullL, but
+          -- λJS doesn't actually specify what to do in this case
+          singleton $ LitA UndefinedL
 
 var :: (Analysis ς m) => SName -> m SExp
 var x = do
