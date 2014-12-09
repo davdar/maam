@@ -40,7 +40,13 @@ instance Pretty Lit where
 --   deriving (Eq, Ord)
 -- instance PartialOrder Op where pcompare = discreteOrder
 
-data PreExp n e =
+newtype Label = Label String
+              deriving (Eq, Ord)
+
+instance Pretty Label where
+  pretty (Label s) = pretty s
+
+data PreExp n ln e =
     Lit Lit
   | Var n
   | Func n e
@@ -51,14 +57,22 @@ data PreExp n e =
   | FieldRef e e
   | FieldSet e e e
   | Delete e e
-  -- | If e e e
     -- Fig 2. Mutable References
   | RefSet e e
   | Ref e
   | DeRef e
+    -- Fig 8. Control Operators
+  | If e e e
+  | Seq e e
+  | While e e
+  | LabelE ln e
+  | Break ln e
+  | TryCatch e n e
+  | TryFinally e e
+  | Throw e
   deriving (Eq, Ord)
-type Exp = Fix (PreExp Name)
-type SExp = StampedFix LocNum (PreExp SName)
+type Exp = Fix (PreExp Name Label)
+type SExp = StampedFix LocNum (PreExp SName Label)
 
 instance Pretty Name where
   pretty (Name s) = P.bdr s
@@ -71,7 +85,7 @@ instance Pretty GName where
     ]
 instance Pretty BdrNum where
   pretty (BdrNum i) = P.format (P.setFG 2) $ P.text $ ptoString i
-instance (Pretty n, Pretty e) => Pretty (PreExp n e) where
+instance (Pretty n, Pretty e, Pretty ln) => Pretty (PreExp n ln e) where
   pretty (Lit l) = pretty l
   pretty (Var n) = pretty n
   -- pretty (Lam n e) = P.parensIfWrapped $ P.nest 2 $ P.hvsep
@@ -89,5 +103,5 @@ instance (Pretty n, Pretty e) => Pretty (PreExp n e) where
   --   , P.hvsep [P.key "then", pretty te]
   --   , P.hvsep [P.key "else", pretty fe]
   --   ]
-instance (Pretty n) => Functorial Pretty (PreExp n) where
+instance (Pretty n, Pretty ln) => Functorial Pretty (PreExp n ln) where
   functorial = W

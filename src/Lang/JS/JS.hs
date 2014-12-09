@@ -27,12 +27,22 @@ data Kon = HaltK
            -- Property Deletion
          | DeleteL SExp         Kon
          | DeleteR (Set AValue) Kon
-         -- | IfK SExp SExp Kon
            -- Fig 2. Mutable References
          | RefSetL SExp Kon
          | RefSetR (Set AValue) Kon
          | RefK Kon
          | DeRefK Kon
+           -- Fig 8. Control Operators
+         | IfK SExp SExp Kon
+         | SeqK SExp Kon
+         | WhileL SExp SExp Kon
+         | WhileR SExp SExp Kon
+         | LabelK Label Kon
+         | BreakK Label Kon
+         | TryCatchK SExp SName Kon
+         | TryFinallyL SExp Kon
+         | TryFinallyR (Set AValue) Kon
+         | ThrowK Kon
          deriving (Eq, Ord)
 
 instance Pretty Kon where
@@ -93,7 +103,6 @@ instance Pretty Kon where
                                , P.lit "□"
                                , P.lit "]"
                                ]
-  -- pretty (IfK tb fb k) = P.app [P.lit "□", pretty tb, pretty fb, pretty k]
   -- Fig 2. Mutable References
   pretty (RefSetL e k) = P.app [ P.lit "□"
                                , P.lit " := "
@@ -105,7 +114,64 @@ instance Pretty Kon where
                                 ]
   pretty (RefK k) = P.lit "RefK"
   pretty (DeRefK k) = P.lit "DeRefK"
-
+  -- Fig 8. Control Operators
+  pretty (IfK tb fb k) = P.app [ P.lit "□"
+                               , pretty tb
+                               , pretty fb
+                               ]
+  pretty (SeqK e k) = P.app [ P.lit "□ ;"
+                            , pretty e
+                            ]
+  pretty (WhileL c b κ) = P.app [ P.lit "while □ {"
+                                , pretty b
+                                , P.lit "}"
+                                ]
+  pretty (WhileR c b κ) = P.app [ P.lit "while "
+                                , pretty c
+                                , P.lit "{"
+                                , P.lit "□"
+                                , P.lit "}"
+                                ]
+  pretty (LabelK l k) = P.app [ P.lit "label"
+                              , pretty l
+                              , P.lit ": □"
+                              ]
+  pretty (BreakK l k) = P.app [ P.lit "break"
+                              , pretty l
+                              , P.lit ":"
+                              , P.lit ": □"
+                              ]
+  pretty (TryCatchK e n k) = P.app [ P.lit "try"
+                                   , P.lit "{"
+                                   , P.lit "□"
+                                   , P.lit "}"
+                                   , P.lit "catch"
+                                   , P.lit "("
+                                   , pretty n
+                                   , P.lit ")"
+                                   , P.lit "}"
+                                   , pretty e
+                                   , P.lit "}"
+                                   ]
+  pretty (TryFinallyL e k) = P.app [ P.lit "try"
+                                   , P.lit "{"
+                                   , P.lit "□"
+                                   , P.lit "}"
+                                   , P.lit "finally"
+                                   , P.lit "{"
+                                   , pretty e
+                                   , P.lit "}"
+                                   ]
+  pretty (TryFinallyR v k) = P.app [ P.lit "try"
+                                   , P.lit "{"
+                                   , pretty v
+                                   , P.lit "}"
+                                   , P.lit "finally"
+                                   , P.lit "{"
+                                   , P.lit "□"
+                                   , P.lit "}"
+                                   ]
+  pretty (ThrowK k) = P.app [ P.lit "throw" ]
 
 class
   ( Monad m
@@ -218,9 +284,6 @@ eval e =
     Delete o i -> do
       modifyL konL (DeleteL i)
       return o
-    -- If c tb fb -> do
-    --   modifyL konL (IfK tb fb)
-    --   return c
     -- Fig 2. Mutable References
     RefSet l v -> do
       modifyL konL (RefSetL v)
@@ -231,6 +294,31 @@ eval e =
     DeRef l -> do
       modifyL konL DeRefK
       return l
+    -- Fig 8. Control Operators
+    If c tb fb -> do
+      modifyL konL $ IfK tb fb
+      return c
+    Seq e₁ e₂ -> do
+      modifyL konL $ SeqK e₂
+      return e₁
+    While c b -> do
+      modifyL konL $ WhileL c b
+      return c
+    LabelE ln e -> do
+      modifyL konL $ LabelK ln
+      return e
+    Break ln e -> do
+      modifyL konL $ BreakK ln
+      return e
+    TryCatch e₁ n e₂ -> do
+      modifyL konL $ TryCatchK e₂ n
+      return e₁
+    TryFinally e₁ e₂ -> do
+      modifyL konL $ TryFinallyL e₂
+      return e₁
+    Throw e -> do
+      modifyL konL $ ThrowK
+      return e
 
 bind :: (Analysis ς m) => SName -> Set AValue -> m ()
 bind x v = do
@@ -317,6 +405,42 @@ kreturn' k v = case k of
     let locs = v >>= coerceLocSet
         v'   = mjoin . liftMaybeSet . index σ *$ locs
     kreturn' κ v'
+  -- Fig 8. Control Operators
+  IfK tb fb κ -> do
+    b <- coerceBool *$ mset v
+    if b
+      then return (tb, κ)
+      else return (fb, κ)
+  SeqK e₂ κ -> do
+    return (e₂, κ)
+  WhileL c e κ -> do
+    b <- coerceBool *$ mset v
+    if b
+      then return (e, WhileR c e κ)
+      else kreturn' κ $ singleton $ LitA UndefinedL
+  WhileR c b κ -> do
+    return (c, WhileL c b κ)
+  LabelK _ln κ -> do
+    kreturn' κ v
+  BreakK ln κ -> do
+    let κ' = popToLabel ln κ
+    kreturn' κ' v
+  TryCatchK _e₂ _n κ -> do
+    kreturn' κ v
+  TryFinallyL e₂ κ -> do
+    return (e₂, (TryFinallyR v κ))
+  TryFinallyR result κ -> do
+    kreturn' κ result
+  ThrowK κ -> do
+    let κ' = popThrow κ
+    kreturn' κ' v
+
+popToLabel :: Label -> Kon -> Kon
+popToLabel ln κ = undefined
+
+
+popThrow :: Kon -> Kon
+popThrow κ = undefined
 
 prototypalLookup :: Store -> Set AValue -> String -> Set AValue
 prototypalLookup σ o fieldname = do
