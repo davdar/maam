@@ -7,6 +7,8 @@ import FP.Pretty (Pretty(..))
 import qualified FP.Pretty as P
 import FP.DerivingLens
 
+-- TODO: factor out the LHS for infix and things so that we don't backtrack too much for (a) | (a + a) ...
+
 data ParserState t = ParserState 
   { parserStateStream :: [t]
   , parserStateConsumed :: Int

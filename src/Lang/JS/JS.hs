@@ -4,7 +4,7 @@ import FP hiding (Kon)
 import Lang.JS.Syntax
 import MAAM
 import qualified FP.Pretty as P
-import Lang.CPS.Syntax (prettyLam)
+import Lang.Common (VarLam(..))
 
 -- what changed
 -- msumVals -> mset
@@ -147,7 +147,7 @@ instance (Eq a) => (MapLike a v [(a, v)]) where
   -- fuck it
 
 instance Pretty Clo where
-  pretty (Clo x b) = prettyLam [x] b
+  pretty (Clo x b) = pretty $ VarLam [x] b
 instance Pretty Obj where
   pretty (Obj fds) =
     P.nest 2 $ P.hvsep
