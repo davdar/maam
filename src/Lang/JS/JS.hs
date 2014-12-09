@@ -1,6 +1,6 @@
 module Lang.JS.JS where
 
-import FP hiding (Kon)
+import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
 import qualified FP.Pretty as P
@@ -11,167 +11,169 @@ import Lang.Common (VarLam(..))
 -- pmodify -> mapModify (and other friends, no more p prefixing)
 -- ssingleton -> singleton
 
-data Kon = HaltK
-         -- | PrimK Op Kon
-         | LetK SName SExp Kon
-         | AppL SExp Kon
-         | AppR (Set AValue) Kon
-         | ObjK [(String, (Set AValue))] SName [(SName, SExp)] Kon
-           -- Array Dereferencing
-         | FieldRefL SExp         Kon
-         | FieldRefR (Set AValue) Kon
-           -- Array Assignment
-         | FieldSetA SExp         SExp         Kon
-         | FieldSetN (Set AValue) SExp         Kon
-         | FieldSetV (Set AValue) (Set AValue) Kon
-           -- Property Deletion
-         | DeleteL SExp         Kon
-         | DeleteR (Set AValue) Kon
-           -- Fig 2. Mutable References
-         | RefSetL SExp Kon
-         | RefSetR (Set AValue) Kon
-         | RefK Kon
-         | DeRefK Kon
-           -- Fig 8. Control Operators
-         | IfK SExp SExp Kon
-         | SeqK SExp Kon
-         | WhileL SExp SExp Kon
-         | WhileR SExp SExp Kon
-         | LabelK Label Kon
-         | BreakK Label Kon
-         | TryCatchK SExp SName Kon
-         | TryFinallyL SExp Kon
-         | TryFinallyR (Set AValue) Kon
-         | ThrowK Kon
-         deriving (Eq, Ord)
+data Frame = LetK SName SExp
+           | AppL SExp
+           | AppR (Set AValue)
+           | ObjK [(String, (Set AValue))] SName [(SName, SExp)]
+             -- Array Dereferencing
+           | FieldRefL SExp
+           | FieldRefR (Set AValue)
+             -- Array Assignment
+           | FieldSetA SExp         SExp
+           | FieldSetN (Set AValue) SExp
+           | FieldSetV (Set AValue) (Set AValue)
+             -- Property Deletion
+           | DeleteL SExp
+           | DeleteR (Set AValue)
+             -- Fig 2. Mutable References
+           | RefSetL SExp
+           | RefSetR (Set AValue)
+           | RefK
+           | DeRefK
+             -- Fig 8. Control Operators
+           | IfK SExp SExp
+           | SeqK SExp
+           | WhileL SExp SExp
+           | WhileR SExp SExp
+           | LabelK Label
+           | BreakK Label
+           | TryCatchK SExp SName
+           | TryFinallyL SExp
+           | TryFinallyR (Set AValue)
+           | ThrowK
+           deriving (Eq, Ord)
 
-instance Pretty Kon where
-  pretty (HaltK) = P.con "HALT"
+newtype FramePtr = FramePtr Int
+                   deriving (Eq, Ord, Peano)
+newtype Kon = Kon [Frame]
+type KStore = Map FramePtr (Frame, FramePtr)
+
+instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
-  pretty (LetK x b k) = P.app [P.con "let", pretty x, P.lit "= □", pretty b, pretty k]
-  pretty (AppL a k) = P.app [P.lit "□", pretty a, pretty k]
-  pretty (AppR v k) = P.app [pretty v, P.lit "□", pretty k]
-  pretty (ObjK vs n es k) = P.app [ P.lit "{ ..."
-                                  , pretty n
-                                  , P.lit ":"
-                                  , P.lit "□ ,"
-                                  , P.lit "... }"
-                                  ]
+  pretty (LetK x b) = P.app [P.con "let", pretty x, P.lit "= □", pretty b]
+  pretty (AppL a) = P.app [P.lit "□", pretty a]
+  pretty (AppR v) = P.app [pretty v, P.lit "□"]
+  pretty (ObjK vs n es) = P.app [ P.lit "{ ..."
+                                , pretty n
+                                , P.lit ":"
+                                , P.lit "□ ,"
+                                , P.lit "... }"
+                                ]
   -- Array Dereferencing
-  pretty (FieldRefL i k) = P.app [ P.lit "□"
-                                 , P.lit "["
-                                 , pretty i
-                                 , P.lit "]"
-                                 ]
-  pretty (FieldRefR a k) = P.app [ pretty a
-                                 , P.lit "["
-                                 , P.lit "□"
-                                 , P.lit "]"
-                                 ]
+  pretty (FieldRefL i) = P.app [ P.lit "□"
+                               , P.lit "["
+                               , pretty i
+                               , P.lit "]"
+                               ]
+  pretty (FieldRefR a) = P.app [ pretty a
+                               , P.lit "["
+                               , P.lit "□"
+                               , P.lit "]"
+                               ]
   -- Array Assignment
-  pretty (FieldSetA   i e k) = P.app [ P.lit "□"
-                                     , P.lit "["
-                                     , pretty i
-                                     , P.lit "]"
-                                     , P.lit "="
-                                     , pretty e
-                                     ]
-  pretty (FieldSetN a   e k) = P.app [ pretty a
-                                     , P.lit "["
-                                     , P.lit "□"
-                                     , P.lit "]"
-                                     , P.lit "="
-                                     , pretty e
-                                     ]
-  pretty (FieldSetV a v   k) = P.app [ pretty a
-                                     , P.lit "["
-                                     , pretty v
-                                     , P.lit "]"
-                                     , P.lit "="
-                                     , P.lit "□"
-                                     ]
-  -- Property Deletion
-  pretty (DeleteL e k) = P.app [ P.lit "delete"
-                               , P.lit "□"
-                               , P.lit "["
-                               , pretty e
-                               , P.lit "]"
-                               ]
-  pretty (DeleteR a k) = P.app [ P.lit "delete"
-                               , pretty a
-                               , P.lit "["
-                               , P.lit "□"
-                               , P.lit "]"
-                               ]
-  -- Fig 2. Mutable References
-  pretty (RefSetL e k) = P.app [ P.lit "□"
-                               , P.lit " := "
-                               , pretty e
-                               ]
-  pretty (RefSetR v k)  = P.app [ pretty v
-                                , P.lit " := "
-                                , P.lit "□"
-                                ]
-  pretty (RefK k) = P.lit "RefK"
-  pretty (DeRefK k) = P.lit "DeRefK"
-  -- Fig 8. Control Operators
-  pretty (IfK tb fb k) = P.app [ P.lit "□"
-                               , pretty tb
-                               , pretty fb
-                               ]
-  pretty (SeqK e k) = P.app [ P.lit "□ ;"
-                            , pretty e
-                            ]
-  pretty (WhileL c b κ) = P.app [ P.lit "while □ {"
-                                , pretty b
-                                , P.lit "}"
-                                ]
-  pretty (WhileR c b κ) = P.app [ P.lit "while "
-                                , pretty c
-                                , P.lit "{"
-                                , P.lit "□"
-                                , P.lit "}"
-                                ]
-  pretty (LabelK l k) = P.app [ P.lit "label"
-                              , pretty l
-                              , P.lit ": □"
-                              ]
-  pretty (BreakK l k) = P.app [ P.lit "break"
-                              , pretty l
-                              , P.lit ":"
-                              , P.lit ": □"
-                              ]
-  pretty (TryCatchK e n k) = P.app [ P.lit "try"
-                                   , P.lit "{"
-                                   , P.lit "□"
-                                   , P.lit "}"
-                                   , P.lit "catch"
-                                   , P.lit "("
-                                   , pretty n
-                                   , P.lit ")"
-                                   , P.lit "}"
+  pretty (FieldSetA   i e) = P.app [ P.lit "□"
+                                   , P.lit "["
+                                   , pretty i
+                                   , P.lit "]"
+                                   , P.lit "="
                                    , pretty e
-                                   , P.lit "}"
                                    ]
-  pretty (TryFinallyL e k) = P.app [ P.lit "try"
-                                   , P.lit "{"
+  pretty (FieldSetN a   e) = P.app [ pretty a
+                                   , P.lit "["
                                    , P.lit "□"
-                                   , P.lit "}"
-                                   , P.lit "finally"
-                                   , P.lit "{"
+                                   , P.lit "]"
+                                   , P.lit "="
                                    , pretty e
-                                   , P.lit "}"
                                    ]
-  pretty (TryFinallyR v k) = P.app [ P.lit "try"
-                                   , P.lit "{"
+  pretty (FieldSetV a v  ) = P.app [ pretty a
+                                   , P.lit "["
                                    , pretty v
-                                   , P.lit "}"
-                                   , P.lit "finally"
-                                   , P.lit "{"
+                                   , P.lit "]"
+                                   , P.lit "="
                                    , P.lit "□"
-                                   , P.lit "}"
                                    ]
-  pretty (ThrowK k) = P.app [ P.lit "throw" ]
+  -- Property Deletion
+  pretty (DeleteL e) = P.app [ P.lit "delete"
+                             , P.lit "□"
+                             , P.lit "["
+                             , pretty e
+                             , P.lit "]"
+                             ]
+  pretty (DeleteR a) = P.app [ P.lit "delete"
+                             , pretty a
+                             , P.lit "["
+                             , P.lit "□"
+                             , P.lit "]"
+                             ]
+  -- Fig 2. Mutable References
+  pretty (RefSetL e) = P.app [ P.lit "□"
+                             , P.lit " := "
+                             , pretty e
+                             ]
+  pretty (RefSetR v)  = P.app [ pretty v
+                              , P.lit " := "
+                              , P.lit "□"
+                              ]
+  pretty RefK = P.lit "RefK"
+  pretty DeRefK = P.lit "DeRefK"
+  -- Fig 8. Control Operators
+  pretty (IfK tb fb) = P.app [ P.lit "□"
+                             , pretty tb
+                             , pretty fb
+                             ]
+  pretty (SeqK e) = P.app [ P.lit "□ ;"
+                          , pretty e
+                          ]
+  pretty (WhileL c b) = P.app [ P.lit "while □ {"
+                              , pretty b
+                              , P.lit "}"
+                              ]
+  pretty (WhileR c b) = P.app [ P.lit "while "
+                              , pretty c
+                              , P.lit "{"
+                              , P.lit "□"
+                              , P.lit "}"
+                              ]
+  pretty (LabelK l) = P.app [ P.lit "label"
+                            , pretty l
+                            , P.lit ": □"
+                            ]
+  pretty (BreakK l) = P.app [ P.lit "break"
+                            , pretty l
+                            , P.lit ":"
+                            , P.lit ": □"
+                            ]
+  pretty (TryCatchK e n) = P.app [ P.lit "try"
+                                 , P.lit "{"
+                                 , P.lit "□"
+                                 , P.lit "}"
+                                 , P.lit "catch"
+                                 , P.lit "("
+                                 , pretty n
+                                 , P.lit ")"
+                                 , P.lit "}"
+                                 , pretty e
+                                 , P.lit "}"
+                                 ]
+  pretty (TryFinallyL e) = P.app [ P.lit "try"
+                                 , P.lit "{"
+                                 , P.lit "□"
+                                 , P.lit "}"
+                                 , P.lit "finally"
+                                 , P.lit "{"
+                                 , pretty e
+                                 , P.lit "}"
+                                 ]
+  pretty (TryFinallyR v) = P.app [ P.lit "try"
+                                 , P.lit "{"
+                                 , pretty v
+                                 , P.lit "}"
+                                 , P.lit "finally"
+                                 , P.lit "{"
+                                 , P.lit "□"
+                                 , P.lit "}"
+                                 ]
+  pretty ThrowK = P.app [ P.lit "throw" ]
 
 class
   ( Monad m
@@ -249,11 +251,23 @@ instance Pretty AValue where
 data Σ = Σ {
     store :: Store
   , env :: Env
-  , kon :: Kon
+  , kstore :: KStore
+  , kon :: FramePtr
   , nextLoc :: Loc
+  , nextFP :: Int
   }
 
 makeLenses ''Σ
+
+pushFrame :: (Analysis ς m) => Frame -> m ()
+pushFrame fr = do
+  fp  <- getL konL
+  fp' <- nextFramePtr
+  modifyL kstoreL $ mapInsert fp' (fr, fp)
+  putL konL fp
+
+popFrame :: (Analysis ς m) => m Frame
+popFrame = undefined
 
 eval :: (Analysis ς m) => SExp -> m SExp
 eval e =
@@ -264,60 +278,57 @@ eval e =
     ObjE [] -> do
       kreturn $ singleton $ ObjA $ Obj []
     ObjE ((n',e'):nes) -> do
-      modifyL konL (ObjK [] n' nes)
+      pushFrame (ObjK [] n' nes)
       return e'
-    -- Prim o e' -> do
-    --   modifyP konP (PrimK o)
-    --   return e'
     Let x v b -> do
-      modifyL konL (LetK x b)
+      pushFrame (LetK x b)
       return v
     App f v -> do
-      modifyL konL (AppL v)
+      pushFrame (AppL v)
       return f
     FieldRef o i -> do
-      modifyL konL (FieldRefL i)
+      pushFrame (FieldRefL i)
       return o
     FieldSet o i v -> do
-      modifyL konL (FieldSetA i v)
+      pushFrame (FieldSetA i v)
       return o
     Delete o i -> do
-      modifyL konL (DeleteL i)
+      pushFrame (DeleteL i)
       return o
     -- Fig 2. Mutable References
     RefSet l v -> do
-      modifyL konL (RefSetL v)
+      pushFrame (RefSetL v)
       return l
     Ref v -> do
-      modifyL konL RefK
+      pushFrame RefK
       return v
     DeRef l -> do
-      modifyL konL DeRefK
+      pushFrame DeRefK
       return l
     -- Fig 8. Control Operators
     If c tb fb -> do
-      modifyL konL $ IfK tb fb
+      pushFrame $ IfK tb fb
       return c
     Seq e₁ e₂ -> do
-      modifyL konL $ SeqK e₂
+      pushFrame $ SeqK e₂
       return e₁
     While c b -> do
-      modifyL konL $ WhileL c b
+      pushFrame $ WhileL c b
       return c
     LabelE ln e -> do
-      modifyL konL $ LabelK ln
+      pushFrame $ LabelK ln
       return e
     Break ln e -> do
-      modifyL konL $ BreakK ln
+      pushFrame $ BreakK ln
       return e
     TryCatch e₁ n e₂ -> do
-      modifyL konL $ TryCatchK e₂ n
+      pushFrame $ TryCatchK e₂ n
       return e₁
     TryFinally e₁ e₂ -> do
-      modifyL konL $ TryFinallyL e₂
+      pushFrame $ TryFinallyL e₂
       return e₁
     Throw e -> do
-      modifyL konL $ ThrowK
+      pushFrame $ ThrowK
       return e
 
 bind :: (Analysis ς m) => SName -> Set AValue -> m ()
@@ -328,119 +339,118 @@ bind x v = do
 
 kreturn :: (Analysis ς m) => Set AValue -> m SExp
 kreturn v = do
-  κ <- getL konL
-  (s, κ') <- kreturn' κ v
-  putL konL κ'
+  fr <- popFrame
+  s <- kreturn' v fr
   return s
 
 snameToString :: SName -> String
 snameToString = getName . stamped
 
-kreturn' :: (Analysis ς m) => Kon -> Set AValue -> m (SExp, Kon)
-kreturn' k v = case k of
-  HaltK -> mzero
-  -- PrimK o κ -> kreturn' κ $ op o v
-  LetK x b κ -> do
+kreturn' :: (Analysis ς m) => Set AValue -> Frame -> m SExp
+kreturn' v fr = case fr of
+  LetK x b -> do
     bind x v
-    return (b, κ)
-  AppL e κ ->
-    return (e, AppR v κ)
-  AppR vs κ -> do
+    return b
+  AppL e -> do
+    touchNGo e $ AppR v
+  AppR vs -> do
     Clo x b <- coerceClo *$ mset vs
     bind x v
-    return (b, κ)
-  ObjK nvs n ((n',e'):nes) κ -> do
+    return b
+  ObjK nvs n ((n',e'):nes) -> do
     let nvs' = (snameToString n, v) : nvs
-    return (e', ObjK nvs' n' nes κ)
-  ObjK nvs n [] κ -> do
+    touchNGo e' $ ObjK nvs' n' nes
+  ObjK nvs n [] -> do
     let nvs' = (snameToString n, v) : nvs
         o    = ObjA $ Obj nvs'
-    kreturn' κ $ singleton o
-  FieldRefL i κ -> do
-    return (i, FieldRefR v κ)
-  FieldRefR o κ -> do
+    tailReturn $ singleton o
+  FieldRefL i -> do
+    touchNGo i $ FieldRefR v
+  FieldRefR o -> do
     σ <- getL storeL
     let fieldnames = coerceStrSet *$ v
         v' = prototypalLookup σ o *$ fieldnames
-    kreturn' κ v'
-  FieldSetA i e κ -> do
-    return (i, FieldSetN v e κ)
-  FieldSetN o e κ -> do
-    return (e, FieldSetV o v κ)
-  FieldSetV o i κ -> do
+    tailReturn v'
+  FieldSetA i e -> do
+    touchNGo i $ FieldSetN v e
+  FieldSetN o e -> do
+    touchNGo e $ FieldSetV o v
+  FieldSetV o i -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ i
           singleton $ ObjA $ Obj $
             mapModify (\_ -> v) fieldname fields
-    kreturn' κ o'
-  DeleteL e κ -> do
-    return (e, DeleteR v κ)
-  DeleteR o κ -> do
+    tailReturn o'
+  DeleteL e -> do
+    touchNGo e $ DeleteR v
+  DeleteR o -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
           fieldname <- coerceStrSet *$ v
           singleton $ ObjA $ Obj $
             filter (\(k,_) -> k /= fieldname) fields
-    kreturn' κ o'
-  -- IfK tb fb κ -> do
-  --   v' <- coerceBool *$ msumVals v
-  --   return $ ifThenElse v' (tb, κ) (fb, κ)
+    tailReturn o'
   -- Fig 2. Mutable References
-  RefSetL e κ -> do
-    return (e, RefSetR v κ)
-  RefSetR l κ -> do
+  RefSetL e -> do
+    touchNGo e $ RefSetR v
+  RefSetR l -> do
     σ <- getL storeL
     -- TODO: This cannot possibly be the right way to do this ...
     let locs = l >>= coerceLocSet
         σ'   = foldr (\l -> (\σ -> mapInsertWith (\/) l v σ)) σ locs
     putL storeL σ'
-    kreturn' κ v
-  RefK κ -> do
+    tailReturn v
+  RefK -> do
     l <- nextLocation
     modifyL storeL $ mapInsertWith (\/) l v
-    kreturn' κ $ singleton $ LocA l
-  DeRefK κ -> do
+    tailReturn $ singleton $ LocA l
+  DeRefK -> do
     σ <- getL storeL
     let locs = v >>= coerceLocSet
         v'   = mjoin . liftMaybeSet . index σ *$ locs
-    kreturn' κ v'
+    tailReturn v'
   -- Fig 8. Control Operators
-  IfK tb fb κ -> do
+  IfK tb fb -> do
     b <- coerceBool *$ mset v
     if b
-      then return (tb, κ)
-      else return (fb, κ)
-  SeqK e₂ κ -> do
-    return (e₂, κ)
-  WhileL c e κ -> do
+      then return tb
+      else return fb
+  SeqK e₂ -> do
+    return e₂
+  WhileL c e -> do
     b <- coerceBool *$ mset v
     if b
-      then return (e, WhileR c e κ)
-      else kreturn' κ $ singleton $ LitA UndefinedL
-  WhileR c b κ -> do
-    return (c, WhileL c b κ)
-  LabelK _ln κ -> do
-    kreturn' κ v
-  BreakK ln κ -> do
-    let κ' = popToLabel ln κ
-    kreturn' κ' v
-  TryCatchK _e₂ _n κ -> do
-    kreturn' κ v
-  TryFinallyL e₂ κ -> do
-    return (e₂, (TryFinallyR v κ))
-  TryFinallyR result κ -> do
-    kreturn' κ result
-  ThrowK κ -> do
-    let κ' = popThrow κ
-    kreturn' κ' v
+      then pushFrame (WhileR c e) >> return e
+      else tailReturn $ singleton $ LitA UndefinedL
+  WhileR c b -> do
+    touchNGo c $ WhileL c b
+  LabelK _l -> do
+    tailReturn v
+  BreakK l -> do
+    popToLabel l v
+  TryCatchK _e₂ _n -> do
+    tailReturn v
+  TryFinallyL e₂ -> do
+    touchNGo e₂ $ TryFinallyR v
+  TryFinallyR result -> do
+    tailReturn result
+  ThrowK -> do
+    throw v
 
-popToLabel :: Label -> Kon -> Kon
-popToLabel ln κ = undefined
+touchNGo :: (Analysis ς m) => SExp -> Frame -> m SExp
+touchNGo e fr = do
+  pushFrame fr
+  return e
 
+tailReturn :: (Analysis ς m) => Set AValue -> m SExp
+tailReturn v = popFrame >>= (kreturn' v)
 
-popThrow :: Kon -> Kon
-popThrow κ = undefined
+popToLabel :: (Analysis ς m) => Label -> Set AValue -> m SExp
+popToLabel l v = undefined
+
+throw :: (Analysis ς m) => Set AValue -> m SExp
+throw v = undefined
 
 prototypalLookup :: Store -> Set AValue -> String -> Set AValue
 prototypalLookup σ o fieldname = do
@@ -502,6 +512,9 @@ coerceLocSet = undefined
 
 nextLocation :: (Analysis ς m) => m Loc
 nextLocation = undefined
+
+nextFramePtr :: (Analysis ς m) => m FramePtr
+nextFramePtr = undefined
 
 -- op :: Op -> Set AValue -> Set AValue
 -- op = extend . opOne
