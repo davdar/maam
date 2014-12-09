@@ -14,8 +14,8 @@ import Data.Char
 --     , inject = Con
 --     }
 -- |]
-makePrismLogic :: (Monad m, MonadQ m) => Cxt -> Name -> [TyVarBndr] -> Name -> [Type] -> m [Dec]
-makePrismLogic cx ty tyargs con args = do
+makePrismLogic :: (Monad m, MonadQ m) => Cxt -> Name -> [TyVarBndr] -> Name -> [Type] -> Int -> m [Dec]
+makePrismLogic cx ty tyargs con args numcons = do
   let lensName = mkName $ lowerCase (nameBase con) ++ toChars "L"
   x <- liftQ $ newName $ toChars "x"
   argVars <- liftQ $ mapOnM args $ const $ newName $ toChars "a"
@@ -28,11 +28,10 @@ makePrismLogic cx ty tyargs con args = do
     , FunD lensName
         [ sclause [] $ app (ConE 'Prism)
            [ LamE [VarP x] $ 
-               CaseE (VarE x) 
-                 [ smatch (ConP con $ map VarP argVars) $ 
+               CaseE (VarE x) $ concat
+                 [ single $ smatch (ConP con $ map VarP argVars) $ 
                      ConE 'Just #@ tup (map VarE argVars)
-                 , smatch WildP $ 
-                     ConE 'Nothing
+                 , if numcons <= 1 then [] else single $ smatch WildP $ ConE 'Nothing
                  ]
             , LamE [tup $ map VarP argVars] $ ConE con #@| map VarE argVars
             ]
@@ -45,4 +44,4 @@ makePrisms name = do
   (cx, ty, tyargs, cs, _) <- liftMaybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
   scs <- mapM (liftMaybeZero . coerceSimpleCon) cs
   concat ^$ mapOnM scs $ \ (cname, args) -> do
-    makePrismLogic cx ty tyargs cname args
+    makePrismLogic cx ty tyargs cname args $ length scs

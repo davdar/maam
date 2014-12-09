@@ -2,6 +2,7 @@ module FP.Parser where
 
 import FP.Core
 import FP.Monads
+import FP.DerivingPrism
 import FP.Pretty (Pretty(..))
 import qualified FP.Pretty as P
 import FP.DerivingLens
@@ -19,7 +20,7 @@ instance (Pretty t) => Pretty (ParserState t) where
 
 data ParserEnv = ParserEnv
   { parserLevel :: Int
-  , parserBump  :: String
+  , parserBump  :: Bool
   }
 makeLenses ''ParserEnv
 
@@ -62,101 +63,118 @@ lit = satisfies . (==)
 word :: (MonadParser t m) => [t] -> m [t]
 word ts = mapM lit ts
 
-atLevel :: (MonadParser t m) => Int -> String -> m a -> m a
-atLevel i' name aM = do
+data Inf m a = Inf (m (a -> a -> a))
+makePrisms ''Inf
+
+data InfL m a = InfL (m (a -> a -> a)) | Pre (m (a -> a))
+makePrisms ''InfL
+
+data InfR m a = InfR (m (a -> a -> a)) | Post (m (a -> a))
+makePrisms ''InfR
+
+data Mix m a =  Mix (Inf m a) | MixL (InfL m a) | MixR (InfR m a)
+makePrisms ''Mix
+
+inf' :: (Monad m) => (a -> b -> a -> a) -> m b -> m (a -> a -> a)
+inf' f bM = do
+  b <- bM
+  return $ \ aL aR -> f aL b aR
+
+inf :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
+inf f bM = Mix $ Inf $ inf' f bM
+
+infl :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
+infl f bM = MixL $ InfL $ inf' f bM
+
+infr :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
+infr f bM = MixR $ InfR $ inf' f bM
+
+pre :: (Monad m) => (b -> a -> a) -> m b -> Mix m a
+pre f bM = MixL $ Pre $ do
+  b <- bM
+  return $ \ aR -> f b aR
+
+post :: (Monad m) => (a -> b -> a) -> m b -> Mix m a
+post f bM = MixR $ Post $ do
+  b <- bM
+  return $ \ aL -> f aL b
+
+closed :: (MonadParser t m) => m () -> m () -> m a -> m a
+closed alM arM aM = do
+  alM
+  a <- botLevel aM
+  arM
+  return a
+
+botLevel :: (MonadParser t m) => m a -> m a
+botLevel = local $ set parserLevelL 0 . set parserBumpL False
+
+atLevel :: (MonadParser t m) => Int -> m a -> m a
+atLevel i' aM = do
   i <- askL parserLevelL
   b <- askL parserBumpL
-  if (i < i') || (i == i' && b /= name)
-    then local (set parserLevelL i' . set parserBumpL name) aM
+  if (i < i') || (i == i' && not b)
+    then local (set parserLevelL i' . set parserBumpL False) aM
     else mzero
 
-bump :: (MonadParser t m) => String -> m a -> m a
-bump = local . set parserBumpL
-  
-pre' :: (MonadParser t m) => Int -> String -> m b -> m a -> m (b, [b], a)
-pre' i name bM aM = atLevel i name $ do
-  (y, ys) <- oneOrMore bM
-  x <- aM
-  return (y, ys, x)
+bump :: (MonadParser t m) => m a -> m a
+bump = local $ set parserBumpL True
 
-pre :: (MonadParser t m) => Int -> String -> m b -> m a -> m ([b], a)
-pre i name bM aM = (\ (y, ys, x) -> (y:ys, x)) ^$ pre' i name bM aM
+buildInf :: (MonadParser t m) => m a -> [Inf m a] -> m a
+buildInf aM ps = do
+  aL <- bump aM
+  f <- mconcat $ liftMaybeZero . coerce infL *$ ps
+  aR <- bump aM
+  return $ f aL aR
 
-pos' :: (MonadParser t m) => Int -> String -> m b -> m a -> m (a, b, [b])
-pos' i name bM aM = atLevel i name $ do
-  x <- aM
-  (y, ys) <- oneOrMore bM
-  return (x, y, ys)
+buildInfL :: (MonadParser t m) => m a -> [InfL m a] -> m a
+buildInfL aM ps = do
+  pres <- oneOrMoreList $ buildInfLPre aM ps
+  aR <- bump aM
+  return $ runEndo aR $ foldl (++) null $ map Endo $ pres
 
-pos :: (MonadParser t m) => Int-> String -> m b -> m a -> m (a, [b])
-pos i name bM aM = (\ (x, y, ys) -> (x, y:ys)) ^$ pos' i name bM aM
-
-infN :: (MonadParser t m) => Int -> String -> m b -> m a -> m (a, b, a)
-infN i name bM aM = atLevel i name $ do
-  x1 <- aM
-  y <- bM
-  x2 <- aM
-  return (x1, y, x2)
-  
-inf' :: (MonadParser t m) => Int -> String -> m b -> m a -> m (a, b, a, [(b, a)])
-inf' i name bM aM = atLevel i name $ do
-  x1 <- aM
-  ((y, x2), yxs) <- oneOrMore $ bM <*> aM
-  return (x1, y, x2, yxs)
-
-inf :: (MonadParser t m) => Int -> String -> m b -> m a -> m (a, [(b, a)])
-inf i name bM aM = (\ (x1, y, x2, yxs) -> (x1, (y,x2) : yxs)) ^$ inf' i name bM aM
-
-infL :: (MonadParser t m) => Int -> String -> m b -> m a -> (a -> (b, a) -> a) -> m a
-infL i name bM aM f = ff ^$ inf i name bM aM
+buildInfLPre :: (MonadParser t m) => m a -> [InfL m a] -> m (a -> a)
+buildInfLPre aM ps = mconcat $ map ff ps
   where
-    ff (x, yxs) = foldlOn yxs x $ flip f
+    ff (InfL p) = do
+      aL <- bump aM
+      f <- p
+      return $ \ aR -> f aL aR
+    ff (Pre p) = p
 
-infR :: (MonadParser t m) => Int -> String -> m b -> m a -> ((a, b) -> a -> a) -> m a
-infR i name bM aM f = ff . swizzle ^$ inf i name bM aM
+buildInfR :: (MonadParser t m) => m a -> [InfR m a] -> m a
+buildInfR aM ps = do
+  aL <- bump aM
+  posts <- oneOrMoreList $ buildInfRPost aM ps
+  return $ runEndo aL $ foldr (++) null $ map Endo $ posts
+
+buildInfRPost :: (MonadParser t m) => m a -> [InfR m a] -> m (a -> a)
+buildInfRPost aM ps = mconcat $ map ff ps
   where
-    ff (xys, x) = foldrOn xys x f
-    swizzle :: (a, [(b, a)]) -> ([(a, b)], a)
-    swizzle (x, []) = ([], x)
-    swizzle (x1, (y, x2) : yxs) =
-      let (xys, x) = swizzle (x2, yxs)
-      in ((x1, y) : xys, x)
+    ff (InfR p) = do
+      f <- p
+      aR <- bump aM
+      return $ \ aL -> f aL aR
+    ff (Post p) = p
 
-juxt' :: (MonadParser t m) => Int -> String -> m a -> m (a, a, [a])
-juxt' i name aM = atLevel i name $ do
-  x1 <- aM
-  (x2, xs) <- oneOrMore aM
-  return (x1, x2, xs)
+buildMix :: (MonadParser t m) => m a -> [Mix m a] -> m a
+buildMix aM ps = do
+  let infs  = liftMaybeZero . coerce mixL  *$ ps
+      infLs = liftMaybeZero . coerce mixLL *$ ps
+      infRs = liftMaybeZero . coerce mixRL *$ ps
+  mconcat
+    [ buildInf  aM infs
+    , buildInfL aM infLs
+    , buildInfR aM infRs
+    ]
 
-juxt :: (MonadParser t m) => Int -> String -> m a -> m (a, [a])
-juxt i name aM = ff ^$ juxt' i name aM
-  where
-    ff (x1, x2, xs) = (x1, x2 : xs)
-
-juxtL :: (MonadParser t m) => Int -> String -> m a -> (a -> a -> a) -> m a
-juxtL i name aM f = ff ^$ juxt i name aM
-  where
-    ff (x, xs) = foldlOn xs x $ flip f
-
-juxtR :: (MonadParser t m) => Int -> String -> m a -> (a -> a -> a) -> m a
-juxtR i name aM f = ff . swizzle ^$ juxt i name aM
-  where
-    ff (xs, x) = foldrOn xs x f
-    swizzle :: (a, [a]) -> ([a], a)
-    swizzle (x, []) = ([], x)
-    swizzle (x1, x2:xs) =
-      let (xs',x) = swizzle (x2, xs)
-      in (x1:xs', x)
-
-closed' :: (MonadParser t m) => m b1 -> m b2 -> m a -> m (b1, a, b2)
-closed' b1M b2M aM = do
-  b1 <- b1M
-  a <- local (set parserLevelL 0 . set parserBumpL "") aM
-  b2 <- b2M
-  return (b1, a, b2)
-
-closed :: (MonadParser t m) => m b1 -> m b2 -> m a -> m a
-closed b1M b2M = (\ (_, a, _) -> a) ^. closed' b1M b2M
+build :: (MonadParser t m) => ([m a]) -> [(Int, [Mix m a])] -> m a
+build lits lps =
+  let aM = mconcat 
+        [ mconcat lits
+        , mconcat $ mapOn lps $ uncurry $ \ i ps -> atLevel i $ buildMix aM ps
+        ]
+  in aM
 
 newtype Parser t a = Parser { unParser :: ReaderT ParserEnv (StateT (ParserState t) (ListT ID)) a }
   deriving 
@@ -169,7 +187,7 @@ newtype Parser t a = Parser { unParser :: ReaderT ParserEnv (StateT (ParserState
 instance (Eq t, Pretty t) => MonadParser t (Parser t) where
 
 runParser :: [t] -> Parser t a -> [(a, ParserState t)]
-runParser ts = runID . runListT . runStateT (ParserState ts 0) . runReaderT (ParserEnv 0 "") . unParser
+runParser ts = runID . runListT . runStateT (ParserState ts 0) . runReaderT (ParserEnv 0 False) . unParser
 
 tokenize :: Parser c a -> [c] -> [c] :+: [a]
 tokenize aM = loop 

@@ -45,4 +45,13 @@ instance Pretty Op where
   pretty Sub1 = P.key "-1"
   pretty IsNonNeg = P.key ">=0?"
 
-
+data VarLam n e = VarLam [n] e
+instance (Pretty n, Pretty e) => Pretty (VarLam n e) where
+  pretty (VarLam xs e) = P.atLevel 0 $ P.nest 2 $ P.hvsep
+    [ P.hsep $ concat
+      [ single $ P.key "λ"
+      , map pretty xs
+      , single $ P.pun "."
+      ]
+    , pretty e
+    ]

@@ -895,18 +895,18 @@ class (MonadKon r m, MonadOpaqueKonI k r m, MonadOpaqueKonE k r m) => MonadOpaqu
 
 class Iterable a t | t -> a where
   -- the left fold, exposing the fold continuation
-  foldlk :: forall b. (a -> b -> (b -> b) -> b) -> b -> t -> b
-  foldlk f i0 t = foldl (\ a (iK :: (b -> b) -> b) (k :: b -> b) ->
-    iK $ \ i -> f a i k) ($ i0) t id
+  foldlk :: forall b. (b -> a -> (b -> b) -> b) -> b -> t -> b
+  foldlk f i0 t = foldl (\ (iK :: (b -> b) -> b) (a :: a) (k :: b -> b) ->
+    iK $ \ i -> f i a k) ($ i0) t id
   -- the left fold
-  foldl :: (a -> b -> b) -> b -> t -> b
+  foldl :: (b -> a -> b) -> b -> t -> b
   foldl f = foldlk $ \ a i k -> let i' = f a i in i' `seq` k i'
   -- the right fold
   foldr :: (a -> b -> b) -> b -> t -> b
-  foldr f = foldlk $ \ a i k -> f a $ k i
+  foldr f = foldlk $ \ i a k -> f a $ k i
   -- the most efficient fold (unspecified order)
   iter :: (a -> b -> b) -> b -> t -> b
-  iter = foldl
+  iter = foldl . flip
   size :: (Integral n) => t -> n
   size = iter (const suc) 0
 
@@ -937,10 +937,10 @@ iterOn = mirror iter
 iterFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
 iterFrom = flip iter
 
-foldlOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
+foldlOn :: (Iterable a t) => t -> b -> (b -> a -> b) -> b
 foldlOn = mirror foldl
 
-foldlFrom :: (Iterable a t) => b -> (a -> b -> b) -> t -> b
+foldlFrom :: (Iterable a t) => b -> (b -> a -> b) -> t -> b
 foldlFrom = flip foldl
 
 foldrOn :: (Iterable a t) => t -> b -> (a -> b -> b) -> b
@@ -956,18 +956,18 @@ findMaxFrom :: (Iterable a t, PartialOrder b) => a -> (a -> b) -> t -> a
 findMaxFrom = flip findMax
 
 isElem :: (Iterable a t, Eq a) => a -> t -> Bool
-isElem x = foldlk (\ x' _ k -> if x == x' then True else k False) False
+isElem x = foldlk (\ _ x' k -> if x == x' then True else k False) False
 
 elemAtN :: (Iterable a t, Peano n, Eq n) => n -> t -> Maybe a
 elemAtN n t = case foldlk ff (Inr zer) t of
   Inl x -> Just x
   Inr _ -> Nothing
   where
-    ff x' (Inr i) k = if i == n then Inl x' else k $ Inr $ suc i
-    ff _ (Inl _) _ = error "internal error"
+    ff (Inr i) x' k = if i == n then Inl x' else k $ Inr $ suc i
+    ff (Inl _) _ _ = error "internal error"
 
 traverse :: (Iterable a t, Monad m) => (a -> m ()) -> t -> m ()
-traverse f = foldl (\ a m -> m >> f a) $ return ()
+traverse f = foldl (\ m a -> m >> f a) $ return ()
 
 traverseOn :: (Iterable a t, Monad m) => t -> (a -> m ()) -> m ()
 traverseOn = flip traverse
@@ -1038,7 +1038,7 @@ filter :: (a -> Bool) -> [a] -> [a]
 filter p = foldr (\ x -> if p x then (x :) else id) []
 
 uniques :: (Eq a) => [a] -> [a]
-uniques = foldlFrom [] $ \ x xs -> x : filter ((/=) x) xs
+uniques = foldrFrom [] $ \ x xs -> x : filter ((/=) x) xs
 
 zip :: [a] -> [b] -> Maybe [(a, b)]
 zip [] [] = return []
@@ -1382,9 +1382,9 @@ instance Monoid String where
   null = Text.empty
   (++) = Text.append
 instance Iterable Char String where
-  foldl = Text.foldl' . flip
+  foldl = Text.foldl'
   foldr = Text.foldr
-  iter = foldl
+  iter = foldl . flip
   size = fromInt . Text.length
 instance ToString String where
   toString = preludeShow
@@ -1643,9 +1643,9 @@ instance Functorial Ord [] where functorial = W
 
 instance Iterable a [a] where
   foldl _ i [] = i
-  foldl f i (x:xs) = let i' = f x i in i' `seq` foldl f i' xs
+  foldl f i (x:xs) = let i' = f i x in i' `seq` foldl f i' xs
   foldlk _ i [] = i
-  foldlk f i (x:xs) = f x i $ \ i' -> i' `seq` foldlk f i' xs
+  foldlk f i (x:xs) = f i x $ \ i' -> i' `seq` foldlk f i' xs
   foldr _ i [] = i
   foldr f i (x:xs) = f x $ foldr f i xs
 instance (Eq a) => Container a [a] where
@@ -1735,7 +1735,7 @@ instance Container a (Set a) where
   Set s ? e = Set.member e s
 instance Iterable a (Set a) where
   foldl _ i EmptySet = i
-  foldl f i (Set s) = Set.foldl' (flip f) i s
+  foldl f i (Set s) = Set.foldl' f i s
   foldr _ i EmptySet = i
   foldr f i (Set s) = Set.foldr' f i s
 instance (Ord a) => Buildable a (Set a) where
@@ -1828,7 +1828,7 @@ instance (Eq v) => Container (k, v) (Map k v) where
   
 instance Iterable (k, v) (Map k v) where
   foldl _ i EmptyMap = i
-  foldl f i (Map m) = Map.foldlWithKey' (rotateR $ curry f) i m
+  foldl f i (Map m) = Map.foldlWithKey' (curry . f) i m
   foldr _ i EmptyMap = i
   foldr f i (Map m) = Map.foldrWithKey' (curry f) i m
 instance MapLike k v (Map k v) where

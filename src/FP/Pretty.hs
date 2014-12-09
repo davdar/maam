@@ -170,11 +170,14 @@ hvsepTight = group . exec . intersperse (ifFlat (return ()) newline)
 botLevel :: (MonadPretty m) => m () -> m ()
 botLevel = local $ set levelL 0 . set bumpedL False
 
+closed :: (MonadPretty m) => m () -> m () -> m () -> m ()
+closed alM arM aM = do
+  alM
+  botLevel $ aM
+  arM
+
 parens :: (MonadPretty m) => m () -> m ()
-parens aM = do
-  format punFmt $ text "("
-  botLevel $ align aM
-  format punFmt $ text ")"
+parens = closed (text "(") (text ")") . align
 
 atLevel :: (MonadPretty m) => Int -> m () -> m ()
 atLevel i' aM = do
@@ -184,20 +187,23 @@ atLevel i' aM = do
     then local (set levelL i' . set bumpedL False) aM
     else parens aM
 
-parensIfWrapped :: a -> a
-parensIfWrapped = id
-
 bump :: (MonadPretty m) => m a -> m a
 bump = local $ set bumpedL True
 
 inf :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
 inf i oM x1M x2M = atLevel i $ bump x1M >> oM >> bump x2M
 
-infL :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
-infL i oM x1M x2M = atLevel i $ x1M >> oM >> bump x2M
+infl :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
+infl i oM x1M x2M = atLevel i $ x1M >> oM >> bump x2M
 
-infR :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
-infR i oM x1M x2M = atLevel i $ bump x1M >> oM >> x2M
+infr :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
+infr i oM x1M x2M = atLevel i $ bump x1M >> oM >> x2M
+
+pre :: (MonadPretty m) => Int -> m () -> m () -> m ()
+pre i oM xM = atLevel i $ oM >> bump xM
+
+post :: (MonadPretty m) => Int -> m () -> m () -> m ()
+post i oM xM = atLevel i $ bump xM >> oM
 
 app :: (MonadPretty m) => [m ()] -> m ()
 app = atLevel 100 . hvsep . map (align . bump)

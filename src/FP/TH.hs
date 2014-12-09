@@ -19,7 +19,7 @@ instance THTup Type where tup ts = TupleT (length ts) #@| ts
 instance THTup Pat where tup = TupP
 
 (#@|) :: (THApp e) => e -> [e] -> e
-(#@|) = foldl $ \ t f -> f #@ t
+(#@|) = foldl (#@)
 
 app :: (THApp e) => e -> [e] -> e
 app = (#@|)

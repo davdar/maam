@@ -83,38 +83,49 @@ litExp = mconcat
 nameExp :: Parser Token Name
 nameExp = Name . tokenVal ^$ satisfies ((==) Id . tokenType)
 
-letExp :: Parser Token Exp
-letExp = ff ^$ pre 0 "let" letin exp
-  where
-    ff (xe1s, e2) = foldrOn xe1s e2 $ \ (x, e1) e -> Fix $ Let x e1 e
-
-letin :: Parser Token (Name, Exp)
-letin = closed (key "let") (key "in") $ do
+letExp :: Mix (Parser Token) Exp
+letExp = pre (\ (x, e1) e2 -> Fix $ Let x e1 e2) $ do
+  key "let"
   x <- nameExp
   key ":="
-  e1 <- exp
+  e1 <- botLevel exp
+  key "in"
   return (x, e1)
 
-lamExp :: Parser Token Exp
-lamExp = ff ^$ pre 0 "lam" lamdot exp
-  where
-    ff (bs, e) = foldrOn bs e $ Fix .: Lam
+lamExp :: Mix (Parser Token) Exp
+lamExp = pre (Fix .: Lam) $ do
+  key "lam"
+  x <- nameExp
+  key "."
+  return x
 
-lamdot :: Parser Token Name
-lamdot = closed (key "lam") (key ".") nameExp
+ifExp :: Mix (Parser Token) Exp
+ifExp = pre (\ (e1, e2) e3 -> Fix $ If e1 e2 e3) $ do
+  key "if"
+  e1 <- botLevel exp
+  key "then"
+  e2 <- botLevel exp
+  key "else"
+  return (e1, e2)
 
-appExp :: Parser Token Exp
-appExp = juxtL 100 "app" exp $ Fix .: App
+appExp :: Mix (Parser Token) Exp
+appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
 exp :: Parser Token Exp
-exp = mconcat
-  [ Fix . Lit ^$ litExp
-  , Fix . Var ^$ nameExp
-  , closed (key "(") (key ")") exp
-  , letExp
-  , lamExp
-  , appExp
-  ]
+exp = build lits mixes
+  where
+    lits = 
+      [ Fix . Lit ^$ litExp
+      , Fix . Var ^$ nameExp
+      , closed (key "(") (key ")") exp
+      ]
+    mixes =
+      [ ( 0   , [ letExp 
+                , lamExp 
+                , ifExp 
+                ] )
+      , ( 100 , [ appExp ] )
+      ]
 
 -- }}}
 
