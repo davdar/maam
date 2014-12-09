@@ -106,17 +106,10 @@ instance Pretty Kon where
   pretty (RefK k) = P.lit "RefK"
   pretty (DeRefK k) = P.lit "DeRefK"
 
-konP :: P Kon
-konP = P
-
-storeP :: P Store
-storeP = P
 
 class
   ( Monad m
-  , MonadStateE Int m
-  , MonadStateE Store m
-  , MonadStateE Kon m
+  , MonadStateE Σ m
   , MonadZero m
   , MonadPlus m
   , MonadStep ς m
@@ -125,7 +118,9 @@ class
   , PartialOrder (ς SExp)
   ) => Analysis ς m | m -> ς where
 
-type Store = Map SName (Set AValue)
+type Env = Map SName Loc
+
+type Store = Map Loc (Set AValue)
 
 data Clo = Clo
   { arg :: SName
@@ -137,6 +132,9 @@ data Obj = Obj
   { fields :: [(String, (Set AValue))]
   }
   deriving (Eq, Ord)
+
+newtype Loc = Loc Int
+            deriving (Eq, Ord, Pretty)
 
 instance (Eq a) => (Indexed a v [(a, v)]) where
   -- O(n)
@@ -171,7 +169,7 @@ data AValue =
   | CloA Clo
   | ObjA Obj
     -- Fig 2. Mutable References
-  | LocA Int
+  | LocA Loc
   deriving (Eq, Ord)
 
 instance Pretty AValue where
@@ -182,8 +180,17 @@ instance Pretty AValue where
   pretty (ObjA o) = pretty o
   pretty (LocA l) = pretty l
 
-eval :: (Analysis ς m) => P m -> SExp -> m SExp
-eval _ e =
+data Σ = Σ {
+    store :: Store
+  , env :: Env
+  , kon :: Kon
+  , nextLoc :: Loc
+  }
+
+makeLenses ''Σ
+
+eval :: (Analysis ς m) => SExp -> m SExp
+eval e =
   case stampedFix e of
     Lit l -> kreturn $ singleton $ LitA l
     Var x -> var x
@@ -191,39 +198,51 @@ eval _ e =
     ObjE [] -> do
       kreturn $ singleton $ ObjA $ Obj []
     ObjE ((n',e'):nes) -> do
-      modifyP konP (ObjK [] n' nes)
+      modifyL konL (ObjK [] n' nes)
       return e'
     -- Prim o e' -> do
     --   modifyP konP (PrimK o)
     --   return e'
     Let x v b -> do
-      modifyP konP (LetK x b)
+      modifyL konL (LetK x b)
       return v
     App f v -> do
-      modifyP konP (AppL v)
+      modifyL konL (AppL v)
       return f
     FieldRef o i -> do
-      modifyP konP (FieldRefL i)
+      modifyL konL (FieldRefL i)
       return o
     FieldSet o i v -> do
-      modifyP konP (FieldSetA i v)
+      modifyL konL (FieldSetA i v)
       return o
     Delete o i -> do
-      modifyP konP (DeleteL i)
+      modifyL konL (DeleteL i)
       return o
     -- If c tb fb -> do
-    --   modifyP konP (IfK tb fb)
+    --   modifyL konL (IfK tb fb)
     --   return c
+    -- Fig 2. Mutable References
+    RefSet l v -> do
+      modifyL konL (RefSetL v)
+      return l
+    Ref v -> do
+      modifyL konL RefK
+      return v
+    DeRef l -> do
+      modifyL konL DeRefK
+      return l
 
 bind :: (Analysis ς m) => SName -> Set AValue -> m ()
 bind x v = do
-  modifyP storeP $ mapInsertWith (\/) x v
+  l <- nextLocation
+  modifyL envL $ mapInsert x l -- TODO: Is this right?
+  modifyL storeL $ mapInsertWith (\/) l v
 
 kreturn :: (Analysis ς m) => Set AValue -> m SExp
 kreturn v = do
-  κ <- getP konP
+  κ <- getL konL
   (s, κ') <- kreturn' κ v
-  putP konP κ'
+  putL konL κ'
   return s
 
 snameToString :: SName -> String
@@ -280,11 +299,32 @@ kreturn' k v = case k of
   -- IfK tb fb κ -> do
   --   v' <- coerceBool *$ msumVals v
   --   return $ ifThenElse v' (tb, κ) (fb, κ)
+  -- Fig 2. Mutable References
+  RefSetL e κ -> do
+    return (e, RefSetR v κ)
+  RefSetR l κ -> do
+    σ <- getL storeL
+    -- TODO: This cannot possibly be the right way to do this ...
+    let locs = l >>= coerceLocSet
+        σ'   = foldr (\l -> (\σ -> mapInsertWith (\/) l v σ)) σ locs
+    putL storeL σ'
+    kreturn' κ v
+  RefK κ -> do
+    l <- nextLocation
+    modifyL storeL $ mapInsertWith (\/) l v
+    kreturn' κ $ singleton $ LocA l
+  DeRefK κ -> do
+    σ <- getL storeL
+    let locs = v >>= coerceLocSet
+        v'   = mjoin . liftMaybeSet . index σ *$ locs
+    kreturn' κ v'
+
 
 var :: (Analysis ς m) => SName -> m SExp
 var x = do
-  σ <- getP storeP
-  kreturn *$ liftMaybeZero $ σ # x
+  σ <- getL storeL
+  e <- getL envL
+  kreturn $ mjoin . liftMaybeSet . index σ *$ liftMaybeSet $ e # x
 
 coerceClo :: (Analysis ς m) => AValue -> m Clo
 coerceClo (CloA c) = return c
@@ -306,7 +346,14 @@ coerceObj = undefined
 coerceObjSet :: AValue -> Set Obj
 coerceObjSet = undefined
 
+coerceLoc :: (Analysis ς m) => AValue -> m Loc
+coerceLoc = undefined
 
+coerceLocSet :: AValue -> Set Loc
+coerceLocSet = undefined
+
+nextLocation :: (Analysis ς m) => m Loc
+nextLocation = undefined
 
 -- op :: Op -> Set AValue -> Set AValue
 -- op = extend . opOne
@@ -320,12 +367,12 @@ coerceObjSet = undefined
 -- opOne IsNonNeg (LitA (I _)) = fromList $ map (LitA . B) [ True, False ]
 -- opOne _ _ = sempty
 
--- execCollect :: (Analysis ς m) => P m -> SExp -> ς SExp
+-- execCollect :: (Analysis ς m) => SExp -> ς SExp
 -- execCollect m s = collect (mstep (eval m)) $ munit m s
 
-type FIguts = StateT Kon (ListSetT (StateT Store ID))
+type FIguts = StateT Σ (ListSetT ID)
 newtype FI a = FI { runFI :: FIguts a }
-             deriving ( MonadStateE Kon
+             deriving ( MonadStateE Σ
                       , MonadZero
                       , MonadPlus
                       , Unit
