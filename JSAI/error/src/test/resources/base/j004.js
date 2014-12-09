@@ -1,0 +1,2 @@
+decodeURI = "q";
+print("done");

@@ -11,63 +11,70 @@ version:             0.1.0.0
 
 library
   hs-source-dirs:      src
-  exposed-modules:     FP
-                     , FP.Console
-                     , FP.Core
-                     , FP.DerivingLens
-                     , FP.DerivingPrism
-                     , FP.Free
-                     , FP.GHCI
-                     , FP.Monads
-                     , FP.Parser
-                     , FP.Pretty
-                     , Lang.JS.JS
-                     , Lang.JS.Syntax
-                     , FP.TH
-                     , MAAM
-                     , MAAM.Initial
-                     , MAAM.MonadStep
-                     , MAAM.Time
-  build-depends:       base
-                     , containers
-                     , text
-                     , template-haskell
-                     , directory
-                     , Cabal
-  default-language:    Haskell2010
-  ghc-options:         -Wall -fno-warn-amp -fno-warn-orphans -isrc
-  default-extensions:  ConstraintKinds
-                     , ExplicitNamespaces
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , FunctionalDependencies
-                     , GADTs
-                     , GeneralizedNewtypeDeriving
-                     , ImpredicativeTypes
-                     , InstanceSigs
-                     , LambdaCase
-                     , MultiParamTypeClasses
-                     , NoImplicitPrelude
-                     , OverloadedStrings
-                     , PolyKinds
-                     , PostfixOperators
-                     , RankNTypes
-                     , RebindableSyntax
-                     , RebindableSyntax
-                     , ScopedTypeVariables
-                     , StandaloneDeriving
-                     , TupleSections
-                     , TypeFamilies
-                     , TypeOperators
-                     , TypeSynonymInstances
-                     , UndecidableInstances
-                     , ViewPatterns
-                     , DataKinds
-                     , TemplateHaskell
-
-executable runquals
-  build-depends: maam == 0.1.*
-  main-is: src/Main.hs
-  ghc-options: -Wall
-  default-extensions: NoImplicitPrelude
+  exposed-modules:     
+    FP
+    FP.Console
+    FP.Core
+    FP.DerivingJoinLattice
+    FP.DerivingLens
+    FP.DerivingMonoid
+    FP.DerivingPrism
+    FP.Free
+    FP.GHCI
+    FP.Monads
+    FP.Parser
+    FP.Pretty
+    FP.TH
+    Lang.JS.JS
+    Lang.JS.Syntax
+    MAAM
+    MAAM.Initial
+    MAAM.MonadStep
+    MAAM.Time
+  build-depends:
+      base 
+    , containers 
+    , text 
+    , template-haskell 
+    , directory 
+    , Cabal 
+    , language-ecmascript 
+    , LambdaJS
   default-language: Haskell2010
+  ghc-options: -Wall -fno-warn-amp -fno-warn-orphans -isrc
+  default-extensions:  
+    ConstraintKinds
+    ExplicitNamespaces
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImpredicativeTypes
+    InstanceSigs
+    LambdaCase
+    MultiParamTypeClasses
+    NoImplicitPrelude
+    OverloadedStrings
+    PolyKinds
+    PostfixOperators
+    RankNTypes
+    RebindableSyntax
+    RebindableSyntax
+    ScopedTypeVariables
+    StandaloneDeriving
+    TupleSections
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+    UndecidableInstances
+    ViewPatterns
+    DataKinds
+    TemplateHaskell
+
+-- executable runquals
+--   build-depends: maam == 0.1.*
+--   main-is: src/Main.hs
+--   ghc-options: -Wall
+--   default-extensions: NoImplicitPrelude
+--   default-language: Haskell2010

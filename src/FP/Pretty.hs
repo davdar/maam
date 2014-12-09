@@ -328,6 +328,8 @@ instance Pretty Char where
   pretty = lit . toString
 instance Pretty String where
   pretty = lit . toString
+instance Pretty Double where
+  pretty = lit . toString
 instance Pretty () where
   pretty () = con "()"
 instance (Pretty a, Pretty b) => Pretty (a, b) where

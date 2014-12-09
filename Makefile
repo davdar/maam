@@ -6,7 +6,7 @@ init:
 	runhaskell EnvSetup.hs
 
 configure:
-	cabal configure --disable-library-profiling
+	cabal configure
 
 build:
 	cabal build

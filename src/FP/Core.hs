@@ -1347,7 +1347,7 @@ instance Monoid Bool where
   null = bot
   (++) = (\/)
 instance ToString Bool where
-  toString = preludeShow
+  toString = show
 
 fif :: Bool -> a -> a -> a
 fif True x _ = x
@@ -1364,7 +1364,7 @@ ifThenElse = fif
 -- Char {{{
 
 instance ToString Char where
-  toString = preludeShow
+  toString = show
 
 -- }}}
 
@@ -1387,13 +1387,13 @@ instance Iterable Char String where
   iter = foldl . flip
   size = fromInt . Text.length
 instance ToString String where
-  toString = preludeShow
+  toString = show
 
 error :: String -> a
 error = Prelude.error . toChars 
 
-preludeShow :: (Prelude.Show a) => a -> String
-preludeShow = fromChars . Prelude.show
+show :: (Prelude.Show a) => a -> String
+show = fromChars . Prelude.show
 
 -- }}}
 
@@ -1426,7 +1426,7 @@ instance ToDouble Int where
   toDouble = Prelude.fromIntegral
 instance Integral Int where
 instance ToString Int where
-  toString = preludeShow
+  toString = show
 instance PartialOrder Int where
   pcompare = fromOrdering .: compare
 instance JoinLattice Int where
@@ -1458,7 +1458,7 @@ instance Multiplicative Integer where
 instance TruncateDivisible Integer where
   (//) = Prelude.div
 instance ToString Integer where
-  toString = preludeShow
+  toString = show
 instance ToInt Integer where
   toInt = Prelude.fromIntegral
 instance FromInt Integer where
@@ -1468,6 +1468,13 @@ instance ToRational Integer where
 instance ToDouble Integer where
   toDouble = Prelude.fromIntegral
 instance Integral Integer where
+
+-- }}}
+
+-- Double {{{
+
+instance ToString Double where
+  toString = show
 
 -- }}}
 

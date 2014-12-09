@@ -19,7 +19,7 @@ type SGName = Stamped BdrNum GName
 sgNameFromSName :: SName -> SGName
 sgNameFromSName (Stamped i x) = Stamped i $ GName Nothing x
 
-data Lit = I Int | B Bool | UndefinedL | NullL | S String
+data Lit = I Int | B Bool | UndefinedL | NullL | S String | D Double
   deriving (Eq, Ord)
 instance PartialOrder Lit where pcompare = discreteOrder
 coerceI :: Lit -> Maybe Int
@@ -35,6 +35,7 @@ instance Pretty Lit where
   pretty UndefinedL = P.con "ᴜɴᴅᴇғɪɴᴇᴅ"
   pretty NullL = P.con "ɴᴜʟʟ"
   pretty (S s) = pretty $ "\"" ++ s ++ "\""
+  pretty (D d) = pretty d
 
 -- data Op = Add1 | Sub1 | IsNonNeg
 --   deriving (Eq, Ord)
