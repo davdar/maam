@@ -37,19 +37,46 @@ instance Pretty Lit where
   pretty (S s) = pretty $ "\"" ++ s ++ "\""
   pretty (D d) = pretty d
 
-data Op = Plus | Minus | Times | Divide | PostIncrement | PostDecrement
-        | PreIncrement | PreDecrement | UnaryMinus
+data Op
+  = ONumPlus
+  | OStrPlus
+  | OMul | ODiv | OMod | OSub
+  | OLt | OStrLt
+  | OBAnd | OBOr | OBXOr | OBNot
+  | OLShift | OSpRShift | OZfRShift
+  | OStrictEq
+  | OAbstractEq
+  | OTypeof
+  | OSurfaceTypeof
+  | OPrimToNum
+  | OPrimToStr
+  | OPrimToBool
+  | OIsPrim
+  | OHasOwnProp
+  | OToInteger | OToInt32 | OToUInt32
+  | OPrint -- ^for Rhino
+  | OStrContains | OStrSplitRegExp | OStrSplitStrExp -- ^for Regexes
+  | OStrStartsWith -- ^for forin
+  | OStrLen
+  | OObjIterHasNext | OObjIterNext | OObjIterKey -- ^more forin
+  | OObjCanDelete
+  | OMathExp | OMathLog | OMathCos | OMathSin | OMathAbs | OMathPow
+  | ORegExpMatch | ORegExpQuote
   deriving (Eq, Ord)
+
 instance Pretty Op where
-  pretty Plus = P.key "+"
-  pretty Minus = P.key "-"
-  pretty Times = P.key "*"
-  pretty Divide = P.key "/"
-  pretty PostIncrement = P.key "++"
-  pretty PostDecrement = P.key "--"
-  pretty PreIncrement = P.key "++"
-  pretty PreDecrement = P.key "--"
-  pretty UnaryMinus = P.key "-"
+  pretty ONumPlus = P.key "+"
+  pretty OStrPlus = P.key "+"
+  pretty OMul     = P.key "*"
+  pretty ODiv     = P.key "/"
+  pretty OMod     = P.key "%"
+  pretty OSub     = P.key "-"
+  pretty OLt      = P.key "<"
+  pretty OStrLt   = P.key "<"
+  pretty OBAnd    = P.key "&"
+  pretty OBOr     = P.key "|"
+  pretty OBXOr    = P.key "^"
+  pretty OBNot    = P.key "~"
 
 
 newtype Label = Label String
