@@ -452,10 +452,30 @@ tailReturn :: (Analysis ς m) => Set AValue -> m SExp
 tailReturn v = popFrame >>= (kreturn' v)
 
 popToLabel :: (Analysis ς m) => Label -> Set AValue -> m SExp
-popToLabel l v = undefined
+popToLabel l v = do
+  fr <- popFrame
+  case fr of
+    LabelK l' ->
+      if l == l'
+      then tailReturn v
+      else popToLabel l v
+    TryFinallyL e -> do
+      pushFrame $ BreakK l
+      return e
+    _ -> popToLabel l v
 
 throw :: (Analysis ς m) => Set AValue -> m SExp
-throw v = undefined
+throw v = do
+  fr <- popFrame
+  case fr of
+    TryCatchK e n -> do
+      bind n v
+      return e
+    TryFinallyL e -> do
+      pushFrame $ ThrowK
+      return e
+    _ ->
+      throw v
 
 prototypalLookup :: Store -> Set AValue -> String -> Set AValue
 prototypalLookup σ o fieldname = do
