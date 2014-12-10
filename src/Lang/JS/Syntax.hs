@@ -50,11 +50,11 @@ instance Pretty Label where
 data PreExp n ln e =
     Lit Lit
   | Var n
-  | Func n e
+  | Func [n] e
   | ObjE [(n, e)]
   -- | Prim Op e
   | Let n e e
-  | App e e
+  | App e [e]
   | FieldRef e e
   | FieldSet e e e
   | Delete e e

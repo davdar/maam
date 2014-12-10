@@ -12,8 +12,8 @@ import Lang.Common (VarLam(..))
 -- ssingleton -> singleton
 
 data Frame = LetK SName SExp
-           | AppL SExp
-           | AppR (Set AValue)
+           | AppL [SExp]
+           | AppR (Set AValue) [(Set AValue)] [SExp]
            | ObjK [(String, (Set AValue))] SName [(SName, SExp)]
              -- Array Dereferencing
            | FieldRefL SExp
@@ -52,13 +52,13 @@ instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
   pretty (LetK x b) = P.app [P.con "let", pretty x, P.lit "= □", pretty b]
   pretty (AppL a) = P.app [P.lit "□", pretty a]
-  pretty (AppR v) = P.app [pretty v, P.lit "□"]
-  pretty (ObjK vs n es) = P.app [ P.lit "{ ..."
-                                , pretty n
-                                , P.lit ":"
-                                , P.lit "□ ,"
-                                , P.lit "... }"
-                                ]
+  pretty (AppR f vs es) = P.app [pretty f, pretty vs, P.lit "□", pretty es]
+  pretty (ObjK _vs n _es) = P.app [ P.lit "{ ..."
+                                  , pretty n
+                                  , P.lit ":"
+                                  , P.lit "□ ,"
+                                  , P.lit "... }"
+                                  ]
   -- Array Dereferencing
   pretty (FieldRefL i) = P.app [ P.lit "□"
                                , P.lit "["
@@ -191,7 +191,7 @@ type Env = Map SName Loc
 type Store = Map Loc (Set AValue)
 
 data Clo = Clo
-  { arg :: SName
+  { arg :: [SName]
   , body :: SExp
   }
   deriving (Eq, Ord)
@@ -254,7 +254,7 @@ data Σ = Σ {
   , kstore :: KStore
   , kon :: FramePtr
   , nextLoc :: Loc
-  , nextFP :: Int
+  , nextFP :: FramePtr
   }
 
 makeLenses ''Σ
@@ -279,7 +279,7 @@ eval e =
   case stampedFix e of
     Lit l -> kreturn $ singleton $ LitA l
     Var x -> var x
-    Func x b -> kreturn $ singleton $ CloA $ Clo x b
+    Func xs b -> kreturn $ singleton $ CloA $ Clo xs b
     ObjE [] -> do
       kreturn $ singleton $ ObjA $ Obj []
     ObjE ((n',e'):nes) -> do
@@ -288,8 +288,8 @@ eval e =
     Let x v b -> do
       pushFrame (LetK x b)
       return v
-    App f v -> do
-      pushFrame (AppL v)
+    App f args -> do
+      pushFrame (AppL args)
       return f
     FieldRef o i -> do
       pushFrame (FieldRefL i)
@@ -342,6 +342,12 @@ bind x v = do
   modifyL envL $ mapInsert x l -- TODO: Is this right?
   modifyL storeL $ mapInsertWith (\/) l v
 
+bindMany :: (Analysis ς m) => [SName] -> [Set AValue] -> m ()
+bindMany []     []     = return ()
+bindMany (x:xs) (v:vs) = bind x v >> bindMany xs vs
+bindMany []     _      = mzero
+bindMany _      []     = mzero
+
 kreturn :: (Analysis ς m) => Set AValue -> m SExp
 kreturn v = do
   fr <- popFrame
@@ -356,11 +362,15 @@ kreturn' v fr = case fr of
   LetK x b -> do
     bind x v
     return b
-  AppL e -> do
-    touchNGo e $ AppR v
-  AppR vs -> do
-    Clo x b <- coerceClo *$ mset vs
-    bind x v
+  AppL [] ->
+    kreturn' v $ AppR v [] []
+  AppL (arg:args) ->
+    touchNGo arg $ AppR v [] args
+  AppR v vs (arg:args) -> do
+    touchNGo arg $ AppR v vs args
+  AppR fv argvs [] -> do
+    Clo xs b <- coerceClo *$ mset fv
+    bindMany xs argvs
     return b
   ObjK nvs n ((n',e'):nes) -> do
     let nvs' = (snameToString n, v) : nvs
@@ -536,10 +546,16 @@ coerceLocSet :: AValue -> Set Loc
 coerceLocSet = undefined
 
 nextLocation :: (Analysis ς m) => m Loc
-nextLocation = undefined
+nextLocation = do
+  Loc l <- getL nextLocL
+  putL nextLocL $ Loc $ l + 1
+  return $ Loc l
 
 nextFramePtr :: (Analysis ς m) => m FramePtr
-nextFramePtr = undefined
+nextFramePtr = do
+  FramePtr ptr <- getL nextFPL
+  putL nextFPL $ FramePtr $ ptr + 1
+  return $ FramePtr ptr
 
 -- op :: Op -> Set AValue -> Set AValue
 -- op = extend . opOne
