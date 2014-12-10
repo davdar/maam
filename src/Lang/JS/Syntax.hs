@@ -37,9 +37,20 @@ instance Pretty Lit where
   pretty (S s) = pretty $ "\"" ++ s ++ "\""
   pretty (D d) = pretty d
 
--- data Op = Add1 | Sub1 | IsNonNeg
---   deriving (Eq, Ord)
--- instance PartialOrder Op where pcompare = discreteOrder
+data Op = Plus | Minus | Times | Divide | PostIncrement | PostDecrement
+        | PreIncrement | PreDecrement | UnaryMinus
+  deriving (Eq, Ord)
+instance Pretty Op where
+  pretty Plus = P.key "+"
+  pretty Minus = P.key "-"
+  pretty Times = P.key "*"
+  pretty Divide = P.key "/"
+  pretty PostIncrement = P.key "++"
+  pretty PostDecrement = P.key "--"
+  pretty PreIncrement = P.key "++"
+  pretty PreDecrement = P.key "--"
+  pretty UnaryMinus = P.key "-"
+
 
 newtype Label = Label String
               deriving (Eq, Ord)
@@ -71,6 +82,8 @@ data PreExp n ln e =
   | TryCatch e n e
   | TryFinally e e
   | Throw e
+    -- Fig 9. Primitive Operators
+  | PrimOp Op [e]
   deriving (Eq, Ord)
 type Exp = Fix (PreExp Name Label)
 type SExp = StampedFix LocNum (PreExp SName Label)
