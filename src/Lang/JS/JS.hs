@@ -11,7 +11,7 @@ import Lang.Common (VarLam(..))
 -- pmodify -> mapModify (and other friends, no more p prefixing)
 -- ssingleton -> singleton
 
-data Frame = LetK SName SExp
+data Frame = LetK [(SName, Set AValue)] SName [(SName, SExp)] SExp
            | AppL [SExp]
            | AppR (Set AValue) [(Set AValue)] [SExp]
            | ObjK [(String, (Set AValue))] SName [(SName, SExp)]
@@ -50,7 +50,7 @@ type KStore = Map FramePtr (Frame, FramePtr)
 
 instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
-  pretty (LetK x b) = P.app [P.con "let", pretty x, P.lit "= □", pretty b]
+  pretty (LetK nvs n nes b) = P.app [P.con "let", pretty n, P.lit "= □", pretty b]
   pretty (AppL a) = P.app [P.lit "□", pretty a]
   pretty (AppR f vs es) = P.app [pretty f, pretty vs, P.lit "□", pretty es]
   pretty (ObjK _vs n _es) = P.app [ P.lit "{ ..."
@@ -285,9 +285,11 @@ eval e =
     ObjE ((n',e'):nes) -> do
       pushFrame (ObjK [] n' nes)
       return e'
-    Let x v b -> do
-      pushFrame (LetK x b)
-      return v
+    Let [] b -> do
+      return b
+    Let ((n,e):nes) b -> do
+      pushFrame $ LetK [] n nes b
+      return e
     App f args -> do
       pushFrame (AppL args)
       return f
@@ -359,8 +361,11 @@ snameToString = getName . stamped
 
 kreturn' :: (Analysis ς m) => Set AValue -> Frame -> m SExp
 kreturn' v fr = case fr of
-  LetK x b -> do
-    bind x v
+  LetK nvs n ((n',e'):nes) b -> do
+    bind n v
+    touchNGo e' $ LetK nvs n' nes b
+  LetK nvs n [] b -> do
+    bind n v
     return b
   AppL [] ->
     kreturn' v $ AppR v [] []

@@ -53,7 +53,7 @@ data PreExp n ln e =
   | Func [n] e
   | ObjE [(n, e)]
   -- | Prim Op e
-  | Let n e e
+  | Let [(n, e)] e
   | App e [e]
   | FieldRef e e
   | FieldSet e e e
