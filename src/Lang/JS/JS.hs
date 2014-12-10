@@ -267,7 +267,12 @@ pushFrame fr = do
   putL konL fp
 
 popFrame :: (Analysis ς m) => m Frame
-popFrame = undefined
+popFrame = do
+  fp <- getL konL
+  kσ <- getL kstoreL
+  (fr, fp') <- liftMaybeZero $ kσ # fp
+  putL konL fp'
+  return fr
 
 eval :: (Analysis ς m) => SExp -> m SExp
 eval e =
