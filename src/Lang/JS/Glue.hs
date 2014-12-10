@@ -11,35 +11,35 @@ import System.IO
 import System.Directory
 import Lang.JS.Syntax hiding (Exp)
 
-type Exp = StampedFix JS.SourcePos (PreExp String)
+type Exp = StampedFix JS.SourcePos (PreExp String Label)
 
 convert :: LJS.ExprPos -> Exp
 convert = \ case
   LJS.ENumber sp n -> StampedFix sp $ Lit $ D n
-  LJS.EString sp s -> _
-  LJS.EBool sp b -> _
-  LJS.EUndefined sp -> _
-  LJS.ENull sp -> _
-  LJS.ELambda sp xs e -> _
-  LJS.EObject sp fs -> _
-  LJS.EId sp x -> _
-  LJS.EOp sp o es -> _
-  LJS.EApp sp e es -> _
-  LJS.ELet sp xes e -> _
-  LJS.ESetRef sp e₁ e₂ -> _
-  LJS.ERef sp e -> _
-  LJS.EDeref sp e -> _
-  LJS.EGetField sp e₁ e₂ -> _
-  LJS.EUpdateField sp e₁ e₂ e₃ -> _
-  LJS.EDeleteField sp e₁ e₂ -> _
-  LJS.ESeq sp e₁ e₂ -> _
-  LJS.EIf sp e₁ e₂ e₃ -> _
-  LJS.EWhile sp e₁ e₂ -> _
-  LJS.ELabel sp l e -> _
-  LJS.EBreak sp l e -> _
-  LJS.EThrow sp e -> _
-  LJS.ECatch sp e₁ e₂ -> _
-  LJS.EFinally sp e₁ e₂ -> _
+  LJS.EString sp s -> StampedFix sp $ Lit $ S $ fromChars s
+  LJS.EBool sp b -> StampedFix sp $ Lit $ B b
+  LJS.EUndefined sp -> StampedFix sp $ Lit $ UndefinedL
+  LJS.ENull sp -> StampedFix sp $ Lit $ NullL
+  LJS.ELambda sp xs e -> StampedFix sp $ undefined
+  LJS.EObject sp fs -> StampedFix sp $ ObjE $ map (\ (x, e) -> (fromChars x, convert e)) fs
+  LJS.EId sp x -> StampedFix sp $ Var $ fromChars x
+  LJS.EOp sp o es -> StampedFix sp $ undefined
+  LJS.EApp sp e es -> StampedFix sp $ undefined
+  LJS.ELet sp xes e -> StampedFix sp $ undefined
+  LJS.ESetRef sp e₁ e₂ -> StampedFix sp $ undefined
+  LJS.ERef sp e -> StampedFix sp $ undefined
+  LJS.EDeref sp e -> StampedFix sp $ undefined
+  LJS.EGetField sp e₁ e₂ -> StampedFix sp $ FieldRef (convert e₁) (convert e₂)
+  LJS.EUpdateField sp e₁ e₂ e₃ -> StampedFix sp $ FieldSet (convert e₁) (convert e₂) (convert e₃)
+  LJS.EDeleteField sp e₁ e₂ -> StampedFix sp $ Delete (convert e₁) (convert e₂)
+  LJS.ESeq sp e₁ e₂ -> StampedFix sp $ Seq (convert e₁) (convert e₂)
+  LJS.EIf sp e₁ e₂ e₃ -> StampedFix sp $ If (convert e₁) (convert e₂) (convert e₃)
+  LJS.EWhile sp e₁ e₂ -> StampedFix sp $ While (convert e₁) (convert e₂)
+  LJS.ELabel sp l e -> StampedFix sp $ LabelE (undefined l) (convert e)
+  LJS.EBreak sp l e -> StampedFix sp $ Break (undefined l) (convert e)
+  LJS.EThrow sp e -> StampedFix sp $ Throw (convert e)
+  LJS.ECatch sp e₁ e₂ -> StampedFix sp $ TryCatch (convert e₁) undefined (convert e₂)
+  LJS.EFinally sp e₁ e₂ -> StampedFix sp $ TryFinally (convert e₁) (convert e₂)
   -- |We use HOAS when possible so that we don't mess up bindings.  When
   -- pretty-printing, we unravel these to use conventional bindings.
   LJS.ELet1 sp e f -> error "HOAS should be translated away"
