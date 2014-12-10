@@ -1,10 +1,12 @@
 module Lang.JS.JS where
 
+import Prelude (reverse, Either(..), mod)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
 import qualified FP.Pretty as P
 import Lang.Common (VarLam(..))
+import Data.Bits
 
 -- what changed
 -- msumVals -> mset
@@ -41,6 +43,8 @@ data Frame = LetK [(SName, Set AValue)] SName [(SName, SExp)] SExp
            | TryFinallyL SExp
            | TryFinallyR (Set AValue)
            | ThrowK
+             -- Fig 9. Primitive Operations
+           | PrimOpK Op [(Set AValue)] [SExp]
            deriving (Eq, Ord)
 
 newtype FramePtr = FramePtr Int
@@ -124,16 +128,16 @@ instance Pretty Frame where
   pretty (SeqK e) = P.app [ P.lit "□ ;"
                           , pretty e
                           ]
-  pretty (WhileL c b) = P.app [ P.lit "while □ {"
-                              , pretty b
-                              , P.lit "}"
-                              ]
-  pretty (WhileR c b) = P.app [ P.lit "while "
-                              , pretty c
-                              , P.lit "{"
-                              , P.lit "□"
-                              , P.lit "}"
-                              ]
+  pretty (WhileL _c b) = P.app [ P.lit "while □ {"
+                               , pretty b
+                               , P.lit "}"
+                               ]
+  pretty (WhileR c _b) = P.app [ P.lit "while "
+                               , pretty c
+                               , P.lit "{"
+                               , P.lit "□"
+                               , P.lit "}"
+                               ]
   pretty (LabelK l) = P.app [ P.lit "label"
                             , pretty l
                             , P.lit ": □"
@@ -174,6 +178,12 @@ instance Pretty Frame where
                                  , P.lit "}"
                                  ]
   pretty ThrowK = P.app [ P.lit "throw" ]
+  -- Fig 9. Primitive Operations
+  pretty (PrimOpK o vs es) = P.app [ pretty o
+                                   , pretty vs
+                                   , P.lit "□"
+                                   , pretty es
+                                   ]
 
 class
   ( Monad m
@@ -234,6 +244,7 @@ data AValue =
     LitA Lit
   | NumA
   | StrA
+  | BoolA
   | CloA Clo
   | ObjA Obj
     -- Fig 2. Mutable References
@@ -247,6 +258,89 @@ instance Pretty AValue where
   pretty (CloA c) = pretty c
   pretty (ObjA o) = pretty o
   pretty (LocA l) = pretty l
+
+coerceToNum :: AValue -> Maybe Int
+coerceToNum v = case v of
+  (LitA (I i)) -> Just i
+  _            -> Nothing
+
+coerceToString :: AValue -> Maybe String
+coerceToString v = case v of
+  (LitA (S s)) -> Just s
+  _            -> Nothing
+
+check :: a -> Bool -> Either a ()
+check _err True  = Right ()
+check err  False = Left err
+
+liftToEither :: l -> Maybe r -> Either l r
+liftToEither l Nothing  = Left l
+liftToEither _ (Just r) = Right r
+
+notANum :: AValue -> Maybe r -> Either String r
+notANum v =
+  liftToEither $ -- (show (pretty v)) ++
+  "something cannot be coerced to a number"
+
+mustCoerceToNum :: AValue -> Either String Int
+mustCoerceToNum v = notANum v $ coerceToNum v
+
+instance (Bind (Either t)) where
+  (Left l) >>= _ = Left l
+  (Right r) >>= f = f r
+
+binaryOp :: String
+            -> (a -> a -> Set AValue)
+            -> AValue
+            -> (AValue -> Either String a)
+            -> [AValue]
+            -> Either String (Set AValue)
+binaryOp name op bot coerce args =
+  case args of
+    [v1,v2] ->
+      if v1 == bot || v2 == bot
+        then Right $ singleton $ bot
+        else do
+        n1 <- coerce v1
+        n2 <- coerce v2
+        Right $ op n1 n2
+    _ -> Left $ name ++ " must be applied to two arguments"
+
+wrapIt :: (a -> b -> c) -> (c -> d) -> a -> b -> d
+wrapIt f g a b = g $ f a b
+
+binaryNumericOp :: String -> (Int -> Int -> Int) -> [AValue] -> Either String (Set AValue)
+binaryNumericOp name op args =
+  binaryOp name (wrapIt op $ singleton . LitA . I) NumA mustCoerceToNum args
+
+binaryNumericComparisonOp :: String -> (Int -> Int -> Bool) -> [AValue] -> Either String (Set AValue)
+binaryNumericComparisonOp name op args =
+  binaryOp name (wrapIt op $ singleton . LitA . B) BoolA mustCoerceToNum args
+
+unaryNumericOp :: String -> (Int -> Int) -> [AValue] -> Either String (Set AValue)
+unaryNumericOp name op args =
+  case args of
+    [NumA] ->
+      Right $ singleton NumA
+    [v] -> do
+      n <- mustCoerceToNum v
+      Right $ singleton $ LitA $ I $ op n
+    _ -> Left $ name ++ " must be applied to two arguments"
+
+evalOp :: Op -> [AValue] -> Either String (Set AValue)
+evalOp o args = case o of
+  OStrPlus  -> undefined -- TODO: string prim ops
+  ONumPlus  -> binaryNumericOp "Plus"     (+) args
+  OMul      -> binaryNumericOp "Multiply" (-) args
+  ODiv      -> binaryNumericOp "Divide"   (-) args
+  OMod      -> binaryNumericOp "Modulo"   (mod) args
+  OSub      -> binaryNumericOp "Subtract" (-) args
+  OLt       -> binaryNumericComparisonOp "LessThan" (<) args
+  OStrLt    -> undefined -- TODO: string prim ops
+  OBAnd     -> binaryNumericOp "BitwiseAnd" (.&.) args
+  OBOr      -> binaryNumericOp "BitwiseOr"  (.|.) args
+  OBXOr     -> binaryNumericOp "BitwiseXOr" (xor) args
+  OBNot     -> unaryNumericOp  "BitwiseNot" (complement) args
 
 data Σ = Σ {
     store :: Store
@@ -337,6 +431,13 @@ eval e =
     Throw e -> do
       pushFrame $ ThrowK
       return e
+    -- Fig 9. Primitive Operations
+    PrimOp o [] -> do
+      returnEvalOp o []
+    PrimOp o (arg:args) -> do
+      pushFrame $ PrimOpK o [] args
+      return arg
+
 
 bind :: (Analysis ς m) => SName -> Set AValue -> m ()
 bind x v = do
@@ -457,6 +558,11 @@ kreturn' v fr = case fr of
     tailReturn result
   ThrowK -> do
     throw v
+  -- Fig 9. Primitive Operators
+  PrimOpK o vs (e:es) -> do
+    touchNGo e $ PrimOpK o (v:vs) es
+  PrimOpK o vs [] -> do
+    returnEvalOp o $ reverse $ v:vs
 
 touchNGo :: (Analysis ς m) => SExp -> Frame -> m SExp
 touchNGo e fr = do
@@ -491,6 +597,20 @@ throw v = do
       return e
     _ ->
       throw v
+
+crossproduct :: [Set AValue] -> Set [AValue]
+crossproduct = undefined
+
+failIfAnyFail :: Set (Either a b) -> Either a (Set b)
+failIfAnyFail = undefined
+
+returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m SExp
+returnEvalOp o args =
+  let vs  = setMap (evalOp o) (crossproduct args)
+      vs' = failIfAnyFail vs
+  in case vs' of
+    Left msg -> throw $ singleton $ LitA $ S msg
+    Right vs'' -> tailReturn $ mjoin vs''
 
 prototypalLookup :: Store -> Set AValue -> String -> Set AValue
 prototypalLookup σ o fieldname = do
