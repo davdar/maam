@@ -30,3 +30,14 @@ ybs = BarBS "hi" (1, 2)
 xbu, ybu :: BU String (Int, Int)
 xbu = FooBU 1
 ybu = BarBU "hi" (1, 2)
+
+testit :: IO ()
+testit = do
+  pprint xas
+  pprint yas
+  pprint xau
+  pprint xau
+  pprint xbs
+  pprint ybs
+  pprint xbu
+  pprint ybu

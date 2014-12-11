@@ -720,7 +720,7 @@ newtype FI a = FI { runFI :: IsoMonadStep SS SS' FIguts a }
 
 instance Analysis SS FI where
 
-execCollect :: (Analysis ς m, JoinLattice ς') => (SExp -> m SExp) -> (ς SExp -> ς') -> (ς' -> ς SExp) -> SExp -> ς'
+execCollect :: (Analysis ς m, PartialOrder ς', JoinLattice ς') => (SExp -> m SExp) -> (ς SExp -> ς') -> (ς' -> ς SExp) -> SExp -> ς'
 execCollect step to from = collect (to . mstepγ step . from) . to . inj
 
 execCollectFI :: SExp -> SS SExp
