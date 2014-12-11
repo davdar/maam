@@ -10,7 +10,7 @@ module FP
   , module FP.Pretty
   ) where
 
-import FP.Console (pprint, pprintWith, pprintWidth, ptrace)
+import FP.Console (pprint, pprintDoc, ptrace, pprintWith, pprintWidth)
 import FP.Core
 import FP.DerivingLens
 import FP.DerivingPrism

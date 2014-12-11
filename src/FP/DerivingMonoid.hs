@@ -16,7 +16,7 @@ makeMonoidLogic cx ty tyargs con fieldtys = do
       ys = map snd xys
   return $ single $
     InstanceD 
-      (uniques $ cx ++ map (ClassP ''Monoid . single) fieldtys)
+      (uniques $ concat [cx , map (ClassP ''Monoid . single) fieldtys])
       (ConT ''Monoid #@ (ConT ty #@| map (VarT . tyVarBndrName) tyargs))
       [ FunD 'null $ single $ sclause [] $ 
           ConE con #@| (mapOn fieldtys $ const $ VarE 'null)

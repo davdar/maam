@@ -1,6 +1,6 @@
 module Lang.JS.JS where
 
-import Prelude (reverse, Either(..), mod)
+import Prelude (Either(..), mod)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
@@ -349,7 +349,9 @@ data Σ = Σ {
   , kon :: FramePtr
   , nextLoc :: Loc
   , nextFP :: FramePtr
-  }
+  } deriving (Eq, Ord)
+instance Initial Σ where
+  initial = Σ mapEmpty mapEmpty mapEmpty (FramePtr 0) (Loc 0) (FramePtr 0)
 
 makeLenses ''Σ
 
@@ -698,17 +700,32 @@ nextFramePtr = do
 -- execCollect m s = collect (mstep (eval m)) $ munit m s
 
 type FIguts = StateT Σ (ListSetT ID)
-newtype FI a = FI { runFI :: FIguts a }
-             deriving ( MonadStateE Σ
-                      , MonadZero
-                      , MonadPlus
-                      , Unit
-                      , Functor
-                      , Applicative
-                      , Product
-                      , Bind
-                      , Monad
-                      )
+type SS' = ((ID :.: ListSet) :.: (,) Σ)
+newtype SS a = SS { unSS :: ListSet (a, Σ) }
+  deriving (PartialOrder, JoinLattice)
+instance Inject SS where
+  inj = SS . inj . (,initial)
+instance Morphism2 SS SS' where
+  morph2 = Compose . Compose . ID . map swap . unSS
+instance Morphism2 SS' SS where
+  morph2 = SS . map swap . runID . runCompose . runCompose
+instance Isomorphism2 SS SS' where
+newtype FI a = FI { runFI :: IsoMonadStep SS SS' FIguts a }
+  deriving 
+    ( Unit, Functor, Product, Applicative, Bind, Monad
+    , MonadZero, MonadPlus
+    , MonadStateE Σ, MonadStateI Σ, MonadState Σ
+    , MonadStep SS
+    )
+
+instance Analysis SS FI where
+
+execCollect :: (Analysis ς m, JoinLattice ς') => (SExp -> m SExp) -> (ς SExp -> ς') -> (ς' -> ς SExp) -> SExp -> ς'
+execCollect step to from = collect (to . mstepγ step . from) . to . inj
+
+execCollectFI :: SExp -> SS SExp
+execCollectFI = collect (mstepγ (eval :: SExp -> FI SExp)) . inj
+
 -- instance MonadStep FI where
 --   type SS FI = SS FIguts
 --   type SSC FI = SSC FIguts

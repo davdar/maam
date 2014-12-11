@@ -7,11 +7,12 @@ import qualified Language.LambdaJS.Syntax as LJS
 import qualified Language.LambdaJS.Desugar as LJS
 import qualified Language.LambdaJS.PrettyPrint as LJS
 import qualified Language.LambdaJS.RemoveHOAS as LJS
-import System.IO
 import System.Directory
 import Lang.JS.Syntax hiding (Exp)
 
 type Exp = StampedFix JS.SourcePos (PreExp String Label)
+
+instance Pretty SourcePos where
 
 convert :: LJS.ExprPos -> Exp
 convert = \ case
@@ -40,21 +41,21 @@ convert = \ case
   LJS.EThrow sp e -> StampedFix sp $ Throw (convert e)
   LJS.ECatch sp e₁ e₂ -> StampedFix sp $ TryCatch (convert e₁) undefined (convert e₂)
   LJS.EFinally sp e₁ e₂ -> StampedFix sp $ TryFinally (convert e₁) (convert e₂)
-  -- |We use HOAS when possible so that we don't mess up bindings.  When
-  -- pretty-printing, we unravel these to use conventional bindings.
   LJS.ELet1 sp e f -> error "HOAS should be translated away"
   LJS.ELet2 sp e₁ e₂ f -> error "HOAS should be translated away"
   LJS.EEval sp -> error "HOAS should be translated away"
 
+fromFile :: String -> IO Exp
+fromFile fn = do
+  js <- JS.parseFromFile $ toChars fn
+  return $ convert $ LJS.removeHOAS $ LJS.desugar js id
+
 main :: IO ()
 main = do
-  jsFiles <- map (("benchmarks/" ++ ) . fromChars) . filter notHidden ^$ getDirectoryContents (toChars "benchmarks")
+  jsFiles <- map (("benchmarks/" ++) . fromChars) . filter (not . hidden) ^$ getDirectoryContents $ toChars "benchmarks"
   traverseOn jsFiles $ \ jsFile -> do
-    js <- JS.parseFromFile $ toChars jsFile
-    let lamjs = LJS.removeHOAS $ LJS.desugar js id
-    pprint $ (P.text $ fromChars $ LJS.pretty lamjs :: Doc)
+    e <- fromFile jsFile
+    pprint e
   where
-    notHidden ('.':_) = False
-    notHidden _ = True
-
-
+    hidden ('.':_) = True
+    hidden _ = True

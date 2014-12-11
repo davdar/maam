@@ -1037,6 +1037,9 @@ single = flip (:) []
 filter :: (a -> Bool) -> [a] -> [a]
 filter p = foldr (\ x -> if p x then (x :) else id) []
 
+reverse :: [a] -> [a]
+reverse = foldl (flip (:)) []
+
 uniques :: (Eq a) => [a] -> [a]
 uniques = foldrFrom [] $ \ x xs -> x : filter ((/=) x) xs
 

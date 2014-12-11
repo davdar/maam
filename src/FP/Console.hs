@@ -51,14 +51,17 @@ formatOut (MFApply (fmt, o)) = applyFormat fmt $ formatOut o
 pprintWith :: (Pretty a) => (Doc -> Doc) -> a -> IO ()
 pprintWith f = print . formatOut . execDoc . f . pretty
 
-pprint :: (Pretty a) => a -> IO ()
-pprint = pprintWith id
-
 pprintWidth :: (Pretty a) => Int -> a -> IO ()
 pprintWidth = pprintWith . localSetL maxColumnWidthL
 
 pprintRibbon :: (Pretty a) => Int -> a -> IO ()
 pprintRibbon = pprintWith . localSetL maxRibbonWidthL
+
+pprint :: (Pretty a) => a -> IO ()
+pprint = pprintWith id
+
+pprintDoc :: Doc -> IO ()
+pprintDoc = pprint
 
 ptrace :: (Pretty a) => a -> b -> b
 ptrace a b = unsafePerformIO $ do

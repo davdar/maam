@@ -19,6 +19,7 @@ library
     FP.DerivingLens
     FP.DerivingMonoid
     FP.DerivingPrism
+    FP.DerivingPretty
     FP.Free
     FP.GHCI
     FP.Monads
