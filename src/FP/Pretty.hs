@@ -264,6 +264,9 @@ headingFmt = setFG 5 ++ setBD ++ setUL
 heading :: (MonadPretty m) => String -> m ()
 heading = format headingFmt . text
 
+op :: (MonadPretty m) => String -> m ()
+op = format (setFG 4) . text
+
 -- }}}
 
 -- DocM {{{

@@ -2,27 +2,19 @@ module Lang.JS.Syntax where
 
 import FP
 import qualified FP.Pretty as P
-
-newtype Name = Name { getName :: String }
-  deriving (Eq, Ord)
-data GName = GName
-  { gnameMark :: Maybe Int
-  , gname :: Name
-  }
-  deriving (Eq, Ord)
-newtype LocNum = LocNum Int
-  deriving (Eq, Ord, Peano)
-newtype BdrNum = BdrNum Int
-  deriving (Eq, Ord, Peano)
-type SName = Stamped BdrNum Name
-type SGName = Stamped BdrNum GName
-sgNameFromSName :: SName -> SGName
-sgNameFromSName (Stamped i x) = Stamped i $ GName Nothing x
+import qualified Language.LambdaJS.Syntax as LJS
+import qualified Language.ECMAScript3 as JS
+import qualified Language.LambdaJS.Desugar as LJS
+import qualified Language.LambdaJS.RemoveHOAS as LJS
+import FP.DerivingPretty
 
 data Lit = I Int | B Bool | UndefinedL | NullL | S String | D Double
   deriving (Eq, Ord)
 makePrisms ''Lit
 instance PartialOrder Lit where pcompare = discreteOrder
+
+type Op = LJS.Op
+makePrettySum ''LJS.Op
 
 instance Pretty Lit where
   pretty (I i) = pretty i
@@ -31,54 +23,6 @@ instance Pretty Lit where
   pretty NullL = P.con "ɴᴜʟʟ"
   pretty (S s) = pretty $ "\"" ++ s ++ "\""
   pretty (D d) = pretty d
-
-data Op
-  = ONumPlus
-  | OStrPlus
-  | OMul | ODiv | OMod | OSub
-  | OLt | OStrLt
-  | OBAnd | OBOr | OBXOr | OBNot
-  | OLShift | OSpRShift | OZfRShift
-  | OStrictEq
-  | OAbstractEq
-  | OTypeof
-  | OSurfaceTypeof
-  | OPrimToNum
-  | OPrimToStr
-  | OPrimToBool
-  | OIsPrim
-  | OHasOwnProp
-  | OToInteger | OToInt32 | OToUInt32
-  | OPrint -- ^for Rhino
-  | OStrContains | OStrSplitRegExp | OStrSplitStrExp -- ^for Regexes
-  | OStrStartsWith -- ^for forin
-  | OStrLen
-  | OObjIterHasNext | OObjIterNext | OObjIterKey -- ^more forin
-  | OObjCanDelete
-  | OMathExp | OMathLog | OMathCos | OMathSin | OMathAbs | OMathPow
-  | ORegExpMatch | ORegExpQuote
-  deriving (Eq, Ord)
-
-instance Pretty Op where
-  pretty ONumPlus = P.key "+"
-  pretty OStrPlus = P.key "+"
-  pretty OMul     = P.key "*"
-  pretty ODiv     = P.key "/"
-  pretty OMod     = P.key "%"
-  pretty OSub     = P.key "-"
-  pretty OLt      = P.key "<"
-  pretty OStrLt   = P.key "<"
-  pretty OBAnd    = P.key "&"
-  pretty OBOr     = P.key "|"
-  pretty OBXOr    = P.key "^"
-  pretty OBNot    = P.key "~"
-
-
-newtype Label = Label String
-              deriving (Eq, Ord)
-
-instance Pretty Label where
-  pretty (Label s) = pretty s
 
 data PreExp n ln e =
     Lit Lit
@@ -107,37 +51,46 @@ data PreExp n ln e =
     -- Fig 9. Primitive Operators
   | PrimOp Op [e]
   deriving (Eq, Ord)
-type Exp = Fix (PreExp Name Label)
-type SExp = StampedFix LocNum (PreExp SName Label)
+makePrettySum ''PreExp
 
-instance Pretty Name where
-  pretty (Name s) = P.bdr s
-instance Pretty LocNum where
-  pretty (LocNum i) = P.pun $ ptoString i
-instance Pretty GName where
-  pretty (GName iM s) = exec
-    [ pretty s
-    , maybeElimOn iM (return ()) $ \ i -> exec [P.pun "#", P.pun $ toString i]
-    ]
-instance Pretty BdrNum where
-  pretty (BdrNum i) = P.format (P.setFG 2) $ P.text $ ptoString i
-instance (Pretty n, Pretty e, Pretty ln) => Pretty (PreExp n ln e) where
-  pretty (Lit l) = pretty l
-  pretty (Var n) = pretty n
-  -- pretty (Lam n e) = P.parensIfWrapped $ P.nest 2 $ P.hvsep
-  --   [ exec [P.hsep [P.key "λ", P.pretty n], P.pun "."]
-  --   , pretty e
-  --   ]
-  -- pretty (Prim o e) = P.app [pretty o, pretty e]
-  -- pretty (Let n e b) = P.parensIfWrapped $ P.hvsep
-  --   [ P.hsep [P.key "let", pretty n, P.keyPun ":=", P.hvsep [P.nest 2 $ pretty e, P.key "in"]]
-  --   , P.hsep [pretty b]
-  --   ]
-  -- pretty (App fe e) = P.app [pretty fe, pretty e]
-  -- pretty (If e te fe) = P.parensIfWrapped $ P.nest 2 $ P.hvsep $ map (P.nest 2)
-  --   [ P.hsep [P.key "if", pretty e]
-  --   , P.hvsep [P.key "then", pretty te]
-  --   , P.hvsep [P.key "else", pretty fe]
-  --   ]
+type Exp = StampedFix JS.SourcePos (PreExp String LJS.Label)
+instance Pretty LJS.SourcePos where pretty = P.pun . show
+
 instance (Pretty n, Pretty ln) => Functorial Pretty (PreExp n ln) where
   functorial = W
+
+convert :: LJS.ExprPos -> Exp
+convert = \ case
+  LJS.ENumber sp n -> StampedFix sp $ Lit $ D n
+  LJS.EString sp s -> StampedFix sp $ Lit $ S $ fromChars s
+  LJS.EBool sp b -> StampedFix sp $ Lit $ B b
+  LJS.EUndefined sp -> StampedFix sp $ Lit $ UndefinedL
+  LJS.ENull sp -> StampedFix sp $ Lit $ NullL
+  LJS.ELambda sp xs e -> StampedFix sp $ Func (map fromChars xs) (convert e)
+  LJS.EObject sp fs -> StampedFix sp $ ObjE $ map (\ (x, e) -> (fromChars x, convert e)) fs
+  LJS.EId sp x -> StampedFix sp $ Var $ fromChars x
+  LJS.EOp sp o es -> StampedFix sp $ PrimOp o (map convert es)
+  LJS.EApp sp e es -> StampedFix sp $ App (convert e) (map convert es)
+  LJS.ELet sp xes e -> StampedFix sp $ Let (map (\ (x, e') -> (fromChars x, convert e')) xes) (convert e)
+  LJS.ESetRef sp e₁ e₂ -> StampedFix sp $ RefSet (convert e₁) (convert e₂)
+  LJS.ERef sp e -> StampedFix sp $ Ref (convert e)
+  LJS.EDeref sp e -> StampedFix sp $ DeRef (convert e)
+  LJS.EGetField sp e₁ e₂ -> StampedFix sp $ FieldRef (convert e₁) (convert e₂)
+  LJS.EUpdateField sp e₁ e₂ e₃ -> StampedFix sp $ FieldSet (convert e₁) (convert e₂) (convert e₃)
+  LJS.EDeleteField sp e₁ e₂ -> StampedFix sp $ Delete (convert e₁) (convert e₂)
+  LJS.ESeq sp e₁ e₂ -> StampedFix sp $ Seq (convert e₁) (convert e₂)
+  LJS.EIf sp e₁ e₂ e₃ -> StampedFix sp $ If (convert e₁) (convert e₂) (convert e₃)
+  LJS.EWhile sp e₁ e₂ -> StampedFix sp $ While (convert e₁) (convert e₂)
+  LJS.ELabel sp l e -> StampedFix sp $ LabelE (undefined l) (convert e)
+  LJS.EBreak sp l e -> StampedFix sp $ Break (undefined l) (convert e)
+  LJS.EThrow sp e -> StampedFix sp $ Throw (convert e)
+  LJS.ECatch sp e₁ e₂ -> StampedFix sp $ TryCatch (convert e₁) undefined (convert e₂)
+  LJS.EFinally sp e₁ e₂ -> StampedFix sp $ TryFinally (convert e₁) (convert e₂)
+  LJS.ELet1 _sp _e _f -> error "HOAS should be translated away"
+  LJS.ELet2 _sp _e₁ _e₂ _f -> error "HOAS should be translated away"
+  LJS.EEval _sp -> error "HOAS should be translated away"
+
+fromFile :: String -> IO Exp
+fromFile fn = do
+  js <- JS.parseFromFile $ toChars fn
+  return $ convert $ LJS.removeHOAS $ LJS.desugar js id

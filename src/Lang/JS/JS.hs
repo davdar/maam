@@ -744,14 +744,21 @@ newtype FI a = FI { runFI :: IsoMonadStep SS SS' FIguts a }
     , MonadStateE Σ, MonadStateI Σ, MonadState Σ
     , MonadStep SS
     )
-
 instance Analysis SS FI where
+
+newtype SSS a = SSS { unSSS :: Set (a, Σ) }
+  deriving (PartialOrder, JoinLattice)
+instance (Ord a) => Morphism (SS a) (SSS a) where
+  morph = SSS . fromList . toList . unSS
+instance (Ord a) => Morphism (SSS a) (SS a) where
+  morph = SS . fromList . toList . unSSS
+instance (Ord a) => Isomorphism (SS a) (SSS a) where
 
 execCollect :: (Analysis ς m, PartialOrder ς', JoinLattice ς') => (SExp -> m SExp) -> (ς SExp -> ς') -> (ς' -> ς SExp) -> SExp -> ς'
 execCollect step to from = collect (to . mstepγ step . from) . to . inj
 
-execCollectFI :: SExp -> SS SExp
-execCollectFI = collect (mstepγ (eval :: SExp -> FI SExp)) . inj
+execCollectFI :: SExp -> Set (SExp, Σ)
+execCollectFI = unSSS . collect (isoto . mstepγ (eval :: SExp -> FI SExp) . isofrom) . isoto . (inj :: SExp -> SS SExp)
 
 -- instance MonadStep FI where
 --   type SS FI = SS FIguts
