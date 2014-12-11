@@ -1,12 +1,53 @@
 module Lang.JS.JS where
 
-import Prelude (Either(..), mod)
+import Prelude (mod)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
 import qualified FP.Pretty as P
 import Lang.Common (VarLam(..))
 import Data.Bits
+
+newtype Loc = Loc Int 
+  deriving (Eq, Ord, Pretty)
+type Store = Map Loc (Set AValue)
+type Env = Map SName Loc
+type KStore = Map FramePtr (Frame, FramePtr)
+newtype FramePtr = FramePtr Int
+  deriving (Eq, Ord, Peano)
+
+data Σ = Σ {
+    store :: Store
+  , env :: Env
+  , kstore :: KStore
+  , kon :: FramePtr
+  , nextLoc :: Loc
+  , nextFP :: FramePtr
+  } deriving (Eq, Ord)
+instance Initial Σ where
+  initial = Σ mapEmpty mapEmpty mapEmpty (FramePtr 0) (Loc 0) (FramePtr 0)
+
+data Clo = Clo
+  { arg :: [SName]
+  , body :: SExp
+  }
+  deriving (Eq, Ord)
+
+data Obj = Obj
+  { fields :: [(String, (Set AValue))]
+  }
+  deriving (Eq, Ord)
+
+data AValue =
+    LitA Lit
+  | NumA
+  | StrA
+  | BoolA
+  | CloA Clo
+  | ObjA Obj
+    -- Fig 2. Mutable References
+  | LocA Loc
+  deriving (Eq, Ord)
 
 -- what changed
 -- msumVals -> mset
@@ -47,10 +88,10 @@ data Frame = LetK [(SName, Set AValue)] SName [(SName, SExp)] SExp
            | PrimOpK Op [(Set AValue)] [SExp]
            deriving (Eq, Ord)
 
-newtype FramePtr = FramePtr Int
-                   deriving (Eq, Ord, Peano)
+makeLenses ''Σ
+makePrisms ''AValue
+
 newtype Kon = Kon [Frame]
-type KStore = Map FramePtr (Frame, FramePtr)
 
 instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
@@ -196,24 +237,6 @@ class
   , PartialOrder (ς SExp)
   ) => Analysis ς m | m -> ς where
 
-type Env = Map SName Loc
-
-type Store = Map Loc (Set AValue)
-
-data Clo = Clo
-  { arg :: [SName]
-  , body :: SExp
-  }
-  deriving (Eq, Ord)
-
-data Obj = Obj
-  { fields :: [(String, (Set AValue))]
-  }
-  deriving (Eq, Ord)
-
-newtype Loc = Loc Int
-            deriving (Eq, Ord, Pretty)
-
 instance (Eq a) => (Indexed a v [(a, v)]) where
   -- O(n)
   ((s,v):alist) # s'
@@ -240,17 +263,6 @@ instance Pretty Obj where
     , P.lit "}"
     ]
 
-data AValue =
-    LitA Lit
-  | NumA
-  | StrA
-  | BoolA
-  | CloA Clo
-  | ObjA Obj
-    -- Fig 2. Mutable References
-  | LocA Loc
-  deriving (Eq, Ord)
-
 instance Pretty AValue where
   pretty (LitA l) = pretty l
   pretty NumA = P.con "ℝ"
@@ -269,65 +281,61 @@ coerceToString v = case v of
   (LitA (S s)) -> Just s
   _            -> Nothing
 
-check :: a -> Bool -> Either a ()
-check _err True  = Right ()
-check err  False = Left err
+check :: a -> Bool -> a :+: ()
+check _err True  = Inr ()
+check err  False = Inl err
 
-liftToEither :: l -> Maybe r -> Either l r
-liftToEither l Nothing  = Left l
-liftToEither _ (Just r) = Right r
+liftToEither :: l -> Maybe r -> l :+: r
+liftToEither l Nothing  = Inl l
+liftToEither _ (Just r) = Inr r
 
-notANum :: AValue -> Maybe r -> Either String r
+notANum :: AValue -> Maybe r -> String :+: r
 notANum v =
   liftToEither $ -- (show (pretty v)) ++
   "something cannot be coerced to a number"
 
-mustCoerceToNum :: AValue -> Either String Int
+mustCoerceToNum :: AValue -> String :+: Int
 mustCoerceToNum v = notANum v $ coerceToNum v
-
-instance (Bind (Either t)) where
-  (Left l) >>= _ = Left l
-  (Right r) >>= f = f r
 
 binaryOp :: String
             -> (a -> a -> Set AValue)
             -> AValue
-            -> (AValue -> Either String a)
+            -> (AValue -> String :+: a)
             -> [AValue]
-            -> Either String (Set AValue)
+            -> String :+: (Set AValue)
 binaryOp name op bot coerce args =
   case args of
     [v1,v2] ->
       if v1 == bot || v2 == bot
-        then Right $ singleton $ bot
+        then Inr $ singleton $ bot
         else do
         n1 <- coerce v1
         n2 <- coerce v2
-        Right $ op n1 n2
-    _ -> Left $ name ++ " must be applied to two arguments"
+        Inr $ op n1 n2
+    _ -> Inl $ name ++ " must be applied to two arguments"
 
 wrapIt :: (a -> b -> c) -> (c -> d) -> a -> b -> d
 wrapIt f g a b = g $ f a b
 
-binaryNumericOp :: String -> (Int -> Int -> Int) -> [AValue] -> Either String (Set AValue)
+binaryNumericOp :: String -> (Int -> Int -> Int) -> [AValue] -> String :+: Set AValue
 binaryNumericOp name op args =
   binaryOp name (wrapIt op $ singleton . LitA . I) NumA mustCoerceToNum args
 
-binaryNumericComparisonOp :: String -> (Int -> Int -> Bool) -> [AValue] -> Either String (Set AValue)
+binaryNumericComparisonOp :: String -> (Int -> Int -> Bool) -> [AValue] -> String :+: Set AValue
 binaryNumericComparisonOp name op args =
   binaryOp name (wrapIt op $ singleton . LitA . B) BoolA mustCoerceToNum args
 
-unaryNumericOp :: String -> (Int -> Int) -> [AValue] -> Either String (Set AValue)
+unaryNumericOp :: String -> (Int -> Int) -> [AValue] -> String :+: Set AValue
 unaryNumericOp name op args =
   case args of
     [NumA] ->
-      Right $ singleton NumA
+      Inr $ singleton NumA
     [v] -> do
       n <- mustCoerceToNum v
-      Right $ singleton $ LitA $ I $ op n
-    _ -> Left $ name ++ " must be applied to two arguments"
+      Inr $ singleton $ LitA $ I $ op n
+    _ -> Inl $ name ++ " must be applied to two arguments"
 
-evalOp :: Op -> [AValue] -> Either String (Set AValue)
+evalOp :: Op -> [AValue] -> String :+: Set AValue
 evalOp o args = case o of
   OStrPlus  -> undefined -- TODO: string prim ops
   ONumPlus  -> binaryNumericOp "Plus"     (+) args
@@ -342,18 +350,11 @@ evalOp o args = case o of
   OBXOr     -> binaryNumericOp "BitwiseXOr" (xor) args
   OBNot     -> unaryNumericOp  "BitwiseNot" (complement) args
 
-data Σ = Σ {
-    store :: Store
-  , env :: Env
-  , kstore :: KStore
-  , kon :: FramePtr
-  , nextLoc :: Loc
-  , nextFP :: FramePtr
-  } deriving (Eq, Ord)
-instance Initial Σ where
-  initial = Σ mapEmpty mapEmpty mapEmpty (FramePtr 0) (Loc 0) (FramePtr 0)
-
-makeLenses ''Σ
+-- litAL :: Prism AValue Lit
+-- numAL :: Prism AValue ()
+-- cloAL :: Prism AValue Clo
+-- coerce cloAL :: AValue -> Maybe Clo
+-- etc. ...
 
 pushFrame :: (Analysis ς m) => Frame -> m ()
 pushFrame fr = do
@@ -477,7 +478,7 @@ kreturn' v fr = case fr of
   AppR v vs (arg:args) -> do
     touchNGo arg $ AppR v vs args
   AppR fv argvs [] -> do
-    Clo xs b <- coerceClo *$ mset fv
+    Clo xs b <- liftMaybeZero . coerce cloAL *$ mset fv
     bindMany xs argvs
     return b
   ObjK nvs n ((n',e'):nes) -> do
@@ -491,6 +492,21 @@ kreturn' v fr = case fr of
     touchNGo i $ FieldRefR v
   FieldRefR o -> do
     σ <- getL storeL
+    -- v :: Set AValue
+    -- coerceStrTop *$ v :: Set (String :+: ())
+    -- WANT :: (Set String) :+: ()
+    -- o = { x: 1, y: 2 }
+    -- a = o["z"]
+    -- a === undefined <-- return TRUE
+    -- a.foo           <-- BAD
+    --                     Q: Does this 1) throw an error or 2) it's a stuck state.
+    -- NEED:
+    -- type AbsValue = Set AValue
+    -- type AbsString = Maybe (Set String)
+    -- you will need a [toIndex :: AbsValue -> AbsString]
+    --
+    -- Probably:
+    -- We have a lot more stuck states right now that are incorrect, and really should be thrown errors.
     let fieldnames = coerceStrSet *$ v
         v' = prototypalLookup σ o *$ fieldnames
     tailReturn v'
@@ -535,14 +551,14 @@ kreturn' v fr = case fr of
     tailReturn v'
   -- Fig 8. Control Operators
   IfK tb fb -> do
-    b <- coerceBool *$ mset v
+    b <- mset $ coerceBool *$ v
     if b
       then return tb
       else return fb
   SeqK e₂ -> do
     return e₂
   WhileL c e -> do
-    b <- coerceBool *$ mset v
+    b <- mset $ coerceBool *$ v
     if b
       then pushFrame (WhileR c e) >> return e
       else tailReturn $ singleton $ LitA UndefinedL
@@ -601,19 +617,21 @@ throw v = do
       throw v
 
 crossproduct :: [Set AValue] -> Set [AValue]
-crossproduct = undefined
+crossproduct = toSet . sequence . map toList 
 
-failIfAnyFail :: Set (Either a b) -> Either a (Set b)
-failIfAnyFail = undefined
+failIfAnyFail :: (Ord b) => Set (a :+: b) -> a :+: Set b
+failIfAnyFail = map toSet . sequence . toList
 
 returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m SExp
 returnEvalOp o args =
   let vs  = setMap (evalOp o) (crossproduct args)
       vs' = failIfAnyFail vs
   in case vs' of
-    Left msg -> throw $ singleton $ LitA $ S msg
-    Right vs'' -> tailReturn $ mjoin vs''
+    Inl msg -> throw $ singleton $ LitA $ S msg
+    Inr vs'' -> tailReturn $ mjoin vs''
 
+-- 1. have this take [AValue] instead of [Set AValue]
+-- 2. directly encode the logic of "if we know the string, do the lookup, if not, return all fields"
 prototypalLookup :: Store -> Set AValue -> String -> Set AValue
 prototypalLookup σ o fieldname = do
   Obj fields <- coerceObjSet *$ o
@@ -646,19 +664,28 @@ var x = do
   e <- getL envL
   kreturn $ mjoin . liftMaybeSet . index σ *$ liftMaybeSet $ e # x
 
-coerceClo :: (Analysis ς m) => AValue -> m Clo
-coerceClo (CloA c) = return c
-coerceClo _ = mzero
-
-coerceBool :: (Analysis ς m) => AValue -> m Bool
-coerceBool (LitA (B b)) = return b
-coerceBool _ = mzero
-
-coerceStr :: (Analysis ς m) => AValue -> m String
-coerceStr = undefined
+coerceBool :: AValue -> Set Bool
+coerceBool v = msum
+  [ do
+      liftMaybeSet $ coerce boolAL v
+      singleton True <+> singleton False
+  , liftMaybeSet $ coerce (bL <.> litAL) v
+  ]
 
 coerceStrSet :: AValue -> Set String
 coerceStrSet = undefined
+
+coerceStrTop :: AValue -> Maybe (String :+: ())
+coerceStrTop v = undefined
+  -- msum
+  -- [ do
+  --     coerce strAL v
+  --     return $ Inr ()
+  -- -- , coerce (sL <.> litAL) v
+  -- ]
+
+isStrEq :: AValue -> String -> Set Bool
+isStrEq = undefined
 
 coerceObj :: (Analysis ς m) => AValue -> m Obj
 coerceObj = undefined

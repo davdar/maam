@@ -21,13 +21,8 @@ sgNameFromSName (Stamped i x) = Stamped i $ GName Nothing x
 
 data Lit = I Int | B Bool | UndefinedL | NullL | S String | D Double
   deriving (Eq, Ord)
+makePrisms ''Lit
 instance PartialOrder Lit where pcompare = discreteOrder
-coerceI :: Lit -> Maybe Int
-coerceI (I i) = Just i
-coerceI _ = Nothing
-coerceB :: Lit -> Maybe Bool
-coerceB (B b) = Just b
-coerceB _ = Nothing
 
 instance Pretty Lit where
   pretty (I i) = pretty i
