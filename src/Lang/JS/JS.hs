@@ -1,6 +1,6 @@
 module Lang.JS.JS where
 
-import Prelude (mod, truncate)
+import Prelude (truncate)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
@@ -721,65 +721,3 @@ nextFramePtr = do
   putL nextKAddrL $ KAddr $ ptr + 1
   return $ KAddr ptr
 
--- op :: Op -> Set AValue -> Set AValue
--- op = extend . opOne
-
--- opOne :: Op -> AValue -> Set AValue
--- opOne Add1 IA = singleton IA
--- opOne Sub1 IA = singleton IA
--- opOne IsNonNeg IA = fromList $ map (LitA . B) [ True, False ]
--- opOne Add1 (LitA (I _)) = singleton IA
--- opOne Sub1 (LitA (I _)) = singleton IA
--- opOne IsNonNeg (LitA (I _)) = fromList $ map (LitA . B) [ True, False ]
--- opOne _ _ = sempty
-
--- execCollect :: (Analysis ς m) => Exp -> ς Exp
--- execCollect m s = collect (mstep (eval m)) $ munit m s
-
-type FIguts = StateT Σ (ListSetT ID)
-type SS' = ((ID :.: ListSet) :.: (,) Σ)
-newtype SS a = SS { unSS :: ListSet (a, Σ) }
-  deriving (PartialOrder, JoinLattice)
-instance Inject SS where
-  inj = SS . inj . (,initial)
-instance Morphism2 SS SS' where
-  morph2 = Compose . Compose . ID . map swap . unSS
-instance Morphism2 SS' SS where
-  morph2 = SS . map swap . runID . runCompose . runCompose
-instance Isomorphism2 SS SS' where
-newtype FI a = FI { runFI :: IsoMonadStep SS SS' FIguts a }
-  deriving 
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
-    , MonadStateE Σ, MonadStateI Σ, MonadState Σ
-    , MonadStep SS
-    )
-instance Analysis SS FI where
-
-newtype SSS a = SSS { unSSS :: Set (a, Σ) }
-  deriving (PartialOrder, JoinLattice)
-instance (Ord a) => Morphism (SS a) (SSS a) where
-  morph = SSS . fromList . toList . unSS
-instance (Ord a) => Morphism (SSS a) (SS a) where
-  morph = SS . fromList . toList . unSSS
-instance (Ord a) => Isomorphism (SS a) (SSS a) where
-
-execCollect :: (Analysis ς m, PartialOrder ς', JoinLattice ς') => (Exp -> m Exp) -> (ς Exp -> ς') -> (ς' -> ς Exp) -> Exp -> ς'
-execCollect step to from = collect (to . mstepγ step . from) . to . inj
-
-execCollectFI :: Exp -> Set (Exp, Σ)
-execCollectFI = unSSS . collect (isoto . mstepγ (eval :: Exp -> FI Exp) . isofrom) . isoto . (inj :: Exp -> SS Exp)
-
--- instance MonadStep FI where
---   type SS FI = SS FIguts
---   type SSC FI = SSC FIguts
---   mstep f = mstep (runFI . f)
---   munit _ = munit (P :: P FIguts)
-
--- instance MonadStateE Store FI where
---   stateE = FI . mtMap stateE . stateCommute . mtMap runFI
---
--- runFI_SS :: Ord a => SS FI a -> (Set (a, Kon), Store)
--- runFI_SS = mapFst (cmap runPairWith) . runPairWith . runID . runCompose . runCompose . runCompose
-
--- result = runFI_SS $ execCollect (P :: P FI) somega
