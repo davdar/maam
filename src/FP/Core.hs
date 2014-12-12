@@ -1476,8 +1476,22 @@ instance Integral Integer where
 
 -- Double {{{
 
-instance ToString Double where
-  toString = show
+instance ToString Double where toString = show
+instance FromInteger Double where
+  fromInteger = Prelude.fromInteger
+instance Peano Double where 
+  zer = 0
+  suc = (1+)
+  -- zer /= suc a             -- disjoint
+  -- suc a = suc b -> a = b   -- injectivity
+instance Additive Double where 
+  zero = 0
+  (+) = (Prelude.+)
+instance Subtractive Double where
+  (-) = (Prelude.-)
+instance Multiplicative Double where
+  one = 1
+  (*) = (Prelude.*)
 
 -- }}}
 

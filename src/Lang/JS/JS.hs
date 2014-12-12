@@ -1,35 +1,48 @@
 module Lang.JS.JS where
 
-import Prelude (mod)
+import Prelude (mod, truncate)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
 import MAAM
 import qualified FP.Pretty as P
 import Lang.Common (VarLam(..))
 import Data.Bits
+import Data.Fixed
 
-newtype Loc = Loc Int 
+newtype Addr = Addr Int 
   deriving (Eq, Ord, Pretty)
-type Store = Map Loc (Set AValue)
-type Env = Map SName Loc
-type KStore = Map FramePtr (Frame, FramePtr)
-newtype FramePtr = FramePtr Int
+newtype KAddr = KAddr Int
   deriving (Eq, Ord, Peano)
 
-data Σ = Σ {
-    store :: Store
-  , env :: Env
+type Store = Map Addr (Set AValue)
+type Env = Map Name Addr
+type KStore = Map KAddr (Frame, KAddr)
+
+-- o => {{ 4, { x: 1, y: 4 } }}
+-- o.x
+-- ----->  {{ 1 }}
+--
+
+-- all states == {{ o.x     [ o => {{ 4, { x: 1, y: 4 }] [ k => ∙ ] }}
+--                , 1       [ o => ...                 ] [ k => ∙ ] }}
+--                , Err NAO [ o => ...                 ] [ k => ∙ ] }}
+--               }}
+--
+
+data Σ = Σ 
+  { env :: Env
+  , store :: Store
   , kstore :: KStore
-  , kon :: FramePtr
-  , nextLoc :: Loc
-  , nextFP :: FramePtr
+  , kon :: KAddr
+  , nextAddr :: Addr
+  , nextKAddr :: KAddr
   } deriving (Eq, Ord)
 instance Initial Σ where
-  initial = Σ mapEmpty mapEmpty mapEmpty (FramePtr 0) (Loc 0) (FramePtr 0)
+  initial = Σ mapEmpty mapEmpty mapEmpty (KAddr 0) (Addr 0) (KAddr 0)
 
 data Clo = Clo
-  { arg :: [SName]
-  , body :: SExp
+  { arg :: [Name]
+  , body :: Exp
   }
   deriving (Eq, Ord)
 
@@ -46,46 +59,41 @@ data AValue =
   | CloA Clo
   | ObjA Obj
     -- Fig 2. Mutable References
-  | LocA Loc
+  | LocA Addr
   deriving (Eq, Ord)
 
--- what changed
--- msumVals -> mset
--- pmodify -> mapModify (and other friends, no more p prefixing)
--- ssingleton -> singleton
-
-data Frame = LetK [(SName, Set AValue)] SName [(SName, SExp)] SExp
-           | AppL [SExp]
-           | AppR (Set AValue) [(Set AValue)] [SExp]
-           | ObjK [(String, (Set AValue))] SName [(SName, SExp)]
+data Frame = LetK [(Name, Set AValue)] Name [(Name, Exp)] Exp
+           | AppL [Exp]
+           | AppR (Set AValue) [(Set AValue)] [Exp]
+           | ObjK [(String, (Set AValue))] Name [(Name, Exp)]
              -- Array Dereferencing
-           | FieldRefL SExp
+           | FieldRefL Exp
            | FieldRefR (Set AValue)
              -- Array Assignment
-           | FieldSetA SExp         SExp
-           | FieldSetN (Set AValue) SExp
+           | FieldSetA Exp         Exp
+           | FieldSetN (Set AValue) Exp
            | FieldSetV (Set AValue) (Set AValue)
              -- Property Deletion
-           | DeleteL SExp
+           | DeleteL Exp
            | DeleteR (Set AValue)
              -- Fig 2. Mutable References
-           | RefSetL SExp
+           | RefSetL Exp
            | RefSetR (Set AValue)
            | RefK
            | DeRefK
              -- Fig 8. Control Operators
-           | IfK SExp SExp
-           | SeqK SExp
-           | WhileL SExp SExp
-           | WhileR SExp SExp
+           | IfK Exp Exp
+           | SeqK Exp
+           | WhileL Exp Exp
+           | WhileR Exp Exp
            | LabelK Label
            | BreakK Label
-           | TryCatchK SExp SName
-           | TryFinallyL SExp
+           | TryCatchK Exp Name
+           | TryFinallyL Exp
            | TryFinallyR (Set AValue)
            | ThrowK
              -- Fig 9. Primitive Operations
-           | PrimOpK Op [(Set AValue)] [SExp]
+           | PrimOpK Op [(Set AValue)] [Exp]
            deriving (Eq, Ord)
 
 makeLenses ''Σ
@@ -232,9 +240,9 @@ class
   , MonadZero m
   , MonadPlus m
   , MonadStep ς m
-  , JoinLattice (ς SExp)
+  , JoinLattice (ς Exp)
   , Inject ς
-  , PartialOrder (ς SExp)
+  , PartialOrder (ς Exp)
   ) => Analysis ς m | m -> ς where
 
 instance (Eq a) => (Indexed a v [(a, v)]) where
@@ -271,16 +279,6 @@ instance Pretty AValue where
   pretty (ObjA o) = pretty o
   pretty (LocA l) = pretty l
 
-coerceToNum :: AValue -> Maybe Int
-coerceToNum v = case v of
-  (LitA (I i)) -> Just i
-  _            -> Nothing
-
-coerceToString :: AValue -> Maybe String
-coerceToString v = case v of
-  (LitA (S s)) -> Just s
-  _            -> Nothing
-
 check :: a -> Bool -> a :+: ()
 check _err True  = Inr ()
 check err  False = Inl err
@@ -294,8 +292,8 @@ notANum v =
   liftToEither $ -- (show (pretty v)) ++
   "something cannot be coerced to a number"
 
-mustCoerceToNum :: AValue -> String :+: Int
-mustCoerceToNum v = notANum v $ coerceToNum v
+mustCoerceToNum :: AValue -> String :+: Double
+mustCoerceToNum v = undefined -- notANum v $ coerce (nL <.> numAL) v
 
 binaryOp :: String
             -> (a -> a -> Set AValue)
@@ -317,22 +315,22 @@ binaryOp name op bot coerce args =
 wrapIt :: (a -> b -> c) -> (c -> d) -> a -> b -> d
 wrapIt f g a b = g $ f a b
 
-binaryNumericOp :: String -> (Int -> Int -> Int) -> [AValue] -> String :+: Set AValue
+binaryNumericOp :: String -> (Double -> Double -> Double) -> [AValue] -> String :+: Set AValue
 binaryNumericOp name op args =
-  binaryOp name (wrapIt op $ singleton . LitA . I) NumA mustCoerceToNum args
+  binaryOp name (wrapIt op $ singleton . LitA . N) NumA mustCoerceToNum args
 
-binaryNumericComparisonOp :: String -> (Int -> Int -> Bool) -> [AValue] -> String :+: Set AValue
+binaryNumericComparisonOp :: String -> (Double -> Double -> Bool) -> [AValue] -> String :+: Set AValue
 binaryNumericComparisonOp name op args =
   binaryOp name (wrapIt op $ singleton . LitA . B) BoolA mustCoerceToNum args
 
-unaryNumericOp :: String -> (Int -> Int) -> [AValue] -> String :+: Set AValue
+unaryNumericOp :: String -> (Double -> Double) -> [AValue] -> String :+: Set AValue
 unaryNumericOp name op args =
   case args of
     [NumA] ->
       Inr $ singleton NumA
     [v] -> do
       n <- mustCoerceToNum v
-      Inr $ singleton $ LitA $ I $ op n
+      Inr $ singleton $ LitA $ N $ op n
     _ -> Inl $ name ++ " must be applied to two arguments"
 
 evalOp :: Op -> [AValue] -> String :+: Set AValue
@@ -341,14 +339,14 @@ evalOp o args = case o of
   ONumPlus  -> binaryNumericOp "Plus"     (+) args
   OMul      -> binaryNumericOp "Multiply" (-) args
   ODiv      -> binaryNumericOp "Divide"   (-) args
-  OMod      -> binaryNumericOp "Modulo"   (mod) args
+  OMod      -> binaryNumericOp "Modulo"   (mod') args
   OSub      -> binaryNumericOp "Subtract" (-) args
   OLt       -> binaryNumericComparisonOp "LessThan" (<) args
   OStrLt    -> undefined -- TODO: string prim ops
-  OBAnd     -> binaryNumericOp "BitwiseAnd" (.&.) args
-  OBOr      -> binaryNumericOp "BitwiseOr"  (.|.) args
-  OBXOr     -> binaryNumericOp "BitwiseXOr" (xor) args
-  OBNot     -> unaryNumericOp  "BitwiseNot" (complement) args
+  OBAnd     -> binaryNumericOp "BitwiseAnd" (fromInteger .: ((.&.) `on` Prelude.truncate)) args
+  OBOr      -> binaryNumericOp "BitwiseOr"  (fromInteger .: ((.|.) `on` Prelude.truncate)) args
+  OBXOr     -> binaryNumericOp "BitwiseXOr" (fromInteger .: (xor `on` Prelude.truncate)) args
+  OBNot     -> unaryNumericOp  "BitwiseNot" (fromInteger . complement . Prelude.truncate) args
 
 -- litAL :: Prism AValue Lit
 -- numAL :: Prism AValue ()
@@ -371,7 +369,7 @@ popFrame = do
   putL konL fp'
   return fr
 
-eval :: (Analysis ς m) => SExp -> m SExp
+eval :: (Analysis ς m) => Exp -> m Exp
 eval e =
   case stampedFix e of
     Lit l -> kreturn $ singleton $ LitA l
@@ -442,28 +440,28 @@ eval e =
       return arg
 
 
-bind :: (Analysis ς m) => SName -> Set AValue -> m ()
+bind :: (Analysis ς m) => Name -> Set AValue -> m ()
 bind x v = do
   l <- nextLocation
   modifyL envL $ mapInsert x l -- TODO: Is this right?
   modifyL storeL $ mapInsertWith (\/) l v
 
-bindMany :: (Analysis ς m) => [SName] -> [Set AValue] -> m ()
+bindMany :: (Analysis ς m) => [Name] -> [Set AValue] -> m ()
 bindMany []     []     = return ()
 bindMany (x:xs) (v:vs) = bind x v >> bindMany xs vs
 bindMany []     _      = mzero
 bindMany _      []     = mzero
 
-kreturn :: (Analysis ς m) => Set AValue -> m SExp
+kreturn :: (Analysis ς m) => Set AValue -> m Exp
 kreturn v = do
   fr <- popFrame
   s <- kreturn' v fr
   return s
 
-snameToString :: SName -> String
-snameToString = getName . stamped
+snameToString :: Name -> String
+snameToString = getName
 
-kreturn' :: (Analysis ς m) => Set AValue -> Frame -> m SExp
+kreturn' :: forall ς m. (Analysis ς m) => Set AValue -> Frame -> m Exp
 kreturn' v fr = case fr of
   LetK nvs n ((n',e'):nes) b -> do
     bind n v
@@ -507,9 +505,21 @@ kreturn' v fr = case fr of
     --
     -- Probably:
     -- We have a lot more stuck states right now that are incorrect, and really should be thrown errors.
-    let fieldnames = coerceStrSet *$ v
-        v' = prototypalLookup σ o *$ fieldnames
+    let v' = msum
+          [ do
+              let fieldnames :: Set String
+                  fieldnames = liftMaybeSet . coerce (sL <.> litAL) *$ v
+              prototypalLookup σ o *$ fieldnames
+          , do
+              liftMaybeSet . coerce strAL *$ v
+              -- get all possible field values
+              undefined
+
+          ]
     tailReturn v'
+    -- let fieldnames = coerceStrSet *$ v
+    --     v' = prototypalLookup σ o *$ fieldnames
+    -- tailReturn v'
   FieldSetA i e -> do
     touchNGo i $ FieldSetN v e
   FieldSetN o e -> do
@@ -582,15 +592,15 @@ kreturn' v fr = case fr of
   PrimOpK o vs [] -> do
     returnEvalOp o $ reverse $ v:vs
 
-touchNGo :: (Analysis ς m) => SExp -> Frame -> m SExp
+touchNGo :: (Analysis ς m) => Exp -> Frame -> m Exp
 touchNGo e fr = do
   pushFrame fr
   return e
 
-tailReturn :: (Analysis ς m) => Set AValue -> m SExp
+tailReturn :: (Analysis ς m) => Set AValue -> m Exp
 tailReturn v = popFrame >>= (kreturn' v)
 
-popToLabel :: (Analysis ς m) => Label -> Set AValue -> m SExp
+popToLabel :: (Analysis ς m) => Label -> Set AValue -> m Exp
 popToLabel l v = do
   fr <- popFrame
   case fr of
@@ -603,7 +613,7 @@ popToLabel l v = do
       return e
     _ -> popToLabel l v
 
-throw :: (Analysis ς m) => Set AValue -> m SExp
+throw :: (Analysis ς m) => Set AValue -> m Exp
 throw v = do
   fr <- popFrame
   case fr of
@@ -622,7 +632,7 @@ crossproduct = toSet . sequence . map toList
 failIfAnyFail :: (Ord b) => Set (a :+: b) -> a :+: Set b
 failIfAnyFail = map toSet . sequence . toList
 
-returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m SExp
+returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m Exp
 returnEvalOp o args =
   let vs  = setMap (evalOp o) (crossproduct args)
       vs' = failIfAnyFail vs
@@ -658,7 +668,7 @@ prototypalLookup σ o fieldname = do
           -- λJS doesn't actually specify what to do in this case
           singleton $ LitA UndefinedL
 
-var :: (Analysis ς m) => SName -> m SExp
+var :: (Analysis ς m) => Name -> m Exp
 var x = do
   σ <- getL storeL
   e <- getL envL
@@ -693,23 +703,23 @@ coerceObj = undefined
 coerceObjSet :: AValue -> Set Obj
 coerceObjSet = undefined
 
-coerceLoc :: (Analysis ς m) => AValue -> m Loc
+coerceLoc :: (Analysis ς m) => AValue -> m Addr
 coerceLoc = undefined
 
-coerceLocSet :: AValue -> Set Loc
+coerceLocSet :: AValue -> Set Addr
 coerceLocSet = undefined
 
-nextLocation :: (Analysis ς m) => m Loc
+nextLocation :: (Analysis ς m) => m Addr
 nextLocation = do
-  Loc l <- getL nextLocL
-  putL nextLocL $ Loc $ l + 1
-  return $ Loc l
+  Addr l <- getL nextAddrL
+  putL nextAddrL $ Addr $ l + 1
+  return $ Addr l
 
-nextFramePtr :: (Analysis ς m) => m FramePtr
+nextFramePtr :: (Analysis ς m) => m KAddr
 nextFramePtr = do
-  FramePtr ptr <- getL nextFPL
-  putL nextFPL $ FramePtr $ ptr + 1
-  return $ FramePtr ptr
+  KAddr ptr <- getL nextKAddrL
+  putL nextKAddrL $ KAddr $ ptr + 1
+  return $ KAddr ptr
 
 -- op :: Op -> Set AValue -> Set AValue
 -- op = extend . opOne
@@ -723,7 +733,7 @@ nextFramePtr = do
 -- opOne IsNonNeg (LitA (I _)) = fromList $ map (LitA . B) [ True, False ]
 -- opOne _ _ = sempty
 
--- execCollect :: (Analysis ς m) => SExp -> ς SExp
+-- execCollect :: (Analysis ς m) => Exp -> ς Exp
 -- execCollect m s = collect (mstep (eval m)) $ munit m s
 
 type FIguts = StateT Σ (ListSetT ID)
@@ -754,11 +764,11 @@ instance (Ord a) => Morphism (SSS a) (SS a) where
   morph = SS . fromList . toList . unSSS
 instance (Ord a) => Isomorphism (SS a) (SSS a) where
 
-execCollect :: (Analysis ς m, PartialOrder ς', JoinLattice ς') => (SExp -> m SExp) -> (ς SExp -> ς') -> (ς' -> ς SExp) -> SExp -> ς'
+execCollect :: (Analysis ς m, PartialOrder ς', JoinLattice ς') => (Exp -> m Exp) -> (ς Exp -> ς') -> (ς' -> ς Exp) -> Exp -> ς'
 execCollect step to from = collect (to . mstepγ step . from) . to . inj
 
-execCollectFI :: SExp -> Set (SExp, Σ)
-execCollectFI = unSSS . collect (isoto . mstepγ (eval :: SExp -> FI SExp) . isofrom) . isoto . (inj :: SExp -> SS SExp)
+execCollectFI :: Exp -> Set (Exp, Σ)
+execCollectFI = unSSS . collect (isoto . mstepγ (eval :: Exp -> FI Exp) . isofrom) . isoto . (inj :: Exp -> SS Exp)
 
 -- instance MonadStep FI where
 --   type SS FI = SS FIguts
