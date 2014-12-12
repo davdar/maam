@@ -9,7 +9,7 @@ import Lang.Common (VarLam(..))
 import Data.Bits
 import Data.Fixed
 
-newtype Addr = Addr Int 
+newtype Addr = Addr Int
   deriving (Eq, Ord, Pretty)
 newtype KAddr = KAddr Int
   deriving (Eq, Ord, Peano)
@@ -29,7 +29,7 @@ type KStore = Map KAddr (Frame, KAddr)
 --               }}
 --
 
-data Σ = Σ 
+data Σ = Σ
   { env :: Env
   , store :: Store
   , kstore :: KStore
@@ -627,7 +627,7 @@ throw v = do
       throw v
 
 crossproduct :: [Set AValue] -> Set [AValue]
-crossproduct = toSet . sequence . map toList 
+crossproduct = toSet . sequence . map toList
 
 failIfAnyFail :: (Ord b) => Set (a :+: b) -> a :+: Set b
 failIfAnyFail = map toSet . sequence . toList
@@ -720,4 +720,3 @@ nextFramePtr = do
   KAddr ptr <- getL nextKAddrL
   putL nextKAddrL $ KAddr $ ptr + 1
   return $ KAddr ptr
-

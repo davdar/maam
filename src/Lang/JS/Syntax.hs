@@ -1,4 +1,4 @@
-module Lang.JS.Syntax 
+module Lang.JS.Syntax
   ( module Lang.JS.Syntax
   , module Lang.Common
   , module Language.LambdaJS.Syntax
