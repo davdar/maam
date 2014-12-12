@@ -1,4 +1,4 @@
-module Lang.JS.Main where
+module Main where
 
 import FP
 import System.Directory
@@ -16,8 +16,8 @@ filesFromDirM dir =
 js :: Exp 
 js = Fix $ Var $ Name "x"
 
-js_main :: IO ()
-js_main = do
+main :: IO ()
+main = do
   jsFiles <- filesFromDirM "tinytests"
   traverseOn jsFiles $ \ jsFile -> do
     e <- fromFile jsFile

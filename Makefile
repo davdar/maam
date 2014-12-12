@@ -1,4 +1,4 @@
-.PHONY: all init configure build writeup toc docs clean
+.PHONY: all init configure build pconfigure pbuild writeup toc docs clean
 
 all: build
 
@@ -9,6 +9,12 @@ configure:
 	cabal configure
 
 build:
+	cabal build
+
+pconfigure:
+	cabal configure --enable-library-profiling --enable-executable-profiling
+
+pbuild:
 	cabal build
 
 writeup:
@@ -22,7 +28,9 @@ docs:
 
 clean:
 	cabal clean
-	make -C writeup clean
-	rm .extensions*
-	rm .options*
-	rm README.html
+	rm -f .extensions*
+	rm -f .ghc_options*
+	rm -f README.html
+	rm -f js-prof.hp
+	rm -f js-prof.prof
+	rm -f js-prof.ps

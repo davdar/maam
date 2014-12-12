@@ -59,7 +59,7 @@ instance Initial Σ where
       σ₀ = fromList [(Addr 0, singleton $ ObjA $ Obj [])]
 
 execM :: TExp -> (Set (TExp, Env, KAddr, Addr, KAddr), Store, KStore)
-execM = (\ (ς, σ, κσ) -> (toSet $ toList ς, σ, κσ)) . unMΣ . collectN (15::Int) (mstepγ evalM) . inj
+execM = (\ (ς, σ, κσ) -> (toSet $ toList ς, σ, κσ)) . unMΣ . collect (mstepγ evalM) . inj
   where
     evalM :: TExp -> M TExp
     evalM = eval
