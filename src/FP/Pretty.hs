@@ -356,6 +356,8 @@ instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . fromMap
     where
       prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
+instance (Ord a, Pretty a) => Pretty (ListSet a) where
+  pretty = pretty . toSet . toList
 
 instance (Functorial Pretty f) => Pretty (Fix f) where
   pretty (Fix f) =
@@ -366,7 +368,7 @@ instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ 
-    exec [pretty a, pun ":", pretty f]
+    atLevel 0 $ exec [bump $ pretty a, pun ":", pretty f]
 
 instance (Pretty a) => Pretty (ID a) where
   pretty (ID a) = pretty a

@@ -5,6 +5,7 @@ module FP
   , module FP.DerivingPrism
   , module FP.DerivingMonoid
   , module FP.DerivingJoinLattice
+  , module FP.DerivingPretty
   , module FP.Free
   , module FP.Monads
   , module FP.Pretty
@@ -19,3 +20,4 @@ import FP.Monads
 import FP.Pretty (Pretty(..), Doc, DocM, ptoString)
 import FP.DerivingMonoid
 import FP.DerivingJoinLattice
+import FP.DerivingPretty

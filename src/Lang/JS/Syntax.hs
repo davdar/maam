@@ -7,10 +7,9 @@ module Lang.JS.Syntax
 import FP
 import qualified FP.Pretty as P
 import Language.LambdaJS.Syntax (Op(..), Label, SourcePos)
-import FP.DerivingPretty
 import Lang.Common (Name(..))
 
-instance Pretty SourcePos where pretty = P.pun . show
+instance Pretty SourcePos where pretty = const $ P.pun "𝓁"
 
 data Lit = B Bool | UndefinedL | NullL | S String | N Double
   deriving (Eq, Ord)

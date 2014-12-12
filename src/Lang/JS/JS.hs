@@ -10,9 +10,9 @@ import Data.Bits
 import Data.Fixed
 
 newtype Addr = Addr Int
-  deriving (Eq, Ord, Pretty)
+  deriving (Eq, Ord, Peano, Pretty)
 newtype KAddr = KAddr Int
-  deriving (Eq, Ord, Peano)
+  deriving (Eq, Ord, Peano, Pretty)
 
 type Store = Map Addr (Set AValue)
 type Env = Map Name Addr
@@ -37,8 +37,6 @@ data Σ = Σ
   , nextAddr :: Addr
   , nextKAddr :: KAddr
   } deriving (Eq, Ord)
-instance Initial Σ where
-  initial = Σ mapEmpty mapEmpty mapEmpty (KAddr 0) (Addr 0) (KAddr 0)
 
 data Clo = Clo
   { arg :: [Name]
@@ -97,6 +95,7 @@ data Frame = LetK [(Name, Set AValue)] Name [(Name, Exp)] Exp
            deriving (Eq, Ord)
 
 makeLenses ''Σ
+makePrettySum ''Σ
 makePrisms ''AValue
 
 newtype Kon = Kon [Frame]
@@ -359,7 +358,7 @@ pushFrame fr = do
   fp  <- getL konL
   fp' <- nextFramePtr
   modifyL kstoreL $ mapInsert fp' (fr, fp)
-  putL konL fp
+  putL konL fp'
 
 popFrame :: (Analysis ς m) => m Frame
 popFrame = do

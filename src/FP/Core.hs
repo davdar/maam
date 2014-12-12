@@ -1172,7 +1172,7 @@ toMap :: (Ord k) => [(k,v)] -> Map k v
 toMap = iter (uncurry mapInsert) mapEmpty
 
 fromMap :: Map k v -> [(k,v)]
-fromMap = iter (:) []
+fromMap = foldr (:) []
 
 -- }}}
 
@@ -1855,6 +1855,10 @@ instance Iterable (k, v) (Map k v) where
   foldl f i (Map m) = Map.foldlWithKey' (curry . f) i m
   foldr _ i EmptyMap = i
   foldr f i (Map m) = Map.foldrWithKey' (curry f) i m
+instance (Ord k) => Buildable (k, v) (Map k v) where
+  nil = mapEmpty
+  cons = uncurry mapInsert
+  
 instance MapLike k v (Map k v) where
   learnMap EmptyMap i _ = i
   learnMap (Map _) _ f = f
