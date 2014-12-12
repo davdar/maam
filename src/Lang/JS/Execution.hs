@@ -5,20 +5,45 @@ import MAAM
 import Lang.JS.JS
 import Lang.JS.Syntax
 
--- The type that is automatically generated as the state space functor from
--- (StateT Σ (ListSetT ID))
-type MΣ' = ((ID :.: ListSet) :.: (,) Σ)
+-- The type that is automatically generated as the state space functor for M
+type MΣ' = (((ID :.: (,) (Store, KStore)) :.: ListSet) :.: (,) (Env, KAddr, Addr, KAddr))
 
+-- data Σ = Σ
+--   { env :: Env
+--   , store :: Store
+--   , kstore :: KStore
+--   , kon :: KAddr
+--   , nextAddr :: Addr
+--   , nextKAddr :: KAddr
+--   } deriving (Eq, Ord)
 -- A nicer to look at state space functor that is isomorphic to MΣ'
-newtype MΣ a = MΣ { unMΣ :: ListSet (a, Σ) }
+newtype MΣ a = MΣ { unMΣ :: (ListSet (a, Env, KAddr, Addr, KAddr), Store, KStore) }
   deriving (PartialOrder, JoinLattice)
-instance Inject MΣ where inj = MΣ . inj . (,initial)
-instance Morphism2 MΣ MΣ' where morph2 = Compose . Compose . ID . map swap . unMΣ
-instance Morphism2 MΣ' MΣ where morph2 = MΣ . map swap . runID . runCompose . runCompose
+instance Inject MΣ where 
+  inj :: a -> MΣ a
+  inj a = MΣ (inj (a, ρ₀, κ₀, τ₀, κτ₀), σ₀, κσ₀)
+    where
+      Σ ρ₀ σ₀ κσ₀ κ₀ τ₀ κτ₀ = initial
+instance Morphism2 MΣ MΣ' where 
+  morph2 = Compose . Compose . Compose . ID . ff . unMΣ
+    where 
+      ff (ς, σ, κσ) = ((σ, κσ), map gg ς)
+      gg (a, ρ, κ, τ, κτ) = ((ρ, κ, τ, κτ), a)
+instance Morphism2 MΣ' MΣ where 
+  morph2 = MΣ . ff . runID . runCompose . runCompose . runCompose
+    where
+      ff ((σ, κσ), ς) = (map gg ς, σ, κσ)
+      gg ((ρ, κ, τ, κτ), a) = (a, ρ, κ, τ, κτ)
 instance Isomorphism2 MΣ MΣ'
 
+instance Morphism Σ ((Env, KAddr, Addr, KAddr), (Store, KStore)) where
+  morph (Σ ρ σ κσ κ τ κτ) = ((ρ, κ, τ, κτ), (σ, κσ))
+instance Morphism ((Env, KAddr, Addr, KAddr), (Store, KStore)) Σ where
+  morph ((ρ, κ, τ, κτ), (σ, κσ)) = Σ ρ σ κσ κ τ κτ
+instance Isomorphism Σ ((Env, KAddr, Addr, KAddr), (Store, KStore))
+
 -- A monad that satisfies the Analysis constraint
-newtype M a = M { runM :: IsoMonadStep MΣ MΣ' (StateT Σ (ListSetT ID)) a }
+newtype M a = M { unM :: IsoMonadStep MΣ MΣ' (AddStateT Σ (Env, KAddr, Addr, KAddr) (ListSetT (StateT (Store, KStore) ID))) a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
     , MonadZero, MonadPlus
@@ -33,8 +58,8 @@ instance Initial Σ where
       ρ₀ = fromList [(Name "$global", Addr 0)]
       σ₀ = fromList [(Addr 0, singleton $ ObjA $ Obj [])]
 
-execM :: Exp -> ListSet (Exp, Σ)
-execM = unMΣ . collectN (17::Int) (mstepγ evalM) . inj
+execM :: TExp -> (Set (TExp, Env, KAddr, Addr, KAddr), Store, KStore)
+execM = (\ (ς, σ, κσ) -> (toSet $ toList ς, σ, κσ)) . unMΣ . collectN (15::Int) (mstepγ evalM) . inj
   where
-    evalM :: Exp -> M Exp
+    evalM :: TExp -> M TExp
     evalM = eval

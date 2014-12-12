@@ -4,6 +4,7 @@ import FP
 import System.Directory
 import Lang.JS.FrontEnd
 import Lang.JS.Execution
+import Lang.JS.Syntax
 
 filesFromDirM :: String -> IO [String]
 filesFromDirM dir =
@@ -11,6 +12,9 @@ filesFromDirM dir =
   where
     hidden ('.':_) = True
     hidden _ = False
+
+js :: Exp 
+js = Fix $ Var $ Name "x"
 
 js_main :: IO ()
 js_main = do

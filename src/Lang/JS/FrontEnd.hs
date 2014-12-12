@@ -7,7 +7,7 @@ import qualified Language.LambdaJS.RemoveHOAS as LJS
 import Lang.JS.Syntax
 import qualified Language.LambdaJS.Syntax as LJS
 
-convert :: LJS.ExprPos -> Exp
+convert :: LJS.ExprPos -> StampedFix JS.SourcePos PreExp
 convert = \ case
   LJS.ENumber sp n -> StampedFix sp $ Lit $ N n
   LJS.EString sp s -> StampedFix sp $ Lit $ S $ fromChars s
@@ -38,7 +38,7 @@ convert = \ case
   LJS.ELet2 _sp _e₁ _e₂ _f -> error "HOAS should be translated away"
   LJS.EEval _sp -> error "HOAS should be translated away"
 
-fromFile :: String -> IO Exp
+fromFile :: String -> IO TExp
 fromFile fn = do
   js <- JS.parseFromFile $ toChars fn
-  return $ convert $ LJS.removeHOAS $ LJS.desugar js id
+  return $ stamp $ stripStampedFix $ convert $ LJS.removeHOAS $ LJS.desugar js id

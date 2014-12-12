@@ -10,13 +10,13 @@ import Data.Bits
 import Data.Fixed
 
 newtype Addr = Addr Int
-  deriving (Eq, Ord, Peano, Pretty)
+  deriving (Eq, Ord, PartialOrder, Peano, Pretty)
 newtype KAddr = KAddr Int
-  deriving (Eq, Ord, Peano, Pretty)
+  deriving (Eq, Ord, PartialOrder, Peano, Pretty)
 
 type Store = Map Addr (Set AValue)
 type Env = Map Name Addr
-type KStore = Map KAddr (Frame, KAddr)
+type KStore = Map KAddr (Set (Frame, KAddr))
 
 -- o => {{ 4, { x: 1, y: 4 } }}
 -- o.x
@@ -40,7 +40,7 @@ data Σ = Σ
 
 data Clo = Clo
   { arg :: [Name]
-  , body :: Exp
+  , body :: TExp
   }
   deriving (Eq, Ord)
 
@@ -60,45 +60,44 @@ data AValue =
   | LocA Addr
   deriving (Eq, Ord)
 
-data Frame = LetK [(Name, Set AValue)] Name [(Name, Exp)] Exp
-           | AppL [Exp]
-           | AppR (Set AValue) [(Set AValue)] [Exp]
-           | ObjK [(String, (Set AValue))] Name [(Name, Exp)]
+data Frame = LetK [(Name, Set AValue)] Name [(Name, TExp)] TExp
+           | AppL [TExp]
+           | AppR (Set AValue) [(Set AValue)] [TExp]
+           | ObjK [(String, (Set AValue))] Name [(Name, TExp)]
              -- Array Dereferencing
-           | FieldRefL Exp
+           | FieldRefL TExp
            | FieldRefR (Set AValue)
              -- Array Assignment
-           | FieldSetA Exp         Exp
-           | FieldSetN (Set AValue) Exp
+           | FieldSetA TExp         TExp
+           | FieldSetN (Set AValue) TExp
            | FieldSetV (Set AValue) (Set AValue)
              -- Property Deletion
-           | DeleteL Exp
+           | DeleteL TExp
            | DeleteR (Set AValue)
              -- Fig 2. Mutable References
-           | RefSetL Exp
+           | RefSetL TExp
            | RefSetR (Set AValue)
            | RefK
            | DeRefK
              -- Fig 8. Control Operators
-           | IfK Exp Exp
-           | SeqK Exp
-           | WhileL Exp Exp
-           | WhileR Exp Exp
+           | IfK TExp TExp
+           | SeqK TExp
+           | WhileL TExp TExp
+           | WhileR TExp TExp
            | LabelK Label
            | BreakK Label
-           | TryCatchK Exp Name
-           | TryFinallyL Exp
+           | TryCatchK TExp Name
+           | TryFinallyL TExp
            | TryFinallyR (Set AValue)
            | ThrowK
              -- Fig 9. Primitive Operations
-           | PrimOpK Op [(Set AValue)] [Exp]
+           | PrimOpK Op [(Set AValue)] [TExp]
            deriving (Eq, Ord)
+instance PartialOrder Frame where pcompare = discreteOrder
 
 makeLenses ''Σ
 makePrettySum ''Σ
 makePrisms ''AValue
-
-newtype Kon = Kon [Frame]
 
 instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
@@ -242,20 +241,10 @@ class
   , MonadZero m
   , MonadPlus m
   , MonadStep ς m
-  , JoinLattice (ς Exp)
+  , JoinLattice (ς TExp)
   , Inject ς
-  , PartialOrder (ς Exp)
+  , PartialOrder (ς TExp)
   ) => Analysis ς m | m -> ς where
-
-instance (Eq a) => (Indexed a v [(a, v)]) where
-  -- O(n)
-  ((s,v):alist) # s'
-    | s == s'   = Just v
-    | otherwise = alist # s
-  [] # _        = Nothing
-
-instance (Eq a) => (MapLike a v [(a, v)]) where
-  -- fuck it
 
 instance Pretty Clo where
   pretty (Clo x b) = pretty $ VarLam [x] b
@@ -360,18 +349,18 @@ pushFrame :: (Analysis ς m) => Frame -> m ()
 pushFrame fr = do
   fp  <- getL konL
   fp' <- nextFramePtr
-  modifyL kstoreL $ mapInsert fp' (fr, fp)
+  modifyL kstoreL $ mapInsertWith (\/) fp' (singleton (fr, fp))
   putL konL fp'
 
 popFrame :: (Analysis ς m) => m Frame
 popFrame = do
   fp <- getL konL
   kσ <- getL kstoreL
-  (fr, fp') <- liftMaybeZero $ kσ # fp
+  (fr, fp') <- mset $ mjoin $ liftMaybeSet $ kσ # fp
   putL konL fp'
   return fr
 
-eval :: (Analysis ς m) => Exp -> m Exp
+eval :: (Analysis ς m) => TExp -> m TExp
 eval e =
   case stampedFix e of
     Lit l -> kreturn $ singleton $ LitA l
@@ -454,7 +443,7 @@ bindMany (x:xs) (v:vs) = bind x v >> bindMany xs vs
 bindMany []     _      = mzero
 bindMany _      []     = mzero
 
-kreturn :: (Analysis ς m) => Set AValue -> m Exp
+kreturn :: (Analysis ς m) => Set AValue -> m TExp
 kreturn v = do
   fr <- popFrame
   s <- kreturn' v fr
@@ -463,7 +452,7 @@ kreturn v = do
 snameToString :: Name -> String
 snameToString = getName
 
-kreturn' :: forall ς m. (Analysis ς m) => Set AValue -> Frame -> m Exp
+kreturn' :: forall ς m. (Analysis ς m) => Set AValue -> Frame -> m TExp
 kreturn' v fr = case fr of
   LetK nvs n ((n',e'):nes) b -> do
     bind n v
@@ -565,15 +554,15 @@ kreturn' v fr = case fr of
   PrimOpK o vs [] -> do
     returnEvalOp o $ reverse $ v:vs
 
-touchNGo :: (Analysis ς m) => Exp -> Frame -> m Exp
+touchNGo :: (Analysis ς m) => TExp -> Frame -> m TExp
 touchNGo e fr = do
   pushFrame fr
   return e
 
-tailReturn :: (Analysis ς m) => Set AValue -> m Exp
+tailReturn :: (Analysis ς m) => Set AValue -> m TExp
 tailReturn v = popFrame >>= (kreturn' v)
 
-popToLabel :: (Analysis ς m) => Label -> Set AValue -> m Exp
+popToLabel :: (Analysis ς m) => Label -> Set AValue -> m TExp
 popToLabel l v = do
   fr <- popFrame
   case fr of
@@ -586,7 +575,7 @@ popToLabel l v = do
       return e
     _ -> popToLabel l v
 
-throw :: (Analysis ς m) => Set AValue -> m Exp
+throw :: (Analysis ς m) => Set AValue -> m TExp
 throw v = do
   fr <- popFrame
   case fr of
@@ -620,7 +609,7 @@ crossproduct = toSet . sequence . map toList
 failIfAnyFail :: (Ord b) => Set (a :+: b) -> a :+: Set b
 failIfAnyFail = map toSet . sequence . toList
 
-returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m Exp
+returnEvalOp :: (Analysis ς m) => Op -> [Set AValue] -> m TExp
 returnEvalOp o args =
   let vs  = setMap (evalOp o) (crossproduct args)
       vs' = failIfAnyFail vs
@@ -671,7 +660,7 @@ updateField ms fields action = case ms of
   Just fieldname ->
     singleton $ action fields fieldname
 
-var :: (Analysis ς m) => Name -> m Exp
+var :: (Analysis ς m) => Name -> m TExp
 var x = do
   e <- getL envL
   kreturn $ setMap LocA $ liftMaybeSet $ e # x

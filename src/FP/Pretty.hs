@@ -292,7 +292,7 @@ execDoc d =
 type Doc = DocM ()
 
 instance Monoid Doc where
-  null = abort
+  null = return ()
   (++) = (>>)
 
 class Pretty a where
@@ -339,6 +339,8 @@ instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (a, b) = collection "(" ")" "," [pretty a, pretty b]
 instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
   pretty (a, b, c) = collection "(" ")" "," [pretty a, pretty b, pretty c]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e) => Pretty (a, b, c, d, e) where
+  pretty (a, b, c, d, e) = collection "(" ")" "," [pretty a, pretty b, pretty c, pretty d, pretty e]
 instance Bifunctorial Pretty (,) where
   bifunctorial = W
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where

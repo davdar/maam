@@ -1135,11 +1135,12 @@ fromSet = iter (:) []
 
 -- MapLike {{{
 
--- Minimal definition: mapEmpty, mapIsEmpty, mapInsertWith, mapRemove
+-- Minimal definition: learnMap, mapEmpty, mapIsEmpty, mapInsertWith, mapRemove
 class (Iterable (k,v) t, Indexed k v t) => MapLike k v t | t -> k, t -> v where
   learnMap :: t -> b -> ((Ord k) => b) -> b
   mapEmpty :: t
   mapIsEmpty :: t -> Bool
+  -- mapInsertWith (f :: Old -> New -> TheOneToKeep)
   mapInsertWith :: (Ord k) => (v -> v -> v) -> k -> v -> t -> t
   mapRemove :: t -> Maybe ((k, v), t)
   mapUnionWith :: (v -> v -> v) -> t -> t -> t
@@ -1499,12 +1500,22 @@ instance Multiplicative Double where
 
 instance (PartialOrder a, PartialOrder b) => PartialOrder (a, b) where
   (a1, b1) <~ (a2, b2) = (a1 <~ a2) /\ (b1 <~ b2)
+instance (PartialOrder a, PartialOrder b, PartialOrder c) => PartialOrder (a, b, c) where
+  (a1, b1, c1) <~ (a2, b2, c2) = (a1 <~ a2) /\ (b1 <~ b2) /\ (c1 <~ c2)
+instance (PartialOrder a, PartialOrder b, PartialOrder c, PartialOrder d, PartialOrder e) => PartialOrder (a, b, c, d, e) where
+  (a1, b1, c1, d1, e1) <~ (a2, b2, c2, d2, e2) = (a1 <~ a2) /\ (b1 <~ b2) /\ (c1 <~ c2) /\ (d1 <~ d2) /\ (e1 <~ e2)
 instance (Monoid a, Monoid b) => Monoid (a, b) where
   null = (null, null)
   (a1, b1) ++ (a2, b2) = (a1 ++ a2, b1 ++ b2)
 instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
   bot = (bot, bot)
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
+instance (JoinLattice a, JoinLattice b, JoinLattice c) => JoinLattice (a, b, c) where
+  bot = (bot, bot, bot)
+  (a1, b1, c1) \/ (a2, b2, c2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2)
+instance (JoinLattice a, JoinLattice b, JoinLattice c, JoinLattice d, JoinLattice e) => JoinLattice (a, b, c, d, e) where
+  bot = (bot, bot, bot, bot, bot)
+  (a1, b1, c1, d1, e1) \/ (a2, b2, c2, d2, e2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2, d1 \/ d2, e1 \/ e2)
 instance Bifunctorial Eq (,) where
   bifunctorial = W
 instance Bifunctorial Ord (,) where
@@ -1674,8 +1685,25 @@ instance Iterable a [a] where
   foldr f i (x:xs) = f x $ foldr f i xs
 instance (Eq a) => Container a [a] where
   (?) = flip isElem
--- instance Indexed Integer a [a] where
---   (#) = flip elemAtN
+-- Minimal definition: learnMap, mapEmpty, mapIsEmpty, mapInsertWith, mapRemove
+instance (Eq k) => Indexed k v [(k, v)] where
+  [] # _ = Nothing
+  ((k,v):kvs) # k' | k == k' = Just v
+                   | otherwise = kvs # k'
+instance (Ord k) => MapLike k v [(k, v)] where
+  learnMap :: [(k, v)] -> b -> ((Ord k) => b) -> b
+  learnMap _ _ x = x
+  mapEmpty :: [(k, v)]
+  mapEmpty = []
+  mapIsEmpty :: [(k, v)] -> Bool
+  mapIsEmpty = isNil
+  mapInsertWith :: (Ord k) => (v -> v -> v) -> k -> v -> [(k, v)] -> [(k, v)]
+  mapInsertWith _f _k _v [] = []
+  mapInsertWith f k v ((k',v'):kvs) | k == k' = (k, f v' v):kvs
+                                    | otherwise = (k',v'):mapInsertWith f k v kvs
+  mapRemove :: [(k, v)] -> Maybe ((k, v), [(k, v)])
+  mapRemove = uncons
+
 instance Monoid [a] where
   null = []
   xs ++ ys = foldr (:) ys xs
@@ -1900,6 +1928,8 @@ data StampedFix a f = StampedFix
   { stampedFixID :: a
   , stampedFix :: f (StampedFix a f)
   } 
+stripStampedFix :: (Functor f) => StampedFix a f -> Fix f
+stripStampedFix (StampedFix _ f) = Fix $ map stripStampedFix f
 instance (Eq a) => Eq (StampedFix a f) where
   (==) = (==) `on` stampedFixID
 instance (Ord a) => Ord (StampedFix a f) where
