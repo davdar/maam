@@ -682,32 +682,11 @@ coerceBool v = msum
   , liftMaybeSet $ coerce (bL <.> litAL) v
   ]
 
-coerceStrSet :: AValue -> Set String
-coerceStrSet = undefined
-
-coerceStrTop :: AValue -> Maybe (String :+: ())
-coerceStrTop v = undefined
-  -- msum
-  -- [ do
-  --     coerce strAL v
-  --     return $ Inr ()
-  -- -- , coerce (sL <.> litAL) v
-  -- ]
-
-isStrEq :: AValue -> String -> Set Bool
-isStrEq = undefined
-
-coerceObj :: (Analysis ς m) => AValue -> m Obj
-coerceObj = undefined
-
 coerceObjSet :: AValue -> Set Obj
-coerceObjSet = undefined
-
-coerceLoc :: (Analysis ς m) => AValue -> m Addr
-coerceLoc = undefined
+coerceObjSet = liftMaybeSet . coerce objAL
 
 coerceLocSet :: AValue -> Set Addr
-coerceLocSet = undefined
+coerceLocSet = liftMaybeSet . coerce locAL
 
 nextLocation :: (Analysis ς m) => m Addr
 nextLocation = do
