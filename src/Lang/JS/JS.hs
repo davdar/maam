@@ -295,7 +295,7 @@ notANum v =
   "something cannot be coerced to a number"
 
 mustCoerceToNum :: AValue -> String :+: Double
-mustCoerceToNum v = undefined -- notANum v $ coerce (nL <.> numAL) v
+mustCoerceToNum v = notANum v $ coerce (nL <.> litAL) v
 
 binaryOp :: String
             -> (a -> a -> Set AValue)
@@ -673,9 +673,8 @@ updateField ms fields action = case ms of
 
 var :: (Analysis ς m) => Name -> m Exp
 var x = do
-  σ <- getL storeL
   e <- getL envL
-  kreturn $ mjoin . liftMaybeSet . index σ *$ liftMaybeSet $ e # x
+  kreturn $ setMap LocA $ liftMaybeSet $ e # x
 
 coerceBool :: AValue -> Set Bool
 coerceBool v = msum
