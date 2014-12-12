@@ -102,7 +102,10 @@ newtype Kon = Kon [Frame]
 
 instance Pretty Frame where
   -- pretty (PrimK o k) = P.app [pretty o, P.lit "□", pretty k]
-  pretty (LetK nvs n nes b) = P.app [P.con "let", pretty n, P.lit "= □", pretty b]
+  pretty (LetK nvs n nes b) = P.atLevel 0 $ P.hvsep
+    [ P.hsep [ P.con "let", pretty n, P.keyPun "=", P.lit "□", P.key "in" ]
+    , pretty b
+    ]
   pretty (AppL a) = P.app [P.lit "□", pretty a]
   pretty (AppR f vs es) = P.app [pretty f, pretty vs, P.lit "□", pretty es]
   pretty (ObjK _vs n _es) = P.app [ P.lit "{ ..."

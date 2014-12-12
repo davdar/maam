@@ -19,7 +19,7 @@ instance Pretty Lit where
   pretty (B b) = pretty b
   pretty UndefinedL = P.con "ᴜɴᴅᴇғɪɴᴇᴅ"
   pretty NullL = P.con "ɴᴜʟʟ"
-  pretty (S s) = pretty $ "\"" ++ s ++ "\""
+  pretty (S s) = pretty s
   pretty (N d) = pretty d
 
 makePrettySum ''Op

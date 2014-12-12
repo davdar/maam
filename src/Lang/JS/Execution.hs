@@ -34,7 +34,7 @@ instance Initial Σ where
       σ₀ = fromList [(Addr 0, singleton $ ObjA $ Obj [])]
 
 execM :: Exp -> ListSet (Exp, Σ)
-execM = unMΣ . collect (mstepγ evalM) . inj
+execM = unMΣ . collectN (17::Int) (mstepγ evalM) . inj
   where
     evalM :: Exp -> M Exp
     evalM = eval
