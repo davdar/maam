@@ -489,36 +489,9 @@ kreturn' v fr = case fr of
     touchNGo i $ FieldRefR v
   FieldRefR o -> do
     σ <- getL storeL
-    -- v :: Set AValue
-    -- coerceStrTop *$ v :: Set (String :+: ())
-    -- WANT :: (Set String) :+: ()
-    -- o = { x: 1, y: 2 }
-    -- a = o["z"]
-    -- a === undefined <-- return TRUE
-    -- a.foo           <-- BAD
-    --                     Q: Does this 1) throw an error or 2) it's a stuck state.
-    -- NEED:
-    -- type AbsValue = Set AValue
-    -- type AbsString = Maybe (Set String)
-    -- you will need a [toIndex :: AbsValue -> AbsString]
-    --
-    -- Probably:
-    -- We have a lot more stuck states right now that are incorrect, and really should be thrown errors.
-    let v' = msum
-          [ do
-              let fieldnames :: Set String
-                  fieldnames = liftMaybeSet . coerce (sL <.> litAL) *$ v
-              prototypalLookup σ o *$ fieldnames
-          , do
-              liftMaybeSet . coerce strAL *$ v
-              -- get all possible field values
-              undefined
-
-          ]
+    let fieldnames = setMap convertToString v
+        v' = prototypalLookup σ o *$ fieldnames
     tailReturn v'
-    -- let fieldnames = coerceStrSet *$ v
-    --     v' = prototypalLookup σ o *$ fieldnames
-    -- tailReturn v'
   FieldSetA i e -> do
     touchNGo i $ FieldSetN v e
   FieldSetN o e -> do
@@ -526,18 +499,16 @@ kreturn' v fr = case fr of
   FieldSetV o i -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
-          fieldname <- coerceStrSet *$ i
-          singleton $ ObjA $ Obj $
-            mapModify (\_ -> v) fieldname fields
+          fieldname <- setMap convertToString i
+          setMap (ObjA . Obj) $ updateField fieldname fields (flip $ mapModify (\_ -> v))
     tailReturn o'
   DeleteL e -> do
     touchNGo e $ DeleteR v
   DeleteR o -> do
     let o' = do
           Obj fields <- coerceObjSet *$ o
-          fieldname <- coerceStrSet *$ v
-          singleton $ ObjA $ Obj $
-            filter (\(k,_) -> k /= fieldname) fields
+          fieldname <- setMap convertToString v
+          setMap (ObjA . Obj) $ updateField fieldname fields (flip $ \k -> filter (\(k',_) -> k' /= k))
     tailReturn o'
   -- Fig 2. Mutable References
   RefSetL e -> do
@@ -625,6 +596,21 @@ throw v = do
     _ ->
       throw v
 
+-- NB: The "Nothing" value refers to the top value of strings, i.e. every possible string.
+convertToString :: AValue -> Maybe String
+convertToString v = case v of
+  LitA (B True)   -> Just "true"
+  LitA (B False)  -> Just "false"
+  LitA UndefinedL -> Just "undefined"
+  LitA NullL      -> Just "null"
+  LitA (S s)      -> Just s
+  LitA (N d)      -> Just $ show d
+  NumA            -> Nothing
+  StrA            -> Nothing
+  BoolA           -> Nothing
+  CloA c          -> Nothing -- todo this isnt right, see ToString in ECMAScript docs
+  ObjA o          -> Nothing
+
 crossproduct :: [Set AValue] -> Set [AValue]
 crossproduct = toSet . sequence . map toList
 
@@ -641,17 +627,21 @@ returnEvalOp o args =
 
 -- 1. have this take [AValue] instead of [Set AValue]
 -- 2. directly encode the logic of "if we know the string, do the lookup, if not, return all fields"
-prototypalLookup :: Store -> Set AValue -> String -> Set AValue
-prototypalLookup σ o fieldname = do
+prototypalLookup :: Store -> Set AValue -> Maybe String -> Set AValue
+prototypalLookup σ o maybeFieldname = do
   Obj fields <- coerceObjSet *$ o
-  case fields # fieldname of
-    Just v -> v
-    Nothing ->
-      case fields # "__proto__" of
+  case maybeFieldname of
+    -- actually this isn't right, it should recurisvely get all its parents fields
+    Nothing -> msum $ map snd fields
+    Just fieldname ->
+      case fields # fieldname of
+        Just v -> v
         Nothing ->
-          singleton $ LitA UndefinedL
-        Just avs ->
-          avs >>= lookupInParent
+          case fields # "__proto__" of
+            Nothing ->
+              singleton $ LitA UndefinedL
+            Just avs ->
+              avs >>= lookupInParent
   where
     lookupInParent av =
       case av of
@@ -660,12 +650,23 @@ prototypalLookup σ o fieldname = do
         (LocA l) ->
           case σ # l of
             Nothing -> singleton $ LitA UndefinedL
-            Just vs -> prototypalLookup σ vs fieldname
+            Just vs -> prototypalLookup σ vs maybeFieldname
         _ ->
           -- __proto__ has been set to something other than an object
           -- I *think* this case is exactly the same as LitA NullL, but
           -- λJS doesn't actually specify what to do in this case
           singleton $ LitA UndefinedL
+
+updateField :: Maybe String
+               -> [(String, Set AValue)]
+               -> ([(String, Set AValue)] -> String -> [(String, Set AValue)])
+               -> Set [(String, Set AValue)]
+updateField ms fields action = case ms of
+  Nothing ->
+    let fieldnames = fromList $ map fst fields
+    in setMap (action fields) fieldnames
+  Just fieldname ->
+    singleton $ action fields fieldname
 
 var :: (Analysis ς m) => Name -> m Exp
 var x = do
