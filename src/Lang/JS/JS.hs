@@ -670,9 +670,8 @@ updateField ms fields action = case ms of
 
 var :: (Analysis ς m) => Name -> m Exp
 var x = do
-  σ <- getL storeL
   e <- getL envL
-  kreturn $ mjoin . liftMaybeSet . index σ *$ liftMaybeSet $ e # x
+  kreturn $ setMap LocA $ liftMaybeSet $ e # x
 
 coerceBool :: AValue -> Set Bool
 coerceBool v = msum
