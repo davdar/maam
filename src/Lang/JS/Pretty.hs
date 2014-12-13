@@ -20,10 +20,15 @@ instance (Pretty e) => Pretty (PreExp e) where
   pretty (Func xs e) = pretty $ VarLam xs e
   pretty (ObjE xes) = pretty $ toMap xes
   pretty (Let xes e) = P.atLevel 0 $ P.hvsep
-    [ P.hsep [ P.key "let" 
-             , P.collection "[" "]" "," $ mapOn xes $ \ (x,e') -> P.hsep [ pretty x, P.keyPun ":=", P.botLevel $ P.align $ pretty e' ]
-             , P.key "in" 
-             ]
+    [ P.hsep 
+        [ P.key "let" 
+        , P.collection "[" "]" "," $ mapOn xes $ \ (x,e') -> P.hsep 
+            [ pretty x
+            , P.keyPun ":="
+            , P.botLevel $ P.align $ pretty e' 
+            ]
+        , P.key "in" 
+        ]
     , P.align $ pretty e
     ]
   pretty (App e es) = P.app $ pretty e : map pretty es
@@ -274,9 +279,9 @@ instance Pretty Obj where
 
 instance Pretty AValue where
   pretty (LitA l) = pretty l
-  pretty NumA = P.con "ℝ"
-  pretty StrA = P.con "S"
   pretty (CloA c) = pretty c
   pretty (ObjA o) = pretty o
   pretty (LocA l) = pretty l
-
+  pretty BoolA = P.con "𝔹"
+  pretty StrA  = P.con "𝕊"
+  pretty NumA  = P.con "ℝ"

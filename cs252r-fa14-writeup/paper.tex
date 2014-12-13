@@ -41,6 +41,8 @@
 \newcommand{\cessk}[5]{\langle #1, #2, #3, #4, #5 \rangle}
 \newcommand{\cesskc}[6]{\langle #1, #2, #3, #4, #5, #6 \rangle}
 
+\newtheorem{proposition}[theorem]{Proposition}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -56,29 +58,37 @@
 \section*{Abstract}
 
 We present the design and implementation of a static analyzer for \js{}. We
-leverage the Monadic Abstracting Abstract Machines (\maam{}) technique to create
-an analysis which is both configurable and correct by construction. We recast
-pushdown static analysis in terms of \aam{}. This recasting permits us to also
-create a pushdown \maam{} analysis for \js{}.
+leverage the Monadic Abstracting Abstract Machines (\maam{}) technique to
+create an analysis which is both configurable and correct by construction. We
+also recast pushdown static analysis in terms of \aam{}. This recasting permits
+us to also easily create a pushdown \maam{} analysis for \js{}.
 
 \section{Introduction}
 
 This work had three goals:
 
 \begin{itemize}
-\item design a configurable static analysis using the Monadic Abstracting
-  Abstract Machines (\maam{}) technique
-\item implement the analysis, again using the \maam{} technique
-\item analyze the performance of many different analysis techniques, including
-  pushdown analysis, against the JSAI \cite{jsai} benchmark suite
+\item Design a configurable static analysis for javascript using the
+  Monadic Abstracting Abstract Machines (\maam{}, \cite{maam}) design process.
+\item Implement the analysis using the \maam{} framework as implemented in Haskell.
+\item Analyze the performance of many different analysis techniques, including
+  pushdown analysis, against the JSAI \cite{jsai} benchmark suite.
 \end{itemize}
 
-We completed most of the first two goals; however, we have not analyzed the
-performance of the implementation. We underestimated the time necessary to
-implement the JavaScript semantics in the \maam{} Huskily framework. We are also
-currently unable to scale the analysis to real \js{} programs. Finally, we spent
-a not insignificant amount of time understanding what pushdown analysis is and
-how it can be implemented in the \aam{} and \maam{} frameworks.
+We completed the first goal, part of the second, and none of the third.
+%
+We underestimated the time necessary to implement the semantics of \js{} in the
+\maam{} Haskell framework.
+%
+We were unable to complete a full implementation of the \js{} spec and
+therefore unable to run our interpreter on the full JSAI~\cite{jsai} benchmark
+suite.
+%
+However, we were successful in running our analysis on programs which reside in
+the subset of \js{} that we were able to implement.
+%
+We also spent a significant amoutn of time understanding pushdown analysis and
+recasting it in the \aam{} and \maam frameworks.
 
 The remainder of the paper presents the design and implementation of the
 analysis, including subsections on our understanding of pushdown analysis.
@@ -106,22 +116,68 @@ the conversion of an abstract machine into a Dyck state graph.
 We propose a unification of these two approaches using the \aam{} technique of
 Might and Van Horn \cite{aam}. There are two simple ideas that lead to a
 pushdown style analysis: a separate, path-sensitive store for continuations and
-a memo table for function calls. We claim, without proof, that the
+a memo table for caching analysis results. We claim, without proof, that the
 path-sensitive continuation-store provides \emph{precise call-return matching}.
-The memo table for function calls clearly provides \emph{memoization}.
 
-We can now describe a \aam{}-style approach for producing a pushdown abstract
-machine from a concrete CEK machine:
+We now describe an AAM-style approach to pushdown static analysis for a standard CEK machine.
+%
+Recall that a CEK machine is a state machine with three components:
+%
 \begin{enumerate}
-\item Break recursion in the environment, caused by closures, with a store,
-  which maps addresses to values, and change the environment to map variables to
-  addresses.
-\item Break recursion in the continuation stack by creating a
-  continuation-store, which maps continuation-addresses to either the halt frame
-  or a pair of a frame and a continuation-address.
-\item Add a memo table which maps a triplets of a command, an environments, and
-  a store to a value.
+\item The control expression $(c : Exp)$
+\item The execution environment $(\rho : Var \rightarrow Val)$
+\item The continuation $(k : List Frame)$
 \end{enumerate}
+%
+In AAM-style, we first design an instrument concrete semantics.
+%
+This instrumented concrete semantics will yield a semantically equivalent
+concrete interpreter, but with implementation choices which, after abstraction,
+will yield an analysis with different properties.
+%
+To instrument the semantics for a pushdown analysis we:
+\begin{enumerate}
+\item Break the recursion between environments and values a. la. \citet{aam}
+\item Break the recursion between cons-cells in the list type for continuations.
+%
+This step is also in the discipline of \citet{aam}, although this particular
+choice is not made in their original paper.
+%
+\item Add a memo-table which caches the results of the analysis.
+%
+This memo-table caches results \emph{invariant to the continuation present during evaluation}.
+\end{enumerate}
+
+From steps 1. and 2. we end up with a C-E-S-KS-K* machine with the following components:
+\item The control expression $(c : Exp)$ as before
+\item The environment $(\rho : Var \rightarrow Addr)$
+\item The store $(\sigma : Addr \rightarrow Val)$
+\item The continuation store $(\kappa\sigma : KAddr \rightarrow \mathcal{P}(Frame + \{Null\}))$
+\item The continuation pointer $(\kappa-ptr : KAddr)$
+
+\begin{proposition}
+A step relation
+\begin{equation*}
+\mapsto^{PD} \in CESKSK* \times CESKSK* 
+\end{equation*}
+is definable which agrees with the standard semantics
+\begin{equation*}
+\mapsto \in CEK \times CEK 
+\end{equation*}
+\end{proposition}
+
+Step 3. yields a larger machine, C-E-S-KS-K*-\$ machine, which adds a new component:
+\begin{equation*}
+\$ : C \times E \times S \rightarrow Val + \{SEEN\} + \{UNSEEN\}
+\end{equation*}
+%
+The fact that the cache can memoize invariant to the continuation is
+traditionally understoon in the pushdown literature as by-product of viewing
+the semantics a pushdown automata.
+%
+We propose another intuition: the CEK machine comes from a \emph{reduction}
+semantics--a setting where reduction is defined invariant to context to begin
+with.
 
 \begin{figure}
 \centering

@@ -21,5 +21,5 @@ main = do
   jsFiles <- filesFromDirM "tinytests"
   traverseOn jsFiles $ \ jsFile -> do
     e <- fromFile jsFile
-    pprint $ execM e
-    --pprint e
+    --pprint $ execM e
+    pprint e

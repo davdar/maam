@@ -4,6 +4,7 @@ import FP
 import qualified Language.ECMAScript3 as JS
 import qualified Language.LambdaJS.Desugar as LJS
 import qualified Language.LambdaJS.RemoveHOAS as LJS
+import qualified Language.LambdaJS.ECMAEnvironment as LJS
 import Lang.JS.Syntax
 import qualified Language.LambdaJS.Syntax as LJS
 
@@ -41,4 +42,4 @@ convert = \ case
 fromFile :: String -> IO TExp
 fromFile fn = do
   js <- JS.parseFromFile $ toChars fn
-  return $ stamp $ stripStampedFix $ convert $ LJS.removeHOAS $ LJS.desugar js id
+  return $ stamp $ stripStampedFix $ convert $ LJS.removeHOAS $ LJS.desugar js LJS.ecma262Env
