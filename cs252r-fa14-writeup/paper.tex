@@ -23,6 +23,8 @@
 \newcommand{\buildset}[2]{\{ #1 \;|\; #2 \}}
 \newcommand{\compose}[0]{\circ}
 
+\newcommand{\partto}{\rightharpoonup}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Textual Macros
 
@@ -31,6 +33,13 @@
 \newcommand{\js}[0]{JavaScript}
 \newcommand{\lambdajs}[0]{$\lambda_{JS}$}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Machine Configurations
+
+\newcommand{\cek}[3]{\langle #1, #2, #3 \rangle}
+\newcommand{\cesk}[4]{\langle #1, #2, #3, #4 \rangle}
+\newcommand{\cessk}[5]{\langle #1, #2, #3, #4, #5 \rangle}
+\newcommand{\cesskc}[6]{\langle #1, #2, #3, #4, #5, #6 \rangle}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -75,7 +84,7 @@ The remainder of the paper presents the design and implementation of the
 analysis, including subsections on our understanding of pushdown analysis.
 
 \section{Design}
-\subsection{Pushdown Analysis in \maam{}}
+\subsection{Pushdown Analysis in MAAM}
 
 Pushdown analysis means different things to different people. There is a
 significant amount of work on first-order pushdown semantics, but we focus on
@@ -101,7 +110,7 @@ a memo table for function calls. We claim, without proof, that the
 path-sensitive continuation-store provides \emph{precise call-return matching}.
 The memo table for function calls clearly provides \emph{memoization}.
 
-We can now describe a AAM-style approach for producing a pushdown abstract
+We can now describe a \aam{}-style approach for producing a pushdown abstract
 machine from a concrete CEK machine:
 \begin{enumerate}
 \item Break recursion in the environment, caused by closures, with a store,
@@ -131,7 +140,7 @@ machine from a concrete CEK machine:
 \caption{An AAM-style approach for producing a pushdown abstract machine} \label{fig:M1}
 \end{figure}
 
-\subsection{A \js{} Analysis in \maam{}}
+\subsection{A JavaScript Analysis in MAAM}
 
 \js{} has a large, complex specification and many implementations which
 practically define the expected semantics of \js{}. Rather than describe and
