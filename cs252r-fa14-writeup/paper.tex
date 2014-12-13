@@ -181,6 +181,24 @@ looking for appropriate return points.
 
 
 
+\subsection{The Essence of JavaScript: \lambdajs{}}
+
+The \lambdajs{} work provides a complete, practical foundation to perform
+research on real-world JavaScript programs. The \lambdajs{} work identifies a
+simplified language that captures the essential features of \js{}. The
+\lambdajs{} language is the composition of four distinct semantics: function and
+object semantics, mutable references, prototypal inheritance, and control
+operators. In the authors' experience, implementing this semantics is time
+consuming, but mindless. The complexity of \js{} is not apparent in the
+\lambdajs{} model.
+
+The complexity of \js{} is fully captured by a desugaring phase which replaces
+certain forms, such as \texttt{with}, with simpler \js{} code. Additionally, the
+\lambdajs{} team has an implementation of the \js{} standard library which
+abstracts away the details of string and number coercions. These coercions are
+specified by many pages of non-trivial pseudo-code in the ECMAScript 3rd Edition
+standard.
+
 \section{Conclusion}
 
 
