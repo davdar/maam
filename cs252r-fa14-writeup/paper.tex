@@ -41,6 +41,7 @@
 \newcommand{\cessk}[5]{\langle #1, #2, #3, #4, #5 \rangle}
 \newcommand{\cesskc}[6]{\langle #1, #2, #3, #4, #5, #6 \rangle}
 
+\newtheorem{theorem}{Theorem}[section]
 \newtheorem{proposition}[theorem]{Proposition}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -137,10 +138,10 @@ will yield an analysis with different properties.
 %
 To instrument the semantics for a pushdown analysis we:
 \begin{enumerate}
-\item Break the recursion between environments and values a. la. \citet{aam}
+\item Break the recursion between environments and values a. la. AAM \cite{aam}
 \item Break the recursion between cons-cells in the list type for continuations.
 %
-This step is also in the discipline of \citet{aam}, although this particular
+This step is also in the discipline of AAM \cite{aam}, although this particular
 choice is not made in their original paper.
 %
 \item Add a memo-table which caches the results of the analysis.
@@ -149,11 +150,13 @@ This memo-table caches results \emph{invariant to the continuation present durin
 \end{enumerate}
 
 From steps 1. and 2. we end up with a C-E-S-KS-K* machine with the following components:
+\begin{enumerate}
 \item The control expression $(c : Exp)$ as before
 \item The environment $(\rho : Var \rightarrow Addr)$
 \item The store $(\sigma : Addr \rightarrow Val)$
 \item The continuation store $(\kappa\sigma : KAddr \rightarrow \mathcal{P}(Frame + \{Null\}))$
 \item The continuation pointer $(\kappa-ptr : KAddr)$
+\end{enumerate}
 
 \begin{proposition}
 A step relation
@@ -189,7 +192,7 @@ with.
   \sigma       &:& Store      &=& Addr  \partto Value \\
   \kappa\sigma &:& KStore     &=& KAddr \partto Frame \times KAddr \\
   \kappa       &:& KAddr      && \\
-  \chi         &:& Cache      &=& Exp \times Store \times Env \partto Value
+  \$         &:& Cache      &=& Exp \times Store \times Env \partto Value
 \end{array}
 \end{equation*}
 
@@ -204,7 +207,7 @@ with.
   \node[main node] (103) [right of = 102]
     {$\cessk{c}{\rho}{\sigma}{\kappa\sigma}{\kappa}$};
   \node[main node] (104) [right of = 103]
-    {$\cesskc{c}{\rho}{\sigma}{\kappa\sigma}{\kappa}{\chi}$};
+    {$\cesskc{c}{\rho}{\sigma}{\kappa\sigma}{\kappa}{\$}$};
 
   \path[->]
     (101) edge node {Step 1} (102)
