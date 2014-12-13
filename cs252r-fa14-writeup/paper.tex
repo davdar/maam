@@ -18,6 +18,33 @@
 \selectfont
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% LstListings
+
+\usepackage{listings}
+\lstset{
+  frame=none,
+  xleftmargin=2pt,
+  stepnumber=1,
+  numbers=left,
+  numbersep=5pt,
+  numberstyle=\ttfamily\tiny\color[gray]{0.3},
+  belowcaptionskip=\bigskipamount,
+  captionpos=b,
+  escapeinside={*'}{'*},
+  language=haskell,
+  tabsize=2,
+  emphstyle={\bf},
+  commentstyle=\it,
+  stringstyle=\mdseries\rmfamily,
+  showspaces=false,
+  keywordstyle=\bfseries\rmfamily,
+  columns=flexible,
+  basicstyle=\small\sffamily,
+  showstringspaces=false,
+  morecomment=[l]\%,
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Set Theory Concepts
 
 \newcommand{\buildset}[2]{\{ #1 \;|\; #2 \}}
@@ -232,7 +259,48 @@ use syntactic stepping rules to implement exceptional control flow. We choose to
 implement exceptional control flow with meta functions that crawl the stack
 looking for appropriate return points.
 
+\begin{figure}
+\centering
 
+\begin{lstlisting}
+data Frame =
+    LetK [(Name, Set AValue)] Name [(Name, TExp)] TExp
+  | AppL [TExp]
+  | AppR (Set AValue) [(Set AValue)] [TExp]
+  | ObjK [(String, (Set AValue))] Name [(Name, TExp)]
+    -- Array Dereferencing
+  | FieldRefL TExp
+  | FieldRefR (Set AValue)
+    -- Array Assignment
+  | FieldSetA TExp         TExp
+  | FieldSetN (Set AValue) TExp
+  | FieldSetV (Set AValue) (Set AValue)
+    -- Property Deletion
+  | DeleteL TExp
+  | DeleteR (Set AValue)
+    -- Fig 2. Mutable References
+  | RefSetL TExp
+  | RefSetR (Set AValue)
+  | RefK
+  | DeRefK
+    -- Fig 8. Control Operators
+  | IfK TExp TExp
+  | SeqK TExp
+  | WhileL TExp TExp
+  | WhileR TExp TExp
+  | LabelK Label
+  | BreakK Label
+  | TryCatchK TExp Name
+  | TryFinallyL TExp
+  | TryFinallyR (Set AValue)
+  | ThrowK
+    -- Fig 9. Primitive Operations
+  | PrimOpK Op [(Set AValue)] [TExp]
+  deriving (Eq, Ord)
+instance PartialOrder Frame where pcompare = discreteOrder
+\end{lstlisting}
+
+\end{figure}
 
 \section{Implementation}
 
