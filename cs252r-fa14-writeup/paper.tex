@@ -212,6 +212,9 @@ We propose another intuition: the CEK machine comes from a \emph{reduction}
 semantics--a setting where reduction is defined invariant to context to begin
 with.
 
+The AAM-inspired design process for our final concrete interpreter is
+summarized in Figure 1.
+
 \begin{figure}
 \centering
 
@@ -253,14 +256,8 @@ with.
 \js{} has a large, complex specification and many implementations which
 practically define the expected semantics of \js{}. Rather than describe and
 implement our own semantics, we implement the \lambdajs{} semantics as described
-in \cite{lambdajs}. Additionally, we reused their desugaring program.
-
-We reformulated the \lambdajs{} semantics into a state machine with explicit
-continuations. The \lambdajs{} evaluation contexts became our \emph{Frame} data
-type. Additionally, we do not divide the evaluation contexts into two sets and
-use syntactic stepping rules to implement exceptional control flow. We choose to
-implement exceptional control flow with meta functions that crawl the stack
-looking for appropriate return points.
+by Guha et. al. \cite{lambdajs}. Additionally, we reused their Haksell library
+as our desugaring front-end.
 
 \begin{figure}
 \centering
@@ -327,6 +324,12 @@ popFrame = do
 \caption{Pushing and Popping Stack Frames}
 \end{figure}
 
+We reformulated the \lambdajs{} reduction semantics into a state machine
+semantics with explicit continuations. The \lambdajs{} evaluation contexts
+became our \emph{Frame} data type. Additionally, we do not divide the
+evaluation contexts into two sets and use syntactic stepping rules to implement
+exceptional control flow. We choose to implement exceptional control flow with
+meta functions that crawl the stack looking for appropriate return points.
 
 \section{Implementation}
 
@@ -349,7 +352,8 @@ The \maam{} framework separates the semantics of a programming language from the
 control flow. This same implementation of \lambdajs{} can be used with different
 monads to produce path and flow sensitive analysis, as well as other kinds of
 analysis. With an appropriate set of monads, traditional points-to constraints
-could be generated.
+could be generated. We note that we did not in the end implement each of these
+analyses for \js{}, although we plan to do so in our continuation of this work.
 
 \subsection{\lambdajs{} State Machine with Explicit Continuations}
 
