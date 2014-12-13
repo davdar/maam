@@ -18,8 +18,13 @@ deriving instance (MonadStep ς m, Functor m) => MonadStep (ς :.: (,) 𝓈1) (A
 
 -- Flow Insensitive
 instance (MonadStep ς m, Functorial JoinLattice m) => MonadStep (ς :.: ListSet) (ListSetT m) where
-  mstepγ :: (a -> ListSetT m b) -> (ς :.: ListSet) a -> (ς :.: ListSet) b
-  mstepγ f = onComposeIso $ mstepγ $ runListSetT . msum . map f . toList
+  mstepγ :: forall a b. (a -> ListSetT m b) -> (ς :.: ListSet) a -> (ς :.: ListSet) b
+  mstepγ f = 
+    with (functorial :: W (JoinLattice (m (ListSet b)))) $
+    onComposeIso $ (mstepγ :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')) $ 
+    \ (xs :: ListSet a) -> {- ptrace (length $ toList xs :: Int) -} 
+      joins $ map (runListSetT . f) xs
+    -- \ (xs :: ListSet a) -> {- runListSetT $ msum $ -} _ $ map f $ toList xs
 
 -- Flow Sensitive
 instance (MonadStep ς m, Functorial JoinLattice m, Commute ς ListSet) => MonadStep (ListSet :.: ς) (ListSetT m) where

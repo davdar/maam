@@ -331,6 +331,8 @@ class PartialOrderF t where
 discreteOrder :: (Eq a) => a -> a -> POrdering
 discreteOrder x y = if x == y then PEQ else PUN
 
+-- this only terminates if f is monotonic and there are no infinite ascending
+-- chains for the lattice a
 poiter :: (PartialOrder a) => (a -> a) -> a -> a
 poiter f = loop
   where

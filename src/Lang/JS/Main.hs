@@ -22,3 +22,4 @@ main = do
   traverseOn jsFiles $ \ jsFile -> do
     e <- fromFile jsFile
     pprint $ execM e
+    --pprint e

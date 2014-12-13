@@ -10,7 +10,7 @@
 *.dtx
 *.ins
 .DS_Store
-.options*
+.ghc_options*
 .extensions*
 README.html
 *.agdai

@@ -56,8 +56,8 @@ library
     -fno-warn-amp 
     -fno-warn-orphans 
     -isrc
-    -O3
-    -fprof-auto
+    -- -O3
+    -- -fprof-auto
   default-extensions:  
     ConstraintKinds
     ExplicitNamespaces
@@ -87,40 +87,40 @@ library
     DataKinds
     TemplateHaskell
 
-executable js
-  build-depends: 
-      maam == 0.1.*
-    , directory
-  main-is: src/Lang/JS/Main.hs
-  ghc-options: 
-    -Wall 
-    -fno-warn-amp 
-    -fno-warn-orphans 
-    -threaded
-    -O3
-    -H6G
-  default-extensions: 
-    NoImplicitPrelude
-    RebindableSyntax
-    OverloadedStrings
-  default-language: Haskell2010
+-- executable js
+--   build-depends: 
+--       maam == 0.1.*
+--     , directory
+--   main-is: src/Lang/JS/Main.hs
+--   ghc-options: 
+--     -Wall 
+--     -fno-warn-amp 
+--     -fno-warn-orphans 
+--     -threaded
+--     -- -O3
+--     -- -H6G
+--   default-extensions: 
+--     NoImplicitPrelude
+--     RebindableSyntax
+--     OverloadedStrings
+--   default-language: Haskell2010
 
-executable js-prof
-  build-depends: 
-      maam == 0.1.*
-    , directory
-  main-is: src/Lang/JS/Main.hs
-  ghc-options: 
-    -Wall 
-    -fno-warn-amp 
-    -fno-warn-orphans 
-    -threaded
-    -O3
-    -fprof-auto
-    -H6G
-    "-with-rtsopts=-N -p -s -h -i0.1"
-  default-extensions: 
-    NoImplicitPrelude
-    RebindableSyntax
-    OverloadedStrings
-  default-language: Haskell2010
+-- executable js-prof
+--   build-depends: 
+--       maam == 0.1.*
+--     , directory
+--   main-is: src/Lang/JS/Main.hs
+--   ghc-options: 
+--     -Wall 
+--     -fno-warn-amp 
+--     -fno-warn-orphans 
+--     -threaded
+--     -O3
+--     -fprof-auto
+--     -H6G
+--     "-with-rtsopts=-N -p -s -h -i0.1"
+--   default-extensions: 
+--     NoImplicitPrelude
+--     RebindableSyntax
+--     OverloadedStrings
+--   default-language: Haskell2010
