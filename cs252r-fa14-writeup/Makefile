@@ -1,0 +1,2 @@
+thing:
+	pdflatex paper.tex
