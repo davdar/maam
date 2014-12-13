@@ -42,6 +42,7 @@
   basicstyle=\small\sffamily,
   showstringspaces=false,
   morecomment=[l]\%,
+  mathescape=true,
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,8 +300,31 @@ data Frame =
   deriving (Eq, Ord)
 instance PartialOrder Frame where pcompare = discreteOrder
 \end{lstlisting}
-
+\caption{The Frame, i.e., Continuation Datatype}
 \end{figure}
+
+\begin{figure}
+\centering
+
+\begin{lstlisting}
+pushFrame :: (Analysis $\varsigma$ m) => Frame -> m ()
+pushFrame fr = do
+  fp  <- getL konL
+  fp' <- nextFramePtr
+  modifyL kstoreL (mapInsertWith (\/) fp' (singleton (fr, fp))
+  putL konL fp'
+
+popFrame :: (Analysis $\varsigma$ m) => m Frame
+popFrame = do
+  fp <- getL konL
+  k$\sigma$ <- getL kstoreL
+  (fr, fp') <- mset (mjoin (liftMaybeSet (k$\sigma$ # fp)))
+  putL konL fp'
+  return fr
+\end{lstlisting}
+\caption{Pushing and Popping Stack Frames}
+\end{figure}
+
 
 \section{Implementation}
 
