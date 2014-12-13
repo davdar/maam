@@ -225,8 +225,8 @@ practically define the expected semantics of \js{}. Rather than describe and
 implement our own semantics, we implement the \lambdajs{} semantics as described
 in \cite{lambdajs}. Additionally, we reused their desugaring program.
 
-We reformulated the \lambdajs{} semantics into a reduction machine
-semantics. The \lambdajs{} evaluation contexts became our \emph{Frame} data
+We reformulated the \lambdajs{} semantics into a state machine with explicit
+continuations. The \lambdajs{} evaluation contexts became our \emph{Frame} data
 type. Additionally, we do not divide the evaluation contexts into two sets and
 use syntactic stepping rules to implement exceptional control flow. We choose to
 implement exceptional control flow with meta functions that crawl the stack
@@ -255,7 +255,48 @@ looking for appropriate return points.
 \caption{The Architecture of Our Analysis System. The second arrow is original work.}
 \end{figure}
 
+Our static analysis system is the composition of significant existing work. This
+exemplifies the ethos of \maam{}: implement only the semantics and derive
+analyses for free. In particular, we have four primary components:
 
+\begin{itemize}
+\item The \lambdajs{} Parser \& Desugarer
+\item The \lambdajs{} Standard Libarary
+\item A \lambdajs{} State Machine with Explicit Continuations
+\item The \maam{} Framework
+\end{itemize}
+
+The third item is the main contribution of this project.
+
+\subsection{MAAM}
+
+The \maam{} framework separates the semantics of a programming language from the
+control flow. This same implementation of \lambdajs{} can be used with different
+monads to produce path and flow sensitive analysis, as well as other kinds of
+analysis. With an appropriate set of monads, traditional points-to constraints
+could be generated.
+
+\subsection{\lambdajs{} State Machine with Explicit Continuations}
+
+We translated the deterministic, reduction semantics of \lambdajs{} directly
+into a monadic state machine with explicit continuations. The reduction
+semantics maps naturally to a state machine with explicit continuations. The
+evaluation contexts become \emph{frames} and nested reduction contexts become a
+list of frames.
+
+Adapting the deterministic semantics to a monadic semantics consists primarily
+of identifying control branching locations and inserting monadic splits at those
+points. We do not insert monadic splits at value joins as this would result in
+state space explosions. Inserting monadic splits only at control branches
+enables the monad to control path and flow sensitivity.
+
+We replaced substitution in the \lambdajs{} semantics with an
+environment. Finally, we replaced the syntactic exception handling code with a
+meta-function that searches the stack for the appropriate handler.
+
+We, the authors, found the entire translation process completely straightforward
+and mechanical, albeit time consuming due to the size of \lambdajs{} when
+including the primitive operators.
 
 \section{Related Work}
 \subsection{The Essence of JavaScript: \lambdajs{}}
