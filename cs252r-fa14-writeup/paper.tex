@@ -125,18 +125,37 @@ machine from a concrete CEK machine:
 
 \begin{figure}
 \centering
-% \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,
-%   thick,main node/.style={circle,fill=blue!20,draw,font=\sffamily\Large\bfseries}]
 
-%   \node[main node] (1) {\cek{c}{$\rho$}{$\kappa$}};
-%   \node[main node] (2) [right of = 1] {\cesk{c}{$\rho$}{$\sigma$}{$\kappa$}};
-%   \node[main node] (3) [right of = 2] {\cessk{c}{$\rho$}{$\sigma$}{$\kappa\sigma$}{$\kappa$}};
-%   \node[main node] (4) [right of = 3] {\cesskc{c}{$\rho$}{$\sigma$}{$\kappa\sigma$}{$\kappa$}{$\Chi$}};
+\begin{equation*}
+\begin{array}{c c l c l}
+  c            &:& Exp        && \\
+  \rho         &:& Env        &=& Var   \partto Addr \\
+  \sigma       &:& Store      &=& Addr  \partto Value \\
+  \kappa\sigma &:& KStore     &=& KAddr \partto Frame \times KAddr \\
+  \kappa       &:& KAddr      && \\
+  \chi         &:& Cache      &=& Exp \times Store \times Env \partto Value
+\end{array}
+\end{equation*}
 
-%   \path[->]
-%     (1) edge (2) edge (3) edge (4);
 
-% \end{tikzpicture}
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3.5cm,
+  thick,main node/.style={font=\sffamily\bfseries}]
+
+  \node[main node] (101) at (0, 1)
+    {$\cek{c}{\rho}{\kappa}$};
+  \node[main node] (102) [right of = 101]
+    {$\cesk{c}{\rho}{\sigma}{\kappa}$};
+  \node[main node] (103) [right of = 102]
+    {$\cessk{c}{\rho}{\sigma}{\kappa\sigma}{\kappa}$};
+  \node[main node] (104) [right of = 103]
+    {$\cesskc{c}{\rho}{\sigma}{\kappa\sigma}{\kappa}{\chi}$};
+
+  \path[->]
+    (101) edge node {Step 1} (102)
+    (102) edge node {Step 2} (103)
+    (103) edge node {Step 3} (104);
+
+\end{tikzpicture}
 \caption{An AAM-style approach for producing a pushdown abstract machine} \label{fig:M1}
 \end{figure}
 
