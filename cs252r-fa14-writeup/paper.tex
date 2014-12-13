@@ -232,28 +232,9 @@ use syntactic stepping rules to implement exceptional control flow. We choose to
 implement exceptional control flow with meta functions that crawl the stack
 looking for appropriate return points.
 
+
+
 \section{Implementation}
-
-\begin{figure}
-\centering
-
-\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=5cm,
-  thick,main node/.style={font=\sffamily\bfseries}]
-
-  \node[main node] (101) at (0, 1)
-    {JS Code};
-  \node[main node] (102) [right of = 101]
-    {\lambdajs{} Code};
-  \node[main node] (103) [right of = 102]
-    {Analysis Results};
-
-  \path[->]
-    (101) edge node {Parse \& Desugar} (102)
-    (102) edge node {\maam{} Analyzer} (103);
-
-\end{tikzpicture}
-\caption{The Architecture of Our Analysis System. The second arrow is original work.}
-\end{figure}
 
 Our static analysis system is the composition of significant existing work. This
 exemplifies the ethos of \maam{}: implement only the semantics and derive
@@ -294,9 +275,30 @@ We replaced substitution in the \lambdajs{} semantics with an
 environment. Finally, we replaced the syntactic exception handling code with a
 meta-function that searches the stack for the appropriate handler.
 
-We, the authors, found the entire translation process completely straightforward
-and mechanical, albeit time consuming due to the size of \lambdajs{} when
-including the primitive operators.
+We found the entire translation process completely straightforward and
+mechanical, albeit time consuming due to the size of \lambdajs{} and number of
+primitive operations.
+
+\begin{figure}
+\centering
+
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=5cm,
+  thick,main node/.style={font=\sffamily\bfseries}]
+
+  \node[main node] (101) at (0, 1)
+    {JS Code};
+  \node[main node] (102) [right of = 101]
+    {\lambdajs{} Code};
+  \node[main node] (103) [right of = 102]
+    {Analysis Results};
+
+  \path[->]
+    (101) edge node {Parse \& Desugar} (102)
+    (102) edge node {\maam{} Analyzer} (103);
+
+\end{tikzpicture}
+\caption{The Architecture of Our Analysis System. The second arrow is original work.}
+\end{figure}
 
 \section{Related Work}
 \subsection{The Essence of JavaScript: \lambdajs{}}
