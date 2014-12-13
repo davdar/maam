@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{amscd}
 \usepackage{amssymb}
+\usepackage{hyperref}
 
 \usepackage{tikz}
 \usetikzlibrary{arrows}
@@ -99,7 +100,7 @@ Machine.
 This work had three goals:
 
 \begin{itemize}
-\item Design a configurable static analysis for javascript using the
+  \item Design a configurable static analysis for \js{} using the
   Monadic Abstracting Abstract Machines (\maam{}) \cite{maam} design process.
 \item Implement the analysis using the \maam{} framework as implemented in Haskell.
 \item Analyze the performance of many different analysis techniques, including
@@ -119,7 +120,11 @@ However, we were successful in running our analysis on small programs which
 reside in the subset of \js{} that we were able to implement.
 %
 We also spent a significant amount of time understanding pushdown analysis and
-recasting it in the \aam{} and \maam frameworks.
+recasting it in the \aam{} and \maam{} frameworks.
+%
+Finally, we plan on continuing this work during the coming weeks to realize the
+full potential of our efforts, with the aim of accomplishing all three project
+goals.
 
 The remainder of the paper presents the design and implementation of the
 analysis, including subsections on our understanding of pushdown analysis.
@@ -205,7 +210,7 @@ Step 3. yields a larger machine, C-E-S-KS-K*-\$ machine, which adds a new compon
 \end{equation*}
 %
 The fact that the cache can memoize invariant to the continuation is
-traditionally understoon in the pushdown literature as by-product of viewing
+traditionally understood in the pushdown literature as by-product of viewing
 the semantics a pushdown automata.
 %
 We propose another intuition: the CEK machine comes from a \emph{reduction}
@@ -259,70 +264,48 @@ implement our own semantics, we implement the \lambdajs{} semantics as described
 by Guha et. al. \cite{lambdajs}. Additionally, we reused their Haksell library
 as our desugaring front-end.
 
-\begin{figure}
-\centering
-
-\begin{lstlisting}
-data Frame =
-    LetK [(Name, Set AValue)] Name [(Name, TExp)] TExp
-  | AppL [TExp]
-  | AppR (Set AValue) [(Set AValue)] [TExp]
-  | ObjK [(String, (Set AValue))] Name [(Name, TExp)]
-    -- Array Dereferencing
-  | FieldRefL TExp
-  | FieldRefR (Set AValue)
-    -- Array Assignment
-  | FieldSetA TExp         TExp
-  | FieldSetN (Set AValue) TExp
-  | FieldSetV (Set AValue) (Set AValue)
-    -- Property Deletion
-  | DeleteL TExp
-  | DeleteR (Set AValue)
-    -- Fig 2. Mutable References
-  | RefSetL TExp
-  | RefSetR (Set AValue)
-  | RefK
-  | DeRefK
-    -- Fig 8. Control Operators
-  | IfK TExp TExp
-  | SeqK TExp
-  | WhileL TExp TExp
-  | WhileR TExp TExp
-  | LabelK Label
-  | BreakK Label
-  | TryCatchK TExp Name
-  | TryFinallyL TExp
-  | TryFinallyR (Set AValue)
-  | ThrowK
-    -- Fig 9. Primitive Operations
-  | PrimOpK Op [(Set AValue)] [TExp]
-  deriving (Eq, Ord)
-instance PartialOrder Frame where pcompare = discreteOrder
-\end{lstlisting}
-\caption{The Frame, i.e., Continuation Datatype}
-\end{figure}
-
-\begin{figure}
-\centering
-
-\begin{lstlisting}
-pushFrame :: (Analysis $\varsigma$ m) => Frame -> m ()
-pushFrame fr = do
-  fp  <- getL konL
-  fp' <- nextFramePtr
-  modifyL kstoreL (mapInsertWith (\/) fp' (singleton (fr, fp))
-  putL konL fp'
-
-popFrame :: (Analysis $\varsigma$ m) => m Frame
-popFrame = do
-  fp <- getL konL
-  k$\sigma$ <- getL kstoreL
-  (fr, fp') <- mset (mjoin (liftMaybeSet (k$\sigma$ # fp)))
-  putL konL fp'
-  return fr
-\end{lstlisting}
-\caption{Pushing and Popping Stack Frames}
-\end{figure}
+% \begin{figure}
+% \centering
+% 
+% \begin{lstlisting}
+% data Frame =
+%     LetK [(Name, Set AValue)] Name [(Name, TExp)] TExp
+%   | AppL [TExp]
+%   | AppR (Set AValue) [(Set AValue)] [TExp]
+%   | ObjK [(String, (Set AValue))] Name [(Name, TExp)]
+%     -- Array Dereferencing
+%   | FieldRefL TExp
+%   | FieldRefR (Set AValue)
+%     -- Array Assignment
+%   | FieldSetA TExp         TExp
+%   | FieldSetN (Set AValue) TExp
+%   | FieldSetV (Set AValue) (Set AValue)
+%     -- Property Deletion
+%   | DeleteL TExp
+%   | DeleteR (Set AValue)
+%     -- Fig 2. Mutable References
+%   | RefSetL TExp
+%   | RefSetR (Set AValue)
+%   | RefK
+%   | DeRefK
+%     -- Fig 8. Control Operators
+%   | IfK TExp TExp
+%   | SeqK TExp
+%   | WhileL TExp TExp
+%   | WhileR TExp TExp
+%   | LabelK Label
+%   | BreakK Label
+%   | TryCatchK TExp Name
+%   | TryFinallyL TExp
+%   | TryFinallyR (Set AValue)
+%   | ThrowK
+%     -- Fig 9. Primitive Operations
+%   | PrimOpK Op [(Set AValue)] [TExp]
+%   deriving (Eq, Ord)
+% instance PartialOrder Frame where pcompare = discreteOrder
+% \end{lstlisting}
+% \caption{The Frame, i.e., Continuation Datatype}
+% \end{figure}
 
 We reformulated the \lambdajs{} reduction semantics into a state machine
 semantics with explicit continuations. The \lambdajs{} evaluation contexts
@@ -345,6 +328,28 @@ analyses for free. In particular, we have four primary components:
 \end{itemize}
 
 The third item is the main contribution of this project.
+The architecture of our executable analysis is shown in Figure 2.
+
+\begin{figure}
+\centering
+
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=5cm,
+  thick,main node/.style={font=\sffamily\bfseries}]
+
+  \node[main node] (101) at (0, 1)
+    {JS Code};
+  \node[main node] (102) [right of = 101]
+    {\lambdajs{} Code};
+  \node[main node] (103) [right of = 102]
+    {Analysis Results};
+
+  \path[->]
+    (101) edge node {Parse \& Desugar} (102)
+    (102) edge node {\maam{} Analyzer} (103);
+
+\end{tikzpicture}
+\caption{The Architecture of Our Analysis System. The second arrow is original work.}
+\end{figure}
 
 \subsection{MAAM}
 
@@ -354,6 +359,8 @@ monads to produce path and flow sensitive analysis, as well as other kinds of
 analysis. With an appropriate set of monads, traditional points-to constraints
 could be generated. We note that we did not in the end implement each of these
 analyses for \js{}, although we plan to do so in our continuation of this work.
+Our implementation is accessible at \url{https://github.com/davdar/maam}
+under the path "src/Lang/JS/".
 
 \subsection{\lambdajs{} State Machine with Explicit Continuations}
 
@@ -377,25 +384,37 @@ We found the entire translation process completely straightforward and
 mechanical, albeit time consuming due to the size of \lambdajs{} and number of
 primitive operations.
 
+We show two code snippets from our implementation in Figure 3.
+[pushFrame] shows the monadic action for pushing a continuation frame, which
+consists of: getting the current continuation pointer; getting the 
+continuation pointer to allocate; and adding a new continuation frame to the
+continuation store.
+[popFrame] shows the monadic action for popping continuation frames. The popped
+frame will scrutenized to determine the  control state of the program, and
+as a result, the set of frames returned from the continuation store must be
+merged into the monad. This merging is done with the [mset] operator 
+$(mset : \forall(a). \mathcal{P}(a) \rightarrow m(a))$.
+
 \begin{figure}
 \centering
 
-\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=5cm,
-  thick,main node/.style={font=\sffamily\bfseries}]
+\begin{lstlisting}
+pushFrame :: (Analysis $\varsigma$ m) => Frame -> m ()
+pushFrame fr = do
+  fp  <- getL konL
+  fp' <- FramePtr
+  modifyL kstoreL (mapInsertWith (\/) fp' (singleton (fr, fp))
+  putL konL fp'
 
-  \node[main node] (101) at (0, 1)
-    {JS Code};
-  \node[main node] (102) [right of = 101]
-    {\lambdajs{} Code};
-  \node[main node] (103) [right of = 102]
-    {Analysis Results};
-
-  \path[->]
-    (101) edge node {Parse \& Desugar} (102)
-    (102) edge node {\maam{} Analyzer} (103);
-
-\end{tikzpicture}
-\caption{The Architecture of Our Analysis System. The second arrow is original work.}
+popFrame :: (Analysis $\varsigma$ m) => m Frame
+popFrame = do
+  fp <- getL konL
+  k$\sigma$ <- getL kstoreL
+  (fr, fp') <- mset (mjoin (liftMaybeSet (k$\sigma$ # fp)))
+  putL konL fp'
+  return fr
+\end{lstlisting}
+\caption{Pushing and Popping Stack Frames}
 \end{figure}
 
 \section{Related Work}
