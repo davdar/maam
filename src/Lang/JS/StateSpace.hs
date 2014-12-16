@@ -69,7 +69,7 @@ data Frame =
   | WhileR TExp TExp
   | LabelK Label
   | BreakK Label
-  | TryCatchK TExp Name
+  | TryCatchK TExp
   | TryFinallyL TExp
   | TryFinallyR (Set AValue)
   | ThrowK

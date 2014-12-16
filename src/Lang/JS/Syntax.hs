@@ -39,11 +39,12 @@ data PreExp e =
   | While e e
   | LabelE Label e
   | Break Label e
-  | TryCatch e Name e
+  | TryCatch e e
   | TryFinally e e
   | Throw e
     -- Fig 9. Primitive Operators
   | PrimOp Op [e]
+  | EvalE 
   deriving (Eq, Ord)
 instance FunctorM PreExp where
   mapM :: (Monad m) => (a -> m b) -> PreExp a -> m (PreExp b)
@@ -65,10 +66,11 @@ instance FunctorM PreExp where
     While e₁ e₂ -> While ^@ f e₁ <@> f e₂
     LabelE l e -> LabelE l ^@ f e
     Break l e -> Break l ^@ f e
-    TryCatch e₁ x e₂ -> TryCatch ^@ f e₁ <@> return x <@> f e₂
+    TryCatch e₁ e₂ -> TryCatch ^@ f e₁ <@> f e₂
     TryFinally e₁ e₂ -> TryFinally ^@ f e₁ <@> f e₂
     Throw e -> Throw ^@ f e
     PrimOp o es -> PrimOp o ^@ mapM f es
+    EvalE -> return EvalE
 
 instance Functor PreExp where 
   map f = runID . mapM (kleisli f)

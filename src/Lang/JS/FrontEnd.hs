@@ -1,12 +1,16 @@
 module Lang.JS.FrontEnd where
 
 import FP
+
+import Lang.JS.Syntax
+import Lang.JS.Pretty ()
+
 import qualified Language.ECMAScript3 as JS
 import qualified Language.LambdaJS.Desugar as LJS
-import qualified Language.LambdaJS.RemoveHOAS as LJS
 import qualified Language.LambdaJS.ECMAEnvironment as LJS
-import Lang.JS.Syntax
+import qualified Language.LambdaJS.RemoveHOAS as LJS
 import qualified Language.LambdaJS.Syntax as LJS
+import qualified Language.LambdaJS as LJS
 
 convert :: LJS.ExprPos -> StampedFix JS.SourcePos PreExp
 convert = \ case
@@ -30,16 +34,18 @@ convert = \ case
   LJS.ESeq sp e₁ e₂ -> StampedFix sp $ Seq (convert e₁) (convert e₂)
   LJS.EIf sp e₁ e₂ e₃ -> StampedFix sp $ If (convert e₁) (convert e₂) (convert e₃)
   LJS.EWhile sp e₁ e₂ -> StampedFix sp $ While (convert e₁) (convert e₂)
-  LJS.ELabel sp l e -> StampedFix sp $ LabelE (undefined l) (convert e)
-  LJS.EBreak sp l e -> StampedFix sp $ Break (undefined l) (convert e)
+  LJS.ELabel sp l e -> StampedFix sp $ LabelE l (convert e)
+  LJS.EBreak sp l e -> StampedFix sp $ Break l (convert e)
   LJS.EThrow sp e -> StampedFix sp $ Throw (convert e)
-  LJS.ECatch sp e₁ e₂ -> StampedFix sp $ TryCatch (convert e₁) undefined (convert e₂)
+  LJS.ECatch sp e₁ e₂ -> StampedFix sp $ TryCatch (convert e₁) (convert e₂)
   LJS.EFinally sp e₁ e₂ -> StampedFix sp $ TryFinally (convert e₁) (convert e₂)
-  LJS.ELet1 _sp _e _f -> error "HOAS should be translated away"
-  LJS.ELet2 _sp _e₁ _e₂ _f -> error "HOAS should be translated away"
-  LJS.EEval _sp -> error "HOAS should be translated away"
+  LJS.ELet1 _sp _e _f -> error "HOAS should be translated away -DD"
+  LJS.ELet2 _sp _e₁ _e₂ _f -> error "HOAS should be translated away -DD"
+  LJS.EEval sp -> StampedFix sp EvalE
 
 fromFile :: String -> IO TExp
 fromFile fn = do
-  js <- JS.parseFromFile $ toChars fn
-  return $ stamp $ stripStampedFix $ convert $ LJS.removeHOAS $ LJS.desugar js LJS.ecma262Env
+  JS.Script p js <- JS.parseFromFile $ toChars fn
+  jsenv <- LJS.getEnvTransformer $ toChars "LambdaJS/es3.env"
+  JS.Script _ prelude <- JS.parseFromFile $ toChars "LambdaJS/prelude.js"
+  return $ stamp $ stripStampedFix $ convert $ LJS.removeHOAS $ LJS.desugar (JS.Script p $ prelude ++ js) $ jsenv . LJS.ecma262Env

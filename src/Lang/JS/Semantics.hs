@@ -151,8 +151,8 @@ eval e =
     Break ln e -> do
       pushFrame $ BreakK ln
       return e
-    TryCatch e₁ n e₂ -> do
-      pushFrame $ TryCatchK e₂ n
+    TryCatch e₁ e₂ -> do
+      pushFrame $ TryCatchK e₂
       return e₁
     TryFinally e₁ e₂ -> do
       pushFrame $ TryFinallyL e₂
@@ -277,7 +277,7 @@ kreturn' v fr = case fr of
     tailReturn v
   BreakK l -> do
     popToLabel l v
-  TryCatchK _e₂ _n -> do
+  TryCatchK _e₂ -> do
     tailReturn v
   TryFinallyL e₂ -> do
     touchNGo e₂ $ TryFinallyR v
@@ -316,9 +316,14 @@ throw :: (Analysis ς m) => Set AValue -> m TExp
 throw v = do
   fr <- popFrame
   case fr of
-    TryCatchK e n -> do
-      bind n v
-      return e
+    TryCatchK e -> do
+      undefined
+      -- ! 
+      -- this used to be an explicit name+binder pair, now e is expected to be
+      -- a lambda, the semantics should be just apply e to v
+      -- !
+      -- bind n v
+      -- return e
     TryFinallyL e -> do
       pushFrame $ ThrowK
       return e

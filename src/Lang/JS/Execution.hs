@@ -76,7 +76,7 @@ instance Initial 𝒮 where
       σ₀ = fromList [(Addr 0, singleton $ ObjA $ Obj [])]
 
 execM :: TExp -> Σ𝒫 TExp
-execM = collect (isoto . mstepγ evalM . isofrom) . injΣ𝒫
+execM = collectN (1 :: Int) (isoto . mstepγ evalM . isofrom) . injΣ𝒫
   where
     evalM :: TExp -> M TExp
     evalM = eval

@@ -50,6 +50,7 @@ library
     , Cabal 
     , language-ecmascript 
     , LambdaJS
+    , strict
   default-language: Haskell2010
   ghc-options: 
     -Wall 

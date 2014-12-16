@@ -97,10 +97,10 @@ instance (Pretty e) => Pretty (PreExp e) where
     , pretty l
     , pretty e
     ]
-  pretty (TryCatch e₁ l e₂) = P.atLevel 0 $ P.hvsep
+  pretty (TryCatch e₁ e₂) = P.atLevel 0 $ P.hvsep
     [ P.hsep [ P.key "try", P.pun "{" ]
     , concat [ P.space 2 , P.botLevel $ P.align $ pretty e₁ ]
-    , P.hsep [ P.key "}", pretty l ]
+    , P.hsep [ P.key "}" ]
     , P.hsep [ P.key "catch", P.pun "{" ]
     , concat [ P.space 2 , P.botLevel $ P.align $ pretty e₂ ]
     , P.hsep [ P.key "}" ]
@@ -122,6 +122,7 @@ instance (Pretty e) => Pretty (PreExp e) where
   pretty (PrimOp OStrPlus [e₁, e₂]) = P.atLevel 50 $ P.hsep
     [ pretty e₁, P.keyPun "+ₛ", P.bump $ P.align $ pretty e₂ ]
   pretty (PrimOp o es) = P.app $ pretty o : map pretty es
+  pretty EvalE = P.key "EVAL"
 
 instance Functorial Pretty PreExp where functorial = W
 
@@ -223,18 +224,16 @@ instance Pretty Frame where
                             , P.lit ":"
                             , P.lit ": □"
                             ]
-  pretty (TryCatchK e n) = P.app [ P.lit "try"
-                                 , P.lit "{"
-                                 , P.lit "□"
-                                 , P.lit "}"
-                                 , P.lit "catch"
-                                 , P.lit "("
-                                 , pretty n
-                                 , P.lit ")"
-                                 , P.lit "}"
-                                 , pretty e
-                                 , P.lit "}"
-                                 ]
+  pretty (TryCatchK e) = P.app 
+    [ P.lit "try"
+    , P.lit "{"
+    , P.lit "□"
+    , P.lit "}"
+    , P.lit "catch"
+    , P.lit "{"
+    , pretty e
+    , P.lit "}"
+    ]
   pretty (TryFinallyL e) = P.app [ P.lit "try"
                                  , P.lit "{"
                                  , P.lit "□"
