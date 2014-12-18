@@ -1497,6 +1497,8 @@ instance Subtractive Double where
 instance Multiplicative Double where
   one = 1
   (*) = (Prelude.*)
+instance Divisible Double where
+  (/) = (Prelude./)
 
 -- }}}
 
