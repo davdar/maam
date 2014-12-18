@@ -32,10 +32,11 @@ library
     FP.Parser
     FP.Pretty
     FP.TH
+    Lang.JS.Delta
     Lang.JS.Execution
     Lang.JS.FrontEnd
-    Lang.JS.JS
     Lang.JS.Syntax
+    Lang.JS.StateSpace
     Lang.Common
     MAAM
     MAAM.Initial

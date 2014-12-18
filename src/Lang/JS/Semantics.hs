@@ -3,84 +3,8 @@ module Lang.JS.Semantics where
 import Prelude (truncate)
 import FP hiding (Kon, throw)
 import Lang.JS.Syntax
-import Data.Bits
-import Data.Fixed
 import Lang.JS.StateSpace
-
-check :: a -> Bool -> a :+: ()
-check _err True  = Inr ()
-check err  False = Inl err
-
-liftToEither :: l -> Maybe r -> l :+: r
-liftToEither l Nothing  = Inl l
-liftToEither _ (Just r) = Inr r
-
-notANum :: AValue -> Maybe r -> String :+: r
-notANum v =
-  liftToEither $ -- (show (pretty v)) ++
-  "something cannot be coerced to a number"
-
-mustCoerceToNum :: AValue -> String :+: Double
-mustCoerceToNum v = notANum v $ coerce (nL <.> litAL) v
-
-binaryOp :: String
-            -> (a -> a -> Set AValue)
-            -> AValue
-            -> (AValue -> String :+: a)
-            -> [AValue]
-            -> String :+: (Set AValue)
-binaryOp name op bot coerce args =
-  case args of
-    [v1,v2] ->
-      if v1 == bot || v2 == bot
-        then Inr $ singleton $ bot
-        else do
-        n1 <- coerce v1
-        n2 <- coerce v2
-        Inr $ op n1 n2
-    _ -> Inl $ name ++ " must be applied to two arguments"
-
-wrapIt :: (a -> b -> c) -> (c -> d) -> a -> b -> d
-wrapIt f g a b = g $ f a b
-
-binaryNumericOp :: String -> (Double -> Double -> Double) -> [AValue] -> String :+: Set AValue
-binaryNumericOp name op args =
-  binaryOp name (wrapIt op $ singleton . LitA . N) NumA mustCoerceToNum args
-
-binaryNumericComparisonOp :: String -> (Double -> Double -> Bool) -> [AValue] -> String :+: Set AValue
-binaryNumericComparisonOp name op args =
-  binaryOp name (wrapIt op $ singleton . LitA . B) BoolA mustCoerceToNum args
-
-unaryNumericOp :: String -> (Double -> Double) -> [AValue] -> String :+: Set AValue
-unaryNumericOp name op args =
-  case args of
-    [NumA] ->
-      Inr $ singleton NumA
-    [v] -> do
-      n <- mustCoerceToNum v
-      Inr $ singleton $ LitA $ N $ op n
-    _ -> Inl $ name ++ " must be applied to two arguments"
-
-evalOp :: Op -> [AValue] -> String :+: Set AValue
-evalOp o args = case o of
-  OStrPlus  -> undefined -- TODO: string prim ops
-  ONumPlus  -> binaryNumericOp "Plus"     (+) args
-  OMul      -> binaryNumericOp "Multiply" (-) args
-  ODiv      -> binaryNumericOp "Divide"   (-) args
-  OMod      -> binaryNumericOp "Modulo"   (mod') args
-  OSub      -> binaryNumericOp "Subtract" (-) args
-  OLt       -> binaryNumericComparisonOp "LessThan" (<) args
-  OStrLt    -> undefined -- TODO: string prim ops
-  OBAnd     -> binaryNumericOp "BitwiseAnd" (fromInteger .: ((.&.) `on` Prelude.truncate)) args
-  OBOr      -> binaryNumericOp "BitwiseOr"  (fromInteger .: ((.|.) `on` Prelude.truncate)) args
-  OBXOr     -> binaryNumericOp "BitwiseXOr" (fromInteger .: (xor `on` Prelude.truncate)) args
-  OBNot     -> unaryNumericOp  "BitwiseNot" (fromInteger . complement . Prelude.truncate) args
-
--- litAL :: Prism AValue Lit
--- numAL :: Prism AValue ()
--- cloAL :: Prism AValue Clo
--- coerce cloAL :: AValue -> Maybe Clo
--- etc. ...
+import Lang.JS.Delta
 
 pushFrame :: (Analysis ς m) => Frame -> m ()
 pushFrame fr = do
@@ -342,8 +266,9 @@ convertToString v = case v of
   NumA            -> Nothing
   StrA            -> Nothing
   BoolA           -> Nothing
-  CloA c          -> Nothing -- todo this isnt right, see ToString in ECMAScript docs
-  ObjA o          -> Nothing
+  CloA _c         -> Nothing -- todo this isnt right, see ToString in ECMAScript docs
+  ObjA _o         -> Nothing
+  LocA _l         -> Nothing
 
 crossproduct :: [Set AValue] -> Set [AValue]
 crossproduct = toSet . sequence . map toList
