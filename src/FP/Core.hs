@@ -1480,6 +1480,8 @@ instance Integral Integer where
 -- Double {{{
 
 instance ToString Double where toString = show
+instance FromInt Double where
+  fromInt = Prelude.fromIntegral
 instance FromInteger Double where
   fromInteger = Prelude.fromInteger
 instance Peano Double where 
