@@ -73,30 +73,30 @@ unaryOp name op args = case args of
 
 evalOp :: Op -> [AValue] -> String :+: Set AValue
 evalOp o = case o of
-  OStrPlus  -> binOp "Append"     $ liftBinaryOpBot P P ((++)   :: String -> String -> String)
-  ONumPlus  -> binOp "Add"        $ liftBinaryOpBot P P ((+)    :: Double -> Double -> Double)
-  OMul      -> binOp "Multiply"   $ liftBinaryOpBot P P ((*)    :: Double -> Double -> Double)
-  ODiv      -> binOp "Divide"     $ liftBinaryOpBot P P ((-)    :: Double -> Double -> Double)
-  OMod      -> binOp "Modulo"     $ liftBinaryOpBot P P ((mod') :: Double -> Double -> Double)
-  OSub      -> binOp "Subtract"   $ liftBinaryOpBot P P ((-)    :: Double -> Double -> Double)
-  OLt       -> binOp "LessThan"   $ liftBinaryOpBot P P ((<)    :: Double -> Double -> Bool  )
-  OStrLt    -> binOp "StrLT"      $ liftBinaryOpBot P P ((<)    :: String -> String -> Bool  )
-  OBAnd     -> binOp "BitwiseAnd" $ liftBinaryOpBot P P (bAnd   :: Double -> Double -> Double)
-  OBOr      -> binOp "BitwiseOr"  $ liftBinaryOpBot P P (bOr    :: Double -> Double -> Double)
-  OBXOr     -> binOp "BitwiseXOr" $ liftBinaryOpBot P P (bXOr   :: Double -> Double -> Double)
-  OBNot   -> unaryOp "BitwiseNot" $ liftUnaryOpBot  P P (bNeg   :: Double -> Double)
-  OLShift   -> binOp "LeftShift"          $ liftBinaryOpBot P P (shiftLeft          :: Double -> Double -> Double)
-  OSpRShift -> binOp "SignedRightShift"   $ liftBinaryOpBot P P (signedShiftRight   :: Double -> Double -> Double)
-  OZfRShift -> binOp "UnsignedRightShift" $ liftBinaryOpBot P P (unsignedShiftRight :: Double -> Double -> Double)
-  OStrictEq   -> binOp   "TripleEquals" $ tripleEquals
-  OAbstractEq -> binOp   "DoubleEquals" $ doubleEquals
-  OTypeof     -> unaryOp "TypeOf"       $ typeof
+  OStrPlus    -> binOp   "Append"             $ liftBinaryOpBot P P ((++)   :: String -> String -> String)
+  ONumPlus    -> binOp   "Add"                $ liftBinaryOpBot P P ((+)    :: Double -> Double -> Double)
+  OMul        -> binOp   "Multiply"           $ liftBinaryOpBot P P ((*)    :: Double -> Double -> Double)
+  ODiv        -> binOp   "Divide"             $ liftBinaryOpBot P P ((-)    :: Double -> Double -> Double)
+  OMod        -> binOp   "Modulo"             $ liftBinaryOpBot P P ((mod') :: Double -> Double -> Double)
+  OSub        -> binOp   "Subtract"           $ liftBinaryOpBot P P ((-)    :: Double -> Double -> Double)
+  OLt         -> binOp   "LessThan"           $ liftBinaryOpBot P P ((<)    :: Double -> Double -> Bool  )
+  OStrLt      -> binOp   "StrLT"              $ liftBinaryOpBot P P ((<)    :: String -> String -> Bool  )
+  OBAnd       -> binOp   "BitwiseAnd"         $ liftBinaryOpBot P P (bAnd   :: Double -> Double -> Double)
+  OBOr        -> binOp   "BitwiseOr"          $ liftBinaryOpBot P P (bOr    :: Double -> Double -> Double)
+  OBXOr       -> binOp   "BitwiseXOr"         $ liftBinaryOpBot P P (bXOr   :: Double -> Double -> Double)
+  OBNot       -> unaryOp "BitwiseNot"         $ liftUnaryOpBot  P P (bNeg   :: Double -> Double)
+  OLShift     -> binOp   "LeftShift"          $ liftBinaryOpBot P P (shiftLeft          :: Double -> Double -> Double)
+  OSpRShift   -> binOp   "SignedRightShift"   $ liftBinaryOpBot P P (signedShiftRight   :: Double -> Double -> Double)
+  OZfRShift   -> binOp   "UnsignedRightShift" $ liftBinaryOpBot P P (unsignedShiftRight :: Double -> Double -> Double)
+  OStrictEq   -> binOp   "TripleEquals"       $ tripleEquals
+  OAbstractEq -> binOp   "DoubleEquals"       $ doubleEquals
+  OTypeof     -> unaryOp "TypeOf"             $ typeof
   OSurfaceTypeof -> undefined -- TODO: what is this?
-  OPrimToNum  -> unaryOp "PrimToNum"  $ primToNumber
-  OPrimToStr  -> unaryOp "PrimToStr"  $ primToString
-  OPrimToBool -> unaryOp "PrimToBool" $ primToBool
-  OIsPrim     -> unaryOp "IsPrim"     $ isPrim
-  OHasOwnProp -> binOp   "HasOwnProp" $ hasOwnProp
+  OPrimToNum  -> unaryOp "PrimToNum"          $ primToNumber
+  OPrimToStr  -> unaryOp "PrimToStr"          $ primToString
+  OPrimToBool -> unaryOp "PrimToBool"         $ primToBool
+  OIsPrim     -> unaryOp "IsPrim"             $ isPrim
+  OHasOwnProp -> binOp   "HasOwnProp"         $ hasOwnProp
   where
     bAnd = fromInteger .: ((.&.) `on` Prelude.truncate)
     bOr  = fromInteger .: ((.|.) `on` Prelude.truncate)
