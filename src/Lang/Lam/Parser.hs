@@ -23,8 +23,7 @@ data Token = Token
   , tokenVal :: String
   }
   deriving (Eq, Ord)
-instance Pretty Token where
-  pretty (Token t s) = P.app [pretty t, pretty s]
+makePrettyUnion ''Token
 
 -- Lexing {{{
 
@@ -77,7 +76,7 @@ litExp :: Parser Token Lit
 litExp = mconcat
   [ I . Prelude.read . toChars . tokenVal ^$ satisfies ((==) Num . tokenType)
   , const (B True) ^$ lit $ Token Key "T"
-  , const (B False) ^$ lit $ Token Key "T"
+  , const (B False) ^$ lit $ Token Key "F"
   ]
 
 nameExp :: Parser Token Name
@@ -88,7 +87,7 @@ letExp = pre (\ (x, e1) e2 -> Fix $ Let x e1 e2) $ do
   key "let"
   x <- nameExp
   key ":="
-  e1 <- botLevel exp
+  e1 <- exp
   key "in"
   return (x, e1)
 
@@ -102,9 +101,9 @@ lamExp = pre (Fix .: Lam) $ do
 ifExp :: Mix (Parser Token) Exp
 ifExp = pre (\ (e1, e2) e3 -> Fix $ If e1 e2 e3) $ do
   key "if"
-  e1 <- botLevel exp
+  e1 <- exp
   key "then"
-  e2 <- botLevel exp
+  e2 <- exp
   key "else"
   return (e1, e2)
 
@@ -112,12 +111,12 @@ appExp :: Mix (Parser Token) Exp
 appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
 exp :: Parser Token Exp
-exp = build lits mixes
+exp = build lits (fromList mixes)
   where
     lits = 
       [ Fix . Lit ^$ litExp
       , Fix . Var ^$ nameExp
-      , closed (key "(") (key ")") exp
+      , between (key "(") (key ")") exp
       ]
     mixes =
       [ ( 0   , [ letExp 
@@ -127,13 +126,16 @@ exp = build lits mixes
       , ( 100 , [ appExp ] )
       ]
 
+testp0 :: String
+testp0 = "lam x . if x then let x := 4 in x y z else w (x y) z"
+
+testp1 :: String
+testp1 = "(lam x . x) ((lam x . x) (lam x . x))"
+
 -- }}}
 
 whitespaceFilter :: Token -> Bool
 whitespaceFilter = (==) White . tokenType
 
-parseE :: (Pretty a) => Parser Token a -> String -> ParseError Char Token a :+: a
-parseE p input = parse token whitespaceFilter (final p) $ toChars input
-
 parseExp :: String -> ParseError Char Token Exp :+: Exp
-parseExp = parseE exp
+parseExp input = parse token whitespaceFilter (final exp) $ toChars input

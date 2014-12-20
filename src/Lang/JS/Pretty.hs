@@ -31,7 +31,7 @@ instance (Pretty e) => Pretty (PreExp e) where
         ]
     , P.align $ pretty e
     ]
-  pretty (App e es) = P.app $ pretty e : map pretty es
+  pretty (App e es) = P.app (pretty e) $ map pretty es
   pretty (FieldRef e₁ e₂) = P.atLevel 90 $ concat
     [ P.align $ pretty e₁
     , P.pun "["
@@ -121,7 +121,7 @@ instance (Pretty e) => Pretty (PreExp e) where
     [ pretty e₁, P.keyPun "+ₙ", P.bump $ P.align $ pretty e₂ ]
   pretty (PrimOp OStrPlus [e₁, e₂]) = P.atLevel 50 $ P.hsep
     [ pretty e₁, P.keyPun "+ₛ", P.bump $ P.align $ pretty e₂ ]
-  pretty (PrimOp o es) = P.app $ pretty o : map pretty es
+  pretty (PrimOp o es) = P.app (pretty o) $ map pretty es
   pretty EvalE = P.key "EVAL"
 
 instance Functorial Pretty PreExp where functorial = W
@@ -132,101 +132,99 @@ instance Pretty Frame where
     [ P.hsep [ P.con "let", pretty n, P.keyPun "=", P.lit "□", P.key "in" ]
     , pretty b
     ]
-  pretty (AppL a) = P.app [P.lit "□", pretty a]
-  pretty (AppR f vs es) = P.app [pretty f, pretty vs, P.lit "□", pretty es]
-  pretty (ObjK _vs n _es) = P.app [ P.lit "{ ..."
-                                  , pretty n
+  pretty (AppL a) = P.app (P.lit "□") [pretty a]
+  pretty (AppR f vs es) = P.app (pretty f) [pretty vs, P.lit "□", pretty es]
+  pretty (ObjK _vs n _es) = P.app (P.lit "{ ...")
+                                  [ pretty n
                                   , P.lit ":"
                                   , P.lit "□ ,"
                                   , P.lit "... }"
                                   ]
   -- Array Dereferencing
-  pretty (FieldRefL i) = P.app [ P.lit "□"
-                               , P.lit "["
+  pretty (FieldRefL i) = P.app (P.lit "□")
+                               [ P.lit "["
                                , pretty i
                                , P.lit "]"
                                ]
-  pretty (FieldRefR a) = P.app [ pretty a
-                               , P.lit "["
+  pretty (FieldRefR a) = P.app (pretty a)
+                               [ P.lit "["
                                , P.lit "□"
                                , P.lit "]"
                                ]
   -- Array Assignment
-  pretty (FieldSetA   i e) = P.app [ P.lit "□"
-                                   , P.lit "["
+  pretty (FieldSetA   i e) = P.app (P.lit "□")
+                                   [ P.lit "["
                                    , pretty i
                                    , P.lit "]"
                                    , P.lit "="
                                    , pretty e
                                    ]
-  pretty (FieldSetN a   e) = P.app [ pretty a
-                                   , P.lit "["
+  pretty (FieldSetN a   e) = P.app (pretty a)
+                                   [ P.lit "["
                                    , P.lit "□"
                                    , P.lit "]"
                                    , P.lit "="
                                    , pretty e
                                    ]
-  pretty (FieldSetV a v  ) = P.app [ pretty a
-                                   , P.lit "["
+  pretty (FieldSetV a v  ) = P.app (pretty a)
+                                   [ P.lit "["
                                    , pretty v
                                    , P.lit "]"
                                    , P.lit "="
                                    , P.lit "□"
                                    ]
   -- Property Deletion
-  pretty (DeleteL e) = P.app [ P.lit "delete"
-                             , P.lit "□"
+  pretty (DeleteL e) = P.app (P.lit "delete")
+                             [ P.lit "□"
                              , P.lit "["
                              , pretty e
                              , P.lit "]"
                              ]
-  pretty (DeleteR a) = P.app [ P.lit "delete"
-                             , pretty a
+  pretty (DeleteR a) = P.app (P.lit "delete")
+                             [ pretty a
                              , P.lit "["
                              , P.lit "□"
                              , P.lit "]"
                              ]
   -- Fig 2. Mutable References
-  pretty (RefSetL e) = P.app [ P.lit "□"
-                             , P.lit " := "
+  pretty (RefSetL e) = P.app (P.lit "□")
+                             [ P.lit " := "
                              , pretty e
                              ]
-  pretty (RefSetR v)  = P.app [ pretty v
-                              , P.lit " := "
+  pretty (RefSetR v)  = P.app (pretty v)
+                              [ P.lit " := "
                               , P.lit "□"
                               ]
   pretty RefK = P.lit "RefK"
   pretty DeRefK = P.lit "DeRefK"
   -- Fig 8. Control Operators
-  pretty (IfK tb fb) = P.app [ P.lit "□"
-                             , pretty tb
+  pretty (IfK tb fb) = P.app (P.lit "□")
+                             [ pretty tb
                              , pretty fb
                              ]
-  pretty (SeqK e) = P.app [ P.lit "□ ;"
-                          , pretty e
-                          ]
-  pretty (WhileL _c b) = P.app [ P.lit "while □ {"
-                               , pretty b
+  pretty (SeqK e) = P.app (P.lit "□ ;") [ pretty e ]
+  pretty (WhileL _c b) = P.app (P.lit "while □ {")
+                               [ pretty b
                                , P.lit "}"
                                ]
-  pretty (WhileR c _b) = P.app [ P.lit "while "
-                               , pretty c
+  pretty (WhileR c _b) = P.app (P.lit "while ")
+                               [ pretty c
                                , P.lit "{"
                                , P.lit "□"
                                , P.lit "}"
                                ]
-  pretty (LabelK l) = P.app [ P.lit "label"
-                            , pretty l
+  pretty (LabelK l) = P.app (P.lit "label")
+                            [ pretty l
                             , P.lit ": □"
                             ]
-  pretty (BreakK l) = P.app [ P.lit "break"
-                            , pretty l
+  pretty (BreakK l) = P.app (P.lit "break")
+                            [ pretty l
                             , P.lit ":"
                             , P.lit ": □"
                             ]
   pretty (TryCatchK e) = P.app 
-    [ P.lit "try"
-    , P.lit "{"
+    (P.lit "try")
+    [ P.lit "{"
     , P.lit "□"
     , P.lit "}"
     , P.lit "catch"
@@ -234,8 +232,8 @@ instance Pretty Frame where
     , pretty e
     , P.lit "}"
     ]
-  pretty (TryFinallyL e) = P.app [ P.lit "try"
-                                 , P.lit "{"
+  pretty (TryFinallyL e) = P.app (P.lit "try")
+                                 [ P.lit "{"
                                  , P.lit "□"
                                  , P.lit "}"
                                  , P.lit "finally"
@@ -243,8 +241,8 @@ instance Pretty Frame where
                                  , pretty e
                                  , P.lit "}"
                                  ]
-  pretty (TryFinallyR v) = P.app [ P.lit "try"
-                                 , P.lit "{"
+  pretty (TryFinallyR v) = P.app (P.lit "try")
+                                 [ P.lit "{"
                                  , pretty v
                                  , P.lit "}"
                                  , P.lit "finally"
@@ -252,10 +250,10 @@ instance Pretty Frame where
                                  , P.lit "□"
                                  , P.lit "}"
                                  ]
-  pretty ThrowK = P.app [ P.lit "throw" ]
+  pretty ThrowK = P.app (P.lit "throw") []
   -- Fig 9. Primitive Operations
-  pretty (PrimOpK o vs es) = P.app [ pretty o
-                                   , pretty vs
+  pretty (PrimOpK o vs es) = P.app (pretty o)
+                                   [ pretty vs
                                    , P.lit "□"
                                    , pretty es
                                    ]

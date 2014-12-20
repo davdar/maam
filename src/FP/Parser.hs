@@ -3,34 +3,24 @@ module FP.Parser where
 import FP.Core
 import FP.Monads
 import FP.DerivingPrism
+import FP.DerivingPretty
 import FP.Pretty (Pretty(..))
-import qualified FP.Pretty as P
 import FP.DerivingLens
-
--- TODO: factor out the LHS for infix and things so that we don't backtrack too much for (a) | (a + a) ...
 
 data ParserState t = ParserState 
   { parserStateStream :: [t]
   , parserStateConsumed :: Int
   }
 makeLenses ''ParserState
+makePrettySum ''ParserState
 instance Monoid (ParserState t) where
   null = ParserState [] 0
   ParserState xs m ++ ParserState ys n = ParserState (xs ++ ys) (m + n)
-instance (Pretty t) => Pretty (ParserState t) where
-  pretty (ParserState s c) = P.app [P.con "ParserState", pretty s, pretty c]
-
-data ParserEnv = ParserEnv
-  { parserLevel :: Int
-  , parserBump  :: Bool
-  }
-makeLenses ''ParserEnv
 
 class 
   ( Monad m
   , MonadZero m
   , MonadConcat m
-  , MonadReader ParserEnv m
   , MonadStateE (ParserState t) m
   , Eq t
   , Pretty t
@@ -101,95 +91,76 @@ post f bM = MixR $ Post $ do
   b <- bM
   return $ \ aL -> f aL b
 
-closed :: (MonadParser t m) => m () -> m () -> m a -> m a
-closed alM arM aM = do
+between :: (MonadParser t m) => m () -> m () -> m a -> m a
+between alM arM aM = do
   alM
-  a <- botLevel aM
+  a <- aM
   arM
   return a
 
-botLevel :: (MonadParser t m) => m a -> m a
-botLevel = local $ set parserLevelL 0 . set parserBumpL False
+build :: (MonadParser t m) => [m a] -> Map Int [Mix m a] -> m a
+build lits lps = case mapRemove lps of
+  Nothing -> mconcat lits
+  Just ((_i, ms), lps') -> do
+    let bumped = prePostBumped ms $ build lits lps'
+    buildMix bumped ms
 
-atLevel :: (MonadParser t m) => Int -> m a -> m a
-atLevel i' aM = do
-  i <- askL parserLevelL
-  b <- askL parserBumpL
-  if (i < i') || (i == i' && not b)
-    then local (set parserLevelL i' . set parserBumpL False) aM
-    else mzero
-
-bump :: (MonadParser t m) => m a -> m a
-bump = local $ set parserBumpL True
-
-buildInf :: (MonadParser t m) => m a -> [Inf m a] -> m a
-buildInf aM ps = do
-  aL <- bump aM
-  f <- mconcat $ liftMaybeZero . coerce infL *$ ps
-  aR <- bump aM
-  return $ f aL aR
-
-buildInfL :: (MonadParser t m) => m a -> [InfL m a] -> m a
-buildInfL aM ps = do
-  pres <- oneOrMoreList $ buildInfLPre aM ps
-  aR <- bump aM
-  return $ runEndo aR $ foldl (++) null $ map Endo $ pres
-
-buildInfLPre :: (MonadParser t m) => m a -> [InfL m a] -> m (a -> a)
-buildInfLPre aM ps = mconcat $ map ff ps
-  where
-    ff (InfL p) = do
-      aL <- bump aM
-      f <- p
-      return $ \ aR -> f aL aR
-    ff (Pre p) = p
-
-buildInfR :: (MonadParser t m) => m a -> [InfR m a] -> m a
-buildInfR aM ps = do
-  aL <- bump aM
-  posts <- oneOrMoreList $ buildInfRPost aM ps
-  return $ runEndo aL $ foldr (++) null $ map Endo $ posts
-
-buildInfRPost :: (MonadParser t m) => m a -> [InfR m a] -> m (a -> a)
-buildInfRPost aM ps = mconcat $ map ff ps
-  where
-    ff (InfR p) = do
-      f <- p
-      aR <- bump aM
-      return $ \ aL -> f aL aR
-    ff (Post p) = p
-
-buildMix :: (MonadParser t m) => m a -> [Mix m a] -> m a
-buildMix aM ps = do
-  let infs  = liftMaybeZero . coerce mixL  *$ ps
-      infLs = liftMaybeZero . coerce mixLL *$ ps
-      infRs = liftMaybeZero . coerce mixRL *$ ps
+prePostBumped :: (MonadParser t m) => [Mix m a] -> m a -> m a
+prePostBumped ms aM = do
+  let preM = mconcat $ liftMaybeZero . coerce (preL <.> mixLL) *$ ms
+      postM = mconcat $ liftMaybeZero . coerce (postL <.> mixRL) *$ ms
   mconcat
-    [ buildInf  aM infs
-    , buildInfL aM infLs
-    , buildInfR aM infRs
+    [ do
+        ps <- oneOrMoreList preM
+        a <- aM
+        return $ runEndo a $ foldr (++) null $ map Endo ps
+    , do
+        a <- aM
+        ps <- many postM
+        return $ runEndo a $ foldl (++) null $ map Endo ps
     ]
 
-build :: (MonadParser t m) => ([m a]) -> [(Int, [Mix m a])] -> m a
-build lits lps =
-  let aM = mconcat 
-        [ mconcat lits
-        , mconcat $ mapOn lps $ uncurry $ \ i ps -> atLevel i $ buildMix aM ps
-        ]
-  in aM
+buildMix :: (MonadParser t m) => m a -> [Mix m a] -> m a
+buildMix aM ms = do
+  a <- aM
+  f <- mconcat
+    [ buildMixInfL aM ms
+    , buildMixInfR aM ms
+    , return id
+    ]
+  return $ f a
 
-newtype Parser t a = Parser { unParser :: ReaderT ParserEnv (StateT (ParserState t) (ListT ID)) a }
+buildMixInfL :: (MonadParser t m) => m a -> [Mix m a] -> m (a -> a)
+buildMixInfL aM ms = do
+  let inflM = mconcat $ liftMaybeZero . coerce (infLL <.> mixLL) *$ ms
+  ies <- oneOrMoreList $ inflM <*> aM
+  return $ \ e₁ -> runEndo e₁ $ foldl (flip (++)) null $ map Endo $ mapOn ies $ \ (f,eR) eL -> eL `f` eR
+
+buildMixInfR :: (MonadParser t m) => m a -> [Mix m a] -> m (a -> a)
+buildMixInfR aM ms = do
+  let infrM = mconcat $ liftMaybeZero . coerce (infRL <.> mixRL) *$ ms
+  ies <- oneOrMoreList $ infrM <*> aM
+  return $ \ e₁ ->
+    let (ies', eᵢ) = swizzle (e₁, ies)
+    in runEndo eᵢ $ foldr (++) null $ map Endo $ mapOn ies' $ \ (eL,f) eR -> eL `f` eR
+  where
+    swizzle :: (a, [(b, a)]) -> ([(a, b)], a)
+    swizzle (a, []) = ([], a)
+    swizzle (aL, (b, a):bas) =
+      let (abs, aR) = swizzle (a, bas) 
+      in ((aL, b):abs, aR)
+
+newtype Parser t a = Parser { unParser :: StateT (ParserState t) (ListT ID) a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
     , MonadZero, MonadConcat
     , MonadStateI (ParserState t), MonadStateE (ParserState t), MonadState (ParserState t)
-    , MonadReaderI ParserEnv, MonadReaderE ParserEnv, MonadReader ParserEnv
     , MonadMaybeE
     )
 instance (Eq t, Pretty t) => MonadParser t (Parser t) where
 
 runParser :: [t] -> Parser t a -> [(a, ParserState t)]
-runParser ts = runID . runListT . runStateT (ParserState ts 0) . runReaderT (ParserEnv 0 False) . unParser
+runParser ts = runID . runListT . runStateT (ParserState ts 0) . unParser
 
 tokenize :: Parser c a -> [c] -> [c] :+: [a]
 tokenize aM = loop 
@@ -206,11 +177,7 @@ data ParseError c t a =
     LexingError [c] 
   | ParsingError [t]
   | AmbiguousParse ([t], [a])
-
-instance (Pretty c, Pretty t, Pretty a) => Pretty (ParseError c t a) where
-  pretty (LexingError cs) = P.app [P.con "LexingError", pretty cs]
-  pretty (ParsingError ts) = P.app [P.con "ParsingError", pretty ts]
-  pretty (AmbiguousParse tsas) = P.app [P.con "AmbiguousParse", pretty tsas]
+makePrettySum ''ParseError
 
 parse :: forall c t a. (Pretty c, Pretty t) => Parser c t -> (t -> Bool) -> Parser t a -> [c] -> ParseError c t a :+: a
 parse tp wp ep cs = do

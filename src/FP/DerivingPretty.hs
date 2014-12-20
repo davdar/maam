@@ -25,7 +25,7 @@ makePrettySumLogic cx ty tyargs confieldtyss = do
             prettyXs = mapOn xs $ \ x -> VarE 'pretty #@ VarE x
         in 
         sclause [ConP con $ map VarP xs] $
-          VarE 'P.app #@ makeList (prettyCon : prettyXs)
+          VarE 'P.app #@ prettyCon #@ makeList prettyXs
 
 -- makePrettyUnionLogic [C, D] ty [a, b] [(con1, [fieldty11, fieldty12]), (con2, [fieldty21, fieldty22])] := [|
 --   instance (C, D, Pretty fieldty11, Pretty fieldty12, Pretty fieldty21, Pretty fieldty2) => Pretty (ty a b) where

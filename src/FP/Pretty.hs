@@ -205,8 +205,8 @@ pre i oM xM = atLevel i $ oM >> bump xM
 post :: (MonadPretty m) => Int -> m () -> m () -> m ()
 post i oM xM = atLevel i $ bump xM >> oM
 
-app :: (MonadPretty m) => [m ()] -> m ()
-app = atLevel 100 . hvsep . map (align . bump)
+app :: (MonadPretty m) => m () -> [m ()] -> m ()
+app x xs = atLevel 100 $ hvsep $ map (atLevel 100) $ x : map (align . bump) xs
 
 collection :: (MonadPretty m) => String -> String -> String -> [m ()] -> m ()
 collection open close _   []     = pun open >> pun close
@@ -344,8 +344,8 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e) => Pretty (a, b, c, 
 instance Bifunctorial Pretty (,) where
   bifunctorial = W
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
-  pretty (Inl a) = app [con "Inl", pretty a]
-  pretty (Inr b) = app [con "Inr", pretty b]
+  pretty (Inl a) = app (con "Inl") [pretty a]
+  pretty (Inr b) = app (con "Inr") [pretty b]
 instance (Pretty a) => Pretty (Maybe a) where
   pretty (Just a) = pretty a
   pretty Nothing = con "Nothing"
