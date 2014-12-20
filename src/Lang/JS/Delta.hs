@@ -123,7 +123,7 @@ evalOp o = case o of
       -- I think heap objects are desugared away at this point?
       (CloA _c1 , CloA _c2) -> undefined -- TODO: Can this ever happen?
       (ObjA _o1 , ObjA _o2) -> undefined -- TODO: Can this ever happen? (I'm pretty sure this doesn't happen c.f. 11.9.3 step 13)
-      (LocA _l1 , LocA _l2) -> pinject False     -- TODO: Can this ever happen? (I think it's false judging from ECMAEnvironment.hs:abstractEquality
+      (LocA _l1 , LocA _l2) -> pinject False     -- TODO: Can this ever happen? (I think it's false judging from ECMAEnvironment.hs:abstractEquality)
       (_       , _      ) -> pinject False
     litDoubleEquals x y = case (x,y) of
       (UndefinedL , NullL     ) -> True
