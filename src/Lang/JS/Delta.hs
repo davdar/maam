@@ -1,6 +1,13 @@
 module Lang.JS.Delta where
 
-import Prelude (truncate, fromIntegral, isNaN)
+import Prelude ( truncate
+               , fromIntegral
+               , isNaN
+               , isInfinite
+               , signum
+               , (**)
+               , (^)
+               )
 import FP hiding (inject)
 
 import Data.Bits
@@ -97,6 +104,9 @@ evalOp o = case o of
   OPrimToBool -> unaryOp "PrimToBool"         $ primToBool
   OIsPrim     -> unaryOp "IsPrim"             $ isPrim
   OHasOwnProp -> binOp   "HasOwnProp"         $ hasOwnProp
+  OToInteger  -> unaryOp "ToInteger"          $ toInteger
+  OToInt32    -> unaryOp "ToInt32"            $ toInt32
+  OToUInt32   -> unaryOp "ToUInt32"           $ toUInt32
   where
     bAnd = fromInteger .: ((.&.) `on` Prelude.truncate)
     bOr  = fromInteger .: ((.|.) `on` Prelude.truncate)
@@ -202,3 +212,29 @@ evalOp o = case o of
         StrA            -> fromList $ [ pinject True , pinject False ]
         _               -> undefined -- TODO: Does this ever happen?
       _ -> undefined -- TODO: does this ever happen?
+    toInteger n = case n of
+      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
+                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
+                                     -- TODO: Does truncate truncate in the right direction when negative?
+                   | otherwise    -> singleton $ pinject $ ((fromIntegral (Prelude.truncate n)) :: Double)
+      NumA                        -> singleton NumA
+      _                           -> empty
+    toInt32 n = case n of
+      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
+                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
+                   | otherwise    -> singleton $ pinject $
+                                     let x = mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))
+                                     in (fromIntegral
+                                         (if x > ((2::Int) ^ (31::Int))
+                                          then x - ((2::Int) ^ (32::Int))
+                                          else x)
+                                         :: Double)
+      NumA                        -> singleton NumA
+      _                           -> empty
+    toUInt32 n = case n of
+      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
+                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
+                   | otherwise    -> singleton $ pinject $ ((fromIntegral $ mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))) :: Double)
+
+      NumA                        -> singleton NumA
+      _                           -> empty
