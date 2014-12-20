@@ -58,7 +58,7 @@ instance (Pretty n) => Pretty (PrePico n) where
   pretty (Var x) = pretty x
 instance (Pretty n, Pretty c) => Pretty (PreAtom n c) where
   pretty (Pico p) = pretty p
-  pretty (Prim o a) = P.app [pretty o, pretty a]
+  pretty (Prim o a) = P.app (pretty o) [pretty a]
   pretty (LamF x kx c) = pretty $ VarLam [x, kx] c
   pretty (LamK x c) = pretty $ VarLam [x] c
 
@@ -72,8 +72,8 @@ instance (Pretty n, Pretty c) => Pretty (PreCall n c) where
     , P.hvsep [P.key "then", P.botLevel $ pretty tc]
     , P.hvsep [P.key "else", pretty fc]
     ]
-  pretty (AppF fx ax kx) = P.app [pretty fx, pretty ax, pretty kx]
-  pretty (AppK kx ax) = P.app [pretty kx, pretty ax]
-  pretty (Halt ax) = P.app [P.key "HALT", pretty ax]
+  pretty (AppF fx ax kx) = P.app (pretty fx) [pretty ax, pretty kx]
+  pretty (AppK kx ax) = P.app (pretty kx) [pretty ax]
+  pretty (Halt ax) = P.app (P.key "HALT") [pretty ax]
 instance (Pretty n) => Functorial Pretty (PreCall n) where
   functorial = W
