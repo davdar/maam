@@ -17,18 +17,35 @@ import Text.Read
 import Lang.JS.StateSpace
 import Lang.JS.Syntax
 
-class Prismable a b where
-  pcoerce :: a -> Maybe b
+class Injectable a b where
   pinject :: b -> a
+instance Injectable AValue a => Injectable (Set AValue) a where
+  pinject = singleton . pinject
+instance Injectable AValue Double where
+  pinject = LitA . N
+instance Injectable AValue Bool where
+  pinject = LitA . B
+instance Injectable AValue String where
+  pinject = LitA . S
+instance Injectable AValue a => Injectable AValue [a] where
+  pinject = ObjA . Obj . listToIndexedAssocList . (map pinject)
+
+listToIndexedAssocList :: [a] -> [(String, a)]
+listToIndexedAssocList as =
+  doit (0::Integer) as []
+  where
+    doit _ []     ys = ys
+    doit i (x:xs) ys = doit (i+1) xs $ (show i,x):ys
+
+
+class Injectable a b => Prismable a b where
+  pcoerce :: a -> Maybe b
 
 instance Prismable AValue Double where
-  pinject = LitA . N
   pcoerce = coerce (nL <.> litAL)
 instance Prismable AValue Bool where
-  pinject = LitA . B
   pcoerce = coerce (bL <.> litAL)
 instance Prismable AValue String where
-  pinject = LitA . S
   pcoerce = coerce (sL <.> litAL)
 
 class (Prismable a b) => BottomPrismable a b where
