@@ -128,8 +128,8 @@ evalOp op = case op of
     bOr  = fromInteger .: ((.|.) `on` Prelude.truncate)
     bXOr = fromInteger .: (xor `on` Prelude.truncate)
     bNeg = fromInteger . complement . Prelude.truncate
-    shiftLeft          = fromInt .: shiftL `on` Prelude.truncate
-    signedShiftRight   = fromInt .: shiftR `on` Prelude.truncate
+    shiftLeft          = (fromInt .: shiftL) `on` Prelude.truncate
+    signedShiftRight   = (fromInt .: shiftR) `on` Prelude.truncate
     unsignedShiftRight n i =
       -- Word64 is a hack to force zero-filled right bit shifting bitshifting >_>
       fromIntegral $ (shiftR :: Word64 -> Int -> Word64) (Prelude.truncate n) $ Prelude.truncate i
