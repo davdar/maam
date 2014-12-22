@@ -11,8 +11,10 @@ import FP hiding (inject)
 
 import Data.Bits
 import Data.Fixed
+import Data.Text (isInfixOf, splitOn, pack, unpack)
 import Data.Word
 import Text.Read
+import Text.Regex (mkRegex, splitRegex)
 
 import Lang.JS.StateSpace
 import Lang.JS.Syntax
@@ -64,15 +66,7 @@ instance BottomPrismable AValue String where
 
 liftBinaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue c) =>
                    P a -> P c -> (a -> a -> c) -> AValue -> AValue -> Set AValue
-liftBinaryOpBot pa pc op av1 av2 =
-  joins $ map liftMaybeSet $
-  [ do
-       v1 <- pcoerce av1
-       v2 <- pcoerce av2
-       return $ pinject $ op v1 v2
-  , pcoerceBot pa av1 >> (return $ pbot pc)
-  , pcoerceBot pa av2 >> (return $ pbot pc)
-  ]
+liftBinaryOpBot pa pc op = liftBinaryOpSpecialBot pa op (pbot pc)
 
 liftUnaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue b) =>
                 P a -> P b -> (a -> b) -> AValue -> Set AValue
@@ -82,6 +76,18 @@ liftUnaryOpBot pa pb op av1 =
        v1 <- pcoerce av1
        return $ pinject $ op v1
   , pcoerceBot pa av1 >> (return $ pbot pb)
+  ]
+
+liftBinaryOpSpecialBot :: (BottomPrismable AValue a) => (Injectable AValue c) =>
+                          P a -> (a -> a -> c) -> AValue -> AValue -> AValue -> Set AValue
+liftBinaryOpSpecialBot pa op cbot av1 av2 =
+  joins $ map liftMaybeSet $
+  [ do
+       v1 <- pcoerce av1
+       v2 <- pcoerce av2
+       return $ pinject $ op v1 v2
+  , pcoerceBot pa av1 >> (return $ cbot)
+  , pcoerceBot pa av2 >> (return $ cbot)
   ]
 
 binOp :: String -> (a -> a -> b) -> [a] -> String :+: b
@@ -123,6 +129,10 @@ evalOp op = case op of
   OToInteger  -> unaryOp "ToInteger"          $ toInteger
   OToInt32    -> unaryOp "ToInt32"            $ toInt32
   OToUInt32   -> unaryOp "ToUInt32"           $ toUInt32
+  OPrint      -> unaryOp "Print"              $ undefined -- this is for Rhino, do we care?
+  OStrContains    -> binOp "StrContains"      $ liftBinaryOpBot P P strContains
+  OStrSplitRegExp -> binOp "StrSplitRegExp"   $ liftBinaryOpSpecialBot P strSplitRegExp (ObjA $ Obj [])
+  OStrSplitStrExp -> binOp "StrSplitStrExp"   $ liftBinaryOpSpecialBot P strSplitStrExp (ObjA $ Obj [])
   where
     bAnd = fromInteger .: ((.&.) `on` Prelude.truncate)
     bOr  = fromInteger .: ((.|.) `on` Prelude.truncate)
@@ -254,3 +264,9 @@ evalOp op = case op of
 
       NumA                        -> singleton NumA
       _                           -> empty
+    strContains bigger smaller = isInfixOf smaller bigger
+    strSplitRegExp :: String -> String -> [String]
+    strSplitRegExp re s = map fromChars $ splitRegex (mkRegex (toChars re)) (toChars s)
+    -- TODO: This cannot be the right way to splitOn
+    strSplitStrExp :: String -> String -> [String]
+    strSplitStrExp = ((map (fromChars . unpack)) .: splitOn) `on` (pack . toChars)
