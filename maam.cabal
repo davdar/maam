@@ -52,6 +52,7 @@ library
     , language-ecmascript 
     , LambdaJS
     , strict
+    , regex-compat
   default-language: Haskell2010
   ghc-options: 
     -Wall 

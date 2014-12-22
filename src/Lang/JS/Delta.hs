@@ -5,7 +5,6 @@ import Prelude ( truncate
                , isNaN
                , isInfinite
                , signum
-               , (**)
                , (^)
                )
 import FP hiding (inject)
