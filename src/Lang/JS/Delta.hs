@@ -95,7 +95,7 @@ unaryOp name op args = case args of
   _ -> Inl $ name ++ " only takes two arguments"
 
 evalOp :: Op -> [AValue] -> String :+: Set AValue
-evalOp o = case o of
+evalOp op = case op of
   OStrPlus    -> binOp   "Append"             $ liftBinaryOpBot P P ((++)   :: String -> String -> String)
   ONumPlus    -> binOp   "Add"                $ liftBinaryOpBot P P ((+)    :: Double -> Double -> Double)
   OMul        -> binOp   "Multiply"           $ liftBinaryOpBot P P ((*)    :: Double -> Double -> Double)
