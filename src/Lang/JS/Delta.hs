@@ -165,7 +165,7 @@ evalOp op = case op of
     haskellInfinity = (1/0 :: Double)
     haskellNaN      = (0/0 :: Double)
     booleanToNumber b = if b then 1 else 0
-    typeof v = singleton $ LitA $ S $ case v of
+    typeof v = pinject $ case v of
       -- TODO: 11.4.3 says soemthing about GetBase(v) = null do something special, what is that about?
       (LitA NullL     ) -> "object"
       (LitA UndefinedL) -> "undefined"
@@ -179,11 +179,11 @@ evalOp op = case op of
       (ObjA _)          -> "object"
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToNumber v = case v of
-      (LitA NullL     ) -> singleton $ pinject (0::Double)
-      (LitA UndefinedL) -> singleton $ pinject haskellNaN
-      (LitA (B b)     ) -> singleton $ pinject $ if b then (1::Double) else (0::Double)
-      (LitA (N n)     ) -> singleton $ pinject n
-      (LitA (S s)     ) -> singleton $ pinject (fromString' s :: Double)
+      (LitA NullL     ) -> pinject (0::Double)
+      (LitA UndefinedL) -> pinject haskellNaN
+      (LitA (B b)     ) -> pinject $ if b then (1::Double) else (0::Double)
+      (LitA (N n)     ) -> pinject n
+      (LitA (S s)     ) -> pinject (fromString' s :: Double)
       NumA              -> singleton $ NumA
       StrA              -> singleton $ NumA
       BoolA             -> fromList $ [ pinject (0::Double) , pinject (1::Double) ]
@@ -191,11 +191,11 @@ evalOp op = case op of
       (ObjA _)          -> undefined -- TODO: Does lambdajs need these?
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToString v = case v of
-      (LitA NullL     ) -> singleton $ pinject "null"
-      (LitA UndefinedL) -> singleton $ pinject "undefined"
-      (LitA (B b)     ) -> singleton $ pinject $ if b then "true" else "false"
-      (LitA (N n)     ) -> singleton $ pinject $ show n -- see 9.8.1, this is most certainly wrong, but it's easy (trollface)
-      (LitA (S s)     ) -> singleton $ pinject s
+      (LitA NullL     ) -> pinject "null"
+      (LitA UndefinedL) -> pinject "undefined"
+      (LitA (B b)     ) -> pinject $ if b then "true" else "false"
+      (LitA (N n)     ) -> pinject $ show n -- see 9.8.1, this is most certainly wrong, but it's easy (trollface)
+      (LitA (S s)     ) -> pinject s
       NumA              -> singleton $ StrA
       StrA              -> singleton $ StrA
       BoolA             -> fromList $ [ pinject "true" , pinject "false" ]
@@ -203,42 +203,42 @@ evalOp op = case op of
       (ObjA _)          -> undefined -- TODO: Does lambdajs need these?
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToBool v = case v of
-      (LitA NullL     ) -> singleton $ pinject False
-      (LitA UndefinedL) -> singleton $ pinject False
-      (LitA (B b)     ) -> singleton $ pinject b
-      (LitA (N n)     ) -> singleton $ pinject $ if (Prelude.isNaN n || n == 0) then False else True
-      (LitA (S s)     ) -> singleton $ pinject $ if (null s) then False else True
+      (LitA NullL     ) -> pinject False
+      (LitA UndefinedL) -> pinject False
+      (LitA (B b)     ) -> pinject b
+      (LitA (N n)     ) -> pinject $ if (Prelude.isNaN n || n == 0) then False else True
+      (LitA (S s)     ) -> pinject $ if (null s) then False else True
       NumA              -> singleton $ BoolA
       StrA              -> singleton $ BoolA
       BoolA             -> singleton $ BoolA
-      (CloA _)          -> singleton $ pinject True
-      (ObjA _)          -> singleton $ pinject True
+      (CloA _)          -> pinject True
+      (ObjA _)          -> pinject True
       (LocA _)          -> undefined -- TOOD: This isn't part of real JS, should it be here?
     isPrim v = case v of
-      (LitA _) -> singleton $ pinject True
-      NumA     -> singleton $ pinject True
-      StrA     -> singleton $ pinject True
-      BoolA    -> singleton $ pinject True
-      (CloA _) -> singleton $ pinject False
-      (ObjA _) -> singleton $ pinject False
+      (LitA _) -> pinject True
+      NumA     -> pinject True
+      StrA     -> pinject True
+      BoolA    -> pinject True
+      (CloA _) -> pinject False
+      (ObjA _) -> pinject False
       (LocA _) -> undefined -- TODO: This isn't part of real JS, should it be here?
     hasOwnProp o f = case o of
       (ObjA (Obj kvs)) -> case f of
-        (LitA (S name)) -> singleton $ pinject $ maybeElim False (const True) $ kvs # name
+        (LitA (S name)) -> pinject $ maybeElim False (const True) $ kvs # name
         StrA            -> fromList $ [ pinject True , pinject False ]
         _               -> undefined -- TODO: Does this ever happen?
       _ -> undefined -- TODO: does this ever happen?
-    toInteger n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
+    toInteger av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
                                      -- TODO: Does truncate truncate in the right direction when negative?
-                   | otherwise    -> singleton $ pinject $ ((fromIntegral (Prelude.truncate n)) :: Double)
+                   | otherwise    -> pinject $ ((fromIntegral ((Prelude.truncate n)::Integer)) :: Double)
       NumA                        -> singleton NumA
       _                           -> empty
-    toInt32 n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
-                   | otherwise    -> singleton $ pinject $
+    toInt32 av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
+                   | otherwise    -> pinject $
                                      let x = mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))
                                      in (fromIntegral
                                          (if x > ((2::Int) ^ (31::Int))
@@ -247,10 +247,10 @@ evalOp op = case op of
                                          :: Double)
       NumA                        -> singleton NumA
       _                           -> empty
-    toUInt32 n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
-                   | otherwise    -> singleton $ pinject $ ((fromIntegral $ mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))) :: Double)
+    toUInt32 av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
+                   | otherwise    -> pinject $ ((fromIntegral $ mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))) :: Double)
 
       NumA                        -> singleton NumA
       _                           -> empty
