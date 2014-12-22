@@ -50,6 +50,7 @@ infixr 9 ^^.
 infixr 9 ^.:
 infixr 9 ^*.
 infixr 9 <.>
+infixr 9 .:
 infixr 9 ..:
 infixr 9 :.:
 infixr 9 :..:
