@@ -5,31 +5,49 @@ import Prelude ( truncate
                , isNaN
                , isInfinite
                , signum
-               , (**)
                , (^)
                )
 import FP hiding (inject)
 
 import Data.Bits
 import Data.Fixed
+import Data.Text (isInfixOf, splitOn, pack, unpack)
 import Data.Word
 import Text.Read
+import Text.Regex (mkRegex, splitRegex)
 
 import Lang.JS.StateSpace
 import Lang.JS.Syntax
 
-class Prismable a b where
-  pcoerce :: a -> Maybe b
+class Injectable a b where
   pinject :: b -> a
+instance Injectable AValue a => Injectable (Set AValue) a where
+  pinject = singleton . pinject
+instance Injectable AValue Double where
+  pinject = LitA . N
+instance Injectable AValue Bool where
+  pinject = LitA . B
+instance Injectable AValue String where
+  pinject = LitA . S
+instance Injectable AValue a => Injectable AValue [a] where
+  pinject = ObjA . Obj . listToIndexedAssocList . (map pinject)
+
+listToIndexedAssocList :: [a] -> [(String, a)]
+listToIndexedAssocList as =
+  doit (0::Integer) as []
+  where
+    doit _ []     ys = ys
+    doit i (x:xs) ys = doit (i+1) xs $ (show i,x):ys
+
+
+class Injectable a b => Prismable a b where
+  pcoerce :: a -> Maybe b
 
 instance Prismable AValue Double where
-  pinject = LitA . N
   pcoerce = coerce (nL <.> litAL)
 instance Prismable AValue Bool where
-  pinject = LitA . B
   pcoerce = coerce (bL <.> litAL)
 instance Prismable AValue String where
-  pinject = LitA . S
   pcoerce = coerce (sL <.> litAL)
 
 class (Prismable a b) => BottomPrismable a b where
@@ -48,15 +66,7 @@ instance BottomPrismable AValue String where
 
 liftBinaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue c) =>
                    P a -> P c -> (a -> a -> c) -> AValue -> AValue -> Set AValue
-liftBinaryOpBot pa pc op av1 av2 =
-  joins $ map liftMaybeSet $
-  [ do
-       v1 <- pcoerce av1
-       v2 <- pcoerce av2
-       return $ pinject $ op v1 v2
-  , pcoerceBot pa av1 >> (return $ pbot pc)
-  , pcoerceBot pa av2 >> (return $ pbot pc)
-  ]
+liftBinaryOpBot pa pc op = liftBinaryOpSpecialBot pa op (pbot pc)
 
 liftUnaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue b) =>
                 P a -> P b -> (a -> b) -> AValue -> Set AValue
@@ -66,6 +76,18 @@ liftUnaryOpBot pa pb op av1 =
        v1 <- pcoerce av1
        return $ pinject $ op v1
   , pcoerceBot pa av1 >> (return $ pbot pb)
+  ]
+
+liftBinaryOpSpecialBot :: (BottomPrismable AValue a) => (Injectable AValue c) =>
+                          P a -> (a -> a -> c) -> AValue -> AValue -> AValue -> Set AValue
+liftBinaryOpSpecialBot pa op cbot av1 av2 =
+  joins $ map liftMaybeSet $
+  [ do
+       v1 <- pcoerce av1
+       v2 <- pcoerce av2
+       return $ pinject $ op v1 v2
+  , pcoerceBot pa av1 >> (return $ cbot)
+  , pcoerceBot pa av2 >> (return $ cbot)
   ]
 
 binOp :: String -> (a -> a -> b) -> [a] -> String :+: b
@@ -79,7 +101,7 @@ unaryOp name op args = case args of
   _ -> Inl $ name ++ " only takes two arguments"
 
 evalOp :: Op -> [AValue] -> String :+: Set AValue
-evalOp o = case o of
+evalOp op = case op of
   OStrPlus    -> binOp   "Append"             $ liftBinaryOpBot P P ((++)   :: String -> String -> String)
   ONumPlus    -> binOp   "Add"                $ liftBinaryOpBot P P ((+)    :: Double -> Double -> Double)
   OMul        -> binOp   "Multiply"           $ liftBinaryOpBot P P ((*)    :: Double -> Double -> Double)
@@ -107,13 +129,17 @@ evalOp o = case o of
   OToInteger  -> unaryOp "ToInteger"          $ toInteger
   OToInt32    -> unaryOp "ToInt32"            $ toInt32
   OToUInt32   -> unaryOp "ToUInt32"           $ toUInt32
+  OPrint      -> unaryOp "Print"              $ undefined -- this is for Rhino, do we care?
+  OStrContains    -> binOp "StrContains"      $ liftBinaryOpBot P P strContains
+  OStrSplitRegExp -> binOp "StrSplitRegExp"   $ liftBinaryOpSpecialBot P strSplitRegExp (ObjA $ Obj [])
+  OStrSplitStrExp -> binOp "StrSplitStrExp"   $ liftBinaryOpSpecialBot P strSplitStrExp (ObjA $ Obj [])
   where
     bAnd = fromInteger .: ((.&.) `on` Prelude.truncate)
     bOr  = fromInteger .: ((.|.) `on` Prelude.truncate)
     bXOr = fromInteger .: (xor `on` Prelude.truncate)
     bNeg = fromInteger . complement . Prelude.truncate
-    shiftLeft          = fromInt .: shiftL `on` Prelude.truncate
-    signedShiftRight   = fromInt .: shiftR `on` Prelude.truncate
+    shiftLeft          = (fromInt .: shiftL) `on` Prelude.truncate
+    signedShiftRight   = (fromInt .: shiftR) `on` Prelude.truncate
     unsignedShiftRight n i =
       -- Word64 is a hack to force zero-filled right bit shifting bitshifting >_>
       fromIntegral $ (shiftR :: Word64 -> Int -> Word64) (Prelude.truncate n) $ Prelude.truncate i
@@ -149,7 +175,7 @@ evalOp o = case o of
     haskellInfinity = (1/0 :: Double)
     haskellNaN      = (0/0 :: Double)
     booleanToNumber b = if b then 1 else 0
-    typeof v = singleton $ LitA $ S $ case v of
+    typeof v = pinject $ case v of
       -- TODO: 11.4.3 says soemthing about GetBase(v) = null do something special, what is that about?
       (LitA NullL     ) -> "object"
       (LitA UndefinedL) -> "undefined"
@@ -163,11 +189,11 @@ evalOp o = case o of
       (ObjA _)          -> "object"
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToNumber v = case v of
-      (LitA NullL     ) -> singleton $ pinject (0::Double)
-      (LitA UndefinedL) -> singleton $ pinject haskellNaN
-      (LitA (B b)     ) -> singleton $ pinject $ if b then (1::Double) else (0::Double)
-      (LitA (N n)     ) -> singleton $ pinject n
-      (LitA (S s)     ) -> singleton $ pinject (fromString' s :: Double)
+      (LitA NullL     ) -> pinject (0::Double)
+      (LitA UndefinedL) -> pinject haskellNaN
+      (LitA (B b)     ) -> pinject $ if b then (1::Double) else (0::Double)
+      (LitA (N n)     ) -> pinject n
+      (LitA (S s)     ) -> pinject (fromString' s :: Double)
       NumA              -> singleton $ NumA
       StrA              -> singleton $ NumA
       BoolA             -> fromList $ [ pinject (0::Double) , pinject (1::Double) ]
@@ -175,11 +201,11 @@ evalOp o = case o of
       (ObjA _)          -> undefined -- TODO: Does lambdajs need these?
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToString v = case v of
-      (LitA NullL     ) -> singleton $ pinject "null"
-      (LitA UndefinedL) -> singleton $ pinject "undefined"
-      (LitA (B b)     ) -> singleton $ pinject $ if b then "true" else "false"
-      (LitA (N n)     ) -> singleton $ pinject $ show n -- see 9.8.1, this is most certainly wrong, but it's easy (trollface)
-      (LitA (S s)     ) -> singleton $ pinject s
+      (LitA NullL     ) -> pinject "null"
+      (LitA UndefinedL) -> pinject "undefined"
+      (LitA (B b)     ) -> pinject $ if b then "true" else "false"
+      (LitA (N n)     ) -> pinject $ show n -- see 9.8.1, this is most certainly wrong, but it's easy (trollface)
+      (LitA (S s)     ) -> pinject s
       NumA              -> singleton $ StrA
       StrA              -> singleton $ StrA
       BoolA             -> fromList $ [ pinject "true" , pinject "false" ]
@@ -187,42 +213,42 @@ evalOp o = case o of
       (ObjA _)          -> undefined -- TODO: Does lambdajs need these?
       (LocA _)          -> undefined -- This isn't part of real JS, should it be here?
     primToBool v = case v of
-      (LitA NullL     ) -> singleton $ pinject False
-      (LitA UndefinedL) -> singleton $ pinject False
-      (LitA (B b)     ) -> singleton $ pinject b
-      (LitA (N n)     ) -> singleton $ pinject $ if (Prelude.isNaN n || n == 0) then False else True
-      (LitA (S s)     ) -> singleton $ pinject $ if (null s) then False else True
+      (LitA NullL     ) -> pinject False
+      (LitA UndefinedL) -> pinject False
+      (LitA (B b)     ) -> pinject b
+      (LitA (N n)     ) -> pinject $ if (Prelude.isNaN n || n == 0) then False else True
+      (LitA (S s)     ) -> pinject $ if (null s) then False else True
       NumA              -> singleton $ BoolA
       StrA              -> singleton $ BoolA
       BoolA             -> singleton $ BoolA
-      (CloA _)          -> singleton $ pinject True
-      (ObjA _)          -> singleton $ pinject True
+      (CloA _)          -> pinject True
+      (ObjA _)          -> pinject True
       (LocA _)          -> undefined -- TOOD: This isn't part of real JS, should it be here?
     isPrim v = case v of
-      (LitA _) -> singleton $ pinject True
-      NumA     -> singleton $ pinject True
-      StrA     -> singleton $ pinject True
-      BoolA    -> singleton $ pinject True
-      (CloA _) -> singleton $ pinject False
-      (ObjA _) -> singleton $ pinject False
+      (LitA _) -> pinject True
+      NumA     -> pinject True
+      StrA     -> pinject True
+      BoolA    -> pinject True
+      (CloA _) -> pinject False
+      (ObjA _) -> pinject False
       (LocA _) -> undefined -- TODO: This isn't part of real JS, should it be here?
     hasOwnProp o f = case o of
       (ObjA (Obj kvs)) -> case f of
-        (LitA (S name)) -> singleton $ pinject $ maybeElim False (const True) $ kvs # name
+        (LitA (S name)) -> pinject $ maybeElim False (const True) $ kvs # name
         StrA            -> fromList $ [ pinject True , pinject False ]
         _               -> undefined -- TODO: Does this ever happen?
       _ -> undefined -- TODO: does this ever happen?
-    toInteger n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
+    toInteger av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
                                      -- TODO: Does truncate truncate in the right direction when negative?
-                   | otherwise    -> singleton $ pinject $ ((fromIntegral (Prelude.truncate n)) :: Double)
+                   | otherwise    -> pinject $ ((fromIntegral ((Prelude.truncate n)::Integer)) :: Double)
       NumA                        -> singleton NumA
       _                           -> empty
-    toInt32 n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
-                   | otherwise    -> singleton $ pinject $
+    toInt32 av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
+                   | otherwise    -> pinject $
                                      let x = mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))
                                      in (fromIntegral
                                          (if x > ((2::Int) ^ (31::Int))
@@ -231,10 +257,16 @@ evalOp o = case o of
                                          :: Double)
       NumA                        -> singleton NumA
       _                           -> empty
-    toUInt32 n = case n of
-      (LitA (N n)) | isNaN n      -> singleton $ pinject $ (0::Double)
-                   | isInfinite n -> singleton $ pinject $ (signum n) * (0::Double)
-                   | otherwise    -> singleton $ pinject $ ((fromIntegral $ mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))) :: Double)
+    toUInt32 av = case av of
+      (LitA (N n)) | isNaN n      -> pinject $ (0::Double)
+                   | isInfinite n -> pinject $ (signum n) * (0::Double)
+                   | otherwise    -> pinject $ ((fromIntegral $ mod' (Prelude.truncate n) ((2::Int) ^ (32::Int))) :: Double)
 
       NumA                        -> singleton NumA
       _                           -> empty
+    strContains bigger smaller = isInfixOf smaller bigger
+    strSplitRegExp :: String -> String -> [String]
+    strSplitRegExp re s = map fromChars $ splitRegex (mkRegex (toChars re)) (toChars s)
+    -- TODO: This cannot be the right way to splitOn
+    strSplitStrExp :: String -> String -> [String]
+    strSplitStrExp = ((map (fromChars . unpack)) .: splitOn) `on` (pack . toChars)
