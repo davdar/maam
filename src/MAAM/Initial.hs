@@ -19,3 +19,6 @@ instance Inject ListSet where
 
 instance (Inject t, Inject u) => Inject (t :.: u) where
   inj = Compose . inj . inj
+
+instance Initial (Map k v) where
+  initial = mapEmpty

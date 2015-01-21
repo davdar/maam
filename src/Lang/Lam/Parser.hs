@@ -25,7 +25,7 @@ data Token = Token
   deriving (Eq, Ord)
 makePrettyUnion ''Token
 
--- Lexing {{{
+-- Lexing
 
 white :: Parser Char String
 white = fromChars ^$ oneOrMoreList $ satisfies isSpace
@@ -57,17 +57,15 @@ token = mconcat
       , "else"
       , "T"
       , "F"
-      , "+"
-      , "*"
-      , "-"
+      , "ADD1"
+      , "SUB1"
+      , "GEZ"
       ]
   , Token Num ^$ numLit
   , Token Id ^$ ident
   ] 
 
--- }}}
-
--- Parsing {{{
+-- Parsing
 
 key :: String -> Parser Token ()
 key = void . lit . Token Key
@@ -139,3 +137,12 @@ whitespaceFilter = (==) White . tokenType
 
 parseExp :: String -> ParseError Char Token Exp :+: Exp
 parseExp input = parse token whitespaceFilter (final exp) $ toChars input
+
+parseFile :: String -> IO Exp
+parseFile fn = do
+  s <- readFile fn
+  case parseExp s of
+    Inl e -> do
+      pprint e
+      error ""
+    Inr e -> return e

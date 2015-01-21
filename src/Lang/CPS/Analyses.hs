@@ -18,30 +18,30 @@ timeChoices =
 -- These instances are defined in Lang.CPS.Val
 valChoices :: [(String, ExVal)]
 valChoices =
-  [ ( "concrete" , ExVal (W :: UniVal PCVal) )
-  , ( "abstract" , ExVal (W :: UniVal PAVal) )
+  [ ( "concrete" , ExVal (W :: UniVal (Power CVal)) )
+  , ( "abstract" , ExVal (W :: UniVal (Power AVal)) )
   ]
 
 -- These instances are defined in MAAM.MonadStep and Lang.CPS.Monads
 monadChoices :: [(String, ExMonad)]
 monadChoices =
-  [ ( "fsps" , ExMonad (W :: UniMonad PSΣ FSPSς FSPS) )
-  , ( "fspi" , ExMonad (W :: UniMonad PIΣ FSPIς FSPI) )
-  , ( "fipi" , ExMonad (W :: UniMonad PIΣ FIPIς FIPI) )
+  [ ( "ps" , ExMonad (W :: UniMonad PSΣ PS) )
+  , ( "fs" , ExMonad (W :: UniMonad FSΣ FS) )
+  , ( "fi" , ExMonad (W :: UniMonad FIΣ FI) )
   ]
 
 -- These are defined in Lang.CPS.Semantics
 gcChoices :: [(String, AllGC)]
 gcChoices = 
-  [ ( "no"  , nogc  )
-  , ( "yes" , yesgc )
+  [ ( "no"  , AllGC nogc  )
+  , ( "yes" , AllGC yesgc )
   ]
 
 -- These are defined in Lang.CPS.Semantics
 closureChoices :: [(String, AllCreateClo)]
 closureChoices =
-  [ ( "link" , linkClo )
-  , ( "copy" , copyClo )
+  [ ( "link" , AllCreateClo linkClo )
+  , ( "copy" , AllCreateClo copyClo )
   ]
 
 timeFilterChoices :: [(String, TimeFilter)]

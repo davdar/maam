@@ -1,0 +1,12 @@
+let ff := lam f . lam x . 
+  f x 
+in
+let g := lam x . 
+  gez x
+in
+let h := lam x .
+  gez x
+in
+if someBool
+then ff g  1
+else ff h -1

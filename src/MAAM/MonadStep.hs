@@ -24,9 +24,11 @@ instance (MonadStep ς m, Functorial JoinLattice m) => MonadStep (ς :.: ListSet
     onComposeIso $ (mstepγ :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')) $ joins . map (runListSetT . f)
 
 -- Flow Sensitive
-instance (MonadStep ς m, Functorial JoinLattice m, Commute ς ListSet) => MonadStep (ListSet :.: ς) (ListSetT m) where
-  mstepγ :: (a -> ListSetT m b) -> (ListSet :.: ς) a -> (ListSet :.: ς) b
-  mstepγ f = onComposeIso $ extend $ commute . mstepγ (runListSetT . f)
+instance (MonadStep ς m, Commute ς ListSet, Functorial JoinLattice ς) => MonadStep (ListSet :.: ς) (ListSetT m) where
+  mstepγ :: forall a b. (a -> ListSetT m b) -> (ListSet :.: ς) a -> (ListSet :.: ς) b
+  mstepγ f = 
+    with (functorial :: W (JoinLattice (ς (ListSet b)))) $
+    onComposeIso $ commute . joins . map (mstepγ $ runListSetT . f)
 
 instance Commute ID ListSet where
   commute :: ID (ListSet a) -> ListSet (ID a)

@@ -1523,6 +1523,7 @@ instance (JoinLattice a, JoinLattice b, JoinLattice c) => JoinLattice (a, b, c) 
 instance (JoinLattice a, JoinLattice b, JoinLattice c, JoinLattice d, JoinLattice e) => JoinLattice (a, b, c, d, e) where
   bot = (bot, bot, bot, bot, bot)
   (a1, b1, c1, d1, e1) \/ (a2, b2, c2, d2, e2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2, d1 \/ d2, e1 \/ e2)
+instance (JoinLattice a) => Functorial JoinLattice ((,) a) where functorial = W
 instance Bifunctorial Eq (,) where
   bifunctorial = W
 instance Bifunctorial Ord (,) where
@@ -1619,6 +1620,12 @@ instance (Unit t, Unit u) => Unit (t :.: u) where
   unit = Compose . unit . unit
 instance (Functor t, Functor u) => Functor (t :.: u) where
   map = onComposeIso . map . map
+instance (Functorial JoinLattice t, Functorial JoinLattice u) => Functorial JoinLattice (t :.: u) where
+  functorial :: forall a. (JoinLattice a) => W (JoinLattice ((t :.: u) a))
+  functorial =
+    with (functorial :: W (JoinLattice (u a))) $
+    with (functorial :: W (JoinLattice (t (u a)))) $
+    W
 
 newtype (t :..: u) m a = Compose2 { runCompose2 :: t (u m) a }
 
