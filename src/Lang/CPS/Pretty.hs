@@ -55,6 +55,7 @@ instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (CVal lτ dτ ψ) where
 instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (AVal lτ dτ ψ) where
   pretty (LitA l) = pretty l
   pretty IA = P.lit "INT"
+  pretty BA = P.lit "BOOL"
   pretty (CloA c) = pretty c
   pretty BotA = P.lit "⊥"
 

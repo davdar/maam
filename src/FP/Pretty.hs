@@ -368,7 +368,9 @@ instance (Functorial Pretty f) => Pretty (Fix f) where
     with (functorial :: W (Pretty (f (Fix f)))) $
     pretty f
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
-  pretty (Stamped a f) = exec [pretty a, pun ":", pretty f]
+  pretty (Stamped _a f) = 
+    pretty f
+    -- exec [pretty a, pun ":", pretty f]
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix _a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ 

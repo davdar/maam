@@ -108,6 +108,14 @@ ifExp = pre (\ (e1, e2) e3 -> Fix $ If e1 e2 e3) $ do
 appExp :: Mix (Parser Token) Exp
 appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
+opExp :: Mix (Parser Token) Exp
+opExp = pre (Fix .: Prim) $ do
+  mconcat 
+    [ key "ADD1" >> return Add1
+    , key "SUB1" >> return Sub1
+    , key "GEZ"  >> return IsNonNeg
+    ]
+
 exp :: Parser Token Exp
 exp = build lits (fromList mixes)
   where
@@ -121,7 +129,9 @@ exp = build lits (fromList mixes)
                 , lamExp 
                 , ifExp 
                 ] )
-      , ( 100 , [ appExp ] )
+      , ( 100 , [ appExp 
+                , opExp
+                ] )
       ]
 
 testp0 :: String

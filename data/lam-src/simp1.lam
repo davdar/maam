@@ -1,5 +1,5 @@
-let b  := 1 + 1 in
+let b  := SUB1 0 in
 let id := lam x . x in
-if b 
+if GEZ b 
 then id 1 
 else id 2

@@ -27,7 +27,7 @@ instance (Ord (dτ ψ), Ord (lτ ψ)) => Val lτ dτ ψ (CVal lτ dτ ψ) where
   elimClo _ = empty
 
 -- Abstract
-data AVal lτ dτ ψ = LitA Lit | IA | CloA (Clo lτ dτ ψ) | BotA
+data AVal lτ dτ ψ = LitA Lit | IA | BA | CloA (Clo lτ dτ ψ) | BotA
   deriving (Eq, Ord)
 makePrisms ''AVal
 
@@ -37,10 +37,16 @@ instance (Ord (lτ ψ), Ord (dτ ψ)) =>  Val lτ dτ ψ (AVal lτ dτ ψ) where
   clo :: Clo lτ dτ ψ -> AVal lτ dτ ψ
   clo = CloA
   op :: Op -> AVal lτ dτ ψ -> AVal lτ dτ ψ
-  op _ (LitA (I _)) = IA
+  op Add1 (LitA (I _)) = IA
+  op Add1 IA = IA
+  op Sub1 (LitA (I _)) = IA
+  op Sub1 IA = IA
+  op IsNonNeg (LitA (I _)) = BA
+  op IsNonNeg IA = BA
   op _ _ = BotA
   elimBool :: AVal lτ dτ ψ -> Set Bool
   elimBool (LitA (B b)) = singleton b
+  elimBool BA = fromList [True, False]
   elimBool _ = empty
   elimClo :: AVal lτ dτ ψ -> Set (Clo lτ dτ ψ)
   elimClo (CloA c) = singleton c

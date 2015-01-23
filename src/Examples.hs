@@ -4,6 +4,8 @@ import Lang.Lam
 import Lang.CPS
 import FP
 import qualified FP.Pretty as P
+import MAAM
+import Lang.Common
 
 makeOptions :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(Doc, Options)]
 makeOptions ltime dtime val monad gc closure lfilter dfilter = do
@@ -25,12 +27,12 @@ makeOptions ltime dtime val monad gc closure lfilter dfilter = do
         , concat [ "LF=", lf ]
         , concat [ "DF=", df ]
         ]
-      o = Options (timeChoices #! lt) 
-                  (timeChoices #! dt) 
-                  (valChoices #! v) 
-                  (monadChoices #! m) 
-                  (gcChoices #! g) 
-                  (closureChoices #! c) 
+      o = Options (timeChoices       #! lt) 
+                  (timeChoices       #! dt) 
+                  (valChoices        #! v ) 
+                  (monadChoices      #! m ) 
+                  (gcChoices         #! g ) 
+                  (closureChoices    #! c ) 
                   (timeFilterChoices #! lf)
                   (timeFilterChoices #! df)
   return (d, o)
@@ -57,7 +59,8 @@ withOptions os e =
 examplesMain :: IO ()
 examplesMain = do
   e <- parseFile "data/lam-src/simp1.lam"
-  let os = makeOptions
+  let os = 
+        makeOptions
         ["*"]
         ["*"]
         ["concrete"]
@@ -66,4 +69,17 @@ examplesMain = do
         ["link"]
         ["*"]
         ["*"]
+        ++
+        makeOptions
+        ["0"]
+        ["0"]
+        ["abstract"]
+        ["fi"]
+        ["no"]
+        ["link"]
+        ["*"]
+        ["*"]
   pprint $ withOptions os e
+
+e1 :: CVal Cτ Cτ SGCall
+e1 = op Add1 $ LitC $ I 1

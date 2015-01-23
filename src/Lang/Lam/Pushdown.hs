@@ -1,3 +1,4 @@
+{- DEPRECATED -}
 module Lang.Lam.Pushdown where
 
 import FP hiding (Kon)

@@ -25,9 +25,9 @@ valChoices =
 -- These instances are defined in MAAM.MonadStep and Lang.CPS.Monads
 monadChoices :: [(String, ExMonad)]
 monadChoices =
-  [ ( "ps" , ExMonad (W :: UniMonad PSΣ PS) )
-  , ( "fs" , ExMonad (W :: UniMonad FSΣ FS) )
-  , ( "fi" , ExMonad (W :: UniMonad FIΣ FI) )
+  [ ( "ps" , ExMonad (W :: UniMonad PSΣ PSΣ𝒫 PS) )
+  , ( "fs" , ExMonad (W :: UniMonad FSΣ FSΣ𝒫 FS) )
+  , ( "fi" , ExMonad (W :: UniMonad FIΣ FIΣ𝒫 FI) )
   ]
 
 -- These are defined in Lang.CPS.Semantics
@@ -46,6 +46,6 @@ closureChoices =
 
 timeFilterChoices :: [(String, TimeFilter)]
 timeFilterChoices =
-  [ ("*"   , const True             )
+  [ ("*"   , not . isL haltL . stampedFix )
   , ("app" , isL appFL . stampedFix )
   ]
