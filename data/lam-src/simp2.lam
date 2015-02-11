@@ -1,8 +1,7 @@
-let b := 1 + 1
-let g := lam x . lam y .
-  if >=0 x then 100 else 200
+let g := lam x . lam y . 
+  if x >= 0 then 100 else 200 
 in
 let ff := lam f . f 0 in
-if b
+if 1 + 1 >= 0
 then ff (g  1)
 else ff (g -1)

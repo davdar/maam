@@ -38,7 +38,7 @@ stampM pe = do
       i <- nextL (stampBdrIDL <.> view)
       se <- local (update bdrEnvL $ mapInsert x i) $ stampM e
       return $ Lam (Stamped i x) se
-    L.Prim o e -> L.Prim o ^$ stampM e
+    L.Prim o e1 e2 -> return (L.Prim o) <@>  stampM e1 <@> stampM e2
     L.Let x e b -> do
       se <- stampM e
       i <- nextL (stampBdrIDL <.> view)
@@ -128,9 +128,10 @@ cpsM (StampedFix i e0) = case e0 of
     kx <- fresh "k"
     c <- withOpaqueC (reflect $ C.Var kx) $ cpsM e
     letAtom "f" $ Stamped i $ LamF sx kx c
-  L.Prim o e -> do
-    ex <- cpsM e
-    letAtom "a" $ Stamped i $ C.Prim o ex
+  L.Prim o e1 e2 -> do
+    a1 <- cpsM e1
+    a2 <- cpsM e2
+    letAtom "a" $ Stamped i $ C.Prim o a1 a2
   L.Let x e b -> do
     ea <- cpsAtomM e
     let sx = sgNameFromSName x
@@ -158,9 +159,10 @@ cpsAtomM se@(StampedFix i e0) = Stamped i ^$ case e0 of
     kx <- fresh "k"
     c <- withOpaqueC (reflect $ C.Var kx) $ cpsM e
     return $ LamF sx kx c
-  L.Prim o e -> do
-    ea <- cpsM e
-    return $ C.Prim o ea
+  L.Prim o e1 e2 -> do
+    a1 <- cpsM e1
+    a2 <- cpsM e2
+    return $ C.Prim o a1 a2
   _ -> do
     ex <- cpsM se
     return $ Pico ex

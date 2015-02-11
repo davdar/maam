@@ -57,9 +57,9 @@ token = mconcat
       , "else"
       , "T"
       , "F"
-      , "ADD1"
-      , "SUB1"
-      , "GEZ"
+      , "+"
+      , "-"
+      , ">="
       ]
   , Token Num ^$ numLit
   , Token Id ^$ ident
@@ -108,14 +108,6 @@ ifExp = pre (\ (e1, e2) e3 -> Fix $ If e1 e2 e3) $ do
 appExp :: Mix (Parser Token) Exp
 appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
-opExp :: Mix (Parser Token) Exp
-opExp = pre (Fix .: Prim) $ do
-  mconcat 
-    [ key "ADD1" >> return Add1
-    , key "SUB1" >> return Sub1
-    , key "GEZ"  >> return IsNonNeg
-    ]
-
 exp :: Parser Token Exp
 exp = build lits (fromList mixes)
   where
@@ -129,16 +121,30 @@ exp = build lits (fromList mixes)
                 , lamExp 
                 , ifExp 
                 ] )
-      , ( 100 , [ appExp 
-                , opExp
+      , ( 40  , [ inf (Fix ..: flip Prim) $ key ">=" >> return (LBinOp GTE 40) ] )
+      , ( 50  , [ infr (Fix ..: flip Prim) $ key "+"  >> return (LBinOp Add 50) 
+                , infr (Fix ..: flip Prim) $ key "-"  >> return (LBinOp Sub 50) 
                 ] )
+      , ( 100 , [ appExp ] )
       ]
 
 testp0 :: String
-testp0 = "lam x . if x then let x := 4 in x y z else w (x y) z"
+testp0 = "lam x . if x then let x := 4 in x y z else w (x y) (x + y + z)"
 
 testp1 :: String
 testp1 = "(lam x . x) ((lam x . x) (lam x . x))"
+
+par :: String -> ParseError Char Token Exp :+: Exp
+par = parse token whitespaceFilter p . toChars
+  where
+    p :: Parser Token Exp
+    p = do
+      e <- pe
+      ies <- oneOrMoreList $ key "+" <*> pe
+      return $ foldlOn ies e $ \ e1 ((), e2) ->
+        Fix $ Prim (LBinOp Add 50) e1 e2
+    pe :: Parser Token Exp
+    pe = Fix . Lit ^$ litExp
 
 -- }}}
 
@@ -146,7 +152,7 @@ whitespaceFilter :: Token -> Bool
 whitespaceFilter = (==) White . tokenType
 
 parseExp :: String -> ParseError Char Token Exp :+: Exp
-parseExp input = parse token whitespaceFilter (final exp) $ toChars input
+parseExp = parse token whitespaceFilter (final exp) . toChars
 
 parseFile :: String -> IO Exp
 parseFile fn = do

@@ -35,6 +35,6 @@ data Clo lτ dτ ψ = Clo
 class Val lτ dτ ψ val | val -> lτ, val -> dτ, val -> ψ where
   lit :: Lit -> val 
   clo :: Clo lτ dτ ψ -> val 
-  op :: Op -> val -> val
+  binop :: BinOp -> val -> val -> val
   elimBool :: val -> Set Bool
   elimClo :: val -> Set (Clo lτ dτ ψ)

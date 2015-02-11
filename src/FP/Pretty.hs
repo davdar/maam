@@ -191,19 +191,19 @@ bump :: (MonadPretty m) => m a -> m a
 bump = local $ set bumpedL True
 
 inf :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
-inf i oM x1M x2M = atLevel i $ bump x1M >> oM >> bump x2M
+inf i oM x1M x2M = atLevel i $ bump x1M >> space 1 >> oM >> space 1 >> bump x2M
 
 infl :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
-infl i oM x1M x2M = atLevel i $ x1M >> oM >> bump x2M
+infl i oM x1M x2M = atLevel i $ x1M >> space 1 >> oM >> space 1 >> bump x2M
 
 infr :: (MonadPretty m) => Int -> m () -> m () -> m () -> m ()
-infr i oM x1M x2M = atLevel i $ bump x1M >> oM >> x2M
+infr i oM x1M x2M = atLevel i $ bump x1M >> space 1 >> oM >> space 1 >> x2M
 
 pre :: (MonadPretty m) => Int -> m () -> m () -> m ()
-pre i oM xM = atLevel i $ oM >> bump xM
+pre i oM xM = atLevel i $ oM >> space 1 >> xM
 
 post :: (MonadPretty m) => Int -> m () -> m () -> m ()
-post i oM xM = atLevel i $ bump xM >> oM
+post i oM xM = atLevel i $ xM >> space 1 >> oM
 
 app :: (MonadPretty m) => m () -> [m ()] -> m ()
 app x xs = atLevel 100 $ hvsep $ map (atLevel 100) $ x : map (align . bump) xs
@@ -368,14 +368,14 @@ instance (Functorial Pretty f) => Pretty (Fix f) where
     with (functorial :: W (Pretty (f (Fix f)))) $
     pretty f
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
-  pretty (Stamped _a f) = 
-    pretty f
-    -- exec [pretty a, pun ":", pretty f]
+  pretty (Stamped a f) = 
+    -- pretty f
+    atLevel 0 $ exec [pretty a, pun ":", pretty f]
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
-  pretty (StampedFix _a f) = 
+  pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ 
-    pretty f
-    -- atLevel 0 $ exec [bump $ pretty a, pun ":", pretty f]
+    -- pretty f
+    atLevel 0 $ exec [bump $ pretty a, pun ":", pretty f]
 
 instance (Pretty a) => Pretty (ID a) where
   pretty (ID a) = pretty a

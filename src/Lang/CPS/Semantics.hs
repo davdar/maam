@@ -69,6 +69,18 @@ bindM x vD = do
   ρ' <- bind x vD ρ
   putL 𝓈ρL ρ'
 
+-- rebinds the value assigned to a name
+rebind :: (Analysis val lτ dτ m) => SGName -> val lτ dτ Ψ -> m ()
+rebind x vD = do
+  ρ <- getL 𝓈ρL
+  let l = ρ #! x
+  modifyL 𝓈σL $ mapInsert l vD
+
+-- rebinds the value assigned to a pico if it is a name
+rebindPico :: (Analysis val lτ dτ m) => PrePico SGName -> val lτ dτ Ψ -> m ()
+rebindPico (Lit _) _ = return ()
+rebindPico (Var x) vD = rebind x vD
+
 -- the denotation for variables
 var :: (Analysis val lτ dτ m) => SGName -> m (val lτ dτ Ψ)
 var x = do
@@ -89,13 +101,14 @@ pico (Var x) = var x
 atom :: (Analysis val lτ dτ m) => CreateClo lτ dτ m ->  SGAtom -> m (val lτ dτ Ψ)
 atom createClo a = case stamped a of
   Pico p -> pico p
-  Prim o ax -> op o ^$ pico ax
+  Prim o a1 a2 -> return (binop (lbinOpOp o)) <@> pico a1 <@> pico a2
   LamF x kx c -> lam createClo (stampedID a) [x, kx] c
   LamK x c -> lam createClo (stampedID a) [x] c
 
-apply :: (Analysis val lτ dτ m) => TimeFilter -> SGCall -> val lτ dτ Ψ -> [val lτ dτ Ψ] -> m SGCall
-apply timeFilter c fv avs = do
-  Clo cid' xs c' ρ lτ <- mset $ elimClo fv
+apply :: (Analysis val lτ dτ m) => TimeFilter -> SGCall -> PrePico SGName -> val lτ dτ Ψ -> [val lτ dτ Ψ] -> m SGCall
+apply timeFilter c fx fv avs = do
+  fclo@(Clo cid' xs c' ρ lτ) <- mset $ elimClo fv
+  rebindPico fx $ clo fclo
   xvs <- liftMaybeZero $ zip xs avs
   putL 𝓈ρL ρ
   traverseOn xvs $ uncurry $ bindM 
@@ -115,16 +128,17 @@ call gc createClo ltimeFilter dtimeFilter c = do
       return c'
     If ax tc fc -> do
       b <- mset . elimBool *$ pico ax
+      rebindPico ax $ lit $ B b
       return $ if b then tc else fc
     AppF fx ax ka -> do
       fv <- pico fx
       av <- pico ax
       kv <- pico ka
-      apply ltimeFilter c fv [av, kv]
+      apply ltimeFilter c fx fv [av, kv]
     AppK kx ax -> do
       kv <- pico kx
       av <- pico ax
-      apply ltimeFilter c kv [av]
+      apply ltimeFilter c kx kv [av]
     Halt _ -> return c
   gc c'
   return c'

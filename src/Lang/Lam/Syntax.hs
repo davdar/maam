@@ -8,7 +8,7 @@ data PreExp n e =
     Lit Lit
   | Var n
   | Lam n e
-  | Prim Op e
+  | Prim LBinOp e e
   | Let n e e
   | App e e
   | If e e e
@@ -20,7 +20,7 @@ instance (Pretty n, Pretty e) => Pretty (PreExp n e) where
   pretty (Lit l) = pretty l
   pretty (Var n) = pretty n
   pretty (Lam n e) = P.atLevel 0 $ pretty $ VarLam [n] e
-  pretty (Prim o e) = P.app (pretty o) [pretty e]
+  pretty (Prim o e1 e2) = P.infr (lbinOpLevel o) (pretty $ lbinOpOp o) (pretty e1) (pretty e2)
   pretty (Let n e b) = P.atLevel 0 $ P.hvsep
     [ P.botLevel $ P.hsep [P.key "let", pretty n, P.keyPun ":=", P.hvsep [P.nest 2 $ pretty e, P.key "in"]]
     , P.hsep [pretty b]

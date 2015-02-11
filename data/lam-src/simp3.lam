@@ -1,12 +1,6 @@
-let ff := lam f . lam x . 
-  f x 
-in
-let g := lam x . 
-  gez x
-in
-let h := lam x .
-  gez x
-in
-if someBool
+let ff := lam f . lam x . f x in
+let g := lam x . x >= 0 in
+let h := lam x . x >= 0 in
+if 1 + 1 >= 0
 then ff g  1
 else ff h -1

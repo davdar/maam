@@ -22,9 +22,13 @@ data Lit = I Int | B Bool
 instance PartialOrder Lit where pcompare = discreteOrder
 makePrisms ''Lit
 
-data Op = Add1 | Sub1 | IsNonNeg
+data BinOp = Add | Sub | GTE
   deriving (Eq, Ord)
-instance PartialOrder Op where pcompare = discreteOrder
+instance PartialOrder BinOp where pcompare = discreteOrder
+data LBinOp = LBinOp
+  { lbinOpOp :: BinOp
+  , lbinOpLevel :: Int
+  } deriving (Eq, Ord)
 
 instance Pretty Name where
   pretty (Name s) = P.bdr s
@@ -40,10 +44,10 @@ instance Pretty GName where
 instance Pretty Lit where
   pretty (I i) = pretty i
   pretty (B b) = pretty b
-instance Pretty Op where
-  pretty Add1 = P.key "+1"
-  pretty Sub1 = P.key "-1"
-  pretty IsNonNeg = P.key ">=0?"
+instance Pretty BinOp where
+  pretty Add = P.key "+"
+  pretty Sub = P.key "-"
+  pretty GTE = P.key ">="
 
 data VarLam n e = VarLam [n] e
 instance (Pretty n, Pretty e) => Pretty (VarLam n e) where

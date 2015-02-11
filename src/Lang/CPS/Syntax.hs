@@ -11,7 +11,7 @@ type SGPico = PrePico SGName
 
 data PreAtom n c =
     Pico (PrePico n)
-  | Prim Op (PrePico n)
+  | Prim LBinOp (PrePico n) (PrePico n)
   | LamF n n c
   | LamK n c
   deriving (Eq, Ord)
@@ -41,7 +41,7 @@ freeVarsPico (Var x) = singleton x
 
 freeVarsAtom :: PreAtom SGName SGCall -> Set SGName
 freeVarsAtom (Pico p) = freeVarsPico p
-freeVarsAtom (Prim _ ax) = freeVarsPico ax
+freeVarsAtom (Prim _ a1 a2) = freeVarsPico a1 \/ freeVarsPico a2
 freeVarsAtom (LamF x kx c) = freeVarsLam [x, kx] $ stampedFix c
 freeVarsAtom (LamK x c) = freeVarsLam [x] $ stampedFix c
 

@@ -55,17 +55,40 @@ lit = satisfies . (==)
 word :: (MonadParser t m) => [t] -> m [t]
 word ts = mapM lit ts
 
-data Inf m a = Inf (m (a -> a -> a))
-makePrisms ''Inf
-
-data InfL m a = InfL (m (a -> a -> a)) | Pre (m (a -> a))
-makePrisms ''InfL
-
-data InfR m a = InfR (m (a -> a -> a)) | Post (m (a -> a))
-makePrisms ''InfR
-
-data Mix m a =  Mix (Inf m a) | MixL (InfL m a) | MixR (InfR m a)
+data Mix m a = 
+    Pre  (m (a -> a))
+  | Post (m (a -> a))
+  | Inf  (m (a -> a -> a))
+  | InfL (m (a -> a -> a))
+  | InfR (m (a -> a -> a))
 makePrisms ''Mix
+
+data Level m a = Level
+  { levelPre :: m (a -> a)
+  , levelPost :: m (a -> a)
+  , levelInf :: m (a -> a -> a)
+  , levelInfL :: m (a -> a -> a)
+  , levelInfR :: m (a -> a -> a)
+  }
+
+splitMixes :: (MonadParser t m) => [Mix m a] -> Level m a
+splitMixes ms = Level
+  { levelPre = mconcat $ liftMaybeZero . coerce preL *$ ms
+  , levelPost = mconcat $ liftMaybeZero . coerce postL *$ ms
+  , levelInf = mconcat $ liftMaybeZero . coerce infL *$ ms
+  , levelInfL = mconcat $ liftMaybeZero . coerce infLL *$ ms
+  , levelInfR = mconcat $ liftMaybeZero . coerce infRL *$ ms
+  }
+
+pre :: (Monad m) => (b -> a -> a) -> m b -> Mix m a
+pre f bM = Pre $ do
+  b <- bM
+  return $ \ aR -> f b aR
+
+post :: (Monad m) => (a -> b -> a) -> m b -> Mix m a
+post f bM = Post $ do
+  b <- bM
+  return $ \ aL -> f aL b
 
 inf' :: (Monad m) => (a -> b -> a -> a) -> m b -> m (a -> a -> a)
 inf' f bM = do
@@ -73,23 +96,13 @@ inf' f bM = do
   return $ \ aL aR -> f aL b aR
 
 inf :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
-inf f bM = Mix $ Inf $ inf' f bM
+inf f bM = Inf $ inf' f bM
 
 infl :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
-infl f bM = MixL $ InfL $ inf' f bM
+infl f bM = InfL $ inf' f bM
 
 infr :: (Monad m) => (a -> b -> a -> a) -> m b -> Mix m a
-infr f bM = MixR $ InfR $ inf' f bM
-
-pre :: (Monad m) => (b -> a -> a) -> m b -> Mix m a
-pre f bM = MixL $ Pre $ do
-  b <- bM
-  return $ \ aR -> f b aR
-
-post :: (Monad m) => (a -> b -> a) -> m b -> Mix m a
-post f bM = MixR $ Post $ do
-  b <- bM
-  return $ \ aL -> f aL b
+infr f bM = InfR $ inf' f bM
 
 between :: (MonadParser t m) => m () -> m () -> m a -> m a
 between alM arM aM = do
@@ -101,48 +114,52 @@ between alM arM aM = do
 build :: (MonadParser t m) => [m a] -> Map Int [Mix m a] -> m a
 build lits lps = case mapRemove lps of
   Nothing -> mconcat lits
-  Just ((_i, ms), lps') -> do
-    let bumped = prePostBumped ms $ build lits lps'
-    buildMix bumped ms
+  Just ((_i, ms), lps') -> buildMix (build lits lps') $ splitMixes ms
 
-prePostBumped :: (MonadParser t m) => [Mix m a] -> m a -> m a
-prePostBumped ms aM = do
-  let preM = mconcat $ liftMaybeZero . coerce (preL <.> mixLL) *$ ms
-      postM = mconcat $ liftMaybeZero . coerce (postL <.> mixRL) *$ ms
-  mconcat
-    [ do
-        ps <- oneOrMoreList preM
-        a <- aM
-        return $ runEndo a $ foldr (++) null $ map Endo ps
-    , do
-        a <- aM
-        ps <- many postM
-        return $ runEndo a $ foldl (++) null $ map Endo ps
-    ]
+buildMix :: (MonadParser t m) => m a -> Level m a -> m a
+buildMix aM l = mconcat
+  [ buildMixPre aM $ levelPre l
+  , do
+      a <- aM
+      f <- mconcat
+        [ buildMixPost    $ levelPost l
+        , buildMixInf  aM $ levelInf  l
+        , buildMixInfL aM $ levelInfL l
+        , buildMixInfR aM $ levelInfR l
+        , return id
+        ]
+      return $ f a
+  ]
 
-buildMix :: (MonadParser t m) => m a -> [Mix m a] -> m a
-buildMix aM ms = do
+buildMixPre :: (MonadParser t m) => m a -> m (a -> a) -> m a
+buildMixPre aM preM = do
+  ps <- oneOrMoreList preM
   a <- aM
-  f <- mconcat
-    [ buildMixInfL aM ms
-    , buildMixInfR aM ms
-    , return id
-    ]
-  return $ f a
+  return $ foldr (.) id ps a
 
-buildMixInfL :: (MonadParser t m) => m a -> [Mix m a] -> m (a -> a)
-buildMixInfL aM ms = do
-  let inflM = mconcat $ liftMaybeZero . coerce (infLL <.> mixLL) *$ ms
-  ies <- oneOrMoreList $ inflM <*> aM
-  return $ \ e₁ -> runEndo e₁ $ foldl (flip (++)) null $ map Endo $ mapOn ies $ \ (f,eR) eL -> eL `f` eR
+buildMixPost :: (MonadParser t m) => m (a -> a) -> m (a -> a)
+buildMixPost postM = do
+  ps <- oneOrMoreList postM
+  return $ foldl (.) id ps
 
-buildMixInfR :: (MonadParser t m) => m a -> [Mix m a] -> m (a -> a)
-buildMixInfR aM ms = do
-  let infrM = mconcat $ liftMaybeZero . coerce (infRL <.> mixRL) *$ ms
-  ies <- oneOrMoreList $ infrM <*> aM
-  return $ \ e₁ ->
-    let (ies', eᵢ) = swizzle (e₁, ies)
-    in runEndo eᵢ $ foldr (++) null $ map Endo $ mapOn ies' $ \ (eL,f) eR -> eL `f` eR
+buildMixInf :: (MonadParser t m) => m a -> m (a -> a -> a) -> m (a -> a)
+buildMixInf aM infM = do
+  p <- infM
+  a2 <- aM
+  return $ \ a1 -> p a1 a2
+
+buildMixInfL :: (MonadParser t m) => m a -> m (a -> a -> a) -> m (a -> a)
+buildMixInfL aM infLM = do
+  ies <- map (\ (f, eR) eL -> eL `f` eR) ^$ oneOrMoreList $ infLM <*> aM
+  return $ foldl (flip (.)) id ies
+
+buildMixInfR :: (MonadParser t m) => m a -> m (a -> a -> a) -> m (a -> a)
+buildMixInfR aM infRM = do
+  ies <- oneOrMoreList $ infRM <*> aM
+  return $ \ a1 ->
+    let (ies', an) = swizzle (a1, ies)
+        ies'' = map (\ (eL, f) eR -> eL `f` eR) ies'
+    in foldr (.) id ies'' an
   where
     swizzle :: (a, [(b, a)]) -> ([(a, b)], a)
     swizzle (a, []) = ([], a)

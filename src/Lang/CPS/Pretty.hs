@@ -12,7 +12,7 @@ instance (Pretty n) => Pretty (PrePico n) where
   pretty (Var x) = pretty x
 instance (Pretty n, Pretty c) => Pretty (PreAtom n c) where
   pretty (Pico p) = pretty p
-  pretty (Prim o a) = P.app (pretty o) [pretty a]
+  pretty (Prim o a1 a2) = P.infr (lbinOpLevel o) (pretty $ lbinOpOp o) (pretty a1) (pretty a2)
   pretty (LamF x kx c) = pretty $ VarLam [x, kx] c
   pretty (LamK x c) = pretty $ VarLam [x] c
 
