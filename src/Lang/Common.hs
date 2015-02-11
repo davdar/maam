@@ -41,8 +41,8 @@ instance Pretty Lit where
   pretty (I i) = pretty i
   pretty (B b) = pretty b
 instance Pretty Op where
-  pretty Add1 = P.key "+1"
-  pretty Sub1 = P.key "-1"
+  pretty Add1 = P.key "(+1)"
+  pretty Sub1 = P.key "(-1)"
   pretty IsNonNeg = P.key ">=0?"
 
 data VarLam n e = VarLam [n] e
