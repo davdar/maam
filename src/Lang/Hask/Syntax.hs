@@ -19,7 +19,8 @@ data Pico =
 
 data PreAtom e =
     PicoA Pico
-  | LamA Name Name e
+  | LamfA Name Name e
+  | LamkA Name e
 type Atom = PreAtom Call
 
 data PreCall e =
@@ -59,16 +60,32 @@ fresh x = do
   return $ mkSystemName u $ mkVarOcc $ toChars x
 
 letAtom :: (CPSM m) => Name -> Atom -> m Pico
-letAtom = undefined
+letAtom x a = do
+  modifyC (return . Fix . LetC x a) $ 
+    return $ VarP x
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
-reify = undefined
+reify (MetaKon mk) = do
+  x <- fresh "x"
+  c <- mk $ VarP x
+  k <- fresh "k"
+  letAtom k $ LamkA x c
+reify (ObjectKon k _) = return k
 
 reflect :: (CPSM m) => Pico -> CPSKon Call m Pico
-reflect = undefined
+reflect k = ObjectKon k $ \ x -> do
+  return $ Fix $ AppkC k x
 
 cpsAtom :: (CPSM m) => Expr Var -> m Atom
-cpsAtom = undefined
+cpsAtom e = case e of
+  Lam xv e' -> do
+    let x = Var.varName xv
+    k <- fresh "k"
+    c <- withOpaqueC (reflect $ VarP k) $ cpsM e'
+    return $ LamfA x k c
+  _ -> do
+    p <- cpsM e
+    return $ PicoA p
 
 cpsM :: (CPSM m) => Expr Var -> m Pico
 cpsM e = case e of
@@ -85,7 +102,7 @@ cpsM e = case e of
     k <- fresh "k"
     c <- withOpaqueC (reflect $ VarP k) $ cpsM e'
     f <- fresh "f"
-    letAtom f $ LamA x k c
+    letAtom f $ LamfA x k c
   Let (NonRec xv e₁) e₂ -> do
     let x = Var.varName xv
     a <- cpsAtom e₁
@@ -110,6 +127,6 @@ cpsM e = case e of
         return (con, xs, c)
       return $ Fix $ CaseC p b's
   Cast e' _ -> cpsM e'
-  Tick _ e'    -> cpsM e'
-  Type _   -> error "type in term"
+  Tick _ e' -> cpsM e'
+  Type _ -> error "type in term"
   Coercion _ -> error "coercion in term"
