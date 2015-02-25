@@ -1,6 +1,6 @@
 .PHONY: all clean init fp maam maam-lam-if
 
-all: maam-lam-if
+all: maam-hask
 
 clean:
 	rm -f .extensions*
@@ -13,14 +13,19 @@ init:
 fp:
 	rm -f maam.cabal
 	ln -s cabal_files/fp.cabal maam.cabal
-	- cabal build
+	cabal build
 
 maam:
 	rm -f maam.cabal
 	ln -s cabal_files/maam.cabal maam.cabal
-	- cabal build
+	cabal build
 
 maam-lam-if:
 	rm -f maam.cabal
 	ln -s cabal_files/maam-lam-if.cabal maam.cabal
-	- cabal build
+	cabal build
+
+maam-hask:
+	rm -f maam.cabal
+	ln -s cabal_files/maam-hask.cabal maam.cabal
+	cabal build
