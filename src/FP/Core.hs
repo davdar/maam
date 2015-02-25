@@ -1,6 +1,6 @@
 module FP.Core 
 
--- Exports {{{
+-- Exports  {{{
 
   ( module Prelude
   , module FP.Core
@@ -36,7 +36,7 @@ import Data.Char (isSpace, isAlphaNum, isLetter, isDigit)
 
 -- Precedence {{{
 
-infix 9 ?
+infix  9 ?
 infixl 9 #
 infixl 9 #!
 infixl 9 <@>
@@ -55,22 +55,22 @@ infixr 9 ..:
 infixr 9 :.:
 infixr 9 :..:
 
-infix 7 /
-infix 7 //
+infix  7 /
+infix  7 //
 infixr 7 *
 infixr 7 <*>
 infixr 7 /\
 
-infix 6 -
-infix 6 \-\
+infix  6 -
+infix  6 \-\
 infixr 6 +
 infixr 6 ++
 infixr 6 :+:
 infixr 6 <+>
 infixr 6 \/
 
-infix 4 <~
-infix 4 <.
+infix  4 <~
+infix  4 <.
 
 infixl 1 >>=
 infixl 1 >>
@@ -80,7 +80,6 @@ infixr 0 *$
 infixr 0 ^$
 infixr 0 ^*$
 infixr 0 <$>
--- infixr 0 ^*$~
 
 infixr 0 ~:
 infixr 0 =:
@@ -92,7 +91,7 @@ infixr 0 |:
 -- Classes --
 -------------
 
--- Constraint {{{ 
+-- Constraint  {{{
 
 data W (c :: Constraint) where
   W :: (c) => W c
@@ -168,7 +167,7 @@ class Commute t u where
 
 -- }}}
 
--- Arithmetic {{{ --
+-- Arithmetic {{{
 
 class Peano a where
   zer :: a
@@ -222,15 +221,11 @@ class
 
 -- }}}
 
--- Category {{{ --
+-- Category {{{
 
 class Category t where
   catid :: t a a
   (<.>) :: t b c -> t a b -> t a c
-
--- }}} --
-
--- Morphism {{{
 
 type m ~> n = forall a. m a -> n a
 type t ~~> u = forall a m. t m a -> u m a
@@ -241,10 +236,6 @@ class Morphism2 m n where
   morph2 :: m ~> n
 class Morphism3 t u where
   morph3 :: t ~~> u
-
--- }}}
-
--- Isomorphism {{{
 
 class (Morphism a b, Morphism b a) => Isomorphism a b where
 
@@ -272,19 +263,6 @@ isoto3 = morph3
 
 isofrom3 :: (Isomorphism3 v w) => w ~~> v
 isofrom3 = morph3
-
--- }}}
-
--- HasLens {{{
-
-class HasLens a b where
-  view :: Lens a b
-
-instance HasLens a a where
-  view = catid
-
-viewP :: (HasLens a b) => P b -> Lens a b
-viewP P = view
 
 -- }}}
 
@@ -354,7 +332,7 @@ iterateAppend n a = niterOn n null (a ++)
 
 -- }}}
 
--- Lattice {{{ --
+-- Lattice  {{{
 
 class JoinLattice a where
   bot :: a
@@ -372,7 +350,7 @@ class MeetLattice a where
 
 class (JoinLattice a, MeetLattice a) => Lattice a where
 
--- }}} --
+-- }}}
 
 -- Unit {{{
 
@@ -548,14 +526,10 @@ liftMaybeZero (Just a) = unit a
 
 -- }}}
 
--- MonadConcat {{{
+-- MonadPlus {{{
 
 class MonadConcat (m :: * -> *) where
   (<++>) :: m a -> m a -> m a
-
--- }}}
-
--- MonadPlus {{{
 
 class MonadPlus (m :: * -> *) where
   (<+>) :: m a -> m a -> m a
@@ -1170,7 +1144,7 @@ mapInsert :: (MapLike k v t, Ord k) => k -> v -> t -> t
 mapInsert = mapInsertWith $ const id
 
 onlyKeys :: (SetLike k t, MapLike k v u) => t -> u -> u
-onlyKeys t u = learnMap u mapEmpty $ iter (\ k -> maybeElim id (mapInsert k) $ u # k) mapEmpty t
+onlyKeys t u = learnMap u mapEmpty $ iter (\ k -> elimMaybe id (mapInsert k) $ u # k) mapEmpty t
 
 toMap :: (Ord k) => [(k,v)] -> Map k v
 toMap = iter (uncurry mapInsert) mapEmpty
@@ -1262,7 +1236,7 @@ isL p a = case coerce p a of
   Nothing -> False
 
 alter :: Prism a b -> (b -> b) -> a -> a
-alter p f a = maybeElim a (inject p . f) $ coerce p a
+alter p f a = elimMaybe a (inject p . f) $ coerce p a
 
 pset :: Prism a b -> b -> a -> a
 pset p = alter p . const
@@ -1342,7 +1316,7 @@ instance (Monad m) => Monoid (KleisliEndo m a) where
 
 -- }}}
 
--- Bool {{{ --
+-- Bool {{{
 
 instance JoinLattice Bool where
   bot = False
@@ -1366,7 +1340,7 @@ cond p t f x = if p x then t else f
 ifThenElse :: Bool -> a -> a -> a
 ifThenElse = fif
 
--- }}} --
+-- }}}
 
 -- Char {{{
 
@@ -1580,9 +1554,9 @@ instance MonadErrorI a ((:+:) a) where
   errorI :: a :+: b -> ErrorT a ((:+:) a) b
   errorI ab = ErrorT $ Inr ab
 
-sumElim :: (a -> c) -> (b -> c) -> a :+: b -> c
-sumElim f _ (Inl a) = f a
-sumElim _ g (Inr b) = g b
+elimSum :: (a -> c) -> (b -> c) -> a :+: b -> c
+elimSum f _ (Inl a) = f a
+elimSum _ g (Inr b) = g b
 
 inlL :: Prism (a :+: b) a
 inlL = Prism
@@ -1673,12 +1647,12 @@ justL = Prism
   , inject = Just
   }
 
-maybeElim :: b -> (a -> b) -> Maybe a -> b
-maybeElim i _ Nothing = i
-maybeElim _ f (Just a) = f a
+elimMaybe :: b -> (a -> b) -> Maybe a -> b
+elimMaybe i _ Nothing = i
+elimMaybe _ f (Just a) = f a
 
-maybeElimOn :: Maybe a -> b -> (a -> b) -> b
-maybeElimOn = rotateR maybeElim
+elimMaybeOn :: Maybe a -> b -> (a -> b) -> b
+elimMaybeOn = rotateR elimMaybe
 
 whenNothing :: a -> Maybe a -> a
 whenNothing x Nothing = x
@@ -1882,7 +1856,7 @@ instance (Ord k, Ord v) => Ord (Map k v) where
   _ <= EmptyMap = False
   Map m1 <= Map m2 = m1 <= m2
 instance (Ord k, PartialOrder v) => PartialOrder (Map k v) where
-  m1 <~ m2 = iter (\ (k,v) -> (/\) $ maybeElim False (v <~) $ m2 # k) True m1
+  m1 <~ m2 = iter (\ (k,v) -> (/\) $ elimMaybe False (v <~) $ m2 # k) True m1
 instance Indexed k v (Map k v) where
   EmptyMap # _ = Nothing
   Map m # k = Map.lookup k m
@@ -1971,7 +1945,7 @@ instance MonadIO IO where
   liftIO = id
 instance MonadErrorE String IO where
   errorE :: ErrorT String IO ~> IO
-  errorE = sumElim (Prelude.fail . toChars) return *. runErrorT
+  errorE = elimSum (Prelude.fail . toChars) return *. runErrorT
 
 print :: String -> IO ()
 print = Prelude.putStrLn . toChars
@@ -1997,7 +1971,6 @@ instance MonadZero Q where
   mzero = Prelude.fail $ toChars "mzero"
 instance MonadErrorE String Q where
   errorE :: ErrorT String Q ~> Q
-  errorE = sumElim (Prelude.fail . toChars) return *. runErrorT
+  errorE = elimSum (Prelude.fail . toChars) return *. runErrorT
 
 -- }}}
-

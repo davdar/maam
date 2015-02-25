@@ -14,41 +14,41 @@ data StampSt = StampSt
   , stampBdrID :: BdrNum
   }
 makeLenses ''StampSt
-st0 :: StampSt
-st0 = StampSt zer zer
+stampSt0 :: StampSt
+stampSt0 = StampSt zer zer
 
 data Env = Env { bdrEnv :: Map Name BdrNum }
 makeLenses ''Env
-env0 :: Env
-env0 = Env mapEmpty
+stampEnv0 :: Env
+stampEnv0 = Env mapEmpty
 
-type StampM 𝓈 m = (HasLens 𝓈 StampSt, MonadStateE 𝓈 m, MonadReader Env m)
+type StampM m = (MonadStateE StampSt m, MonadReader Env m)
 
-lookupName :: (StampM 𝓈 m) => Name -> m SName
+lookupName :: (StampM m) => Name -> m SName
 lookupName x = do
-  xi <- maybeElim (nextL $ stampBdrIDL <.> view) return *$ lookup x ^$ askL bdrEnvL
+  xi <- elimMaybe (nextL $ stampBdrIDL) return *$ lookup x ^$ askL bdrEnvL
   return $ Stamped xi x
 
-stampM :: (StampM 𝓈 m) => Exp -> m SExp
+stampM :: (StampM m) => Exp -> m SExp
 stampM pe = do
-  StampedFix ^@ nextL (stampExpIDL <.> view) <@> case runFix pe of
+  StampedFix ^@ nextL stampExpIDL <@> case runFix pe of
     L.Lit l -> return $ L.Lit l
     L.Var x -> L.Var ^$ lookupName x
     Lam x e -> do
-      i <- nextL (stampBdrIDL <.> view)
+      i <- nextL stampBdrIDL
       se <- local (update bdrEnvL $ mapInsert x i) $ stampM e
       return $ Lam (Stamped i x) se
     L.Prim o e1 e2 -> return (L.Prim o) <@>  stampM e1 <@> stampM e2
     L.Let x e b -> do
       se <- stampM e
-      i <- nextL (stampBdrIDL <.> view)
+      i <- nextL stampBdrIDL
       sb <- local (update bdrEnvL $ mapInsert x i) $ stampM b
       return $ L.Let (Stamped i x) se sb
     App fe e -> App ^@ stampM fe <@> stampM e
     L.If e te fe -> L.If ^@ stampM e <@> stampM te <@> stampM fe
 
 stamp :: Exp -> SExp
-stamp = evalState st0 . runReaderT env0 . stampM
+stamp = evalState stampSt0 . runReaderT stampEnv0 . stampM
 
 -- }}}
 
@@ -65,10 +65,8 @@ stampL = lens lin lout
   where
     lin (CPSSt cid bid _) = StampSt cid bid
     lout (CPSSt _ _ gid) (StampSt cid bid) = CPSSt cid bid gid
-instance HasLens CPSSt StampSt where
-  view = stampL
-cpsst0 :: CPSSt
-cpsst0 = CPSSt zer zer zer
+cpsSt0 :: CPSSt
+cpsSt0 = CPSSt zer zer zer
 
 type CPSM m = (MonadOpaqueKon CPSKon SGCall m, MonadState CPSSt m)
 
@@ -167,18 +165,9 @@ cpsAtomM se@(StampedFix i e0) = Stamped i ^$ case e0 of
     ex <- cpsM se
     return $ Pico ex
 
-newtype StStateT m a = StStateT { unStStateT :: StateT CPSSt m a }
-  deriving
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadStateI CPSSt, MonadStateE CPSSt, MonadState CPSSt
-    , MonadReaderI r, MonadReaderE r, MonadReader r
-    )
-evalStStateT :: (Functor m) => CPSSt -> StStateT m a -> m a
-evalStStateT s = evalStateT s . unStStateT
-
 stampCPS :: Exp -> (SExp, SGCall)
-stampCPS e = runReader env0 $ evalStStateT cpsst0 $ do
-  se <- stampM e
+stampCPS e = runReader stampEnv0 $ evalStateT cpsSt0 $ do
+  se <- stateLens stampL $ stampM e
   c <- runMetaKonT (cpsM se) $ \ ex -> do
     i <- nextL callIDL
     return $ StampedFix i $ Halt ex

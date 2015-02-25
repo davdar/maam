@@ -201,7 +201,7 @@ parse tp wp ep cs = do
   ts <- mapInl LexingError $ tokenize tp cs
   let ts' = filter (not . wp) ts
   (x,xs) <- 
-    maybeElimOn (coerce consL $ runParser ts' ep) (throw (ParsingError ts' :: ParseError c t a)) return
+    elimMaybeOn (coerce consL $ runParser ts' ep) (throw (ParsingError ts' :: ParseError c t a)) return
   if isL nilL xs
     then return $ fst x
     else throw (AmbiguousParse (ts', map fst $ x:xs) :: ParseError c t a)

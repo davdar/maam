@@ -1,0 +1,105 @@
+author:              David Darais
+build-type:          Simple
+cabal-version:       >=1.10
+category:            StaticAnalysis
+license-file:        LICENSE
+license:             BSD3
+maintainer:          david.darais@gmail.com
+name:                maam
+synopsis:            An application of the maam static analysis library to a small applied lambda calculus.
+version:             0.1.0.0
+description:         An application of the maam static analysis library to a small applied lambda calculus.
+data-files:          data/lam-src/*.lam
+
+source-repository head
+  type: git
+  location: https://github.com/davdar/maam
+
+library
+  hs-source-dirs: src
+  exposed-modules:     
+    FP
+    FP.Console
+    FP.Core
+    FP.DerivingJoinLattice
+    FP.DerivingLens
+    FP.DerivingMonoid
+    FP.DerivingPrism
+    FP.DerivingPretty
+    FP.Free
+    FP.GHCI
+    FP.IO
+    FP.Monads
+    FP.Parser
+    FP.Pretty
+    FP.TH
+    Lang.CPS.Analyses
+    Lang.CPS.Monads
+    Lang.CPS.Pretty
+    Lang.CPS.Semantics
+    Lang.CPS.StateSpace
+    Lang.CPS.Syntax
+    Lang.CPS.Val
+    Lang.CPS
+    Lang.Lam.Parser
+    Lang.Lam.Passes
+    Lang.Lam.Syntax
+    Lang.Lam
+    Lang.Common
+    MAAM
+    MAAM.Initial
+    MAAM.MonadStep
+    MAAM.Time
+    Examples
+  build-depends:
+      base == 4.7.*
+    , containers 
+    , text 
+    , template-haskell 
+    , directory 
+    , Cabal 
+  default-language: Haskell2010
+  ghc-options: 
+    -isrc
+    -Wall 
+    -fno-warn-amp 
+    -fno-warn-orphans 
+  default-extensions:  
+    ConstraintKinds
+    ExplicitNamespaces
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImpredicativeTypes
+    InstanceSigs
+    LambdaCase
+    MultiParamTypeClasses
+    NoImplicitPrelude
+    OverloadedStrings
+    PolyKinds
+    PostfixOperators
+    RankNTypes
+    RebindableSyntax
+    ScopedTypeVariables
+    StandaloneDeriving
+    TupleSections
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+    UndecidableInstances
+    ViewPatterns
+    DataKinds
+    TemplateHaskell
+
+executable maam
+  build-depends: maam == 0.1.*
+  main-is: src/Main.hs
+  ghc-options: 
+    -Wall 
+    -fno-warn-amp 
+    -fno-warn-orphans 
+  default-extensions: 
+    NoImplicitPrelude
+  default-language: Haskell2010
