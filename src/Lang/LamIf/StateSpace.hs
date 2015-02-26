@@ -1,17 +1,17 @@
-module Lang.CPS.StateSpace where
+module Lang.LamIf.StateSpace where
 
 import FP
 import MAAM
-import Lang.CPS.Syntax
-import Lang.Common
+import Lang.LamIf.Syntax
+import Lang.LamIf.CPS
 
 data Addr lτ dτ (ψ :: *) = Addr
-  { addrLocation :: SGName
+  { addrLocation :: Name
   , addrLexicalTime :: lτ ψ
   , addrDynamicTime :: dτ ψ
   } deriving (Eq, Ord)
 
-type Env lτ dτ ψ = Map SGName (Addr lτ dτ ψ)
+type Env lτ dτ ψ = Map Name (Addr lτ dτ ψ)
 type Store val lτ dτ ψ = Map (Addr lτ dτ ψ) (val lτ dτ ψ)
 
 data 𝒮 val lτ dτ ψ = 𝒮
@@ -26,8 +26,8 @@ instance (Initial (lτ ψ), Initial (dτ ψ)) => Initial (𝒮 val lτ dτ ψ) w
 
 data Clo lτ dτ ψ = Clo 
   { cloLoc :: LocNum
-  , cloArgs :: [SGName]
-  , cloCall :: SGCall
+  , cloArgs :: [Name]
+  , cloCall :: Call
   , cloEnv :: Env lτ dτ ψ
   , cloTime :: lτ ψ
   } deriving (Eq, Ord)

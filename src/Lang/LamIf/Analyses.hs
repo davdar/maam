@@ -1,11 +1,11 @@
-module Lang.CPS.Analyses where
+module Lang.LamIf.Analyses where
 
 import FP
 import MAAM
-import Lang.CPS.Val
-import Lang.CPS.Semantics
-import Lang.CPS.Monads
-import Lang.CPS.Syntax
+import Lang.LamIf.Val
+import Lang.LamIf.Semantics
+import Lang.LamIf.Monads
+import Lang.LamIf.CPS
 
 -- These instances are defined in MAAM.Time
 timeChoices :: [(String, ExTime)]

@@ -1,8 +1,8 @@
-module Lang.CPS.Val where
+module Lang.LamIf.Val where
 
 import FP
-import Lang.Common
-import Lang.CPS.StateSpace
+import Lang.LamIf.StateSpace
+import Lang.LamIf.Syntax
 
 -- Concrete
 data CVal lτ dτ ψ = LitC Lit | CloC (Clo lτ dτ ψ) | BotC

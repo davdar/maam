@@ -1,10 +1,10 @@
-module Lang.CPS.Monads where
+module Lang.LamIf.Monads where
 
 import FP
 import MAAM
-import Lang.CPS.Semantics
-import Lang.CPS.StateSpace
-import Lang.CPS.Pretty ()
+import Lang.LamIf.Semantics
+import Lang.LamIf.StateSpace
+import Lang.LamIf.Pretty ()
 
 -- Path Sensitive
 type PSΣ' val lτ dτ ψ = (ID :.: ListSet) :.: (,) (𝒮 val lτ dτ ψ)

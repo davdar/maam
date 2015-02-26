@@ -1,34 +1,30 @@
-module Lang.Hask.Syntax 
-  ( module Lang.Hask.Syntax
-  , module CoreSyn
-  , module Literal
-  , module Name
-  ) where
+module Lang.Hask.CPS where
 
 import FP
 
-import CoreSyn
+import qualified CoreSyn as H
 import Var
 import Literal
 import Name
 import UniqSupply
 
 data Pico =
-    VarP Name
-  | LitP Literal
+    Var Name
+  | Lit Literal
 
 data PreAtom e =
-    PicoA Pico
-  | LamfA Name Name e
-  | LamkA Name e
+    Pico Pico
+  | LamF Name Name e
+  | LamK Name e
 type Atom = PreAtom Call
 
 data PreCall e =
-    LetC Name (PreAtom e) e
-  | LetrecC [(Name, PreAtom e)] e
-  | AppfC Pico Pico Pico
-  | AppkC Pico Pico
-  | CaseC Pico [(AltCon, [Name], e)]
+    Let Name (PreAtom e) e
+  | Rec [Name] e
+  | Letrec [(Name, PreAtom e)] e
+  | AppF Pico Pico Pico
+  | AppK Pico Pico
+  | Case Pico [(H.AltCon, [Name], e)]
 type Call = Fix PreCall
 
 -- CPS Conversion
@@ -61,63 +57,64 @@ fresh x = do
 
 letAtom :: (CPSM m) => Name -> Atom -> m Pico
 letAtom x a = do
-  modifyC (return . Fix . LetC x a) $ 
-    return $ VarP x
+  modifyC (return . Fix . Let x a) $ 
+    return $ Var x
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
 reify (MetaKon mk) = do
   x <- fresh "x"
-  c <- mk $ VarP x
+  c <- mk $ Var x
   k <- fresh "k"
-  letAtom k $ LamkA x c
+  letAtom k $ LamK x c
 reify (ObjectKon k _) = return k
 
 reflect :: (CPSM m) => Pico -> CPSKon Call m Pico
 reflect k = ObjectKon k $ \ x -> do
-  return $ Fix $ AppkC k x
+  return $ Fix $ AppK k x
 
-cpsAtom :: (CPSM m) => Expr Var -> m Atom
+cpsAtom :: (CPSM m) => H.Expr Var -> m Atom
 cpsAtom e = case e of
-  Lam xv e' -> do
+  H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
-    c <- withOpaqueC (reflect $ VarP k) $ cpsM e'
-    return $ LamfA x k c
+    c <- withOpaqueC (reflect $ Var k) $ cpsM e'
+    return $ LamF x k c
   _ -> do
     p <- cpsM e
-    return $ PicoA p
+    return $ Pico p
 
-cpsM :: (CPSM m) => Expr Var -> m Pico
+cpsM :: (CPSM m) => H.Expr Var -> m Pico
 cpsM e = case e of
-  Var xv -> return $ VarP $ Var.varName xv
-  Lit l -> return $ LitP l
-  App e₁ e₂ ->
+  H.Var xv -> return $ Var $ Var.varName xv
+  H.Lit l -> return $ Lit l
+  H.App e₁ e₂ ->
     callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
       p₁ <- cpsM e₁
       p₂ <- cpsM e₂
       k <- reify ko
-      return $ Fix $ AppfC p₁ p₂ k
-  Lam xv e' -> do
+      return $ Fix $ AppF p₁ p₂ k
+  H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
-    c <- withOpaqueC (reflect $ VarP k) $ cpsM e'
+    c <- withOpaqueC (reflect $ Var k) $ cpsM e'
     f <- fresh "f"
-    letAtom f $ LamfA x k c
-  Let (NonRec xv e₁) e₂ -> do
+    letAtom f $ LamF x k c
+  H.Let (H.NonRec xv e₁) e₂ -> do
     let x = Var.varName xv
     a <- cpsAtom e₁
     callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
       c <- withOpaqueC ko $ cpsM e₂
-      return $ Fix $ LetC x a c
-  Let (Rec xves) e₂ -> do
-    xas <- mapOnM xves $ uncurry $ \ xv e' -> do
-      let x = Var.varName xv
-      a <- cpsAtom e'
-      return (x, a)
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-      c <- withOpaqueC ko $ cpsM e₂
-      return $ Fix $ LetrecC xas c
-  Case e' xv _ bs -> do
+      return $ Fix $ Let x a c
+  H.Let (H.Rec xves) e₂ -> do
+    modifyC (return . Fix . Rec (map (Var.varName . fst) xves)) $ do
+      xas <- mapOnM xves $ uncurry $ \ xv e' -> do
+        let x = Var.varName xv
+        a <- cpsAtom e'
+        return (x, a)
+      callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+        c <- withOpaqueC ko $ cpsM e₂
+        return $ Fix $ Letrec xas c
+  H.Case e' xv _ bs -> do
     a <- cpsAtom e'
     p <- letAtom (Var.varName xv) a
     callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
@@ -125,8 +122,8 @@ cpsM e = case e of
         let xs = map Var.varName xvs
         c <- withOpaqueC ko $ cpsM e''
         return (con, xs, c)
-      return $ Fix $ CaseC p b's
-  Cast e' _ -> cpsM e'
-  Tick _ e' -> cpsM e'
-  Type _ -> error "type in term"
-  Coercion _ -> error "coercion in term"
+      return $ Fix $ Case p b's
+  H.Cast e' _ -> cpsM e'
+  H.Tick _ e' -> cpsM e'
+  H.Type _ -> error "type in term"
+  H.Coercion _ -> error "coercion in term"

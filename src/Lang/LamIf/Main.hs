@@ -1,7 +1,7 @@
 module Main where
 
 import FP
-import Examples
+import Lang.LamIf.Examples
 
 main :: IO ()
 main = examplesMain

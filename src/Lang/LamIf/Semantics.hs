@@ -1,10 +1,10 @@
-module Lang.CPS.Semantics where
+module Lang.LamIf.Semantics where
 
 import FP
 import MAAM
-import Lang.CPS.Syntax
-import Lang.Common
-import Lang.CPS.StateSpace
+import Lang.LamIf.Syntax hiding (PreExp(..))
+import Lang.LamIf.CPS
+import Lang.LamIf.StateSpace
 
 type Ψ = LocNum
 
@@ -44,68 +44,68 @@ class
   ) => Analysis val lτ dτ m | m -> val , m -> lτ , m -> dτ where
 
 -- Some helper types
-type GC m = SGCall -> m ()
-type CreateClo lτ dτ m = LocNum -> [SGName] -> SGCall -> m (Clo lτ dτ Ψ)
-type TimeFilter = SGCall -> Bool
+type GC m = Call -> m ()
+type CreateClo lτ dτ m = LocNum -> [Name] -> Call -> m (Clo lτ dτ Ψ)
+type TimeFilter = Call -> Bool
 
 -- Generate a new address
-new :: (Analysis val lτ dτ m) => SGName -> m (Addr lτ dτ Ψ)
+new :: (Analysis val lτ dτ m) => Name -> m (Addr lτ dτ Ψ)
 new x = do
   lτ <- getL 𝓈lτL
   dτ <- getL 𝓈dτL
   return $ Addr x lτ dτ
 
 -- bind a name to a value in an environment
-bind :: (Analysis val lτ dτ m) => SGName -> val lτ dτ Ψ -> Map SGName (Addr lτ dτ Ψ) -> m (Map SGName (Addr lτ dτ Ψ))
+bind :: (Analysis val lτ dτ m) => Name -> val lτ dτ Ψ -> Map Name (Addr lτ dτ Ψ) -> m (Map Name (Addr lτ dτ Ψ))
 bind x vD ρ = do
   l <- new x
   modifyL 𝓈σL $ mapInsertWith (\/) l vD
   return $ mapInsert x l ρ
 
 -- bind a name to a value in _the_ environment
-bindM :: (Analysis val lτ dτ m) => SGName -> val lτ dτ Ψ -> m ()
+bindM :: (Analysis val lτ dτ m) => Name -> val lτ dτ Ψ -> m ()
 bindM x vD = do
   ρ <- getL 𝓈ρL
   ρ' <- bind x vD ρ
   putL 𝓈ρL ρ'
 
 -- rebinds the value assigned to a name
-rebind :: (Analysis val lτ dτ m) => SGName -> val lτ dτ Ψ -> m ()
+rebind :: (Analysis val lτ dτ m) => Name -> val lτ dτ Ψ -> m ()
 rebind x vD = do
   ρ <- getL 𝓈ρL
   let l = ρ #! x
   modifyL 𝓈σL $ mapInsert l vD
 
 -- rebinds the value assigned to a pico if it is a name
-rebindPico :: (Analysis val lτ dτ m) => PrePico SGName -> val lτ dτ Ψ -> m ()
+rebindPico :: (Analysis val lτ dτ m) => PrePico Name -> val lτ dτ Ψ -> m ()
 rebindPico (Lit _) _ = return ()
 rebindPico (Var x) vD = rebind x vD
 
 -- the denotation for variables
-var :: (Analysis val lτ dτ m) => SGName -> m (val lτ dτ Ψ)
+var :: (Analysis val lτ dτ m) => Name -> m (val lτ dτ Ψ)
 var x = do
   ρ <- getL 𝓈ρL
   σ <- getL 𝓈σL
   liftMaybeZero $ index σ *$ index ρ $ x
 
 -- the denotation for lambdas
-lam :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> LocNum -> [SGName] -> SGCall -> m (val lτ dτ Ψ)
+lam :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> LocNum -> [Name] -> Call -> m (val lτ dτ Ψ)
 lam createClo = clo ^..: createClo
 
 -- the denotation for the pico syntactic category
-pico :: (Analysis val lτ dτ m) => SGPico -> m (val lτ dτ Ψ)
+pico :: (Analysis val lτ dτ m) => Pico -> m (val lτ dτ Ψ)
 pico (Lit l) = return $ lit l
 pico (Var x) = var x
 
 -- the denotation for the atom syntactic category
-atom :: (Analysis val lτ dτ m) => CreateClo lτ dτ m ->  SGAtom -> m (val lτ dτ Ψ)
+atom :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> Atom -> m (val lτ dτ Ψ)
 atom createClo a = case stamped a of
   Pico p -> pico p
-  Prim o a1 a2 -> return (binop (lbinOpOp o)) <@> pico a1 <@> pico a2
+  Prim o a1 a2 -> return (binop $ lbinOpOp o) <@> pico a1 <@> pico a2
   LamF x kx c -> lam createClo (stampedID a) [x, kx] c
   LamK x c -> lam createClo (stampedID a) [x] c
 
-apply :: (Analysis val lτ dτ m) => TimeFilter -> SGCall -> PrePico SGName -> val lτ dτ Ψ -> [val lτ dτ Ψ] -> m SGCall
+apply :: (Analysis val lτ dτ m) => TimeFilter -> Call -> PrePico Name -> val lτ dτ Ψ -> [val lτ dτ Ψ] -> m Call
 apply timeFilter c fx fv avs = do
   fclo@(Clo cid' xs c' ρ lτ) <- mset $ elimClo fv
   rebindPico fx $ clo fclo
@@ -117,7 +117,7 @@ apply timeFilter c fx fv avs = do
     modifyL 𝓈lτL $ tick cid'
   return c'
 
-call :: (Analysis val lτ dτ m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> SGCall -> m SGCall
+call :: (Analysis val lτ dτ m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> m Call
 call gc createClo ltimeFilter dtimeFilter c = do
   when (dtimeFilter c) $
     modifyL 𝓈dτL $ tick $ stampedFixID c
@@ -145,7 +145,7 @@ call gc createClo ltimeFilter dtimeFilter c = do
 
 -- GC {{{
 
-nogc :: (Monad m) => SGCall -> m ()
+nogc :: (Monad m) => Call -> m ()
 nogc _ = return ()
 
 closureTouched :: (TimeC lτ, TimeC dτ) => Clo lτ dτ Ψ -> Set (Addr lτ dτ Ψ)
@@ -154,13 +154,13 @@ closureTouched (Clo _ xs c ρ _) = liftMaybeSet . index ρ *$ freeVarsLam xs $ s
 addrTouched :: (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Map (Addr lτ dτ Ψ) (val lτ dτ Ψ) -> Addr lτ dτ Ψ -> Set (Addr lτ dτ Ψ)
 addrTouched σ = closureTouched *. elimClo *. liftMaybeSet . index σ
 
-currClosure :: (Analysis val lτ dτ m) => SGCall -> m (Clo lτ dτ Ψ)
+currClosure :: (Analysis val lτ dτ m) => Call -> m (Clo lτ dτ Ψ)
 currClosure c = do
   ρ <- getL 𝓈ρL
   lτ <- getL 𝓈lτL
   return $ Clo (LocNum (-1)) [] c ρ lτ
 
-yesgc :: (Analysis val lτ dτ m) => SGCall -> m ()
+yesgc :: (Analysis val lτ dτ m) => Call -> m ()
 yesgc c = do
   σ <- getL 𝓈σL
   live0 <- closureTouched ^$ currClosure c
@@ -171,13 +171,13 @@ yesgc c = do
 
 -- CreateClo {{{
 
-linkClo :: (Analysis val lτ dτ m) => LocNum -> [SGName] -> SGCall -> m (Clo lτ dτ Ψ)
+linkClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ dτ Ψ)
 linkClo cid xs c = do
   ρ <- getL 𝓈ρL
   lτ <- getL 𝓈lτL
   return $ Clo cid xs c ρ lτ
 
-copyClo :: (Analysis val lτ dτ m) => LocNum -> [SGName] -> SGCall -> m (Clo lτ dτ Ψ)
+copyClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ dτ Ψ)
 copyClo cid xs c = do
   let ys = toList $ freeVarsLam xs $ stampedFix c
   vs <- var ^*$ ys
@@ -192,44 +192,44 @@ copyClo cid xs c = do
 -- Execution {{{
 
 -- type StateSpaceC ς =
---   ( PartialOrder (ς SGCall)
---   , JoinLattice (ς SGCall)
---   , Pretty (ς SGCall)
+--   ( PartialOrder (ς Call)
+--   , JoinLattice (ς Call)
+--   , Pretty (ς Call)
 --   , Inject ς
 --   , MonadStep ς m
 --   )
 
-  -- , Isomorphism (ς SGCall) (ς' SGCall)
+  -- , Isomorphism (ς Call) (ς' Call)
   -- , StateSpaceC ς'
 
 type MonadStateSpaceC ς ς' m =
   ( MonadStep ς m
   , Inject ς
-  , Isomorphism (ς SGCall) (ς' SGCall)
+  , Isomorphism (ς Call) (ς' Call)
   )
 type StateSpaceC ς' =
-  ( PartialOrder (ς' SGCall)
-  , JoinLattice (ς' SGCall)
-  , Pretty (ς' SGCall)
+  ( PartialOrder (ς' Call)
+  , JoinLattice (ς' Call)
+  , Pretty (ς' Call)
   )
 
 class (MonadStateSpaceC ς ς' m, StateSpaceC ς') => Execution ς ς' m | m -> ς, m -> ς'
 
 exec :: 
   forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) 
-  => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> SGCall -> ς' SGCall
+  => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
 exec gc createClo ltimeFilter dtimeFilter = 
   poiter (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom) 
   . isoto 
-  . (inj :: SGCall -> ς SGCall)
+  . (inj :: Call -> ς Call)
 
 execCollect :: 
   forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) 
-  => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> SGCall -> ς' SGCall
+  => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
 execCollect gc createClo ltimeFilter dtimeFilter = 
   collect (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom) 
   . isoto 
-  . (inj :: SGCall -> ς SGCall)
+  . (inj :: Call -> ς Call)
 
 -- }}}
 
@@ -261,9 +261,9 @@ data Options = Options
   }
 
 data ExSigma where
-  ExSigma :: (StateSpaceC ς) => ς SGCall -> ExSigma
+  ExSigma :: (StateSpaceC ς) => ς Call -> ExSigma
 
-runWithOptions :: Options -> SGCall -> ExSigma
+runWithOptions :: Options -> Call -> ExSigma
 runWithOptions o e = case o of
   Options (ExTime (W :: UniTime lτ)) 
           (ExTime (W :: UniTime dτ))

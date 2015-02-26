@@ -1,11 +1,8 @@
-module Examples where
+module Lang.LamIf.Examples where
 
-import Lang.Lam
-import Lang.CPS
+import Lang.LamIf
 import FP
 import qualified FP.Pretty as P
--- import MAAM
--- import Lang.Common
 
 makeOptions :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(Doc, Options)]
 makeOptions ltime dtime val monad gc closure lfilter dfilter = do
@@ -38,7 +35,7 @@ makeOptions ltime dtime val monad gc closure lfilter dfilter = do
   return (d, o)
 
 
-withOptions :: [(Doc, Options)] -> Exp -> Doc
+withOptions :: [(Doc, Options)] -> RawExp -> Doc
 withOptions os e =
   let (se, c) = stampCPS e
   in P.vsep
@@ -58,25 +55,25 @@ withOptions os e =
 
 examplesMain :: IO ()
 examplesMain = do
-  e <- parseFile "data/lam-src/simp3.lam"
-  let os = 
-        makeOptions
-        ["*"]
-        ["*"]
-        ["concrete"]
-        ["ps"]
-        ["no"]
-        ["link"]
-        ["*"]
-        ["*"]
-        ++
-        makeOptions
-        ["0"]
-        ["0"]
-        ["abstract"]
-        ["fi"]
-        ["no"]
-        ["link"]
-        ["*"]
-        ["*"]
+  e <- parseFile "data/lam-src/simp4.lam"
+  let os = makeOptions [] [] [] [] [] [] [] []
+  --       makeOptions
+  --       ["*"]
+  --       ["*"]
+  --       ["concrete"]
+  --       ["ps"]
+  --       ["no"]
+  --       ["link"]
+  --       ["*"]
+  --       ["*"]
+  --       ++
+  --       makeOptions
+  --       ["0"]
+  --       ["0"]
+  --       ["abstract"]
+  --       ["fi"]
+  --       ["no"]
+  --       ["link"]
+  --       ["*"]
+  --       ["*"]
   pprint $ withOptions os e

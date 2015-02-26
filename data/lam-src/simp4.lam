@@ -1,0 +1,1 @@
+(let f := lam x -> x in f) (let y := 1 + 1 in y)

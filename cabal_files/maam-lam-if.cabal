@@ -33,24 +33,22 @@ library
     FP.Parser
     FP.Pretty
     FP.TH
-    Lang.CPS.Analyses
-    Lang.CPS.Monads
-    Lang.CPS.Pretty
-    Lang.CPS.Semantics
-    Lang.CPS.StateSpace
-    Lang.CPS.Syntax
-    Lang.CPS.Val
-    Lang.CPS
-    Lang.Lam.Parser
-    Lang.Lam.Passes
-    Lang.Lam.Syntax
-    Lang.Lam
-    Lang.Common
+    Lang.LamIf
+    Lang.LamIf.Analyses
+    Lang.LamIf.CPS
+    Lang.LamIf.Examples
+    Lang.LamIf.Monads
+    Lang.LamIf.Parser
+    Lang.LamIf.Passes
+    Lang.LamIf.Pretty
+    Lang.LamIf.Semantics
+    Lang.LamIf.StateSpace
+    Lang.LamIf.Syntax
+    Lang.LamIf.Val
     MAAM
     MAAM.Initial
     MAAM.MonadStep
     MAAM.Time
-    Examples
   build-depends:
       base == 4.7.*
     , containers 
@@ -95,7 +93,7 @@ library
 
 executable maam
   build-depends: maam == 0.1.*
-  main-is: src/Main.hs
+  main-is: src/Lang/LamIf/Main.hs
   ghc-options: 
     -Wall 
     -fno-warn-amp 
