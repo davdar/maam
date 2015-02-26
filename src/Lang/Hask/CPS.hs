@@ -41,11 +41,11 @@ instance Morphism3 (CPSKon r) (KFun r) where
 instance Isomorphism3 (KFun r) (CPSKon r) where
 instance Balloon CPSKon Call where
   inflate :: (Monad m) => CPSKon Call m ~> CPSKon Call (OpaqueKonT CPSKon Call m)
-  inflate (MetaKon mk) = MetaKon $ \ a -> makeMetaKonT $ \ k -> k *$ mk a
-  inflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> makeMetaKonT $ \ k -> k *$ mk ax
+  inflate (MetaKon (mk :: a -> m Call)) = MetaKon $ \ (a :: a) -> makeMetaKonT $ \ (k :: Call -> m Call) -> k *$ mk a
+  inflate (ObjectKon pk (mk :: Pico -> m Call)) = ObjectKon pk $ \ p -> makeMetaKonT $ \ (k :: Call -> m Call) -> k *$ mk p
   deflate :: (Monad m) => CPSKon Call (OpaqueKonT CPSKon Call m) ~> CPSKon Call m
-  deflate (MetaKon mk) = MetaKon $ \ a -> runMetaKonTWith return $ mk a
-  deflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> evalOpaqueKonT $ mk ax
+  deflate (MetaKon (mk :: a -> OpaqueKonT CPSKon Call m Call)) = MetaKon $ \ (a :: a) -> runMetaKonTWith return $ mk a
+  deflate (ObjectKon pk (mk :: Pico -> OpaqueKonT CPSKon Call m Call)) = ObjectKon pk $ \ p -> evalOpaqueKonT $ mk p
 type CPSM m = (MonadOpaqueKon CPSKon Call m, MonadState UniqSupply m)
 
 fresh :: (CPSM m) => String -> m Name

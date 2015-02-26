@@ -24,9 +24,9 @@ instance Pretty Lit where
   pretty (B b) = pretty b
 
 instance Pretty BinOp where
-  pretty Add = P.key "+"
-  pretty Sub = P.key "-"
-  pretty GTE = P.key ">="
+  pretty Add = P.keyPun "+"
+  pretty Sub = P.keyPun "-"
+  pretty GTE = P.keyPun ">="
 
 data VarLam n e = VarLam [n] e
 instance (Pretty n, Pretty e) => Pretty (VarLam n e) where
@@ -34,7 +34,7 @@ instance (Pretty n, Pretty e) => Pretty (VarLam n e) where
     [ P.hsep $ concat
       [ single $ P.key "λ"
       , map pretty xs
-      , single $ P.pun "."
+      , single $ P.keyPun "->"
       ]
     , pretty e
     ]
@@ -69,7 +69,7 @@ instance (Pretty n, Pretty c) => Pretty (PreAtom n c) where
 
 instance (Pretty n, Pretty c) => Pretty (PreCall n c) where
   pretty (C.Let x aa c) = P.atLevel 0 $ P.mustBreak $ P.vsep
-    [ P.hsep [pretty x, P.pun ":=", pretty aa]
+    [ P.hsep [pretty x, P.keyPun ":=", pretty aa]
     , pretty c
     ]
   pretty (C.If x tc fc) = P.atLevel 0 $ P.nest 2 $ P.hvsep $ map (P.nest 2)

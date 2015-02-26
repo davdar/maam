@@ -524,6 +524,9 @@ liftMaybeZero :: (Unit m, MonadZero m) => Maybe a -> m a
 liftMaybeZero Nothing = mzero
 liftMaybeZero (Just a) = unit a
 
+class MonadTop (m :: * -> *) where
+  mtop :: m a
+
 -- }}}
 
 -- MonadPlus {{{
