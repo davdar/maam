@@ -31,7 +31,7 @@ Now you can make instances for `Return Set` and `Bind Set`:
 This works fine if all you want to do is make a few more things typecheck with
 `return` and `bind`.
 
-`-# Limitations
+## Limitations
 
 When you start defining monad transformers, things get tricky.
 
@@ -73,7 +73,7 @@ You can now also generalize `Trans` for a given constraint `c`.
     class CTrans c t where
       lift ∷ ∀ m. (CMonad c m) ⇒ CMorph c m (t m)
 
-`-# Limitations
+## Limitations
 
 The problem comes when defining `lift` for monads. To turn an arbitrary `m a`
 into a `t m a` you generally need to know that `m` is an `Ord` functor.
@@ -137,7 +137,7 @@ The other advantage is that you can define `Monad`:
 This allows you to use the same `Bind` class and functions for things that
 admit `Return` instances and those that don't.
 
-`-# Limitations
+## Limitations
 
 This has the same flaw as Non-solution 1 in that you can't turn `MySetT` into a
 monad transformer. I think you might be able to pull this off with Non-solution
