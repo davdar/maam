@@ -134,8 +134,8 @@ testp0 = "lam x . if x then let x := 4 in x y z else w (x y) (x + y + z)"
 testp1 :: String
 testp1 = "(lam x . x) ((lam x . x) (lam x . x))"
 
-par :: String -> ParseError Char Token RawExp :+: RawExp
-par = parse token whitespaceFilter p . toChars
+par :: String -> LexParseError Char Token RawExp :+: RawExp
+par = lexParseFinal token whitespaceFilter p . toChars
   where
     p :: Parser Token RawExp
     p = do
@@ -151,8 +151,8 @@ par = parse token whitespaceFilter p . toChars
 whitespaceFilter :: Token -> Bool
 whitespaceFilter = (==) White . tokenType
 
-parseExp :: String -> ParseError Char Token RawExp :+: RawExp
-parseExp = parse token whitespaceFilter (final exp) . toChars
+parseExp :: String -> LexParseError Char Token RawExp :+: RawExp
+parseExp = lexParseFinal token whitespaceFilter (final exp) . toChars
 
 parseFile :: String -> IO RawExp
 parseFile fn = do

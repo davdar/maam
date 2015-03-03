@@ -22,13 +22,11 @@ class
   , MonadZero m
   , MonadConcat m
   , MonadStateE (ParserState t) m
-  , Eq t
-  , Pretty t
   ) => MonadParser t m | m -> t where
 
-end :: forall t m. (MonadParser t m) => m ()
+end :: (MonadParser t m) => m ()
 end = do
-  ts <- getL parserStateStreamL :: m [t]
+  ts <- getL parserStateStreamL
   case ts of
     [] -> return ()
     _:_ -> mzero
@@ -39,21 +37,82 @@ final aM = do
   end
   return a
 
-satisfies :: forall t m. (MonadParser t m, Eq t) => (t -> Bool) -> m t
+satisfies :: (MonadParser t m) => (t -> Bool) -> m t
 satisfies p = do
   ts <- getL parserStateStreamL
   case ts of
     t:ts' | p t -> do
       putL parserStateStreamL ts'
-      bumpL (parserStateConsumedL :: Lens (ParserState t) Int)
+      bumpL parserStateConsumedL
       return t
     _ -> mzero
 
-lit :: (MonadParser t m) => t -> m t
+pluck :: (MonadParser t m) => m t
+pluck = satisfies $ const True
+
+lit :: (MonadParser t m, Eq t) => t -> m t
 lit = satisfies . (==)
 
-word :: (MonadParser t m) => [t] -> m [t]
+word :: (MonadParser t m, Eq t) => [t] -> m [t]
 word ts = mapM lit ts
+
+string :: (MonadParser Char m) => String -> m String
+string = fromChars ^. word . toChars
+
+newtype Parser t a = Parser { unParser :: StateT (ParserState t) (ListT ID) a }
+  deriving 
+    ( Unit, Functor, Product, Applicative, Bind, Monad
+    , MonadZero, MonadConcat
+    , MonadStateI (ParserState t), MonadStateE (ParserState t), MonadState (ParserState t)
+    , MonadMaybeE
+    )
+instance MonadParser t (Parser t) where
+
+runParser :: [t] -> Parser t a -> [(a, ParserState t)]
+runParser ts = runID . runListT . runStateT (ParserState ts 0) . unParser
+
+data ParseError t a =
+    ParsingError
+  | AmbiguousParse [a]
+makePrettySum ''ParseError
+
+parseFinal :: Parser t a -> [t] -> ParseError t a :+: a
+parseFinal p ts = case map fst $ runParser ts $ final p of
+  [] -> Inl ParsingError
+  [x] -> Inr x
+  xs -> Inl $ AmbiguousParse xs
+
+parseFinalOn :: [t] -> Parser t a -> ParseError t a :+: a
+parseFinalOn = flip parseFinal
+
+tokenize :: Parser c a -> [c] -> [c] :+: [a]
+tokenize aM = loop 
+  where
+    loop [] = return []
+    loop ts = do
+      case runParser ts aM of
+        [] -> throw ts
+        x:xs -> do
+          let (a, s) = findMax (parserStateConsumed . snd) x xs
+          (a :) ^$ loop $ parserStateStream s 
+
+data LexParseError c t a = 
+    LexingError [c] 
+  | LexParsingError [t]
+  | LexAmbiguousParse ([t], [a])
+makePrettySum ''LexParseError
+
+lexParseFinal :: forall c t a. (Pretty c, Pretty t) => Parser c t -> (t -> Bool) -> Parser t a -> [c] -> LexParseError c t a :+: a
+lexParseFinal tp wp ep cs = do
+  ts <- mapInl LexingError $ tokenize tp cs
+  let ts' = filter (not . wp) ts
+  (x,xs) <- 
+    elimMaybeOn (coerce consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
+  if isL nilL xs
+    then return $ fst x
+    else throw (LexAmbiguousParse (ts', map fst $ x:xs) :: LexParseError c t a)
+
+-- Mixfix
 
 data Mix m a = 
     Pre  (m (a -> a))
@@ -167,41 +226,3 @@ buildMixInfR aM infRM = do
       let (abs, aR) = swizzle (a, bas) 
       in ((aL, b):abs, aR)
 
-newtype Parser t a = Parser { unParser :: StateT (ParserState t) (ListT ID) a }
-  deriving 
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadConcat
-    , MonadStateI (ParserState t), MonadStateE (ParserState t), MonadState (ParserState t)
-    , MonadMaybeE
-    )
-instance (Eq t, Pretty t) => MonadParser t (Parser t) where
-
-runParser :: [t] -> Parser t a -> [(a, ParserState t)]
-runParser ts = runID . runListT . runStateT (ParserState ts 0) . unParser
-
-tokenize :: Parser c a -> [c] -> [c] :+: [a]
-tokenize aM = loop 
-  where
-    loop [] = return []
-    loop ts = do
-      case runParser ts aM of
-        [] -> throw ts
-        x:xs -> do
-          let (a, s) = findMax (parserStateConsumed . snd) x xs
-          (a :) ^$ loop $ parserStateStream s 
-
-data ParseError c t a = 
-    LexingError [c] 
-  | ParsingError [t]
-  | AmbiguousParse ([t], [a])
-makePrettySum ''ParseError
-
-parse :: forall c t a. (Pretty c, Pretty t) => Parser c t -> (t -> Bool) -> Parser t a -> [c] -> ParseError c t a :+: a
-parse tp wp ep cs = do
-  ts <- mapInl LexingError $ tokenize tp cs
-  let ts' = filter (not . wp) ts
-  (x,xs) <- 
-    elimMaybeOn (coerce consL $ runParser ts' ep) (throw (ParsingError ts' :: ParseError c t a)) return
-  if isL nilL xs
-    then return $ fst x
-    else throw (AmbiguousParse (ts', map fst $ x:xs) :: ParseError c t a)

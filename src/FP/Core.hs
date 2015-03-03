@@ -1373,6 +1373,9 @@ instance Iterable Char String where
 instance ToString String where
   toString = show
 
+instance Container Char String where
+  s ? c = isL justL $ Text.find (== c) s
+
 error :: String -> a
 error = Prelude.error . toChars 
 
@@ -1584,6 +1587,10 @@ mapInl _ (Inr a) = Inr a
 mapInr :: (b -> b') -> a :+: b -> a :+: b'
 mapInr _ (Inl a) = Inl a
 mapInr f (Inr b) = Inr $ f b
+
+mapSum :: (a -> a') -> (b -> b') -> a :+: b -> a' :+: b'
+mapSum f _ (Inl x) = Inl $ f x
+mapSum _ f (Inr x) = Inr $ f x
 
 -- }}}
 

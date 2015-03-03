@@ -18,13 +18,21 @@ data PreAtom e =
   | LamK Name e
 type Atom = PreAtom Call
 
+data PreCaseBranch e = CaseBranch
+  { caseBranchCon :: H.AltCon
+  , caseBranchArgs :: [Name]
+  , caseBranchCall :: e
+  }
+type CaseBranch = PreCaseBranch Call
+
 data PreCall e =
     Let Name (PreAtom e) e
   | Rec [Name] e
   | Letrec [(Name, PreAtom e)] e
   | AppF Pico Pico Pico
   | AppK Pico Pico
-  | Case Pico [(H.AltCon, [Name], e)]
+  | Case Pico [PreCaseBranch e]
+  | Halt Pico
 type Call = Fix PreCall
 
 -- CPS Conversion
@@ -121,7 +129,7 @@ cpsM e = case e of
       b's <- mapOnM bs $ \ (con, xvs, e'') -> do
         let xs = map Var.varName xvs
         c <- withOpaqueC ko $ cpsM e''
-        return (con, xs, c)
+        return $ CaseBranch con xs c
       return $ Fix $ Case p b's
   H.Cast e' _ -> cpsM e'
   H.Tick _ e' -> cpsM e'

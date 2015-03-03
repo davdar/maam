@@ -1,6 +1,6 @@
-.PHONY: all clean init fp maam maam-lam-if
+.PHONY: default clean init fp darkdown maam maam-lam-if maam-hask build-all
 
-all: maam-hask
+default: maam-hask
 
 clean:
 	rm -f .extensions*
@@ -13,6 +13,11 @@ init:
 fp:
 	rm -f maam.cabal
 	ln -s cabal_files/fp.cabal maam.cabal
+	cabal build
+
+darkdown:
+	rm -f maam.cabal
+	ln -s cabal_files/darkdown.cabal maam.cabal
 	cabal build
 
 maam:
@@ -29,3 +34,10 @@ maam-hask:
 	rm -f maam.cabal
 	ln -s cabal_files/maam-hask.cabal maam.cabal
 	cabal build
+
+build-all:
+	make clean fp
+	make clean maam
+	make clean maam-lam-if
+	make clean maam-hask
+	@echo "ALL BUILDS SUCCEED"
