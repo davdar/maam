@@ -1,54 +1,87 @@
 l ∈ Lit
-x ∈ Var
-a ∈ Atom ⩴ x | l | λ(x,k)→c | λ(x)→c
+x,k ∈ Var
+con ∈ Symbol
+alt ∈ Alt ⩴ con(x,...) → c
+a ∈ Atom ⩴ 
+  x 
+  l 
+  λ(x,k) → c 
+  THUNK[x](x,x)
+  λ(x) → c 
 c ∈ Call ⩴ 
   LET x := a IN c
-  REC x₁ ... IN c
-  LETREC { x₁ ≔ a₁ ; ... } IN c
-  @F(a₁,a₂,a₃)
-  @K(a₁,a₂)
-  CASE a OF { con₁(x₁₁,...) → c₁ ; ... }
+  REC x ... IN c
+  LETREC { x ≔ a ; ... } IN c
+  @K(a,a)
+  @F(a,a,a)
+  CASE(a) OF { alt ; ... }
   HALT(a)
-κ ∈ Kon ⩴ 
-  ⊤ 
-  ⟨λCASE { con₁(x₁₁,...) → c₁ ; ... },ρ⟩⦊κ
-  ⟨λAPP(a),ρ⟩⦊κ
 
 τ ∈ Time
 
 𝓁 ∈ Addr
-ρ ∈ Env := Var ⇀ Addr
+ρ ∈ Env ≔ Var ⇀ Addr
 
-d ∈ CON(con,𝓁₁,...)
-v ∈ Val ⩴ l | d | ⟨λ(x,k)→c,ρ⟩ | ⟨λ(x)→c,ρ⟩ | DELAY(𝓁) | THUNK(a,a,ρ) | HALT
+d ∈ Data ⩴ CON(con,𝓁,...)
+v ∈ Val ⩴ 
+  l 
+  d 
+  ⟨λ(x,k) → c , ρ⟩ 
+  ⟨THUNK[x,k](x,x) , ρ⟩ 
+  DELAY(𝓁)
+  ⟨λ(x) → c , ρ⟩ 
+  ⟨CASE[x](□) OF { alt ... } , ρ⟩
+  ⟨@F[x](□,a,a) , ρ⟩
 
 σ ∈ Store := Addr ⇀ Val
-ς ∈ Σ := ⟨ c , κ , ρ , σ , τ ⟩
+
+ς ∈ Σ := ⟨c , ρ , σ , τ⟩
 
 _~~>_ ∈ Σ × Σ
 
-⟨LET x := a IN c                 ,κ,ρ,σ,τ⟩ ~~> ⟨c,κ,ρ[x↦alloc(x,τ)]     ,σ[alloc(x,τ)↦𝒜 ⟦a⟧(ρ)]                ,tick(τ)⟩
-⟨REC x₁ ... IN c                 ,κ,ρ,σ,τ⟩ ~~> ⟨c,κ,ρ[x₁↦alloc(x₁,τ),...],σ[alloc(x₁,τ)↦DELAY(alloc(x₁,τ)),...],tick(τ)⟩
-⟨LETREC { x₁ ≔ a₁ ; ... } IN c   ,κ,ρ,σ,τ⟩ ~~> ⟨c,κ,ρ                   ,σ[ρ(x₁)↦𝒜 ⟦a₁⟧(ρ),...]                ,tick(τ)⟩
-⟨@F(a₁,a₂,⟨λ(x)→c,ρ'⟩ ← 𝒜 ⟦□⟧(ρ)),κ,ρ,σ,τ⟩ ~~> ⟨c,κ,ρ'[x↦alloc(x,τ)]    ,σ[alloc(x,τ)↦THUNK(a₁,a₂,ρ)]          ,tick(τ)⟩
-⟨@K(⟨λ(x)→c,ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a₂)   ,κ,ρ,σ,τ⟩ ~~> ⟨c,κ,ρ'[x↦alloc(x,τ)]    ,σ[alloc(x,τ)↦𝒜 ⟦a₂⟧(ρ)]               ,tick(τ)⟩
-
-⟨CASE a OF { con₁(x₁₁,...) → c₁ ; ... },κ,ρ,σ,τ⟩ 
+⟨LET x := a IN c , ρ , σ , τ⟩
 ~~> 
-⟨HALT(a),⟨λCASE { con₁ x₁₁ ... → c₁ ; ... },ρ⟩⦊κ,ρ,σ,tick(τ)⟩
+⟨c , ρ[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
+  where 𝓁 ≔ alloc(x,τ)
 
-⟨HALT(CON(conᵢ,𝓁₁,...) ← σ(ρ(□))),⟨λCASE { con₁(x₁₁,...) → c₁ ; ... },ρ'⟩⦊κ,ρ,σ,τ⟩ 
+⟨REC x₁ ... IN c , ρ , σ , τ⟩
 ~~> 
-⟨cᵢ,κ,ρ'[xᵢ₁↦alloc(xᵢ₁,τ),...],σ[alloc(xᵢ₁,τ)↦σ(𝓁₁),...],tick(τ)⟩
+⟨c , ρ[x₁ ↦ 𝓁₁ , ...] , σ[𝓁₁ ↦ DELAY(𝓁₁) , ...] , tick(τ)⟩
+  where 𝓁₁ ≔ alloc(x₁,τ) ...
 
-⟨HALT(⟨λ(x,k)→c,ρ⟩ ← σ(ρ(□))),⟨λAPP(a),ρ'⟩⦊κ,ρ,σ,τ⟩
-~~> 
-⟨c,κ,ρ'[x↦alloc(x,τ),k↦alloc(k,τ)],σ[alloc(x,τ)↦𝒜 ⟦a⟧(ρ'),alloc(k,τ)↦HALT],tick(τ)⟩
-
-⟨HALT(DELAY(𝓁)),κ,ρ,σ,τ⟩
+⟨LETREC { x₁ ≔ a₁ ; ... } IN c , ρ , σ , τ⟩
 ~~>
-⟨Halt(σ(𝓁)),κ,ρ,σ,τ⟩
+⟨c , ρ , σ[ρ(x₁) ↦ 𝒜 ⟦a₁⟧(ρ) , ...] , tick(τ)⟩
 
-⟨HALT(THUNK(a₁,a₂,ρ')),κ,ρ,σ,τ⟩
+⟨@K(⟨λ(x) → c , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a₂) , ρ , σ , τ⟩
 ~~>
-⟨HALT(a₁),⟨λAPP(a₂),ρ⟩⦊κ,ρ,σ,τ⟩
+⟨c , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a₂⟧(ρ)] , tick(τ)⟩
+  where 𝓁 ≔ alloc(x,τ)
+
+⟨@K(⟨@F[x](□,a₁,a₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a) , ρ , σ , τ⟩
+~~>
+⟨@F(x,a₁,a₂) , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
+  where 𝓁 = alloc(x,τ)
+
+⟨@K(⟨CASE[x](□) OF { alt ... } , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a) , ρ , σ , τ⟩
+~~>
+⟨CASE(x) OF { alt ... } , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
+  where 𝓁 = alloc(x,τ)
+
+⟨@F(⟨λ(x,k) → c , ρ'⟩,a₂,a₃) , ρ , σ , τ⟩
+~~> 
+⟨c , ρ'[x ↦ 𝓁ₓ , k ↦ 𝓁ₖ] , σ[𝓁ₓ ↦ 𝒜 ⟦a₂⟧(ρ) , 𝓁ₖ ↦ 𝒜 ⟦a₃⟧(ρ)] , tick(τ)⟩
+  where 𝓁ₓ ≔ alloc(x,τ) ; 𝓁ₖ ≔ alloc(k,τ)
+
+⟨CASE(CON(conᵢ,𝓁₁,...) ← 𝒜 ⟦□⟧(ρ)) OF { con₁(x₁₁,...) → c₁ ; ... } , ρ , σ , τ⟩ 
+~~> 
+⟨cᵢ , ρ[xᵢ₁ ↦ 𝓁₁ , ...] , σ , tick(τ)⟩
+
+⟨@F(⟨THUNK[x,k](x₁,x₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a₁,a₂) , ρ , σ , τ⟩
+~~>
+⟨@F(x₁,x₂,k) , ρ'[k ↦ 𝓁] , σ[𝓁 ↦ ⟨@F[x](□,a₁,a₂) , ρ⟩] , tick(τ)⟩
+  where 𝓁 ≔ alloc(k,τ)
+
+⟨CASE(⟨THUNK[x,k](x₁,x₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ)) OF { alt ... } , ρ , σ , τ⟩
+~~>
+⟨@F(x₁,x₂,k) , ρ'[k ↦ 𝓁] , σ[𝓁 ↦ ⟨CASE[x](□) OF { alt ... } , ρ⟩] , tick(τ)⟩
