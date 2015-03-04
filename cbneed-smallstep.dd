@@ -1,4 +1,14 @@
+# TODO
+
+- Add the caching/memoization
+
 # Syntax
+
+Note that for this semantics, continuation and computation variables,
+expressions and values are distinguished syntactically. In the semantics, they
+are not distinguished, i.e. the runtime store maps any variable to any value.
+It is true, however, that continuation variables only take on continuation
+values, and likewise for computation variables/values.
 
 We assume arbitrary sets of literals, constructor tags and variables.
 Continuation variables are distinguished syntactically from computation
@@ -14,6 +24,7 @@ variables.
 syntactic category which may appear nested in |Call| expresssions.
 
     p ∈ Pico ::= x | l
+    p,k ∈ AnyPico := Pico ∪ KVar
 
 |Atom| expressions are those which have an immediate evaluation or denotation.
 |Atom| expressions must be let-bound to a name to be used in a |Call|
@@ -24,9 +35,11 @@ continuation variables, are distinguished syntactically.
     p
     λ(x,k) → c 
     THUNK[x,k](p,p)
-  k ∈ KAtom ::=
+  ka ∈ KAtom ::=
     k
     λ(x) → c 
+  a,ka ∈ AnyAtom := Atom ∪ KAtom
+
 
 |Call| expressions are GHC core expressions which require no meta-language
 stack (have been CPS'd) and give rise to a simple CES machine.
@@ -37,8 +50,8 @@ stack (have been CPS'd) and give rise to a simple CES machine.
     LET k := ka IN c
     REC x ... IN c
     LETREC { x := a ; ... } IN c
-    @K(kp,p)
-    @F(p,p,kp)
+    @K(k,p)
+    @F(p,p,k)
     CASE(p) OF { alt ; ... }
     HALT(p)
 
@@ -82,8 +95,8 @@ function application continuation.
 
 Atoms and picos have straightforward denotation functions.
 
-    𝒜 ∈ Atom → (Env → Val)
-    𝒫 ∈ Pico → (Env → Val)
+    𝒜 ∈ AnyAtom → (Env → AnyVal)
+    𝒫 ∈ AnyPico → (Env → AnyVal)
 
 An element of the state space, called a configuration, holds an environment, a
 store and the current time.
