@@ -8,6 +8,8 @@ import Literal
 import Name
 import UniqSupply
 
+makePrisms ''H.AltCon
+
 data Pico =
     Var Name
   | Lit Literal
@@ -16,6 +18,7 @@ data PreAtom e =
     Pico Pico
   | LamF Name Name e
   | LamK Name e
+  | Thunk Name Name Pico Pico
 type Atom = PreAtom Call
 
 data PreCaseBranch e = CaseBranch
@@ -27,10 +30,10 @@ type CaseBranch = PreCaseBranch Call
 
 data PreCall e =
     Let Name (PreAtom e) e
-  | Rec [Name] e
+  | Rec [(Name, Name)] e
   | Letrec [(Name, PreAtom e)] e
-  | AppF Pico Pico Pico
   | AppK Pico Pico
+  | AppF Pico Pico Pico
   | Case Pico [PreCaseBranch e]
   | Halt Pico
 type Call = Fix PreCall
@@ -63,17 +66,27 @@ fresh x = do
   put supply'
   return $ mkSystemName u $ mkVarOcc $ toChars x
 
-letAtom :: (CPSM m) => Name -> Atom -> m Pico
-letAtom x a = do
-  modifyC (return . Fix . Let x a) $ 
-    return $ Var x
+atom :: (CPSM m) => Atom -> m Pico
+atom a = do
+  x <- fresh "x"
+  letAtom x a
+  return $ Var x
+
+letAtom :: (CPSM m) => Name -> Atom -> m ()
+letAtom x a = modifyC (return . Fix . Let x a) $ return ()
+
+rec :: (CPSM m) => [Name] -> m ()
+rec xs = do
+  xxs <- mapOnM xs $ \ x -> do
+    x' <- fresh "x"
+    return (x, x')
+  modifyC (return . Fix . Rec xxs) $ return ()
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
 reify (MetaKon mk) = do
   x <- fresh "x"
   c <- mk $ Var x
-  k <- fresh "k"
-  letAtom k $ LamK x c
+  atom $ LamK x c
 reify (ObjectKon k _) = return k
 
 reflect :: (CPSM m) => Pico -> CPSKon Call m Pico
@@ -95,42 +108,41 @@ cpsM :: (CPSM m) => H.Expr Var -> m Pico
 cpsM e = case e of
   H.Var xv -> return $ Var $ Var.varName xv
   H.Lit l -> return $ Lit l
-  H.App e₁ e₂ ->
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-      p₁ <- cpsM e₁
-      p₂ <- cpsM e₂
-      k <- reify ko
-      return $ Fix $ AppF p₁ p₂ k
+  H.App e₁ e₂ -> do
+    p₁ <- cpsM e₁
+    p₂ <- cpsM e₂
+    x <- fresh "x"
+    k <- fresh "k"
+    atom $ Thunk x k p₁ p₂
   H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
     c <- withOpaqueC (reflect $ Var k) $ cpsM e'
-    f <- fresh "f"
-    letAtom f $ LamF x k c
-  H.Let (H.NonRec xv e₁) e₂ -> do
+    atom $ LamF x k c
+  H.Let (H.NonRec xv e₁) e₂ -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
     let x = Var.varName xv
     a <- cpsAtom e₁
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-      c <- withOpaqueC ko $ cpsM e₂
-      return $ Fix $ Let x a c
-  H.Let (H.Rec xves) e₂ -> do
-    modifyC (return . Fix . Rec (map (Var.varName . fst) xves)) $ do
-      xas <- mapOnM xves $ uncurry $ \ xv e' -> do
-        let x = Var.varName xv
-        a <- cpsAtom e'
-        return (x, a)
-      callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-        c <- withOpaqueC ko $ cpsM e₂
-        return $ Fix $ Letrec xas c
-  H.Case e' xv _ bs -> do
+    c <- withOpaqueC ko $ cpsM e₂
+    return $ Fix $ Let x a c
+  H.Let (H.Rec xves) e₂ -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+    rec $ map (Var.varName . fst) xves
+    xas <- mapOnM xves $ uncurry $ \ xv e' -> do
+      let x = Var.varName xv
+      a <- cpsAtom e'
+      return (x, a)
+    c <- withOpaqueC ko $ cpsM e₂
+    return $ Fix $ Letrec xas c
+  H.Case e' xv _ bs -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+    let x = Var.varName xv
     a <- cpsAtom e'
-    p <- letAtom (Var.varName xv) a
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-      b's <- mapOnM bs $ \ (con, xvs, e'') -> do
-        let xs = map Var.varName xvs
-        c <- withOpaqueC ko $ cpsM e''
-        return $ CaseBranch con xs c
-      return $ Fix $ Case p b's
+    letAtom x a
+    -- the reverse here is to move DEFAULT branche (if it occurs) to the end,
+    -- since it always shows up at the beginning as per ghc spec.
+    b's <- mapOnM (reverse bs) $ \ (con, xvs, e'') -> do
+      let xs = map Var.varName xvs
+      c <- withOpaqueC ko $ cpsM e''
+      return $ CaseBranch con xs c
+    return $ Fix $ Case (Var x) b's
   H.Cast e' _ -> cpsM e'
   H.Tick _ e' -> cpsM e'
   H.Type _ -> error "type in term"

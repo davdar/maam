@@ -1,5 +1,7 @@
 :set +m
 
+:set -package ghc
+
 :module + System.Directory
 :module + System.Environment
 :module + System.IO

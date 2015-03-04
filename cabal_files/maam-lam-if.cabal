@@ -5,7 +5,7 @@ category:            StaticAnalysis
 license-file:        LICENSE
 license:             BSD3
 maintainer:          david.darais@gmail.com
-name:                maam
+name:                maam-lam-if
 synopsis:            An application of the maam static analysis library to a small applied lambda calculus.
 version:             0.1.0.0
 description:         An application of the maam static analysis library to a small applied lambda calculus.

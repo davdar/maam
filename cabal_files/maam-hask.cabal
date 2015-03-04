@@ -5,7 +5,7 @@ category:            StaticAnalysis
 license-file:        LICENSE
 license:             BSD3
 maintainer:          david.darais@gmail.com
-name:                maam
+name:                maam-hask
 synopsis:            An application of the maam static analysis library to ghc core
 version:             0.1.0.0
 description:         An application of the maam static analysis library to ghc core
@@ -40,12 +40,12 @@ library
     MAAM.Time
   build-depends:
       base == 4.7.*
+    , ghc == 7.8.*
     , containers 
     , text 
     , template-haskell 
     , directory 
     , Cabal 
-    , ghc == 7.8.*
   default-language: Haskell2010
   ghc-options: 
     -isrc
