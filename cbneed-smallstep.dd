@@ -1,87 +1,168 @@
-l ∈ Lit
-x,k ∈ Var
-con ∈ Symbol
-alt ∈ Alt ⩴ con(x,...) → c
-a ∈ Atom ⩴ 
-  x 
-  l 
-  λ(x,k) → c 
-  THUNK[x](x,x)
-  λ(x) → c 
-c ∈ Call ⩴ 
-  LET x := a IN c
-  REC x ... IN c
-  LETREC { x ≔ a ; ... } IN c
-  @K(a,a)
-  @F(a,a,a)
-  CASE(a) OF { alt ; ... }
-  HALT(a)
+# Syntax
 
-τ ∈ Time
+We assume arbitrary sets of literals, constructor tags and variables.
+Continuation variables are distinguished syntactically from computation
+variables.
 
-𝓁 ∈ Addr
-ρ ∈ Env ≔ Var ⇀ Addr
+    l   ∈ Lit
+    con ∈ Symbol
+    x   ∈ Var
+    k   ∈ KVar
+    x,k ∈ AnyVar := Var ∪ KVar
 
-d ∈ Data ⩴ CON(con,𝓁,...)
-v ∈ Val ⩴ 
-  l 
-  d 
-  ⟨λ(x,k) → c , ρ⟩ 
-  ⟨THUNK[x,k](x,x) , ρ⟩ 
-  DELAY(𝓁)
-  ⟨λ(x) → c , ρ⟩ 
-  ⟨CASE[x](□) OF { alt ... } , ρ⟩
-  ⟨@F[x](□,a,a) , ρ⟩
+|Pico| expressions are either a name or syntactic literal. |Pico| is the only
+syntactic category which may appear nested in |Call| expresssions.
 
-σ ∈ Store := Addr ⇀ Val
+    p ∈ Pico ::= x | l
 
-ς ∈ Σ := ⟨c , ρ , σ , τ⟩
+|Atom| expressions are those which have an immediate evaluation or denotation.
+|Atom| expressions must be let-bound to a name to be used in a |Call|
+expression. Continuation atoms, that is those which will be bound to
+continuation variables, are distinguished syntactically.
 
-_~~>_ ∈ Σ × Σ
+  a ∈ Atom ::= 
+    p
+    λ(x,k) → c 
+    THUNK[x,k](p,p)
+  k ∈ KAtom ::=
+    k
+    λ(x) → c 
 
-⟨LET x := a IN c , ρ , σ , τ⟩
-~~> 
-⟨c , ρ[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
-  where 𝓁 ≔ alloc(x,τ)
+|Call| expressions are GHC core expressions which require no meta-language
+stack (have been CPS'd) and give rise to a simple CES machine.
 
-⟨REC x₁ ... IN c , ρ , σ , τ⟩
-~~> 
-⟨c , ρ[x₁ ↦ 𝓁₁ , ...] , σ[𝓁₁ ↦ DELAY(𝓁₁) , ...] , tick(τ)⟩
-  where 𝓁₁ ≔ alloc(x₁,τ) ...
+  alt ∈ Alt ::= con(x,...) → c
+  c ∈ Call ::= 
+    LET x := a IN c
+    LET k := ka IN c
+    REC x ... IN c
+    LETREC { x := a ; ... } IN c
+    @K(kp,p)
+    @F(p,p,kp)
+    CASE(p) OF { alt ; ... }
+    HALT(p)
 
-⟨LETREC { x₁ ≔ a₁ ; ... } IN c , ρ , σ , τ⟩
-~~>
-⟨c , ρ , σ[ρ(x₁) ↦ 𝒜 ⟦a₁⟧(ρ) , ...] , tick(τ)⟩
+The |REC| and |LETREC| constructs are the results of the CPS transformation on
+|letrec| source expressions. They are slightly imperative in that, in the
+dynamic semantics, |REC| puts lazy references to the variables into the store
+and |LETREC| imperatively updates these to be values.
 
-⟨@K(⟨λ(x) → c , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a₂) , ρ , σ , τ⟩
-~~>
-⟨c , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a₂⟧(ρ)] , tick(τ)⟩
-  where 𝓁 ≔ alloc(x,τ)
+The |@F| construct is for forced function applications. Source function
+applications translate into |LET x := THUNK[x,k](p₁,p₂) IN ...| and |@F| only
+appears when a thunk appeared where a forced value was expected, and the
+thunked function application is evaluated.
 
-⟨@K(⟨@F[x](□,a₁,a₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a) , ρ , σ , τ⟩
-~~>
-⟨@F(x,a₁,a₂) , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
-  where 𝓁 = alloc(x,τ)
+# Dynamic Semantics
 
-⟨@K(⟨CASE[x](□) OF { alt ... } , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a) , ρ , σ , τ⟩
-~~>
-⟨CASE(x) OF { alt ... } , ρ'[x ↦ 𝓁] , σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)] , tick(τ)⟩
-  where 𝓁 = alloc(x,τ)
+We assume arbitrary sets of time and address values. Time values can be
+advanced forward using |tick| and addresses can be created from a time using
+|alloc|.
 
-⟨@F(⟨λ(x,k) → c , ρ'⟩,a₂,a₃) , ρ , σ , τ⟩
-~~> 
-⟨c , ρ'[x ↦ 𝓁ₓ , k ↦ 𝓁ₖ] , σ[𝓁ₓ ↦ 𝒜 ⟦a₂⟧(ρ) , 𝓁ₖ ↦ 𝒜 ⟦a₃⟧(ρ)] , tick(τ)⟩
-  where 𝓁ₓ ≔ alloc(x,τ) ; 𝓁ₖ ≔ alloc(k,τ)
+    τ     ∈ Time
+    tick  ∈ Call × Time → Time
+    𝓁     ∈ Addr
+    alloc ∈ AnyVar × Time → Addr
 
-⟨CASE(CON(conᵢ,𝓁₁,...) ← 𝒜 ⟦□⟧(ρ)) OF { con₁(x₁₁,...) → c₁ ; ... } , ρ , σ , τ⟩ 
-~~> 
-⟨cᵢ , ρ[xᵢ₁ ↦ 𝓁₁ , ...] , σ , tick(τ)⟩
+Values are either a literal, a data construction, a function closure, a thunk, or a
+delayed variable reference. Continuation values are distinguished syntactically
+and are either a continuation closure, a case expression continuation, or a
+function application continuation.
 
-⟨@F(⟨THUNK[x,k](x₁,x₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ),a₁,a₂) , ρ , σ , τ⟩
-~~>
-⟨@F(x₁,x₂,k) , ρ'[k ↦ 𝓁] , σ[𝓁 ↦ ⟨@F[x](□,a₁,a₂) , ρ⟩] , tick(τ)⟩
-  where 𝓁 ≔ alloc(k,τ)
+  d ∈ Data ::= 
+    CON(con,𝓁,...)
+  v ∈ Val ::= 
+    l 
+    d 
+    ⟨λ(x,k) → c,ρ⟩ 
+    ⟨THUNK[x,k](x,x),ρ⟩ 
+    DELAY(𝓁)
+  kv ∈ KVal ::=
+    ⟨λ(x) → c,ρ⟩ 
+  v,kv ∈ AnyVal := Val ∪ KVal
 
-⟨CASE(⟨THUNK[x,k](x₁,x₂) , ρ'⟩ ← 𝒜 ⟦□⟧(ρ)) OF { alt ... } , ρ , σ , τ⟩
-~~>
-⟨@F(x₁,x₂,k) , ρ'[k ↦ 𝓁] , σ[𝓁 ↦ ⟨CASE[x](□) OF { alt ... } , ρ⟩] , tick(τ)⟩
+Atoms and picos have straightforward denotation functions.
+
+    𝒜 ∈ Atom → (Env → Val)
+    𝒫 ∈ Pico → (Env → Val)
+
+An element of the state space, called a configuration, holds an environment, a
+store and the current time.
+
+    ρ ∈ Env   := AnyVar ⇀ Addr
+    σ ∈ Store := Addr ⇀ AnyVal
+    ς ∈ Σ     ::= 
+      ⟨c,ρ,σ,τ⟩
+
+The step relation |_~~>_| is a small-step relation between configurations.
+
+    _~~>_ ∈ Σ × Σ
+
+The let-style commands are simple; they update the environment and store with
+new values and proceed to the nested call.
+
+    [LET]
+    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x ↦ 𝓁],σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)],tick(τ)⟩
+      where 𝓁 := alloc(x,τ)
+
+    [REC]
+    ⟨REC x₁ ... IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x₁ ↦ 𝓁₁,...],σ[𝓁₁ ↦ DELAY(𝓁₁),...],tick(τ)⟩
+      where 𝓁₁ := alloc(x₁,τ) and ...
+
+    [LETREC]
+    ⟨LETREC { x₁ := a₁ ; ... } IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ,σ[ρ(x₁) ↦ 𝒜 ⟦a₁⟧(ρ),...],tick(τ)⟩
+
+Continuation applications proceed by evaluating the first pico value to a
+continuation value and continuing to the continuation body under an updated
+closure environment. There are no rules for |THUNK| or |DELAY| because these
+values never flow to continuation position. The notation |<<pat ← E[□]>>| is
+shorthand for "E[x] ... where pat := x".
+
+    [Kon]
+    ⟨@K(<<⟨λ(x) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₂),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p₂⟧(ρ)],tick(τ)⟩
+      where 𝓁 := alloc(x,τ)
+
+Function application has three cases:
+
+1. The first atom is a function, in which case the function is applied.
+2. The first atom is a |THUNK|, in which case the thunk is jumped to and the
+   current application context is pushed on the stack.
+3. The first atom is a |DELAY|, in which case the value at the delayed address
+   is evaluated and bound to a name which replaces the |DELAY| in the
+   configuration.
+
+    [FUN-FORCED]
+    ⟨@F(<<⟨λ(x,k) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁ₓ , k ↦ 𝓁ₖ],σ[𝓁ₓ ↦ 𝒫⟦p₂⟧(ρ),𝓁ₖ ↦ 𝒫⟦p₃⟧(ρ)],tick(τ)⟩
+      where 𝓁ₓ := alloc(x,τ) and 𝓁ₖ := alloc(k,τ)
+
+    [FUN-THUNK]
+    ⟨@F(<<⟨THUNK[x,k](p₁',p₂'),ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁],σ[𝓁 ↦ ⟨λ(x) → @F(x,p₁,p₂),ρ⟩],tick(τ)⟩
+      where 𝓁 := alloc(k,τ)
+
+    [FUN-DELAY]
+    ⟨@F(<<DELAY[x](𝓁) ← 𝒫⟦□⟧(ρ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(x,p₂,p₂),ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ σ(𝓁)],tick(τ)⟩
+      where 𝓁ₓ = alloc(x,τ)
+
+Case expressions similarly have three cases:
+
+1. The first atom is a data construction, in which case the case branch is executed.
+2. The first atom is a |THUNK|, in which case the thunk is jumped ot and the
+   current case context is pushed on the stack.
+3. The first atom is a |DELAY|, in which case the value at the delayed address
+    is evaluated and bound to a name which replaces the |DELAY| in the
+    configuration.
+
+    [CASE-FORCED]
+    ⟨CASE(<<CON(conᵢ,𝓁₁,...) ← 𝒫⟦□⟧(ρ)>>) OF { con₁(x₁₁,...) → c₁ ; ... },ρ,σ,τ⟩ ~~> ⟨cᵢ,ρ[xᵢ₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ σ(𝓁₁),...],tick(τ)⟩
+      where 𝓁ₓ₁ := alloc(xᵢ₁,τ) and ...
+
+    [CASE-THUNK]
+    ⟨CASE(<<⟨THUNK[x,k](x₁,x₂),ρ'⟩ ← 𝒫⟦□⟧(ρ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨@F(x₁,x₂,k),ρ'[k ↦ 𝓁],σ[𝓁 ↦ ⟨λ(x) → CASE(x) OF { alt ... },ρ⟩],tick(τ)⟩
+      where 𝓁 := alloc(k,τ)
+
+    [CASE-DELAY]
+    ⟨CASE(<<DELAY[x](𝓁) ← 𝒫⟦□⟧(ρ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨CASE(x) OF { alt ... },ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ σ(𝓁)],tick(τ)⟩
+      where 𝓁ₓ := alloc(x,τ)
+
+The notation in |CASE-FORCED| is a little strange. |conᵢ| matches with the i'th
+constructor in the sequence of |Alt| expressions and |xᵢ₁ ...| is the sequence
+of binders attached to that branch.
