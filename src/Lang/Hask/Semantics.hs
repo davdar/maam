@@ -56,8 +56,10 @@ data DelayVal τ = DelayVal
 
 class Val ν τ where
   litI :: Literal -> ν τ
+  negLitI :: Literal -> ν τ
   litTestE :: Literal -> ν τ -> Set Bool
   dataI :: Data τ -> ν τ
+  negDataI :: DataCon -> ν τ
   dataE :: ν τ -> Maybe (Set (Data τ))
   konCloI :: KonClo τ -> ν τ
   konCloE :: ν τ -> Maybe (Set (KonClo τ))
@@ -67,7 +69,8 @@ class Val ν τ where
   thunkCloE :: ν τ -> Maybe (Set (ThunkClo τ))
   delayI :: DelayVal τ -> ν τ
   delayE :: ν τ -> Maybe (Set (DelayVal τ))
-  botI :: ν τ
+  forcedI :: ν τ
+  testForcedE :: ν τ -> Set Bool
 
 data 𝒮 ν τ = 𝒮
   { 𝓈Env :: Env τ
@@ -86,6 +89,7 @@ class
   , Val ν τ
   , Ord (Addr τ)
   , JoinLattice (ν τ)
+  , MeetLattice (ν τ)
   , Time τ
   ) => Analysis ν τ m | m -> ν , m -> τ where
 
@@ -94,7 +98,7 @@ class
 refinePico :: (Analysis ν τ m) => Pico -> ν τ -> m ()
 refinePico (Var x) v = do
   𝓁 <- alloc x
-  modifyL 𝓈StoreL (mapInsert 𝓁 v)
+  modifyL 𝓈StoreL $ mapInsertWith (/\) 𝓁 v
 refinePico (Lit _) _ = return ()
 
 extract :: (Analysis ν τ m) => (a -> ν τ) -> (ν τ -> Maybe (Set a)) -> Pico -> ν τ -> m a
@@ -224,28 +228,50 @@ call c = do
           return c'
       , forceThunk p₁ $ \ p -> Fix $ AppF p p₂ p₃
       ]
-    Case p bs -> msum
+    Case p bs0 -> msum
       [ do
-          -- TODO: somehow model the linear fire-first semantics of pattern
-          -- matching (I think what is written here is subtly wrong).
-          CaseBranch acon xs c' <- mset bs
-          case acon of
-            H.DataAlt con -> do
-              v <- pico p
-              Data vcon 𝓁s <- extract dataI dataE p v
-              guard $ con == vcon
-              x𝓁s <- liftMaybeZero $ zip xs 𝓁s
-              traverseOn x𝓁s $ \ (x, 𝓁) -> do
-                𝓁x <- alloc x
-                v' <- addr 𝓁
-                modifyL 𝓈StoreL $ mapInsert 𝓁x v'
-              return c'
-            H.LitAlt l -> do
-              v <- pico p
-              extractIsLit l p v
-              return c'
-            -- TODO: this should rule out thunk and delay values
-            H.DEFAULT -> return c'
-      , forceThunk p $ \ p' -> Fix $ Case p' bs
+          v <- pico p  
+          -- loop through the alternatives
+          let loop bs = do
+                (CaseBranch acon xs c', bs') <- liftMaybeZero $ coerce consL bs
+                case acon of
+                  H.DataAlt con -> msum
+                    -- The alt is a Data and the value is a Data with the same
+                    -- tag; jump to the alt body.
+                    [ do
+                        Data dcon 𝓁s <- extract dataI dataE p v
+                        guard $ con == dcon
+                        x𝓁s <- liftMaybeZero $ zip xs 𝓁s
+                        traverseOn x𝓁s $ \ (x, 𝓁) -> do
+                          v' <- addr 𝓁
+                          bindJoin x v'
+                        return c'
+                    -- The alt is a Data and the value is not a Data with the
+                    -- same tag; try the next branch.
+                    , do
+                        refinePico p $ negDataI con
+                        loop bs'
+                    ]
+                  H.LitAlt l -> msum
+                    -- The alt is a Lit and the value is the same lit; jump to
+                    -- the alt body.
+                    [ do
+                        extractIsLit l p v
+                        return c'
+                    -- The alt is a Lit and and the value is not the same lit;
+                    -- try the next branch.
+                    , do
+                        refinePico p $ negLitI l
+                        loop bs'
+                    ]
+                  -- The alt is the default branch; jump to the body _only if
+                  -- the value is forced_ (i.e. not a thunk or delay).
+                  H.DEFAULT -> do
+                    f <- mset $ testForcedE v
+                    guard f
+                    refinePico p forcedI
+                    return c
+          loop bs0
+      , forceThunk p $ \ p' -> Fix $ Case p' bs0
       ]
     Halt a -> return $ Fix $ Halt a
