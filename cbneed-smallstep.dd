@@ -1,30 +1,48 @@
-# TODO
+# Overview
 
-- Add the caching/memoization
+This is a small-step semantics for a call-by-need CPS language with lambdas and
+datatypes.
+
+I claim this is what you would get if you took the standard AAM Krivine machine
+and applied a CPS discipline. The CPS transformation is used as a purely
+syntactic discipline to:
+
+1. Eliminate administrative stack-manipulating semantic transitions 
+2. Ensure that the only expressions treated lazily are function applications
+   and recursive variable references.
 
 # Syntax
 
-Note that for this semantics, continuation and computation variables,
-expressions and values are distinguished syntactically. In the semantics, they
+For this semantics, variables and values are syntactically distinguished
+between disjoint sets for continuation and computation. In the semantics they
 are not distinguished, i.e. the runtime store maps any variable to any value.
 It is true, however, that continuation variables only take on continuation
-values, and likewise for computation variables/values.
+values, and likewise for computation variables/values. There is a third "world"
+for reference cells whose values take on either a thunked or forced
+computation.
 
-We assume arbitrary sets of literals, constructor tags and variables.
-Continuation variables are distinguished syntactically from computation
-variables.
+We assume arbitrary sets for literals, constructor tags and variables.
+Computation, continuation, and thunk variables are all distinguished
+syntactically.
 
-    l   ∈ Lit
-    con ∈ Symbol
-    x   ∈ Var
-    k   ∈ KVar
-    x,k ∈ AnyVar := Var ∪ KVar
+    l     ∈ Lit
+    con   ∈ Symbol
+    x     ∈ Var
+    k     ∈ KVar
+    r     ∈ TVar
+    x,k,r ∈ AnyVar := Var ∪ KVar
+
+|KVar| is for continuation variables and |TVar| is a set of names for
+allocating reference cells which are updated imperatively through thunk
+evaluation. You can think of values bound to |Var|, |KVar| and |TVar| as living
+in distinct heaps mapping to distinct value types.
 
 |Pico| expressions are either a name or syntactic literal. |Pico| is the only
-syntactic category which may appear nested in |Call| expresssions.
+syntactic category which may appear nested in |Call| expresssions (other than
+the tail |Call| expression).
 
     p ∈ Pico ::= x | l
-    p,k ∈ AnyPico := Pico ∪ KVar
+    p,k,r ∈ AnyPico := Pico ∪ KVar ∪ TVar
 
 |Atom| expressions are those which have an immediate evaluation or denotation.
 |Atom| expressions must be let-bound to a name to be used in a |Call|
@@ -34,12 +52,16 @@ continuation variables, are distinguished syntactically.
   a ∈ Atom ::= 
     p
     λ(x,k) → c 
-    THUNK[x,k](p,p)
+    THUNK[r,xᵣ,k](p,p)
   ka ∈ KAtom ::=
     k
     λ(x) → c 
   a,ka ∈ AnyAtom := Atom ∪ KAtom
 
+For the |THUNK| atom, |r| is the name used for allocating the thunk reference
+cell, |xᵣ| is the name used to allocate results of evaluating the reference
+cell, and |k| is the name used to bind continuations that result from evaluting
+this thunk.
 
 |Call| expressions are GHC core expressions which require no meta-language
 stack (have been CPS'd) and give rise to a simple CES machine.
@@ -48,7 +70,7 @@ stack (have been CPS'd) and give rise to a simple CES machine.
   c ∈ Call ::= 
     LET x := a IN c
     LET k := ka IN c
-    REC x ... IN c
+    REC [r,xᵣ,x] ... IN c
     LETREC { x := a ; ... } IN c
     @K(k,p)
     @F(p,p,k)
@@ -58,12 +80,22 @@ stack (have been CPS'd) and give rise to a simple CES machine.
 The |REC| and |LETREC| constructs are the results of the CPS transformation on
 |letrec| source expressions. They are slightly imperative in that, in the
 dynamic semantics, |REC| puts lazy references to the variables into the store
-and |LETREC| imperatively updates these to be values.
+and |LETREC| imperatively updates these to be values. The triple |[r,xᵣ,x]| for
+each binder in |REC| is for the name for the mutable cell, the name of the
+binder for allocating results when evaluating the cell, and the source name for
+binding the result of following the recursive reference.
 
 The |@F| construct is for forced function applications. Source function
-applications translate into |LET x := THUNK[x,k](p₁,p₂) IN ...| and |@F| only
-appears when a thunk appeared where a forced value was expected, and the
+applications translate into |LET x := THUNK[r,xᵣ,k](p₁,p₂) IN ...| and |@F|
+only appears when a thunk appeared where a forced value was expected, and the
 thunked function application is evaluated.
+
+The |@K| construct is for applying (second class) continuations. Even though
+continuations are second class, they are translated to lambdas and given names.
+This is so that the CPS translation of |Case| doesn't duplicate the
+continuation in every branch, rather the continuation is given a name and then
+called by name in each branch. This case and the second formal parameter to
+lambdas are then only places where continuations are given names.
 
 # Dynamic Semantics
 
@@ -76,27 +108,36 @@ advanced forward using |tick| and addresses can be created from a time using
     𝓁     ∈ Addr
     alloc ∈ AnyVar × Time → Addr
 
-Values are either a literal, a data construction, a function closure, a thunk, or a
-delayed variable reference. Continuation values are distinguished syntactically
-and are either a continuation closure, a case expression continuation, or a
-function application continuation.
+Values are either a literal, a data construction, a function closure, or a
+reference cell. Continuation values are distinguished syntactically and are
+either a standard continuation closure, or a continuation closure which will
+perform a mutable update on a reference cell. Thunk values are either a fully
+forced value or a thunked function application. It is possible for a |REF| cell
+to exist that points to nothing. This happens before the knot in a |LETREC| has
+been tied.
 
-  d ∈ Data ::= 
-    CON(con,𝓁,...)
   v ∈ Val ::= 
     l 
-    d 
+    DATA(con,𝓁,...)
     ⟨λ(x,k) → c,ρ⟩ 
-    ⟨THUNK[x,k](x,x),ρ⟩ 
-    DELAY(𝓁)
+    REF[x](r)
   kv ∈ KVal ::=
     ⟨λ(x) → c,ρ⟩ 
+    ⟨λ![𝓁](x) → c,ρ⟩
+  rv ∈ TVal ::=
+    FORCED(v)
+    ⟨THUNK[k](x,x),ρ⟩ 
   v,kv ∈ AnyVal := Val ∪ KVal
+
+The second continuation value |⟨λ![𝓁](x) → c,ρ⟩| represents a continuation
+which first performs a strong update of |𝓁| to the supplied argument, and then
+binds |x| and continues as usual. This continuation is created when a thunked
+value is forced so that its continuation memoizes the result upon return.
 
 Atoms and picos have straightforward denotation functions.
 
-    𝒜 ∈ AnyAtom → (Env → AnyVal)
-    𝒫 ∈ AnyPico → (Env → AnyVal)
+    𝒜 ∈ AnyAtom → (Env × Store → AnyVal)
+    𝒫 ∈ AnyPico → (Env × Store → AnyVal)
 
 An element of the state space, called a configuration, holds an environment, a
 store and the current time.
@@ -114,68 +155,71 @@ The let-style commands are simple; they update the environment and store with
 new values and proceed to the nested call.
 
     [LET]
-    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x ↦ 𝓁],σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ)],tick(τ)⟩
+    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x ↦ 𝓁],σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ,σ)],tick(τ)⟩
       where 𝓁 := alloc(x,τ)
 
     [REC]
-    ⟨REC x₁ ... IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x₁ ↦ 𝓁₁,...],σ[𝓁₁ ↦ DELAY(𝓁₁),...],tick(τ)⟩
-      where 𝓁₁ := alloc(x₁,τ) and ...
+    ⟨REC [r₁,xᵣ₁,x₁] ... IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ REF[xᵣ₁](𝓁ᵣ₁)],tick(τ)⟩
+      where 
+        𝓁ᵣ₁ := alloc(r₁,τ) , 𝓁ₓ₁ := alloc(x₁,τ) , ...
 
     [LETREC]
-    ⟨LETREC { x₁ := a₁ ; ... } IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ,σ[ρ(x₁) ↦ 𝒜 ⟦a₁⟧(ρ),...],tick(τ)⟩
+    ⟨LETREC { x₁ := a₁ ; ... } IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ,σ[𝓁₁ ↦ 𝒜 ⟦a₁⟧(ρ,σ),...],tick(τ)⟩
+      where REF[xᵣ₁](𝓁₁) := σ(ρ(x₁) , ...
 
 Continuation applications proceed by evaluating the first pico value to a
 continuation value and continuing to the continuation body under an updated
-closure environment. There are no rules for |THUNK| or |DELAY| because these
-values never flow to continuation position. The notation |<<pat ← E[□]>>| is
-shorthand for "E[x] ... where pat := x".
+closure environment. There are no rules for |REF| because these values never
+flow to continuation position. The notation |<<pat ← E[□]>>| is shorthand for
+"E[x] ... where pat := x".
 
-    [Kon]
-    ⟨@K(<<⟨λ(x) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₂),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p₂⟧(ρ)],tick(τ)⟩
+    [KON]
+    ⟨@K(<<⟨λ(x) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p⟧(ρ,σ)],tick(τ)⟩
+      where 𝓁 := alloc(x,τ)
+    [KON-MEMO]
+    ⟨@K(<<(λ![𝓁'](x) → c,ρ⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p⟧(ρ,σ),𝓁' ↦ 𝒫⟦p⟧(ρ,σ)],tick(τ)⟩
       where 𝓁 := alloc(x,τ)
 
 Function application has three cases:
 
 1. The first atom is a function, in which case the function is applied.
-2. The first atom is a |THUNK|, in which case the thunk is jumped to and the
+2. The first atom is a forced value, in which case the value is retrieved and
+   the application is attempted again.
+2. The first atom is a thunk, in which case the thunk is jumped to and the
    current application context is pushed on the stack.
-3. The first atom is a |DELAY|, in which case the value at the delayed address
-   is evaluated and bound to a name which replaces the |DELAY| in the
-   configuration.
+
+    [FUN-VAL]
+    ⟨@F(<<⟨λ(x,k) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁ₓ,k ↦ 𝓁ₖ],σ[𝓁ₓ ↦ 𝒫⟦p₂⟧(ρ,σ),𝓁ₖ ↦ 𝒫⟦p₃⟧(ρ,σ)],tick(τ)⟩
+      where 𝓁ₓ := alloc(x,τ) , 𝓁ₖ := alloc(k,τ)
 
     [FUN-FORCED]
-    ⟨@F(<<⟨λ(x,k) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁ₓ,k ↦ 𝓁ₖ],σ[𝓁ₓ ↦ 𝒫⟦p₂⟧(ρ),𝓁ₖ ↦ 𝒫⟦p₃⟧(ρ)],tick(τ)⟩
-      where 𝓁ₓ := alloc(x,τ) and 𝓁ₖ := alloc(k,τ)
+    ⟨@F(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨@F(x,p₂,p₃),ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ v],tick(τ)⟩
+      where FORCED(v) := σ(𝓁) , 𝓁ₓ := alloc(x,τ)
 
     [FUN-THUNK]
-    ⟨@F(<<⟨THUNK[x,k](p₁',p₂'),ρ'⟩ ← 𝒫⟦□⟧(ρ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁],σ[𝓁 ↦ ⟨λ(x) → @F(x,p₁,p₂),ρ⟩],tick(τ)⟩
-      where 𝓁 := alloc(k,τ)
-
-    [FUN-DELAY]
-    ⟨@F(<<DELAY[x](𝓁) ← 𝒫⟦□⟧(ρ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(x,p₂,p₂),ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ σ(𝓁)],tick(τ)⟩
-      where 𝓁ₓ = alloc(x,τ)
+    ⟨@F(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ[𝓁ₖ ↦ ⟨λ![𝓁](x) → @F(x,p₁,p₂),ρ⟩],tick(τ)⟩
+      where ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) , 𝓁ₖ := alloc(k,τ)
 
 Case expressions similarly have three cases:
 
-1. The first atom is a data construction, in which case the case branch is executed.
-2. The first atom is a |THUNK|, in which case the thunk is jumped ot and the
+1. The atom is a data construction, in which case the case branch is executed.
+2. The atom is a forced value, in which case the value is retrieved and the
+   case is attempted again.
+2. The atom is a thunk, in which case the thunk is jumped to and the
    current case context is pushed on the stack.
-3. The first atom is a |DELAY|, in which case the value at the delayed address
-    is evaluated and bound to a name which replaces the |DELAY| in the
-    configuration.
 
-    [CASE-FORCED]
-    ⟨CASE(<<CON(conᵢ,𝓁₁,...) ← 𝒫⟦□⟧(ρ)>>) OF { con₁(x₁₁,...) → c₁ ; ... },ρ,σ,τ⟩ ~~> ⟨cᵢ,ρ[xᵢ₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ σ(𝓁₁),...],tick(τ)⟩
+    [CASE-VAL]
+    ⟨CASE(<<DATA(conᵢ,𝓁₁,...) ← 𝒫⟦□⟧(ρ,σ)>>) OF { con₁(x₁₁,...) → c₁ ; ... },ρ,σ,τ⟩ ~~> ⟨cᵢ,ρ[xᵢ₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ σ(𝓁₁),...],tick(τ)⟩
       where 𝓁ₓ₁ := alloc(xᵢ₁,τ) and ...
 
+    [CASE-FORCED]
+    ⟨CASE(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨CASE(x) OF { alt ... },ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ v],tick(τ)⟩
+      where FORCED(v) := σ(𝓁) , 𝓁ₓ := alloc(x,τ)
+
     [CASE-THUNK]
-    ⟨CASE(<<⟨THUNK[x,k](x₁,x₂),ρ'⟩ ← 𝒫⟦□⟧(ρ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨@F(x₁,x₂,k),ρ'[k ↦ 𝓁],σ[𝓁 ↦ ⟨λ(x) → CASE(x) OF { alt ... },ρ⟩],tick(τ)⟩
-      where 𝓁 := alloc(k,τ)
+    ⟨CASE(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ[𝓁ₖ ↦ ⟨λ![𝓁](x) → CASE(x) OF { alt ... },ρ⟩],tick(τ)⟩
+      where ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) , 𝓁ₖ := alloc(k,τ)
 
-    [CASE-DELAY]
-    ⟨CASE(<<DELAY[x](𝓁) ← 𝒫⟦□⟧(ρ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨CASE(x) OF { alt ... },ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ σ(𝓁)],tick(τ)⟩
-      where 𝓁ₓ := alloc(x,τ)
-
-The notation in |CASE-FORCED| is a little strange. |conᵢ| matches with the i'th
+The notation in |CASE-VAL| is a little strange. |conᵢ| matches with the i'th
 constructor in the sequence of |Alt| expressions and |xᵢ₁ ...| is the sequence
 of binders attached to that branch.
