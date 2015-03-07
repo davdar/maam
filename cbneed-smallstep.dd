@@ -4,181 +4,236 @@ This is a small-step semantics for a call-by-need CPS language with lambdas and
 datatypes.
 
 I claim this is what you would get if you took the standard AAM Krivine machine
-and applied a CPS discipline. The CPS transformation is used as a purely
-syntactic discipline to:
+[AAM 2010] and applied a CPS discipline. The CPS transformation is used as a
+purely syntactic discipline to:
 
-1. Eliminate administrative stack-manipulating semantic transitions 
+1. Eliminate administrative, stack-manipulating semantic transitions.
 2. Ensure that the only expressions treated lazily are function applications
    and recursive variable references.
 
-# Syntax
+# Direct Style Syntax
 
-For this semantics, variables and values are syntactically distinguished
-between disjoint sets for continuation and computation. In the semantics they
-are not distinguished, i.e. the runtime store maps any variable to any value.
-It is true, however, that continuation variables only take on continuation
-values, and likewise for computation variables/values. There is a third "world"
-for reference cells whose values take on either a thunked or forced
-computation.
+The source syntax looks like this:
 
-We assume arbitrary sets for literals, constructor tags and variables.
-Computation, continuation, and thunk variables are all distinguished
-syntactically.
+    l   ∈ Lit
+    con ∈ Symbol
+    x   ∈ Var
+    e   ∈ Exp ::=
+      l
+      x
+      DATA(con,e₁,...,eₙ)
+      λ(x) → e
+      LET x := e₁ IN e₂
+      LETREC { x₁ := e₁ ; ... ; xₙ := eₙ } IN e
+      CASE e OF { (con₁,e₁₁,...,e₁ₙ) → e₁ ; ... ; (conₘ,eₘ₁,...,eₘₙ) → eₘ }
+      @F(e₁,e₂)
+
+# CPS Syntax
+
+For the CPS syntax we distinguish source variables |Var|, continuation
+variables |KVar| and reference variables |RVar|. Although continuation
+variables give names to continuation values, continuations are still second
+class values and cannot flow to source variable binders. Reference variables
+only exist as unique names for reference allocation sites in the abstract
+semantics.
 
     l     ∈ Lit
     con   ∈ Symbol
     x     ∈ Var
     k     ∈ KVar
-    r     ∈ TVar
-    x,k,r ∈ AnyVar := Var ∪ KVar
+    r     ∈ RVar
 
-|KVar| is for continuation variables and |TVar| is a set of names for
-allocating reference cells which are updated imperatively through thunk
-evaluation. You can think of values bound to |Var|, |KVar| and |TVar| as living
-in distinct heaps mapping to distinct value types.
-
-|Pico| expressions are either a name or syntactic literal. |Pico| is the only
-syntactic category which may appear nested in |Call| expresssions (other than
-the tail |Call| expression).
+The CPS syntax is stratified into |Pico|, |Atom| and |Call| expressions.
+|Pico| expressions are a variable or literal; |Atom| expressions are those
+which can be computed immediately: lambdas and thunked function application;
+and |Call| expressions are those which require arbitrary amounts of computation
+to evaluate. |Call| expressions contain nested |Atom| expressions in let
+bindings and nested |Pico| expressions in function applications and case
+branching (other than the tail |Call| in let and case expressions).
 
     p ∈ Pico ::= x | l
-    p,k,r ∈ AnyPico := Pico ∪ KVar ∪ TVar
+    a ∈ Atom ::= 
+      p
+      λ(x,k) → c 
+      THUNK[r,xᵣ,k](p₁,p₂)
+    ka ∈ KAtom ::=
+      k
+      λ(x) → c 
+    c ∈ Call ::= 
+      LET x := a IN c
+      LET k := ka IN c
+      REC [r₁,xᵣ₁,x₁] ... [rₙ,xᵣₙ,xₙ] IN c
+      LETREC { x₁ := a₁ ; ... ; xₙ := aₙ } IN c
+      @K(k,p)
+      @F(p₁,p₂,k)
+      CASE(p) OF { (con₁,x₁₁,...,x₁ₙ) → c₁ ; ... ; (conₘ,xₘ₁,...,xₘₙ) → cₘ }
+      HALT(p)
 
-|Atom| expressions are those which have an immediate evaluation or denotation.
-|Atom| expressions must be let-bound to a name to be used in a |Call|
-expression. Continuation atoms, that is those which will be bound to
-continuation variables, are distinguished syntactically.
+The |THUNK[r,xᵣ,k](p,p)| syntax holds binders:
 
-  a ∈ Atom ::= 
-    p
-    λ(x,k) → c 
-    THUNK[r,xᵣ,k](p,p)
-  ka ∈ KAtom ::=
-    k
-    λ(x) → c 
-  a,ka ∈ AnyAtom := Atom ∪ KAtom
+- |r|: The unique name for allocating the reference cell.
+- |xᵣ|: The name for allocating values that are returned from evaluating the
+  reference cell.
+- |k|: The name for allocating the continuation that pushes this thunk's
+  evaluation on the stack.
 
-For the |THUNK| atom, |r| is the name used for allocating the thunk reference
-cell, |xᵣ| is the name used to allocate results of evaluating the reference
-cell, and |k| is the name used to bind continuations that result from evaluting
-this thunk.
+The |REC[r,xᵣ,x]| syntax holds binders:
 
-|Call| expressions are GHC core expressions which require no meta-language
-stack (have been CPS'd) and give rise to a simple CES machine.
+- |r|: The unique name for allocating the reference cell.
+- |xᵣ|: The name for allocating values taht are returned from evaluating the
+  reference cell.
+- |x|: The source-level binder name.
 
-  alt ∈ Alt ::= con(x,...) → c
-  c ∈ Call ::= 
-    LET x := a IN c
-    LET k := ka IN c
-    REC [r,xᵣ,x] ... IN c
-    LETREC { x := a ; ... } IN c
-    @K(k,p)
-    @F(p,p,k)
-    CASE(p) OF { alt ; ... }
-    HALT(p)
+# CPS Conversion
 
-The |REC| and |LETREC| constructs are the results of the CPS transformation on
-|letrec| source expressions. They are slightly imperative in that, in the
-dynamic semantics, |REC| puts lazy references to the variables into the store
-and |LETREC| imperatively updates these to be values. The triple |[r,xᵣ,x]| for
-each binder in |REC| is for the name for the mutable cell, the name of the
-binder for allocating results when evaluating the cell, and the source name for
-binding the result of following the recursive reference.
+The CPS conversion demonstrates how source |LETREC| forms desugar into CPS
+|REC| and |LETREC| forms. This CPS conversion take a meta-continuations as an
+argument and reifies the meta-continuation when necessary. In the
+implementation we do even better, keeping a continuation either meta-level or
+object-level and only reifying or reflecting it if necessary.
 
-The |@F| construct is for forced function applications. Source function
-applications translate into |LET x := THUNK[r,xᵣ,k](p₁,p₂) IN ...| and |@F|
-only appears when a thunk appeared where a forced value was expected, and the
-thunked function application is evaluated.
+    CPS : Exp × (Pico → Call) → Call
+    CPS(l,k) := k(l)
+    CPS(x,k) := k(x)
+    CPS(DATA(con,e₁,...,eₙ),k) :=
+      CPS(e₁,λ(p₁) → ... (CPS(eₙ,λ(pₙ) →
+      LET x₁ := p₁ IN
+      ...
+      LET xₙ := pₙ IN
+      LET x  := DATA(con,p₁,...,pₙ) IN
+      k(x)
+        where x fresh
+    CPS(λ(x) → e,k) := 
+      LET x := λ(x,k') → CPS(e,λ(p) → @K(k',p)) IN
+      k(x)
+        where x,k' fresh
+    CPS(LET x := e₁ IN e₂,k) :=
+      CPS(e₁,λ(p) → 
+      LET x := p IN 
+      CPS(e₂,k))
+    CPS(LETREC { x₁ := e₁ ; ... ; xₙ := eₙ } IN e,k) :=
+      REC [r₁,xᵣ₁,x₁] ... [rₙ,xᵣₙ,xₙ] IN
+      CPS(e₁,λ(p₁) → ... (CPS(eₙ,λ(pₙ) → 
+      LETREC { x₁ := p₁ ; ... ; xₙ := pₙ } IN
+      CPS(e,k))) ... )
+        where r₁,xᵣ₁,...,rₙ,xᵣₙ fresh
+    CPS(CASE(e) OF { (con₁,x₁₁,...,x₁ₙ) → e₁ ; (conₘ,xₘ₁,...,xₘₙ) → eₘ },k) :=
+      CPS(e,λ(p) →
+      CASE p OF { (con₁,x₁₁,...,x₁ₙ) → CPS(e₁,k) ; (con,xₘ₁,...,xₘₙ) → CPS(eₘ,k) })
+    CPS(@F(e₁,e₂),k) :=
+      CPS(e₁,λ(p₁) →
+      CPS(e₂,λ(p₂) →
+      LET x := THUNK[r,xᵣ,k](p₁,p₂) IN
+      k(x)))
+        where r,xᵣ,k fresh
 
-The |@K| construct is for applying (second class) continuations. Even though
-continuations are second class, they are translated to lambdas and given names.
-This is so that the CPS translation of |Case| doesn't duplicate the
-continuation in every branch, rather the continuation is given a name and then
-called by name in each branch. This case and the second formal parameter to
-lambdas are then only places where continuations are given names.
+Notice that the CPS translation does not create any |@F| expressions. This is
+because |@F| is treated as a forcing function call, none of which are present
+in the source. Forcing function calls |@F| arise as the result of entering a
+thunk, and entering a thunk arises from case expressions or another forcing
+function call.
 
-# Dynamic Semantics
-
-We assume arbitrary sets of time and address values. Time values can be
-advanced forward using |tick| and addresses can be created from a time using
-|alloc|.
+# Concrete Dynamic Semantics
 
     τ     ∈ Time
     tick  ∈ Call × Time → Time
     𝓁     ∈ Addr
     alloc ∈ AnyVar × Time → Addr
 
-Values are either a literal, a data construction, a function closure, or a
-reference cell. Continuation values are distinguished syntactically and are
-either a standard continuation closure, or a continuation closure which will
-perform a mutable update on a reference cell. Thunk values are either a fully
-forced value or a thunked function application. It is possible for a |REF| cell
-to exist that points to nothing. This happens before the knot in a |LETREC| has
-been tied.
+    v ∈ Val ::= 
+      l 
+      DATA(con,𝓁₁,...,𝓁ₙ)
+      ⟨λ(x,k) → c,ρ⟩ 
+      REF[x](r)
+    kv ∈ KVal ::=
+      ⟨λ(x) → c,ρ⟩ 
+      ⟨λ![𝓁,v](x) → c,ρ⟩
+    rv ∈ RVal ::=
+      FORCED(v)
+      ⟨THUNK[k](p₁,p₂),ρ⟩ 
 
-  v ∈ Val ::= 
-    l 
-    DATA(con,𝓁,...)
-    ⟨λ(x,k) → c,ρ⟩ 
-    REF[x](r)
-  kv ∈ KVal ::=
-    ⟨λ(x) → c,ρ⟩ 
-    ⟨λ![𝓁](x) → c,ρ⟩
-  rv ∈ TVal ::=
-    FORCED(v)
-    ⟨THUNK[k](x,x),ρ⟩ 
-  v,kv ∈ AnyVal := Val ∪ KVal
+|REF| values contain a reference location (allocated by |r|) which points to
+either a forced or thunked value. The second continuation form |⟨λ![𝓁,v](x) →
+c,ρ⟩| is just like a standard continuation but with added behavior: before
+continuing to its body |c| it looks up the location |𝓁| and replaces any
+occurences of |v| with the bound argument.
 
-The second continuation value |⟨λ![𝓁](x) → c,ρ⟩| represents a continuation
-which first performs a strong update of |𝓁| to the supplied argument, and then
-binds |x| and continues as usual. This continuation is created when a thunked
-value is forced so that its continuation memoizes the result upon return.
+    x,k,r ∈ AnyVar  := Var  ∪ KVar ∪ RVar
+    p,k,r ∈ AnyPico := Pico ∪ KVar ∪ RVar
+    a,k,r ∈ AnyAtom := Atom ∪ KVar ∪ RVar
+    v,kv  ∈ AnyVal  := Val  ∪ KVal
 
-Atoms and picos have straightforward denotation functions.
+    ρ     ∈ Env     := AnyVar ⇀ Addr
+    σ     ∈ Store   := Addr ⇀ AnyVal
 
-    𝒜 ∈ AnyAtom → (Env × Store → AnyVal)
-    𝒫 ∈ AnyPico → (Env × Store → AnyVal)
 
-An element of the state space, called a configuration, holds an environment, a
-store and the current time.
+The concrete semantics are given through denotation functions |𝒜ᶜ| and |𝒫ᶜ|,
+and a small-step transition relation |_~~>ᶜ_|.
 
-    ρ ∈ Env   := AnyVar ⇀ Addr
-    σ ∈ Store := Addr ⇀ AnyVal
-    ς ∈ Σ     ::= 
-      ⟨c,ρ,σ,τ⟩
+    𝒫ᶜ ∈ AnyPico → Env × Store → AnyVal
+    𝒫ᶜ⟦x⟧(ρ,σ) = σ(ρ(x))
+    𝒫ᶜ⟦l⟧(ρ,σ) = l
 
-The step relation |_~~>_| is a small-step relation between configurations.
+    𝒜ᶜ    ∈ AnyAtom → Env × Store × Time → AnyVal × Store
+    𝒜ᶜ⟦p⟧(ρ,σ,τ) = (𝒫ᶜ⟦p⟧(ρ,σ),σ)
+    𝒜ᶜ⟦λ(x,k) → c⟧(ρ,σ,τ) = (⟨λ(x,k) → c,ρ⟩,σ)
+    𝒜ᶜ⟦THUNK[r,xᵣ,k](p₁,p₂)⟧(ρ,σ,τ) = (REF[xᵣ](𝓁ᵣ),σ[𝓁ᵣ ↦ ⟨THUNK[k](p₁,p₂),ρ⟩])
+      where 𝓁ᵣ := alloc(r,τ)
 
-    _~~>_ ∈ Σ × Σ
+The denotation for |THUNK| atmoic expressions evaluates to a new reference cell
+with its value bound to a thunk closure.
+
+    ς     ∈ Σ := Call × Env × Store × Time
+    _~~>ᶜ_ ∈ Σ × Σ
 
 The let-style commands are simple; they update the environment and store with
-new values and proceed to the nested call.
+new values and proceed to the nested call. |REC-C| creates reference cells for
+recursive bindings and |LETREC-C| fills them in.
 
-    [LET]
-    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x ↦ 𝓁],σ[𝓁 ↦ 𝒜 ⟦a⟧(ρ,σ)],tick(τ)⟩
-      where 𝓁 := alloc(x,τ)
-
-    [REC]
-    ⟨REC [r₁,xᵣ₁,x₁] ... IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ[x₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ REF[xᵣ₁](𝓁ᵣ₁)],tick(τ)⟩
+    [LET-C]
+    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ',σ'',tick(τ)⟩
       where 
-        𝓁ᵣ₁ := alloc(r₁,τ) , 𝓁ₓ₁ := alloc(x₁,τ) , ...
+        (v,σ') := 𝒜ᶜ⟦a⟧(ρ,σ,τ) 
+        𝓁ₓ     := alloc(x,τ)
+        ρ'     := ρ[x ↦ 𝓁ₓ]
+        σ''    := σ'[𝓁ₓ ↦ v]
 
-    [LETREC]
-    ⟨LETREC { x₁ := a₁ ; ... } IN c,ρ,σ,τ⟩ ~~> ⟨c,ρ,σ[𝓁₁ ↦ 𝒜 ⟦a₁⟧(ρ,σ),...],tick(τ)⟩
-      where REF[xᵣ₁](𝓁₁) := σ(ρ(x₁) , ...
+    [REC-C]
+    ⟨REC [r₁,xᵣ₁,x₁] ... [rₙ,xᵣₙ,xₙ] IN c,ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ',σ',tick(τ)⟩
+      where 
+        𝓁ᵣ₁ := alloc(r₁,τ) , ... , 𝓁ᵣₙ := alloc(rₙ,τ)
+        𝓁ₓ₁ := alloc(x₁,τ) , ... , 𝓁ₓₙ := alloc(xₙ,τ)
+        ρ'  := ρ[x₁ ↦ 𝓁ₓ₁,...,xₙ ↦ 𝓁ₓₙ]
+        σ'  := σ[𝓁ₓ₁ ↦ REF[xᵣ₁](𝓁ᵣ₁),...,𝓁ₓₙ ↦ REF[xᵣₙ](𝓁ᵣₙ)]
 
-Continuation applications proceed by evaluating the first pico value to a
-continuation value and continuing to the continuation body under an updated
-closure environment. There are no rules for |REF| because these values never
-flow to continuation position. The notation |<<pat ← E[□]>>| is shorthand for
-"E[x] ... where pat := x".
+    [LETREC-C]
+    ⟨LETREC { x₁ := a₁ ; ... ; xₙ := aₙ } IN c,ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ,σ',tick(τ)⟩
+      where 
+        REF[xᵣ₁](𝓁₁) := σ(ρ(x₁)) , ... , REF[xᵣₙ](𝓁ₙ) := σ(ρ(xₙ))
+        (v₁,σ₁)      := 𝒜ᶜ⟦a₁⟧(ρ,σ,τ) , ... , (vₙ,σₙ) := 𝒜ᶜ⟦aₙ⟧(ρ,σₙ₋₁,τ) 
+        σ'           := σₙ[𝓁₁ ↦ v₁,...,𝓁ₙ ↦ vₙ]
 
-    [KON]
-    ⟨@K(<<⟨λ(x) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p⟧(ρ,σ)],tick(τ)⟩
-      where 𝓁 := alloc(x,τ)
-    [KON-MEMO]
-    ⟨@K(<<(λ![𝓁'](x) → c,ρ⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁],σ[𝓁 ↦ 𝒫⟦p⟧(ρ,σ),𝓁' ↦ 𝒫⟦p⟧(ρ,σ)],tick(τ)⟩
-      where 𝓁 := alloc(x,τ)
+Continuation applications continue with the continuation body and environment.
+The |KON-MEMO-C| rule implements the semantics of memoization. The set
+difference with |[𝓁' ↦ v]| in [KON-MEMO-C] is redundant because the new value
+will overwrite the old one, but its abstraction will become meaningful and
+important in the abstract semantics.
+
+    [KON-C]
+    ⟨@K(p₁,p₂),ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ'',σ',σ)],tick(τ)⟩
+      where 
+        ⟨λ(x) → c,ρ'⟩ := 𝒫ᶜ⟦p₁⟧(ρ,σ)
+        𝓁ₓ            := alloc(x,τ)
+        ρ''           := ρ'[x ↦ 𝓁ₓ]
+        σ'            := σ[𝓁ₓ ↦ 𝒫ᶜ⟦p₂⟧(ρ,σ)]
+
+    [KON-MEMO-C]
+    ⟨@K(p₁,p₂),ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ'',σ',tick(τ)⟩
+      where 
+        ⟨λ![𝓁,v](x) → c,ρ'⟩ := 𝒫ᶜ⟦p₁⟧(ρ,σ)
+        𝓁ₓ                  := alloc(x,τ)
+        ρ''                 := ρ'[x ↦ 𝓁ₓ]
+        σ'                  := (σ ∩ ¬[𝓁' ↦ v])[𝓁ₓ ↦ 𝒫ᶜ⟦p₂⟧(ρ,σ),𝓁 ↦ 𝒫ᶜ⟦p⟧(ρ,σ)]
 
 Function application has three cases:
 
@@ -188,17 +243,32 @@ Function application has three cases:
 2. The first atom is a thunk, in which case the thunk is jumped to and the
    current application context is pushed on the stack.
 
-    [FUN-VAL]
-    ⟨@F(<<⟨λ(x,k) → c,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨c,ρ'[x ↦ 𝓁ₓ,k ↦ 𝓁ₖ],σ[𝓁ₓ ↦ 𝒫⟦p₂⟧(ρ,σ),𝓁ₖ ↦ 𝒫⟦p₃⟧(ρ,σ)],tick(τ)⟩
-      where 𝓁ₓ := alloc(x,τ) , 𝓁ₖ := alloc(k,τ)
+    [FUN-VAL-C]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᶜ ⟨c,ρ'',σ',tick(τ)⟩
+      where 
+        ⟨λ(x,k) → c,ρ'⟩ := 𝒫ᶜ⟦p₁⟧(ρ,σ)
+        𝓁ₓ              := alloc(x,τ) 
+        𝓁ₖ              := alloc(k,τ)
+        ρ''             := ρ'[x ↦ 𝓁ₓ,k ↦ 𝓁ₖ]
+        σ'              := σ[𝓁ₓ ↦ 𝒫ᶜ⟦p₂⟧(ρ,σ),𝓁ₖ ↦ 𝒫ᶜ⟦p₃⟧(ρ,σ)]
 
-    [FUN-FORCED]
-    ⟨@F(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>,p₂,p₃),ρ,σ,τ⟩ ~~> ⟨@F(x,p₂,p₃),ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ v],tick(τ)⟩
-      where FORCED(v) := σ(𝓁) , 𝓁ₓ := alloc(x,τ)
+    [FUN-FORCED-C]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᶜ ⟨@F(x,p₂,p₃),ρ',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁) := 𝒫ᶜ⟦p₁⟧(ρ,σ)
+        FORCED(v) := σ(𝓁) 
+        𝓁ₓ        := alloc(x,τ)
+        ρ'        := ρ[x ↦ 𝓁ₓ]
+        σ'        := σ[𝓁ₓ ↦ v]
 
-    [FUN-THUNK]
-    ⟨@F(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>,ρ'⟩ ← 𝒫⟦□⟧(ρ,σ)>>,p₁,p₂),ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ[𝓁ₖ ↦ ⟨λ![𝓁](x) → @F(x,p₁,p₂),ρ⟩],tick(τ)⟩
-      where ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) , 𝓁ₖ := alloc(k,τ)
+    [FUN-THUNK-C]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᶜ ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)              := 𝒫ᶜ⟦p₁⟧(ρ,σ)
+        ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) 
+        𝓁ₖ                     := alloc(k,τ)
+        ρ''                    := ρ'[k ↦ 𝓁ₖ]
+        σ'                     := σ[𝓁ₖ ↦ ⟨λ![𝓁,σ(𝓁)](x) → @F(x,p₂,p₃),ρ⟩]
 
 Case expressions similarly have three cases:
 
@@ -208,18 +278,158 @@ Case expressions similarly have three cases:
 2. The atom is a thunk, in which case the thunk is jumped to and the
    current case context is pushed on the stack.
 
-    [CASE-VAL]
-    ⟨CASE(<<DATA(conᵢ,𝓁₁,...) ← 𝒫⟦□⟧(ρ,σ)>>) OF { con₁(x₁₁,...) → c₁ ; ... },ρ,σ,τ⟩ ~~> ⟨cᵢ,ρ[xᵢ₁ ↦ 𝓁ₓ₁,...],σ[𝓁ₓ₁ ↦ σ(𝓁₁),...],tick(τ)⟩
-      where 𝓁ₓ₁ := alloc(xᵢ₁,τ) and ...
+    [CASE-VAL-C]
+    ⟨CASE(p) OF { con₁(x₁₁,...,x₁ₙ) → c₁ ; ... ; conᵢ(xᵢ₁,...,xᵢₙ) → cᵢ ; ... ; conₘ(xₘ₁,...,xₘₙ) → cₘ},ρ,σ,τ⟩ ~~>ᶜ ⟨cᵢ,ρ',σ',tick(τ)⟩
+      where 
+        DATA(conᵢ,𝓁₁,...,𝓁ₙ) := 𝒫ᶜ⟦p⟧(ρ,σ)
+        𝓁ₓ₁                  := alloc(xᵢ₁,τ) , ... , 𝓁ₓₙ := alloc(xᵢₙ,τ)
+        ρ'                   := ρ[xᵢ₁ ↦ 𝓁ₓ₁,...,xᵢₙ ↦ 𝓁ₓₙ]
+        σ'                   := σ[𝓁ₓ₁ ↦ σ(𝓁₁),...,𝓁ₓₙ ↦ σ(𝓁ₙ)]
 
-    [CASE-FORCED]
-    ⟨CASE(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨CASE(x) OF { alt ... },ρ[x ↦ 𝓁ₓ],σ[𝓁ₓ ↦ v],tick(τ)⟩
-      where FORCED(v) := σ(𝓁) , 𝓁ₓ := alloc(x,τ)
+    [CASE-FORCED-C]
+    ⟨CASE(p) OF { alts },ρ,σ,τ⟩ ~~>ᶜ ⟨CASE(x) OF { alts },ρ',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁) := 𝒫ᶜ⟦p⟧(ρ,σ)
+        FORCED(v) := σ(𝓁) 
+        𝓁ₓ        := alloc(x,τ)
+        ρ'        := ρ[x ↦ 𝓁ₓ]
+        σ'        := σ[𝓁ₓ ↦ v]
 
-    [CASE-THUNK]
-    ⟨CASE(<<REF[x](𝓁) ← 𝒫⟦□⟧(ρ,σ)>>) OF { alt ... },ρ,σ,τ⟩ ~~> ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ[𝓁ₖ ↦ ⟨λ![𝓁](x) → CASE(x) OF { alt ... },ρ⟩],tick(τ)⟩
-      where ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) , 𝓁ₖ := alloc(k,τ)
+    [CASE-THUNK-C]
+    ⟨CASE(p) OF { alts },ρ,σ,τ⟩ ~~>ᶜ ⟨@F(p₁',p₂',k),ρ'',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)              := 𝒫ᶜ⟦p⟧(ρ,σ)
+        ⟨THUNK[k](p₁',p₂'),ρ'⟩ := σ(𝓁) 
+        𝓁ₖ                     := alloc(k,τ)
+        ρ''                    := ρ'[k ↦ 𝓁ₖ]
+        σ'                     := σ[𝓁ₖ ↦ ⟨λ![𝓁,σ(𝓁)](x) → CASE(x) OF { alts },ρ⟩]
 
-The notation in |CASE-VAL| is a little strange. |conᵢ| matches with the i'th
-constructor in the sequence of |Alt| expressions and |xᵢ₁ ...| is the sequence
-of binders attached to that branch.
+The notation in |CASE-VAL-C| is a little strange. |conᵢ| matches with the i'th
+constructor in the sequence of |Alt| expressions and |xᵢ₁,...,xᵢₙ| is the
+sequence of binders attached to that branch.
+
+# Abstract Dynamic Semantics
+
+The abstract semantics are just like the concrete semantics except:
+
+1. It is non-deterministic.
+2. It is approximating--values are merged into the store rather than updated.
+
+These two characteristics allow for (or arise from) making the state space
+finite, which is essential for a computable analysis.
+
+For simplicity, it is assumed that the value space is abstracted as a powerset
+of concrete values. This does not yet yield a finite state space, but going
+from powerset to something finite with a lattice structure is a simple matter
+of replace union and intersection (|∪| and |∩|) with join and meet (|⊔| and
+|⊓|). We still write join (|⊔|) when merging two stores, which will perform a
+union (|∪|) on value sets in the codomain. Notationally we write |v| to range
+over values and capitalized as |V| to range over powersets of values.
+
+The only difference between the abstract semantics are a replacement of |:=|
+with |∈| when evaluating pico expressions with |𝒫|, and updating the store
+monotonically with join (|⊔|) rather than with replacement.
+
+    σ ∈ Store := Addr → ℙ(AnyVal)
+
+    𝒫ᵃ : Pico → (Env × Store) → ℙ(AnyVal)
+    𝒫ᵃ⟦x⟧(ρ,σ) = σ(ρ(x))
+    𝒫ᵃ⟦l⟧(ρ,σ) = {l}
+
+    𝒜ᵃ : Atom → Env × Store × Time → ℙ(AnyVal) × Store
+    𝒜ᵃ⟦p⟧(ρ,σ,τ) = (𝒫ᵃ⟦p⟧(ρ,σ),σ)
+    𝒜ᵃ⟦λ(x,k) → c⟧(ρ,σ,τ) = ({⟨λ(x,k) → c,ρ⟩},σ)
+    𝒜ᵃ⟦THUNK[r,xᵣ,k](p₁,p₂)⟧(ρ,σ,τ) = ({REF[xᵣ](𝓁ᵣ)},σ ⊔ [𝓁ᵣ ↦ ⟨THUNK[k](p₁,p₂),ρ⟩])
+      where 𝓁ᵣ := alloc(r,τ)
+
+    [LET-A]
+    ⟨LET x := a IN c,ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ',σ'',tick(τ)⟩
+      where 
+        (V,σ') := 𝒜ᵃ⟦a⟧(ρ,σ,τ) 
+        𝓁ₓ     := alloc(x,τ)
+        ρ'     := ρ[x ↦ 𝓁ₓ]
+        σ''    := σ' ⊔ [𝓁ₓ ↦ v]
+
+    [REC-A]
+    ⟨REC [r₁,xᵣ₁,x₁] ... [rₙ,xᵣₙ,xₙ] IN c,ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ',σ',tick(τ)⟩
+      where 
+        𝓁ᵣ₁ := alloc(r₁,τ) , ... , 𝓁ᵣₙ := alloc(rₙ,τ)
+        𝓁ₓ₁ := alloc(x₁,τ) , ... , 𝓁ₓₙ := alloc(xₙ,τ)
+        ρ'  := ρ[x₁ ↦ 𝓁ₓ₁,...,xₙ ↦ 𝓁ₓₙ]
+        σ'  := σ ⊔ [𝓁ₓ₁ ↦ REF[xᵣ₁](𝓁ᵣ₁),...,𝓁ₓₙ ↦ REF[xᵣₙ](𝓁ᵣₙ)]
+
+    [LETREC-A]
+    ⟨LETREC { x₁ := a₁ ; ... ; xₙ := aₙ } IN c,ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ,σ',tick(τ)⟩
+      where 
+        REF[xᵣ₁](𝓁₁)  ∈ σ(ρ(x₁)) , ... , REF[xᵣₙ](𝓁ₙ)  ∈ σ(ρ(xₙ))
+        (V₁,σ₁)      := 𝒜ᵃ⟦a₁⟧(ρ,σ,τ) , ... , (vₙ,σₙ) := 𝒜ᵃ⟦aₙ⟧(ρ,σₙ₋₁,τ) 
+        σ'           := σₙ ⊔ [𝓁₁ ↦ v₁,...,𝓁ₙ ↦ vₙ]
+
+    [KON-A]
+    ⟨@K(p₁,p₂),ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ'',σ',σ)],tick(τ)⟩
+      where 
+        ⟨λ(x) → c,ρ'⟩  ∈ 𝒫ᵃ⟦p₁⟧(ρ,σ)
+        𝓁ₓ            := alloc(x,τ)
+        ρ''           := ρ'[x ↦ 𝓁ₓ]
+        σ'            := σ ⊔ [𝓁ₓ ↦ 𝒫ᵃ⟦p₂⟧(ρ,σ)]
+
+    [KON-MEMO-A]
+    ⟨@K(p₁,p₂),ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ'',σ',tick(τ)⟩
+      where 
+        ⟨λ![𝓁,v](x) → c,ρ'⟩  ∈ 𝒫ᵃ⟦p₁⟧(ρ,σ)
+        𝓁ₓ                  := alloc(x,τ)
+        ρ''                 := ρ'[x ↦ 𝓁ₓ]
+        σ'                  := (σ ⊓ ¬[𝓁' ↦ v]) ⊔ [𝓁ₓ ↦ 𝒫ᵃ⟦p₂⟧(ρ,σ),𝓁 ↦ 𝒫ᵃ⟦p⟧(ρ,σ)]
+
+    [FUN-VAL-A]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᵃ ⟨c,ρ'',σ',tick(τ)⟩
+      where 
+        ⟨λ(x,k) → c,ρ'⟩  ∈ 𝒫ᵃ⟦p₁⟧(ρ,σ)
+        𝓁ₓ              := alloc(x,τ) 
+        𝓁ₖ              := alloc(k,τ)
+        ρ''             := ρ'[x ↦ 𝓁ₓ,k ↦ 𝓁ₖ]
+        σ'              := σ ⊔ [𝓁ₓ ↦ 𝒫ᵃ⟦p₂⟧(ρ,σ),𝓁ₖ ↦ 𝒫ᵃ⟦p₃⟧(ρ,σ)]
+
+    [FUN-FORCED-A]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᵃ ⟨@F(x,p₂,p₃),ρ',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)  ∈ 𝒫ᵃ⟦p₁⟧(ρ,σ)
+        FORCED(v)  ∈ σ(𝓁) 
+        𝓁ₓ        := alloc(x,τ)
+        ρ'        := ρ[x ↦ 𝓁ₓ]
+        σ'        := σ ⊔ [𝓁ₓ ↦ v]
+
+    [FUN-THUNK-A]
+    ⟨@F(p₁,p₂,p₃),ρ,σ,τ⟩ ~~>ᵃ ⟨@F(p₁',p₂',k),ρ'[k ↦ 𝓁ₖ],σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)               ∈ 𝒫ᵃ⟦p₁⟧(ρ,σ)
+        ⟨THUNK[k](p₁',p₂'),ρ'⟩  ∈ σ(𝓁) 
+        𝓁ₖ                     := alloc(k,τ)
+        ρ''                    := ρ'[k ↦ 𝓁ₖ]
+        σ'                     := σ ⊔ [𝓁ₖ ↦ ⟨λ![𝓁,σ(𝓁)](x) → @F(x,p₂,p₃),ρ⟩]
+
+    [CASE-VAL-A]
+    ⟨CASE(p) OF { con₁(x₁₁,...,x₁ₙ) → c₁ ; ... ; conᵢ(xᵢ₁,...,xᵢₙ) → cᵢ ; ... ; conₘ(xₘ₁,...,xₘₙ) → cₘ},ρ,σ,τ⟩ ~~>ᵃ ⟨cᵢ,ρ',σ',tick(τ)⟩
+      where 
+        DATA(conᵢ,𝓁₁,...,𝓁ₙ)  ∈ 𝒫ᵃ⟦p⟧(ρ,σ)
+        𝓁ₓ₁                  := alloc(xᵢ₁,τ) , ... , 𝓁ₓₙ := alloc(xᵢₙ,τ)
+        ρ'                   := ρ[xᵢ₁ ↦ 𝓁ₓ₁,...,xᵢₙ ↦ 𝓁ₓₙ]
+        σ'                   := σ ⊔ [𝓁ₓ₁ ↦ σ(𝓁₁),...,𝓁ₓₙ ↦ σ(𝓁ₙ)]
+
+    [CASE-FORCED-A]
+    ⟨CASE(p) OF { alts },ρ,σ,τ⟩ ~~>ᵃ ⟨CASE(x) OF { alts },ρ',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)  ∈ 𝒫ᵃ⟦p⟧(ρ,σ)
+        FORCED(v)  ∈ σ(𝓁) 
+        𝓁ₓ        := alloc(x,τ)
+        ρ'        := ρ[x ↦ 𝓁ₓ]
+        σ'        := σ ⊔ [𝓁ₓ ↦ v]
+
+    [CASE-THUNK-A]
+    ⟨CASE(p) OF { alts },ρ,σ,τ⟩ ~~>ᵃ ⟨@F(p₁',p₂',k),ρ'',σ',tick(τ)⟩
+      where 
+        REF[x](𝓁)               ∈ 𝒫ᵃ⟦p⟧(ρ,σ)
+        ⟨THUNK[k](p₁',p₂'),ρ'⟩  ∈ σ(𝓁) 
+        𝓁ₖ                     := alloc(k,τ)
+        ρ''                    := ρ'[k ↦ 𝓁ₖ]
+        σ'                     := σ ⊔ [𝓁ₖ ↦ ⟨λ![𝓁,σ(𝓁)](x) → CASE(x) OF { alts },ρ⟩]
