@@ -18,7 +18,7 @@ data PreAtom e =
     Pico Pico
   | LamF Name Name e
   | LamK Name e
-  | Thunk Name Name Pico Pico
+  | Thunk Name Name Name Pico Pico
 type Atom = PreAtom Call
 
 data PreCaseBranch e = CaseBranch
@@ -30,7 +30,7 @@ type CaseBranch = PreCaseBranch Call
 
 data PreCall e =
     Let Name (PreAtom e) e
-  | Rec [(Name, Name)] e
+  | Rec [(Name, Name, Name)] e
   | Letrec [(Name, PreAtom e)] e
   | AppK Pico Pico
   | AppF Pico Pico Pico
@@ -77,10 +77,11 @@ letAtom x a = modifyC (return . Fix . Let x a) $ return ()
 
 rec :: (CPSM m) => [Name] -> m ()
 rec xs = do
-  xxs <- mapOnM xs $ \ x -> do
-    x' <- fresh "x"
-    return (x, x')
-  modifyC (return . Fix . Rec xxs) $ return ()
+  rxrxs <- mapOnM xs $ \ x -> do
+    r <- fresh "r"
+    xr <- fresh "xr"
+    return (r, xr, x)
+  modifyC (return . Fix . Rec rxrxs) $ return ()
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
 reify (MetaKon mk) = do
@@ -111,9 +112,10 @@ cpsM e = case e of
   H.App e₁ e₂ -> do
     p₁ <- cpsM e₁
     p₂ <- cpsM e₂
-    x <- fresh "x"
+    r <- fresh "r"
+    xr <- fresh "xr"
     k <- fresh "k"
-    atom $ Thunk x k p₁ p₂
+    atom $ Thunk r xr k p₁ p₂
   H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
@@ -136,7 +138,7 @@ cpsM e = case e of
     let x = Var.varName xv
     a <- cpsAtom e'
     letAtom x a
-    -- the reverse here is to move DEFAULT branche (if it occurs) to the end,
+    -- the reverse here is to move DEFAULT branch (if it occurs) to the end,
     -- since it always shows up at the beginning as per ghc spec.
     b's <- mapOnM (reverse bs) $ \ (con, xvs, e'') -> do
       let xs = map Var.varName xvs

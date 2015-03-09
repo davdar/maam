@@ -1146,6 +1146,9 @@ class (Iterable (k,v) t, Indexed k v t) => MapLike k v t | t -> k, t -> v where
 mapInsert :: (MapLike k v t, Ord k) => k -> v -> t -> t
 mapInsert = mapInsertWith $ const id
 
+mapSingleton :: (MapLike k v t, Ord k) => k -> v -> t
+mapSingleton k v = mapInsert k v mapEmpty
+
 onlyKeys :: (SetLike k t, MapLike k v u) => t -> u -> u
 onlyKeys t u = learnMap u mapEmpty $ iter (\ k -> elimMaybe id (mapInsert k) $ u # k) mapEmpty t
 
@@ -1896,7 +1899,7 @@ instance MapLike k v (Map k v) where
   mapInsertWith f k v (Map m) = Map $ Map.insertWith (flip f) k v m
   mapRemove EmptyMap = Nothing
   mapRemove (Map m) = map (mapSnd Map) $ Map.minViewWithKey m
-instance (Eq v, JoinLattice v) => JoinLattice (Map k v) where
+instance (JoinLattice v) => JoinLattice (Map k v) where
   bot = mapEmpty
   (\/) = mapUnionWith (\/)
 
