@@ -13,19 +13,21 @@ makePrisms ''H.AltCon
 data Pico =
     Var Name
   | Lit Literal
+  deriving (Eq, Ord)
 
 data PreAtom e =
     Pico Pico
   | LamF Name Name e
   | LamK Name e
   | Thunk Name Name Name Pico Pico
+  deriving (Eq, Ord)
 type Atom = PreAtom Call
 
 data PreCaseBranch e = CaseBranch
   { caseBranchCon :: H.AltCon
   , caseBranchArgs :: [Name]
   , caseBranchCall :: e
-  }
+  } deriving (Eq, Ord)
 type CaseBranch = PreCaseBranch Call
 
 data PreCall e =
@@ -36,6 +38,9 @@ data PreCall e =
   | AppF Pico Pico Pico
   | Case Pico [PreCaseBranch e]
   | Halt Pico
+  deriving (Eq, Ord)
+instance (Functorial Eq PreCall) where functorial = W
+instance (Functorial Ord PreCall) where functorial = W
 type Call = Fix PreCall
 
 -- CPS Conversion

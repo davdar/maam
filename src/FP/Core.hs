@@ -1926,6 +1926,12 @@ instance (Ord a) => Ord (Stamped a f) where
   compare = compare `on` stampedID
 
 newtype Fix f = Fix { runFix :: f (Fix f) }
+
+instance (Functorial Eq f) => Eq (Fix f) where
+  Fix x == Fix y = with (functorial :: W (Eq (f (Fix f)))) $ x == y
+instance (Functorial Eq f, Functorial Ord f) => Ord (Fix f) where
+  Fix x `compare` Fix y = with (functorial :: W (Ord (f (Fix f)))) $ x `compare` y
+
 data StampedFix a f = StampedFix
   { stampedFixID :: a
   , stampedFix :: f (StampedFix a f)

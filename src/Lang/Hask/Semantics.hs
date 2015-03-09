@@ -6,7 +6,7 @@ import Lang.Hask.CPS hiding (atom)
 import Name
 import Literal
 import DataCon
-import qualified CoreSyn as H
+import CoreSyn (AltCon(..))
 
 -- Values
 
@@ -17,7 +17,7 @@ class Temporal τ where
 data Time lτ dτ = Time
   { timeLex :: lτ
   , timeDyn :: dτ
-  }
+  } deriving (Eq, Ord)
 makeLenses ''Time
 
 type Env lτ dτ = Map Name (Addr lτ dτ)
@@ -26,12 +26,12 @@ type Store ν lτ dτ = Map (Addr lτ dτ) (ν lτ dτ)
 data Addr lτ dτ = Addr
   { addrName :: Name
   , addrTime :: Time lτ dτ
-  }
+  } deriving (Eq, Ord)
 
 data Data lτ dτ = Data
   { dataCon :: DataCon
   , dataArgs :: [Addr lτ dτ]
-  }
+  } deriving (Eq, Ord)
 
 data FunClo lτ dτ = FunClo
   { funCloLamArg :: Name
@@ -39,7 +39,7 @@ data FunClo lτ dτ = FunClo
   , funCloBody :: Call
   , funCloEnv :: Env lτ dτ
   , funCloTime :: lτ
-  }
+  } deriving (Eq, Ord)
 
 data ThunkClo lτ dτ = ThunkClo
   { thunkCloKonArg :: Name
@@ -47,18 +47,18 @@ data ThunkClo lτ dτ = ThunkClo
   , thunkCloArg :: Pico
   , thunkCloEnv :: Env lτ dτ
   , thunkCloTime :: lτ
-  }
+  } deriving (Eq, Ord)
 
 data Ref lτ dτ = Ref
   { refName :: Name
   , refAddr :: Addr lτ dτ
-  }
+  } deriving (Eq, Ord)
 
 data KonClo lτ dτ = KonClo
   { konCloArg :: Name
   , konCloBody :: Call
   , konCloEnv :: Env lτ dτ
-  }
+  } deriving (Eq, Ord)
 
 data KonMemoClo lτ dτ ν = KonMemoClo
   { konMemoCloLoc :: Addr lτ dτ
@@ -66,7 +66,7 @@ data KonMemoClo lτ dτ ν = KonMemoClo
   , konMemoCloArg :: Name
   , konMemoCloBody :: Call
   , konMemoCloEnv :: Env lτ dτ
-  }
+  } deriving (Eq, Ord)
 
 class Val ν lτ dτ where
   botI :: ν lτ dτ
@@ -268,7 +268,7 @@ call c = do
             let loop bs = do
                   (CaseBranch acon xs c', bs') <- liftMaybeZero $ coerce consL bs
                   case acon of
-                    H.DataAlt con -> msum
+                    DataAlt con -> msum
                       -- The alt is a Data and the value is a Data with the same
                       -- tag; jump to the alt body.
                       [ do
@@ -285,7 +285,7 @@ call c = do
                           refinePico p $ neg $ dataAnyI con
                           loop bs'
                       ]
-                    H.LitAlt l -> msum
+                    LitAlt l -> msum
                       -- The alt is a Lit and the value is the same lit; jump to
                       -- the alt body.
                       [ do
@@ -299,7 +299,7 @@ call c = do
                       ]
                     -- The alt is the default branch; jump to the body _only if
                     -- the value is not a ref_.
-                    H.DEFAULT -> do
+                    DEFAULT -> do
                       refinePico p $ neg $ refAnyI
                       return c
             loop bs0
