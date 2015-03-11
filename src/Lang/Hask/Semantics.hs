@@ -21,7 +21,7 @@ data Time lτ dτ = Time
 makeLenses ''Time
 
 type Env lτ dτ = Map Name (Addr lτ dτ)
-type Store ν lτ dτ = Map (Addr lτ dτ) (ν lτ dτ)
+type Store αν lτ dτ = Map (Addr lτ dτ) (αν lτ dτ)
 
 data Addr lτ dτ = Addr
   { addrName :: Name
@@ -60,41 +60,41 @@ data KonClo lτ dτ = KonClo
   , konCloEnv :: Env lτ dτ
   } deriving (Eq, Ord)
 
-data KonMemoClo lτ dτ ν = KonMemoClo
+data KonMemoClo lτ dτ αν = KonMemoClo
   { konMemoCloLoc :: Addr lτ dτ
-  , konMemoCloVal :: ν lτ dτ
+  , konMemoCloVal :: αν lτ dτ
   , konMemoCloArg :: Name
   , konMemoCloBody :: Call
   , konMemoCloEnv :: Env lτ dτ
   } deriving (Eq, Ord)
 
-class Val ν lτ dτ where
-  botI :: ν lτ dτ
-  neg :: ν lτ dτ -> ν lτ dτ
-  litI :: Literal -> ν lτ dτ
-  litTestE :: Literal -> ν lτ dτ -> Set Bool
-  dataI :: Data lτ dτ -> ν lτ dτ
-  dataAnyI :: DataCon -> ν lτ dτ
-  dataE :: ν lτ dτ -> Maybe (Set (Data lτ dτ))
-  funCloI :: FunClo lτ dτ -> ν lτ dτ
-  funCloE :: ν lτ dτ -> Maybe (Set (FunClo lτ dτ))
-  thunkCloI :: ThunkClo lτ dτ -> ν lτ dτ
-  thunkCloE :: ν lτ dτ -> Maybe (Set (ThunkClo lτ dτ))
-  forcedI :: ν lτ dτ -> ν lτ dτ
-  forcedE :: ν lτ dτ -> Maybe (Set (ν lτ dτ))
-  refI :: Ref lτ dτ -> ν lτ dτ
-  refAnyI :: ν lτ dτ
-  refE :: ν lτ dτ -> Maybe (Set (Ref lτ dτ))
-  konCloI :: KonClo lτ dτ -> ν lτ dτ
-  konCloE :: ν lτ dτ -> Maybe (Set (KonClo lτ dτ))
-  konMemoCloI :: KonMemoClo lτ dτ ν -> ν lτ dτ
-  konMemoCloE :: ν lτ dτ -> Maybe (Set (KonMemoClo lτ dτ ν))
+class Val lτ dτ γν αν | αν -> γν where
+  botI :: αν lτ dτ
+  neg :: αν lτ dτ -> αν lτ dτ
+  litI :: Literal -> αν lτ dτ
+  litTestE :: Literal -> αν lτ dτ -> γν Bool
+  dataI :: Data lτ dτ -> αν lτ dτ
+  dataAnyI :: DataCon -> αν lτ dτ
+  dataE :: αν lτ dτ -> γν (Data lτ dτ)
+  funCloI :: FunClo lτ dτ -> αν lτ dτ
+  funCloE :: αν lτ dτ -> γν (FunClo lτ dτ)
+  thunkCloI :: ThunkClo lτ dτ -> αν lτ dτ
+  thunkCloE :: αν lτ dτ -> γν (ThunkClo lτ dτ)
+  forcedI :: αν lτ dτ -> αν lτ dτ
+  forcedE :: αν lτ dτ -> γν (αν lτ dτ)
+  refI :: Ref lτ dτ -> αν lτ dτ
+  refAnyI :: αν lτ dτ
+  refE :: αν lτ dτ -> γν (Ref lτ dτ)
+  konCloI :: KonClo lτ dτ -> αν lτ dτ
+  konCloE :: αν lτ dτ -> γν (KonClo lτ dτ)
+  konMemoCloI :: KonMemoClo lτ dτ αν -> αν lτ dτ
+  konMemoCloE :: αν lτ dτ -> γν (KonMemoClo lτ dτ αν)
 
 -- State Space
 
-data 𝒮 ν lτ dτ = 𝒮
+data 𝒮 αν lτ dτ = 𝒮
   { 𝓈Env :: Env lτ dτ
-  , 𝓈Store :: Store ν lτ dτ
+  , 𝓈Store :: Store αν lτ dτ
   , 𝓈Time :: Time lτ dτ
   }
 makeLenses ''𝒮
@@ -103,33 +103,32 @@ makeLenses ''𝒮
 
 class
   ( Monad m
-  , MonadStateE (𝒮 ν lτ dτ) m
+  , MonadStateE (𝒮 αν lτ dτ) m
   , MonadZero m
-  , MonadTop m
   , MonadPlus m
-  , Val ν lτ dτ
+  , Val lτ dτ Set αν
   , Ord (Addr lτ dτ)
-  , JoinLattice (ν lτ dτ)
-  , MeetLattice (ν lτ dτ)
+  , JoinLattice (αν lτ dτ)
+  , MeetLattice (αν lτ dτ)
   , Temporal lτ
   , Temporal dτ
-  ) => Analysis ν lτ dτ m | m -> ν , m -> lτ , m -> dτ where
+  ) => Analysis αν lτ dτ m | m -> αν , m -> lτ , m -> dτ where
 
 -- Finite observations on values in the abstract domain
 
-refinePico :: (Analysis ν lτ dτ m) => Pico -> ν lτ dτ -> m ()
+refinePico :: (Analysis αν lτ dτ m) => Pico -> αν lτ dτ -> m ()
 refinePico (Var x) v = do
   𝓁 <- alloc x
   modifyL 𝓈StoreL $ mapInsertWith (/\) 𝓁 v
 refinePico (Lit _) _ = return ()
 
-extract :: (Analysis ν lτ dτ m) => (a -> ν lτ dτ) -> (ν lτ dτ -> Maybe (Set a)) -> Pico -> ν lτ dτ -> m a
+extract :: (Analysis αν lτ dτ m) => (a -> αν lτ dτ) -> (αν lτ dτ -> Set a) -> Pico -> αν lτ dτ -> m a
 extract intro elim p v = do
-  a <- elimMaybe mtop mset $ elim v
+  a <- mset $ elim v
   refinePico p $ intro a
   return a
 
-extractIsLit :: (Analysis ν lτ dτ m) => Literal -> Pico -> ν lτ dτ -> m ()
+extractIsLit :: (Analysis αν lτ dτ m) => Literal -> Pico -> αν lτ dτ -> m ()
 extractIsLit l p v = do
   b <- mset $ litTestE l v
   guard b
@@ -137,47 +136,47 @@ extractIsLit l p v = do
 
 -- Time management
 
-tickLex :: (Analysis ν lτ dτ m) => Call -> m ()
+tickLex :: (Analysis αν lτ dτ m) => Call -> m ()
 tickLex = modifyL (timeLexL <.> 𝓈TimeL) . tick
 
-tickDyn :: (Analysis ν lτ dτ m) => Call -> m ()
+tickDyn :: (Analysis αν lτ dτ m) => Call -> m ()
 tickDyn = modifyL (timeDynL <.> 𝓈TimeL) . tick
 
-alloc :: (Analysis ν lτ dτ m) => Name -> m (Addr lτ dτ)
+alloc :: (Analysis αν lτ dτ m) => Name -> m (Addr lτ dτ)
 alloc x = do
   τ <- getL 𝓈TimeL
   return $ Addr x τ
 
 -- Updating values in the store
 
-bindJoin :: (Analysis ν lτ dτ m) => Name -> ν lτ dτ -> m ()
+bindJoin :: (Analysis αν lτ dτ m) => Name -> αν lτ dτ -> m ()
 bindJoin x v = do
   𝓁 <- alloc x
   modifyL 𝓈EnvL $ mapInsert x 𝓁
   modifyL 𝓈StoreL $ mapInsertWith (\/) 𝓁 v
 
-updateRef :: (Analysis ν lτ dτ m) => Addr lτ dτ -> ν lτ dτ -> ν lτ dτ -> m ()
+updateRef :: (Analysis αν lτ dτ m) => Addr lτ dτ -> αν lτ dτ -> αν lτ dτ -> m ()
 updateRef 𝓁 vOld vNew = modifyL 𝓈StoreL $ \ σ -> 
   mapModify (\ v -> v /\ neg vOld) 𝓁 σ \/ mapSingleton 𝓁 vNew
 
 -- Denotations
 
-addr :: (Analysis ν lτ dτ m) => Addr lτ dτ -> m (ν lτ dτ)
+addr :: (Analysis αν lτ dτ m) => Addr lτ dτ -> m (αν lτ dτ)
 addr 𝓁 = do
   σ <- getL 𝓈StoreL
   liftMaybeZero $ σ # 𝓁
 
-var :: (Analysis ν lτ dτ m) => Name -> m (ν lτ dτ)
+var :: (Analysis αν lτ dτ m) => Name -> m (αν lτ dτ)
 var x = do
   ρ <- getL 𝓈EnvL
   addr *$ liftMaybeZero $ ρ # x
 
-pico :: (Analysis ν lτ dτ m) => Pico -> m (ν lτ dτ)
+pico :: (Analysis αν lτ dτ m) => Pico -> m (αν lτ dτ)
 pico = \ case
   Var n -> var n
   Lit l -> return $ litI l
 
-atom :: (Analysis ν lτ dτ m) => Atom -> m (ν lτ dτ)
+atom :: (Analysis αν lτ dτ m) => Atom -> m (αν lτ dτ)
 atom = \ case
   Pico p -> pico p
   LamF x k c -> do
@@ -194,7 +193,7 @@ atom = \ case
     updateRef 𝓁 botI $ thunkCloI $ ThunkClo k p₁ p₂ ρ lτ
     return $ refI $ Ref xr 𝓁
 
-forceThunk :: (Analysis ν lτ dτ m) => Pico -> ν lτ dτ -> (Pico -> Call) -> m Call
+forceThunk :: (Analysis αν lτ dτ m) => Pico -> αν lτ dτ -> (Pico -> Call) -> m Call
 forceThunk p v mk = do
   Ref x 𝓁 <- extract refI refE p v
   delayv <- addr 𝓁
@@ -204,18 +203,19 @@ forceThunk p v mk = do
         bindJoin x v'
         return $ mk $ Var x
     , do
-        ThunkClo k p₁' p₂' ρ lτ <- extract thunkCloI thunkCloE p delayv
-        putL 𝓈EnvL ρ
-        putL (timeLexL <.> 𝓈TimeL) lτ
-        kv <- atom $ LamK x $ mk $ Var x
+        ThunkClo k p₁' p₂' ρ' lτ' <- extract thunkCloI thunkCloE p delayv
+        ρ <- getL 𝓈EnvL
+        let kv = konMemoCloI $ KonMemoClo 𝓁 delayv x (mk $ Var x) ρ
+        putL 𝓈EnvL ρ'
+        putL (timeLexL <.> 𝓈TimeL) lτ'
         bindJoin k kv
         return $ Fix $ AppF p₁' p₂' $ Var k
     ]
 
-call :: (Analysis ν lτ dτ m) => Call -> m Call
+call :: (Analysis αν lτ dτ m) => Call -> m Call
 call c = do
   tickDyn c
-  case runFix c of
+  case unFix c of
     Let x a c' -> do
       v <- atom a  
       bindJoin x v
@@ -241,7 +241,7 @@ call c = do
             return c'
         , do
             KonMemoClo 𝓁 v x c' ρ <- extract konMemoCloI konMemoCloE p₁ v₁
-            updateRef 𝓁 v v₂
+            updateRef 𝓁 v $ forcedI v₂
             putL 𝓈EnvL ρ
             bindJoin x v₂
             return c'

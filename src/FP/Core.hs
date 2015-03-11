@@ -334,21 +334,19 @@ iterateAppend n a = niterOn n null (a ++)
 
 -- Lattice  {{{
 
-class JoinLattice a where
-  bot :: a
-  (\/) :: a -> a -> a
-
-collect :: (JoinLattice a, PartialOrder a) => (a -> a) -> a -> a
+class Bot a where bot :: a
+class Join a where (\/) :: a -> a -> a
+class Top a where top :: a
+class Meet a where (/\) :: a -> a -> a
+class (Bot a, Join a) => JoinLattice a
+class (Top a, Meet a) => MeetLattice a
+class (JoinLattice a, MeetLattice a) => Lattice a where
+  
+collect :: (Join a, PartialOrder a) => (a -> a) -> a -> a
 collect f = poiter $ \ x -> x \/ f x
 
-collectN :: (JoinLattice a, PartialOrder a, Eq n, Peano n) => n -> (a -> a) -> a -> a
+collectN :: (Join a, PartialOrder a, Eq n, Peano n) => n -> (a -> a) -> a -> a
 collectN n f x0 = niterOn n x0 $ \ x -> x \/ f x
-
-class MeetLattice a where
-  top :: a
-  (/\) :: a -> a -> a
-
-class (JoinLattice a, MeetLattice a) => Lattice a where
 
 -- }}}
 
@@ -562,7 +560,7 @@ many aM = mconcat
 
 -- MonadMaybe {{{
 
-newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
+newtype MaybeT m a = MaybeT { unMaybeT :: m (Maybe a) }
 class (Monad m) => MonadMaybeI m where
   maybeI :: m ~> MaybeT m
 class (Monad m) => MonadMaybeE m where
@@ -573,7 +571,7 @@ maybeEM :: (MonadMaybeE m) => m (Maybe a) -> m a
 maybeEM = maybeE . MaybeT
 
 lookMaybe :: (MonadMaybeI m) => m a -> m (Maybe a)
-lookMaybe = runMaybeT . maybeI
+lookMaybe = unMaybeT . maybeI
 
 abort :: (MonadMaybeE m) => m a
 abort = maybeEM $ return Nothing
@@ -589,7 +587,7 @@ aM1 <|> aM2 = do
 
 -- MonadError {{{
 
-newtype ErrorT e m a = ErrorT { runErrorT :: m (e :+: a) }
+newtype ErrorT e m a = ErrorT { unErrorT :: m (e :+: a) }
 
 class (Monad m) => MonadErrorE e m where
   errorE :: ErrorT e m ~> m
@@ -605,7 +603,7 @@ throw e = errorE $ ErrorT $ return $ Inl e
 
 catch :: (MonadErrorI e m) => m a -> (e -> m a) -> m a
 catch aM h = do
-  aeM <- runErrorT $ errorI aM
+  aeM <- unErrorT $ errorI aM
   case aeM of
     Inl e -> h e
     Inr a -> return a
@@ -655,7 +653,7 @@ localSetL l = localL l . const
 
 -- MonadWriter {{{
 
-newtype WriterT o m a = WriterT { runWriterT :: m (a, o) }
+newtype WriterT o m a = WriterT { unWriterT :: m (a, o) }
 
 class (Monad m) => MonadWriterI o m | m -> o where
   writerI :: m ~> WriterT o m
@@ -670,7 +668,7 @@ tellP :: (MonadWriterE o m) => P o -> o -> m ()
 tellP P = tell
 
 hijack :: (MonadWriterI o m) => m a -> m (a, o)
-hijack = runWriterT . writerI
+hijack = unWriterT . writerI
 
 -- }}}
 
@@ -774,35 +772,35 @@ class (MonadReader r m, MonadWriter o m, MonadState s m) => MonadRWS r o s m whe
 
 -- }}}
 
--- MonadList {{{
+-- -- MonadList {{{
 
-newtype ListT m a = ListT { runListT :: m [a] }
+newtype ListT m a = ListT { unListT :: m [a] }
 
-class (Monad m) => MonadListI m where
-  listI :: m ~> ListT m
-class (Monad m) => MonadListE m where
-  listE :: ListT m ~> m
-class (MonadListI m, MonadListE m) => MonadList m where
+-- class (Monad m) => MonadListI m where
+--   listI :: m ~> ListT m
+-- class (Monad m) => MonadListE m where
+--   listE :: ListT m ~> m
+-- class (MonadListI m, MonadListE m) => MonadList m where
+-- 
+-- liftList :: (Monad m, MonadListE m) => [a] -> m a
+-- liftList = listE . ListT . return
+-- 
+-- listAbort :: (MonadListE m) => m a
+-- listAbort = listE $ ListT $ unit []
+-- 
+-- -- }}}
+-- 
+-- -- MonadListSet {{{
 
-liftList :: (Monad m, MonadListE m) => [a] -> m a
-liftList = listE . ListT . return
+newtype ListSetT m a = ListSetT { unListSetT :: m (ListSet a) }
 
-listAbort :: (MonadListE m) => m a
-listAbort = listE $ ListT $ unit []
-
--- }}}
-
--- MonadListSet {{{
-
-newtype ListSetT m a = ListSetT { runListSetT :: m (ListSet a) }
-
-class (Monad m) => MonadListSetI m  where
-  listSetI :: m ~> ListSetT m
-class (Monad m) => MonadListSetE m where
-  listSetE :: ListSetT m ~> m
-class (MonadListSetI m, MonadListSetE m) => MonadListSet m where
-
--- }}}
+-- class (Monad m) => MonadListSetI m  where
+--   listSetI :: m ~> ListSetT m
+-- class (Monad m) => MonadListSetE m where
+--   listSetE :: ListSetT m ~> m
+-- class (MonadListSetI m, MonadListSetE m) => MonadListSet m where
+-- 
+-- -- }}}
 
 -- MonadIO {{{
 
@@ -818,22 +816,22 @@ class MonadQ m where
 
 -- }}}
 
--- MonadSet {{{
+-- -- MonadSet {{{
 
-newtype SetT m a = SetT { runSetT :: m (Set a) }
+newtype SetT m a = SetT { unSetT :: m (Set a) }
 mapSetT :: (m (Set a) -> m (Set b)) -> SetT m a -> SetT m b
-mapSetT f = SetT . f . runSetT
+mapSetT f = SetT . f . unSetT
 
-class (Bind m) => MonadSetI m where
-  setI :: m ~> SetT m
-class (Bind m) => MonadSetE m where
-  setE :: SetT m ~> m
-
--- }}}
+-- class (Bind m) => MonadSetI m where
+--   setI :: m ~> SetT m
+-- class (Bind m) => MonadSetE m where
+--   setE :: SetT m ~> m
+-- 
+-- -- }}}
 
 -- MonadKon {{{
 
-newtype KonT r m a = KonT { runKonT :: (a -> m r) -> m r }
+newtype KonT r m a = KonT { unKonT :: (a -> m r) -> m r }
 class (Monad m) => MonadKonI r m | m -> r where
   konI :: m ~> KonT r m
 class (Monad m) => MonadKonE r m | m -> r where
@@ -844,7 +842,7 @@ callCC :: (MonadKonE r m) => ((a -> m r) -> m r) -> m a
 callCC = konE . KonT
 
 withC :: (MonadKonI r m) => (a -> m r) -> m a -> m r
-withC k aM = runKonT (konI aM) k
+withC k aM = unKonT (konI aM) k
 
 reset :: (MonadKon r m) => m r -> m r
 reset aM = callCC $ \ k -> k *$ withC return aM
@@ -856,8 +854,8 @@ modifyC f aM = callCC $ \ k -> withC (f *. k) aM
 
 -- MonadOpaqueKon {{{
 
-newtype KFun r m a = KFun { runKFun :: a -> m r }
-newtype OpaqueKonT k r m a = OpaqueKonT { runOpaqueKonT :: k r m a -> m r }
+newtype KFun r m a = KFun { unKFun :: a -> m r }
+newtype OpaqueKonT k r m a = OpaqueKonT { unOpaqueKonT :: k r m a -> m r }
 -- class (Monad m) => MonadOpaqueKonI k r m | m -> k, m -> r where
 --   opaqueKonI :: m ~> OpaqueKonT k r m
 -- class (Monad m) => MonadOpaqueKonE k r m | m -> k, m -> r where
@@ -1109,7 +1107,7 @@ toSet :: (Ord a) => [a] -> Set a
 toSet = iter insert empty
 
 fromSet :: Set a -> [a]
-fromSet = iter (:) []
+fromSet = foldr (:) []
 
 -- }}}
 
@@ -1173,7 +1171,7 @@ data P a = P
 -- Lens {{{
 
 data Cursor a b = Cursor { focus :: a, construct :: a -> b }
-data Lens a b = Lens { runLens :: a -> Cursor b a }
+data Lens a b = Lens { unLens :: a -> Cursor b a }
 
 lens :: (a -> b) -> (a -> b -> a) -> Lens a b
 lens getter setter = Lens $ \ s -> Cursor (getter s) (setter s)
@@ -1184,23 +1182,23 @@ isoLens to from = lens to $ const from
 instance Category Lens where
   catid = isoLens id id
   g <.> f = Lens $ \ a -> 
-    let Cursor b ba = runLens f a
-        Cursor c cb = runLens g b
+    let Cursor b ba = unLens f a
+        Cursor c cb = unLens g b
     in Cursor c $ ba . cb
 
 access :: Lens a b -> a -> b
-access = focus .: runLens
+access = focus .: unLens
 
 update :: Lens a b -> (b -> b) -> a -> a
 update l f a =
-  let Cursor b ba = runLens l a
+  let Cursor b ba = unLens l a
   in ba $ f b
 (~:) :: Lens a b -> (b -> b) -> a -> a
 (~:) = update
 
 updateM :: (Monad m) => Lens a b -> (b -> m b) -> a -> m a
 updateM l f a =
-  let Cursor b ba = runLens l a
+  let Cursor b ba = unLens l a
   in map ba $ f b
 
 set :: Lens a b -> b -> a -> a
@@ -1262,13 +1260,13 @@ instance Functor ((->) a) where
 instance (Monoid b) => Monoid (a -> b) where
   null = const null
   (++) f g x = f x ++ g x
-instance (JoinLattice b) => JoinLattice (a -> b) where
-  bot = const bot
-  (\/) f g x = f x \/ g x
-instance (MeetLattice b) => MeetLattice (a -> b) where
-  top = const top
-  (/\) f g x = f x /\ g x
-instance (Lattice b) => Lattice (a -> b) where
+instance (Bot b) => Bot (a -> b) where bot = const bot
+instance (Join b) => Join (a -> b) where (f \/ g) x = f x \/ g x
+instance (Top b) => Top (a -> b) where top = const top
+instance (Meet b) => Meet (a -> b) where (f /\ g) x = f x /\ g x
+instance (JoinLattice b) => JoinLattice (a -> b)
+instance (MeetLattice b) => MeetLattice (a -> b)
+instance (Lattice b) => Lattice (a -> b)
 
 applyTo :: a -> (a -> b) -> b
 applyTo = flip ($)
@@ -1324,12 +1322,13 @@ instance (Monad m) => Monoid (KleisliEndo m a) where
 
 -- Bool {{{
 
-instance JoinLattice Bool where
-  bot = False
-  (\/) = (||)
-instance MeetLattice Bool where
-  top = True
-  (/\) = (&&)
+instance Bot Bool where bot = False
+instance Join Bool where (\/) = (||)
+instance Top Bool where top = True
+instance Meet Bool where (/\) = (&&)
+instance JoinLattice Bool
+instance MeetLattice Bool
+instance Lattice Bool
 instance Monoid Bool where
   null = bot
   (++) = (\/)
@@ -1419,9 +1418,13 @@ instance ToString Int where
   toString = show
 instance PartialOrder Int where
   pcompare = fromOrdering .: compare
-instance JoinLattice Int where
-  bot = Prelude.minBound
-  x \/ y = Prelude.max x y
+instance Bot Int where bot = Prelude.minBound
+instance Join Int where (\/) = Prelude.max
+instance Top Int where top = Prelude.maxBound
+instance Meet Int where (/\) = Prelude.min
+instance JoinLattice Int
+instance MeetLattice Int
+instance Lattice Int
 instance Monoid Int where
   null = 0
   (++) = (+)
@@ -1498,15 +1501,21 @@ instance (PartialOrder a, PartialOrder b, PartialOrder c, PartialOrder d, Partia
 instance (Monoid a, Monoid b) => Monoid (a, b) where
   null = (null, null)
   (a1, b1) ++ (a2, b2) = (a1 ++ a2, b1 ++ b2)
-instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b) where
+instance (Bot a, Bot b) => Bot (a, b) where 
   bot = (bot, bot)
+instance (Join a, Join b) => Join (a, b) where 
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
-instance (JoinLattice a, JoinLattice b, JoinLattice c) => JoinLattice (a, b, c) where
+instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b)
+instance (Bot a, Bot b, Bot c) => Bot (a, b, c) where 
   bot = (bot, bot, bot)
+instance (Join a, Join b, Join c) => Join (a, b, c) where 
   (a1, b1, c1) \/ (a2, b2, c2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2)
-instance (JoinLattice a, JoinLattice b, JoinLattice c, JoinLattice d, JoinLattice e) => JoinLattice (a, b, c, d, e) where
+instance (JoinLattice a, JoinLattice b, JoinLattice c) => JoinLattice (a, b, c)
+instance (Bot a, Bot b, Bot c, Bot d, Bot e) => Bot (a, b, c, d, e) where 
   bot = (bot, bot, bot, bot, bot)
+instance (Join a, Join b, Join c, Join d, Join e) => Join (a, b, c, d, e) where
   (a1, b1, c1, d1, e1) \/ (a2, b2, c2, d2, e2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2, d1 \/ d2, e1 \/ e2)
+instance (JoinLattice a, JoinLattice b, JoinLattice c, JoinLattice d, JoinLattice e) => JoinLattice (a, b, c, d, e)
 instance (JoinLattice a) => Functorial JoinLattice ((,) a) where functorial = W
 instance Bifunctorial Eq (,) where
   bifunctorial = W
@@ -1555,7 +1564,7 @@ instance Monad ((:+:) a) where
 
 instance MonadErrorE a ((:+:) a) where
   errorE :: ErrorT a ((:+:) a) b -> a :+: b
-  errorE aME = case runErrorT aME of
+  errorE aME = case unErrorT aME of
     Inl a -> Inl a
     Inr (Inl a) -> Inl a
     Inr (Inr b) -> Inr b
@@ -1599,8 +1608,8 @@ mapSum _ f (Inr x) = Inr $ f x
 
 -- Compose {{{
 
-newtype (t :.: u) a = Compose { runCompose :: t (u a) }
-  deriving (Eq, Ord, JoinLattice, PartialOrder)
+newtype (t :.: u) a = Compose { unCompose :: t (u a) }
+  deriving (Eq, Ord, Bot, Join, JoinLattice, Top, Meet, MeetLattice, Lattice, PartialOrder)
 
 onComposeIso :: (t (u a) -> t (u b)) -> (t :.: u) a -> (t :.: u) b
 onComposeIso f (Compose x) = Compose $ f x
@@ -1615,7 +1624,7 @@ instance (Functorial JoinLattice t, Functorial JoinLattice u) => Functorial Join
     with (functorial :: W (JoinLattice (t (u a)))) $
     W
 
-newtype (t :..: u) m a = Compose2 { runCompose2 :: t (u m) a }
+newtype (t :..: u) m a = Compose2 { unCompose2 :: t (u m) a }
 
 -- }}}
 
@@ -1637,7 +1646,7 @@ instance MonadMaybeI Maybe where
   maybeI = MaybeT . Just
 instance MonadMaybeE Maybe where
   maybeE :: MaybeT Maybe ~> Maybe
-  maybeE aM = case runMaybeT aM of
+  maybeE aM = case unMaybeT aM of
     Nothing -> Nothing
     Just aM' -> aM'
 instance MonadMaybe Maybe where
@@ -1821,9 +1830,10 @@ instance MonadPlus Set where
   (<+>) = union
 instance MonadConcat Set where
   (<++>) = union
-instance JoinLattice (Set a) where
-  bot = empty
-  (\/) = union
+instance Bot (Set a) where bot = empty
+instance Join (Set a) where (\/) = union
+instance JoinLattice (Set a)
+instance Meet (Set a) where (/\) = intersection
 instance Monoid (Set a) where
   null = empty
   (++) = union
@@ -1841,13 +1851,13 @@ setTranspose aMM = loop $ fromSet aMM
 
 -- ListSet {{{
 
-newtype ListSet a = ListSet { runListSet :: [a] }
+newtype ListSet a = ListSet { unListSet :: [a] }
   deriving (Monoid, Unit, Functor, Product, Applicative, Bind, Monad, Iterable a, Buildable a, Container a)
 instance (Ord a) => PartialOrder (ListSet a) where
   pcompare = pcompare `on` (toSet . toList)
-instance JoinLattice (ListSet a) where
-  bot = ListSet []
-  xs1 \/ xs2 = ListSet $ runListSet xs1 ++ runListSet xs2
+instance Bot (ListSet a) where bot = ListSet []
+instance Join (ListSet a) where (\/) = ListSet .: ((++) `on` unListSet)
+instance JoinLattice (ListSet a)
 instance MonadPlus ListSet where
   (<+>) = (\/)
 
@@ -1899,9 +1909,9 @@ instance MapLike k v (Map k v) where
   mapInsertWith f k v (Map m) = Map $ Map.insertWith (flip f) k v m
   mapRemove EmptyMap = Nothing
   mapRemove (Map m) = map (mapSnd Map) $ Map.minViewWithKey m
-instance (JoinLattice v) => JoinLattice (Map k v) where
-  bot = mapEmpty
-  (\/) = mapUnionWith (\/)
+instance Bot (Map k v) where bot = mapEmpty
+instance (Join v) => Join (Map k v) where (\/) = mapUnionWith (\/)
+instance (JoinLattice v) => JoinLattice (Map k v)
 
 -- }}}
 
@@ -1925,7 +1935,7 @@ instance (Eq a) => Eq (Stamped a f) where
 instance (Ord a) => Ord (Stamped a f) where
   compare = compare `on` stampedID
 
-newtype Fix f = Fix { runFix :: f (Fix f) }
+newtype Fix f = Fix { unFix :: f (Fix f) }
 
 instance (Functorial Eq f) => Eq (Fix f) where
   Fix x == Fix y = with (functorial :: W (Eq (f (Fix f)))) $ x == y
@@ -1964,7 +1974,7 @@ instance MonadIO IO where
   liftIO = id
 instance MonadErrorE String IO where
   errorE :: ErrorT String IO ~> IO
-  errorE = elimSum (Prelude.fail . toChars) return *. runErrorT
+  errorE = elimSum (Prelude.fail . toChars) return *. unErrorT
 
 print :: String -> IO ()
 print = Prelude.putStrLn . toChars
@@ -1990,6 +2000,6 @@ instance MonadZero Q where
   mzero = Prelude.fail $ toChars "mzero"
 instance MonadErrorE String Q where
   errorE :: ErrorT String Q ~> Q
-  errorE = elimSum (Prelude.fail . toChars) return *. runErrorT
+  errorE = elimSum (Prelude.fail . toChars) return *. unErrorT
 
 -- }}}

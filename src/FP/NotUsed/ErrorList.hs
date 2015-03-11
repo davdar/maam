@@ -59,7 +59,7 @@ errorListTranspose (ErrorListSuccess xs xss) =
 
 -- MonadErrorList {{{
 
-newtype ErrorListT e m a = ErrorListT { runErrorListT :: m (ErrorList e a) }
+newtype ErrorListT e m a = ErrorListT { unErrorListT :: m (ErrorList e a) }
 
 class (Monad m) => MonadErrorListI e m where
   errorListI :: m ~> ErrorListT e m
@@ -83,12 +83,12 @@ throwErrorList = errorListE . ErrorListT . unit . ErrorListFailure . unit
 -- ErrorListT {{{
 
 errorListCommute :: (Functor m) => ErrorListT e (ErrorListT e m) ~> ErrorListT e (ErrorListT e m)
-errorListCommute aMM = ErrorListT $ ErrorListT $ errorListTranspose ^$ runErrorListT $ runErrorListT aMM
+errorListCommute aMM = ErrorListT $ ErrorListT $ errorListTranspose ^$ unErrorListT $ unErrorListT aMM
 
 instance (Unit m) => Unit (ErrorListT e m) where
   unit = ErrorListT . unit . unit
 instance (Functor m) => Functor (ErrorListT e m) where
-  map f = ErrorListT . f ^^. runErrorListT
+  map f = ErrorListT . f ^^. unErrorListT
 instance (Monad m, Functorial Monoid m) => Product (ErrorListT e m) where
   (<*>) = mpair
 instance (Monad m, Functorial Monoid m) => Applicative (ErrorListT e m) where
@@ -96,15 +96,15 @@ instance (Monad m, Functorial Monoid m) => Applicative (ErrorListT e m) where
 instance (Bind m, Functorial Monoid m) => Bind (ErrorListT e m) where
   (>>=) :: forall a b. ErrorListT e m a -> (a -> ErrorListT e m b) -> ErrorListT e m b
   aM >>= k = ErrorListT $ do
-    xs <- runErrorListT aM
-    runErrorListT $ concat $ k ^$ xs
+    xs <- unErrorListT aM
+    unErrorListT $ concat $ k ^$ xs
 instance (Monad m, Functorial Monoid m) => Monad (ErrorListT e m) where
 instance FunctorUnit2 (ErrorListT e) where
   funit2 = ErrorListT .^ unit
 instance FunctorJoin2 (ErrorListT e) where
-  fjoin2 = ErrorListT . errorListConcat ^. runErrorListT . runErrorListT
+  fjoin2 = ErrorListT . errorListConcat ^. unErrorListT . unErrorListT
 instance FunctorFunctor2 (ErrorListT e) where
-  ftMap f = ErrorListT . f . runErrorListT
+  ftMap f = ErrorListT . f . unErrorListT
 
 instance (Functorial Monoid m) => Monoid (ErrorListT e m a) where
   null = 
@@ -112,7 +112,7 @@ instance (Functorial Monoid m) => Monoid (ErrorListT e m a) where
     ErrorListT null
   xs ++ ys =
     with (functorial :: W (Monoid (m (ErrorList e a)))) $
-    ErrorListT $ runErrorListT xs ++ runErrorListT ys
+    ErrorListT $ unErrorListT xs ++ unErrorListT ys
 instance (Functorial Monoid m) => Functorial Monoid (ErrorListT e m) where functorial = W
 instance (Functorial Monoid m) => MonadZero (ErrorListT e m) where
   mzero = null
@@ -128,14 +128,14 @@ instance (Monad m, Functorial Monoid m) => MonadErrorListE e (ErrorListT e m) wh
 instance (Monad m, Functorial Monoid m) => MonadErrorList e (ErrorListT e m) where
 
 errorToErrorList :: (Functor m) => ErrorT e m ~> ErrorListT e m
-errorToErrorList aM = ErrorListT $ ff ^$ runErrorT aM
+errorToErrorList aM = ErrorListT $ ff ^$ unErrorT aM
   where
     ff (Inl e) = ErrorListFailure [e]
     ff (Inr a) = ErrorListSuccess a []
 
 -- this might not be right
 errorListToError :: (Monad m, Functorial Monoid m) => ErrorListT e (ErrorListT e m) a -> ErrorT e (ErrorListT e m) a
-errorListToError aM = ErrorT $ mconcat . ff *$ runErrorListT aM
+errorListToError aM = ErrorT $ mconcat . ff *$ unErrorListT aM
   where
     ff (ErrorListFailure e) = map (return . Inl) e
     ff (ErrorListSuccess x xs) = map (return . Inr) $ x:xs
@@ -154,12 +154,12 @@ instance (Monad m, Functorial Monoid m) => MonadErrorE e (ErrorListT e m) where
 -- State // ErrorList {{{
 
 stateErrorListCommute :: (Functor m, Monoid s) => StateT s (ErrorListT e m) ~> ErrorListT e (StateT s m)
-stateErrorListCommute aMM = ErrorListT $ StateT $ \ s -> ff ^$ runErrorListT $ runStateT s aMM
+stateErrorListCommute aMM = ErrorListT $ StateT $ \ s -> ff ^$ unErrorListT $ unStateT s aMM
   where
     ff asL = (fst ^$ asL, concat $ snd ^$ asL)
 
 errorListStateCommute :: (Functor m) => ErrorListT e (StateT s m) ~> StateT s (ErrorListT e m)
-errorListStateCommute aMM = StateT $ \ s -> ErrorListT $ ff ^$ runStateT s $ runErrorListT aMM
+errorListStateCommute aMM = StateT $ \ s -> ErrorListT $ ff ^$ unStateT s $ unErrorListT aMM
   where
     ff (xs, s) = (,s) ^$ xs
 

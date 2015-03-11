@@ -21,18 +21,18 @@ instance (MonadStep ς m, Functorial JoinLattice m) => MonadStep (ς :.: ListSet
   mstepγ :: forall a b. (a -> ListSetT m b) -> (ς :.: ListSet) a -> (ς :.: ListSet) b
   mstepγ f = 
     with (functorial :: W (JoinLattice (m (ListSet b)))) $
-    onComposeIso $ (mstepγ :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')) $ joins . map (runListSetT . f)
+    onComposeIso $ (mstepγ :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')) $ joins . map (unListSetT . f)
 
 -- Flow Sensitive
 instance (MonadStep ς m, Commute ς ListSet, Functorial JoinLattice ς) => MonadStep (ListSet :.: ς) (ListSetT m) where
   mstepγ :: forall a b. (a -> ListSetT m b) -> (ListSet :.: ς) a -> (ListSet :.: ς) b
   mstepγ f = 
     with (functorial :: W (JoinLattice (ς (ListSet b)))) $
-    onComposeIso $ commute . joins . map (mstepγ $ runListSetT . f)
+    onComposeIso $ commute . joins . map (mstepγ $ unListSetT . f)
 
 instance Commute ID ListSet where
   commute :: ID (ListSet a) -> ListSet (ID a)
-  commute = map ID . runID
+  commute = map ID . unID
 
 instance Commute ((,) 𝓈) ListSet where
   commute :: (𝓈, ListSet a) -> ListSet (𝓈, a)
@@ -40,7 +40,7 @@ instance Commute ((,) 𝓈) ListSet where
 
 instance (Commute t ListSet, Commute u ListSet, Functor t) => Commute (t :.: u) ListSet where
   commute :: (t :.: u) (ListSet a) -> ListSet ((t :.: u) a)
-  commute = map Compose . commute . map commute . runCompose
+  commute = map Compose . commute . map commute . unCompose
 
 newtype IsoMonadStep ς1 ς2 m a = IsoMonadStep { runIsoMonadStep :: m a }
   deriving 

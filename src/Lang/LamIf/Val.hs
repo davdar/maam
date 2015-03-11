@@ -68,7 +68,7 @@ instance (Ord (lτ ψ), Ord (dτ ψ)) =>  Val lτ dτ ψ (AVal lτ dτ ψ) where
 -- Lifting to Powerset
 newtype Power val lτ dτ ψ = Power { runPower :: Set (val lτ dτ ψ) }
   deriving 
-    ( Eq, Ord, PartialOrder, JoinLattice
+    ( Eq, Ord, PartialOrder, Bot, Join, JoinLattice
     , Iterable (val lτ dτ ψ), Container (val lτ dτ ψ), SetLike (val lτ dτ ψ)
     )
 

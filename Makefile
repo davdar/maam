@@ -1,11 +1,12 @@
 .PHONY: default clean init fp darkdown maam maam-lam-if maam-hask build-all
 
-default: maam-hask
+default: all
 
 clean:
 	rm -f .extensions*
 	rm -f .ghc_options*
 	cabal clean
+	- hdevtools --stop-server
 
 init:
 	runhaskell EnvSetup.hs
@@ -35,9 +36,7 @@ maam-hask:
 	ln -s cabal_files/maam-hask.cabal maam.cabal
 	cabal build
 
-build-all:
-	make clean fp
-	make clean maam
-	make clean maam-lam-if
-	make clean maam-hask
-	@echo "ALL BUILDS SUCCEED"
+all:
+	rm -f maam.cabal
+	ln -s cabal_files/all.cabal maam.cabal
+	cabal build

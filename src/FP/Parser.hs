@@ -64,12 +64,11 @@ newtype Parser t a = Parser { unParser :: StateT (ParserState t) (ListT ID) a }
     ( Unit, Functor, Product, Applicative, Bind, Monad
     , MonadZero, MonadConcat
     , MonadStateI (ParserState t), MonadStateE (ParserState t), MonadState (ParserState t)
-    , MonadMaybeE
     )
 instance MonadParser t (Parser t) where
 
 runParser :: [t] -> Parser t a -> [(a, ParserState t)]
-runParser ts = runID . runListT . runStateT (ParserState ts 0) . unParser
+runParser ts = unID . unListT . runStateT (ParserState ts 0) . unParser
 
 data ParseError t a =
     ParsingError

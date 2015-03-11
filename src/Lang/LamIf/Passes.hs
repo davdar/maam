@@ -28,7 +28,7 @@ lookupName x = do
 
 stampM :: (StampM m) => Fix (PreExp RawName) -> m Exp
 stampM pe = do
-  StampedFix ^@ nextL stampExpIDL <@> case runFix pe of
+  StampedFix ^@ nextL stampExpIDL <@> case unFix pe of
     L.Lit l -> return $ L.Lit l
     L.Var x -> L.Var ^$ lookupName x
     Lam x e -> do
