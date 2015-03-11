@@ -7,6 +7,7 @@ import Name
 import Literal
 import DataCon
 import CoreSyn (AltCon(..))
+import Lang.Hask.SetWithTop
 
 -- Values
 
@@ -20,17 +21,22 @@ data Time lτ dτ = Time
   } deriving (Eq, Ord)
 makeLenses ''Time
 
-type Env lτ dτ = Map Name (Addr lτ dτ)
-type Store αν lτ dτ = Map (Addr lτ dτ) (αν lτ dτ)
-
 data Addr lτ dτ = Addr
   { addrName :: Name
   , addrTime :: Time lτ dτ
   } deriving (Eq, Ord)
 
+type Env lτ dτ = Map Name (Addr lτ dτ)
+type Store αν lτ dτ = Map (Addr lτ dτ) (αν lτ dτ)
+
+data ArgVal lτ dτ =
+    AddrVal (Addr lτ dτ)
+  | LitVal Literal
+  deriving (Eq, Ord)
+
 data Data lτ dτ = Data
   { dataCon :: DataCon
-  , dataArgs :: [Addr lτ dτ]
+  , dataArgs :: [ArgVal lτ dτ]
   } deriving (Eq, Ord)
 
 data FunClo lτ dτ = FunClo
@@ -39,14 +45,6 @@ data FunClo lτ dτ = FunClo
   , funCloBody :: Call
   , funCloEnv :: Env lτ dτ
   , funCloTime :: lτ
-  } deriving (Eq, Ord)
-
-data ThunkClo lτ dτ = ThunkClo
-  { thunkCloKonArg :: Name
-  , thunkCloFun :: Pico
-  , thunkCloArg :: Pico
-  , thunkCloEnv :: Env lτ dτ
-  , thunkCloTime :: lτ
   } deriving (Eq, Ord)
 
 data Ref lτ dτ = Ref
@@ -60,17 +58,28 @@ data KonClo lτ dτ = KonClo
   , konCloEnv :: Env lτ dτ
   } deriving (Eq, Ord)
 
-data KonMemoClo lτ dτ αν = KonMemoClo
+data KonMemoClo lτ dτ = KonMemoClo
   { konMemoCloLoc :: Addr lτ dτ
-  , konMemoCloVal :: αν lτ dτ
+  , konMemoCloThunk :: ThunkClo lτ dτ
   , konMemoCloArg :: Name
   , konMemoCloBody :: Call
   , konMemoCloEnv :: Env lτ dτ
   } deriving (Eq, Ord)
 
+data Forced lτ dτ = Forced
+  { forcedVal :: ArgVal lτ dτ
+  } deriving (Eq, Ord)
+
+data ThunkClo lτ dτ = ThunkClo
+  { thunkCloKonArg :: Name
+  , thunkCloFun :: Pico
+  , thunkCloArg :: Pico
+  , thunkCloEnv :: Env lτ dτ
+  , thunkCloTime :: lτ
+  } deriving (Eq, Ord)
+
 class Val lτ dτ γν αν | αν -> γν where
   botI :: αν lτ dτ
-  neg :: αν lτ dτ -> αν lτ dτ
   litI :: Literal -> αν lτ dτ
   litTestE :: Literal -> αν lτ dτ -> γν Bool
   dataI :: Data lτ dτ -> αν lτ dτ
@@ -78,17 +87,17 @@ class Val lτ dτ γν αν | αν -> γν where
   dataE :: αν lτ dτ -> γν (Data lτ dτ)
   funCloI :: FunClo lτ dτ -> αν lτ dτ
   funCloE :: αν lτ dτ -> γν (FunClo lτ dτ)
-  thunkCloI :: ThunkClo lτ dτ -> αν lτ dτ
-  thunkCloE :: αν lτ dτ -> γν (ThunkClo lτ dτ)
-  forcedI :: αν lτ dτ -> αν lτ dτ
-  forcedE :: αν lτ dτ -> γν (αν lτ dτ)
   refI :: Ref lτ dτ -> αν lτ dτ
   refAnyI :: αν lτ dτ
   refE :: αν lτ dτ -> γν (Ref lτ dτ)
   konCloI :: KonClo lτ dτ -> αν lτ dτ
   konCloE :: αν lτ dτ -> γν (KonClo lτ dτ)
-  konMemoCloI :: KonMemoClo lτ dτ αν -> αν lτ dτ
-  konMemoCloE :: αν lτ dτ -> γν (KonMemoClo lτ dτ αν)
+  konMemoCloI :: KonMemoClo lτ dτ -> αν lτ dτ
+  konMemoCloE :: αν lτ dτ -> γν (KonMemoClo lτ dτ)
+  thunkCloI :: ThunkClo lτ dτ -> αν lτ dτ
+  thunkCloE :: αν lτ dτ -> γν (ThunkClo lτ dτ)
+  forcedI :: Forced lτ dτ -> αν lτ dτ
+  forcedE :: αν lτ dτ -> γν (Forced lτ dτ)
 
 -- State Space
 
@@ -105,34 +114,16 @@ class
   ( Monad m
   , MonadStateE (𝒮 αν lτ dτ) m
   , MonadZero m
+  , MonadTop m
   , MonadPlus m
-  , Val lτ dτ Set αν
+  , Val lτ dτ SetWithTop αν
   , Ord (Addr lτ dτ)
   , JoinLattice (αν lτ dτ)
-  , MeetLattice (αν lτ dτ)
+  , Meet (αν lτ dτ)
+  , Neg (αν lτ dτ)
   , Temporal lτ
   , Temporal dτ
   ) => Analysis αν lτ dτ m | m -> αν , m -> lτ , m -> dτ where
-
--- Finite observations on values in the abstract domain
-
-refinePico :: (Analysis αν lτ dτ m) => Pico -> αν lτ dτ -> m ()
-refinePico (Var x) v = do
-  𝓁 <- alloc x
-  modifyL 𝓈StoreL $ mapInsertWith (/\) 𝓁 v
-refinePico (Lit _) _ = return ()
-
-extract :: (Analysis αν lτ dτ m) => (a -> αν lτ dτ) -> (αν lτ dτ -> Set a) -> Pico -> αν lτ dτ -> m a
-extract intro elim p v = do
-  a <- mset $ elim v
-  refinePico p $ intro a
-  return a
-
-extractIsLit :: (Analysis αν lτ dτ m) => Literal -> Pico -> αν lτ dτ -> m ()
-extractIsLit l p v = do
-  b <- mset $ litTestE l v
-  guard b
-  refinePico p $ litI l
 
 -- Time management
 
@@ -159,6 +150,26 @@ updateRef :: (Analysis αν lτ dτ m) => Addr lτ dτ -> αν lτ dτ -> αν l
 updateRef 𝓁 vOld vNew = modifyL 𝓈StoreL $ \ σ -> 
   mapModify (\ v -> v /\ neg vOld) 𝓁 σ \/ mapSingleton 𝓁 vNew
 
+-- Refinement and extraction
+
+refine :: (Analysis αν lτ dτ m) => ArgVal lτ dτ -> αν lτ dτ -> m ()
+refine (AddrVal 𝓁) v = modifyL 𝓈StoreL $ mapInsertWith (/\) 𝓁 v
+refine (LitVal _) _ = return ()
+
+extract :: (Analysis αν lτ dτ m) => (a -> αν lτ dτ) -> (αν lτ dτ -> SetWithTop a) -> ArgVal lτ dτ -> m a
+extract intro elim av = do
+  v <- argVal av
+  a <- setWithTopElim mtop mset $ elim v
+  refine av $ intro a
+  return a
+
+extractIsLit :: (Analysis αν lτ dτ m) => Literal -> ArgVal lτ dτ -> m ()
+extractIsLit l av = do
+  v <- argVal av
+  b <- setWithTopElim mtop mset $ litTestE l v
+  guard b
+  refine av $ litI l
+
 -- Denotations
 
 addr :: (Analysis αν lτ dτ m) => Addr lτ dτ -> m (αν lτ dτ)
@@ -166,15 +177,26 @@ addr 𝓁 = do
   σ <- getL 𝓈StoreL
   liftMaybeZero $ σ # 𝓁
 
-var :: (Analysis αν lτ dτ m) => Name -> m (αν lτ dτ)
-var x = do
+argVal :: (Analysis αν lτ dτ m) => ArgVal lτ dτ -> m (αν lτ dτ)
+argVal (AddrVal 𝓁) = addr 𝓁
+argVal (LitVal l) = return $ litI l
+
+varAddr :: (Analysis αν lτ dτ m) => Name -> m (Addr lτ dτ)
+varAddr x = do
   ρ <- getL 𝓈EnvL
-  addr *$ liftMaybeZero $ ρ # x
+  liftMaybeZero $ ρ # x
+
+var :: (Analysis αν lτ dτ m) => Name -> m (αν lτ dτ)
+var = addr *. varAddr
 
 pico :: (Analysis αν lτ dτ m) => Pico -> m (αν lτ dτ)
 pico = \ case
   Var n -> var n
   Lit l -> return $ litI l
+
+picoArg :: (Analysis αν lτ dτ m) => Pico -> m (ArgVal lτ dτ)
+picoArg (Var x) = AddrVal ^$ varAddr x
+picoArg (Lit l) = return $ LitVal l
 
 atom :: (Analysis αν lτ dτ m) => Atom -> m (αν lτ dτ)
 atom = \ case
@@ -193,19 +215,19 @@ atom = \ case
     updateRef 𝓁 botI $ thunkCloI $ ThunkClo k p₁ p₂ ρ lτ
     return $ refI $ Ref xr 𝓁
 
-forceThunk :: (Analysis αν lτ dτ m) => Pico -> αν lτ dτ -> (Pico -> Call) -> m Call
-forceThunk p v mk = do
-  Ref x 𝓁 <- extract refI refE p v
-  delayv <- addr 𝓁
+forceThunk :: forall αν lτ dτ m. (Analysis αν lτ dτ m) => ArgVal lτ dτ -> (Pico -> Call) -> m Call
+forceThunk av mk = do
+  Ref x 𝓁 <- extract refI refE av
   msum
     [ do
-        v' <- extract forcedI forcedE p delayv
+        Forced av' <- extract forcedI forcedE $ AddrVal 𝓁
+        v' <- argVal av'
         bindJoin x v'
         return $ mk $ Var x
     , do
-        ThunkClo k p₁' p₂' ρ' lτ' <- extract thunkCloI thunkCloE p delayv
+        t@(ThunkClo k p₁' p₂' ρ' lτ') <- extract thunkCloI thunkCloE $ AddrVal 𝓁
         ρ <- getL 𝓈EnvL
-        let kv = konMemoCloI $ KonMemoClo 𝓁 delayv x (mk $ Var x) ρ
+        let kv = konMemoCloI $ KonMemoClo 𝓁 t x (mk $ Var x) ρ
         putL 𝓈EnvL ρ'
         putL (timeLexL <.> 𝓈TimeL) lτ'
         bindJoin k kv
@@ -227,41 +249,42 @@ call c = do
       return c'
     Letrec xas c' -> do
       traverseOn xas $ \ (x, a) -> do
-        Ref _xr 𝓁 <- extract refI refE (Var x) *$ pico $ Var x
+        av <- picoArg $ Var x
+        Ref _xr 𝓁 <- extract refI refE av
         updateRef 𝓁 botI *$ atom a
       return c'
     AppK p₁ p₂ -> do
-      v₁ <- pico p₁
+      av₁ <- picoArg p₁
       v₂ <- pico p₂
       msum
         [ do
-            KonClo x c' ρ <- extract konCloI konCloE p₁ v₁
+            KonClo x c' ρ <- extract konCloI konCloE av₁
             putL 𝓈EnvL ρ
             bindJoin x v₂
             return c'
         , do
-            KonMemoClo 𝓁 v x c' ρ <- extract konMemoCloI konMemoCloE p₁ v₁
-            updateRef 𝓁 v $ forcedI v₂
+            KonMemoClo 𝓁 th x c' ρ <- extract konMemoCloI konMemoCloE av₁
+            updateRef 𝓁 (thunkCloI th) . forcedI . Forced *$ picoArg p₂
             putL 𝓈EnvL ρ
             bindJoin x v₂
             return c'
         ]
     AppF p₁ p₂ p₃ -> do
-      v₁ <- pico p₁
+      av₁ <- picoArg p₁
       v₂ <- pico p₂
       v₃ <- pico p₃
       msum
         [ do
-            FunClo x k c' ρ lτ <- extract funCloI funCloE p₁ v₁
+            FunClo x k c' ρ lτ <- extract funCloI funCloE av₁
             putL 𝓈EnvL ρ
             putL (timeLexL <.> 𝓈TimeL) lτ
             bindJoin x v₂
             bindJoin k v₃
             return c'
-        , forceThunk p₁ v₁ $ \ p -> Fix $ AppF p p₂ p₃
+        , forceThunk av₁ $ \ p -> Fix $ AppF p p₂ p₃
         ]
     Case p bs0 -> do
-      v <- pico p
+      av <- picoArg p
       msum
         [ do
             -- loop through the alternatives
@@ -272,37 +295,37 @@ call c = do
                       -- The alt is a Data and the value is a Data with the same
                       -- tag; jump to the alt body.
                       [ do
-                          Data dcon 𝓁s <- extract dataI dataE p v
+                          Data dcon 𝓁s <- extract dataI dataE av
                           guard $ con == dcon
                           x𝓁s <- liftMaybeZero $ zip xs 𝓁s
-                          traverseOn x𝓁s $ \ (x, 𝓁) -> do
-                            v' <- addr 𝓁
+                          traverseOn x𝓁s $ \ (x, av') -> do
+                            v' <- argVal av'
                             bindJoin x v'
                           return c'
                       -- The alt is a Data and the value is not a Data with the
                       -- same tag; try the next branch.
                       , do
-                          refinePico p $ neg $ dataAnyI con
+                          refine av $ neg $ dataAnyI con
                           loop bs'
                       ]
                     LitAlt l -> msum
                       -- The alt is a Lit and the value is the same lit; jump to
                       -- the alt body.
                       [ do
-                          extractIsLit l p v
+                          extractIsLit l av
                           return c'
                       -- The alt is a Lit and and the value is not the same lit;
                       -- try the next branch.
                       , do
-                          refinePico p $ neg $ litI l
+                          refine av $ neg $ litI l
                           loop bs'
                       ]
                     -- The alt is the default branch; jump to the body _only if
                     -- the value is not a ref_.
                     DEFAULT -> do
-                      refinePico p $ neg $ refAnyI
+                      refine av $ neg $ refAnyI
                       return c
             loop bs0
-        , forceThunk p v $ \ p' -> Fix $ Case p' bs0
+        , forceThunk av $ \ p' -> Fix $ Case p' bs0
         ]
     Halt a -> return $ Fix $ Halt a

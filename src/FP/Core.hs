@@ -341,6 +341,7 @@ class Meet a where (/\) :: a -> a -> a
 class (Bot a, Join a) => JoinLattice a
 class (Top a, Meet a) => MeetLattice a
 class (JoinLattice a, MeetLattice a) => Lattice a where
+class Neg a where neg :: a -> a
   
 collect :: (Join a, PartialOrder a) => (a -> a) -> a -> a
 collect f = poiter $ \ x -> x \/ f x
@@ -902,6 +903,9 @@ mtry = foldr (<|>) abort
 
 joins :: (Iterable a t, JoinLattice a) => t -> a
 joins = iter (\/) bot
+
+meets :: (Iterable a t, MeetLattice a) => t -> a
+meets = iter (/\) top
 
 msum :: (Iterable (m a) t, MonadZero m, MonadPlus m) => t -> m a
 msum = iter (<+>) mzero
@@ -2003,3 +2007,18 @@ instance MonadErrorE String Q where
   errorE = elimSum (Prelude.fail . toChars) return *. unErrorT
 
 -- }}}
+
+bigProduct :: [[a]] -> [[a]]
+bigProduct [] = [[]]
+bigProduct (xs:xss) = do
+  let xss' = bigProduct xss
+  x <- xs
+  map (x:) xss'
+
+setBigProduct :: (Ord a) => Set (Set a) -> Set (Set a)
+setBigProduct s = case remove s of
+  Nothing -> singleton empty
+  Just (xs, xss) -> do
+    let xss' = setBigProduct xss
+    x <- xs
+    setMap (insert x) xss'
