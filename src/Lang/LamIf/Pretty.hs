@@ -16,7 +16,7 @@ instance Pretty BdrNum where
 instance Pretty GenName where
   pretty (GenName iM s) = exec
     [ pretty s
-    , elimMaybeOn iM (return ()) $ \ i -> exec [P.pun "#", P.pun $ toString i]
+    , maybeElimOn iM (return ()) $ \ i -> exec [P.pun "#", P.pun $ toString i]
     ]
 
 instance Pretty Lit where

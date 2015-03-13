@@ -30,8 +30,8 @@ applyFormat :: Format -> String -> String
 applyFormat (Format fg bg ul bd) s = concat
   [ leader 
   , concat $ intersperse ";" $ mconcat
-    [ liftMaybeZero $ fgCode ^$ fg
-    , liftMaybeZero $ bgCode ^$ bg
+    [ maybeZero $ fgCode ^$ fg
+    , maybeZero $ bgCode ^$ bg
     , guard ul >> return ulCode
     , guard bd >> return bdCode
     ]
@@ -346,7 +346,7 @@ htmlBDCode s = "<b>" ++ s ++ "</b>"
 -- htmlFormat :: Format -> String -> String
 -- htmlFormat (Format fg bg ul bd) s = _ $ unEndo $ concat $ map Endo $ concat
 --   [ maybeElim id $ htmlFGCode ^$ fg
---   , liftMaybeZero $ htmlBGCode ^$ bg
+--   , maybeZero $ htmlBGCode ^$ bg
 --   , guard ul >> return htmlULCode
 --   , guard bd >> return htmlBDCode
 --   ]

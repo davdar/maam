@@ -56,24 +56,24 @@ withOptions os e =
 examplesMain :: IO ()
 examplesMain = do
   e <- parseFile "data/lam-src/simp4.lam"
-  let os = makeOptions [] [] [] [] [] [] [] []
-  --       makeOptions
-  --       ["*"]
-  --       ["*"]
-  --       ["concrete"]
-  --       ["ps"]
-  --       ["no"]
-  --       ["link"]
-  --       ["*"]
-  --       ["*"]
-  --       ++
-  --       makeOptions
-  --       ["0"]
-  --       ["0"]
-  --       ["abstract"]
-  --       ["fi"]
-  --       ["no"]
-  --       ["link"]
-  --       ["*"]
-  --       ["*"]
+  let os =
+         makeOptions
+         ["*"]
+         ["*"]
+         ["concrete"]
+         ["ps"]
+         ["no"]
+         ["link"]
+         ["*"]
+         ["*"]
+         ++
+         makeOptions
+         ["0"]
+         ["0"]
+         ["abstract"]
+         ["fi"]
+         ["no"]
+         ["link"]
+         ["*"]
+         ["*"]
   pprint $ withOptions os e

@@ -12,14 +12,14 @@ instance Product (FooSet r) where (<*>) = mpair
 instance Applicative (FooSet r) where (<@>) = mapply
 instance Monad (FooSet r)
 
-instance MonadZero (FooSet r) where
-  mzero = FooSet $ \ _ -> empty
+instance MonadBot (FooSet r) where
+  mbot = FooSet $ \ _ -> empty
 instance MonadPlus (FooSet r) where
   FooSet (ak₁ :: (a -> Set r) -> Set r) <+> FooSet (ak₂ :: (a -> Set r) -> Set r) = FooSet $ \ (k :: a -> Set r) -> do
     ak₁ $ \ a₁ -> ak₂ $ \ a₂ -> k a₁ \/ k a₂
     
 test :: Set Int
 test = runFooSet $ do
-  x <- return 1 <+> mzero
+  x <- return 1 <+> mbot
   y <- return 4 <+> return 5
   return $ x + y

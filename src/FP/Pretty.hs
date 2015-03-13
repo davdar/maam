@@ -71,7 +71,7 @@ state0 = PState
   , ribbon = 0
   }
 
-type MonadPretty m = (MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadMaybe m)
+type MonadPretty m = (Monad m, MonadReader PEnv m, MonadWriter POut m, MonadState PState m, MonadMaybe m)
 
 -- }}} ---
 
@@ -94,7 +94,7 @@ text o = do
     countNonSpace = iter (cond isSpace id suc) 0
 
 space :: (MonadPretty m) => Int -> m ()
-space = text . flip iterateAppend " "
+space = text . flip iterAppend " "
 
 ifFlat :: (MonadPretty m) => m a -> m a -> m a
 ifFlat flatAction breakAction = do
@@ -133,7 +133,7 @@ canFail = localSetL failureL CanFail
 nest :: (MonadPretty m) => Int -> m a -> m a
 nest = localL nestingL . (+)
 
-group :: (MonadMaybeI m, MonadPretty m) => m a -> m a
+group :: (MonadMaybe m, MonadPretty m) => m a -> m a
 group aM = ifFlat aM $ (flat . canFail) aM <|> aM
 
 align :: (MonadPretty m) => m a -> m a
@@ -144,7 +144,7 @@ align aM = do
 
 format :: (MonadPretty m) => Format -> m a -> m a
 format f aM = do
-  (a, o) <- hijack aM
+  (o, a) <- hijack aM
   tell $ MFApply (f, o)
   return a
 
@@ -274,12 +274,9 @@ op = format (setFG 4) . text
 newtype DocM a = DocM { unDocM :: RWST PEnv POut PState Maybe a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadReaderI PEnv, MonadReaderE PEnv, MonadReader PEnv
-    , MonadWriterI POut, MonadWriterE POut, MonadWriter POut
-    , MonadStateI PState, MonadStateE PState, MonadState PState
-    , MonadMaybeI, MonadMaybeE, MonadMaybe
+    , MonadReader PEnv, MonadWriter POut, MonadState PState, MonadMaybe
     )
-runDocM :: PEnv -> PState -> DocM a -> Maybe (a, POut, PState)
+runDocM :: PEnv -> PState -> DocM a -> Maybe (PState, POut, a)
 runDocM e s = runRWST e s . unDocM
 
 execDoc :: Doc -> POut
@@ -287,7 +284,7 @@ execDoc d =
   let rM = runDocM env0 state0 d
   in case rM of
     Nothing -> MonoidFunctorElem $ Text "<internal pretty printing error>"
-    Just ((), o, _) -> o
+    Just (_, o, ()) -> o
 
 type Doc = DocM ()
 
@@ -321,20 +318,14 @@ ptoString = noFormatOut . execDoc . pretty
 
 -- Instances {{{
 
-instance Pretty Bool where
-  pretty = con . toString
-instance Pretty Int where
-  pretty = lit . toString
-instance Pretty Integer where
-  pretty = lit . toString
-instance Pretty Char where
-  pretty = lit . toString
-instance Pretty String where
-  pretty = lit . toString
-instance Pretty Double where
-  pretty = lit . toString
-instance Pretty () where
-  pretty () = con "()"
+instance Pretty Bool    where pretty = con . toString
+instance Pretty Int     where pretty = lit . toString
+instance Pretty Integer where pretty = lit . toString
+instance Pretty Char    where pretty = lit . toString
+instance Pretty String  where pretty = lit . toString
+instance Pretty Double  where pretty = lit . toString
+instance Pretty ()      where pretty () = con "()"
+
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (a, b) = collection "(" ")" "," [pretty a, pretty b]
 instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
@@ -343,44 +334,44 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d) => Pretty (a, b, c, d) where
   pretty (a, b, c, d) = collection "(" ")" "," [pretty a, pretty b, pretty c, pretty d]
 instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e) => Pretty (a, b, c, d, e) where
   pretty (a, b, c, d, e) = collection "(" ")" "," [pretty a, pretty b, pretty c, pretty d, pretty e]
-instance Bifunctorial Pretty (,) where
-  bifunctorial = W
+instance Bifunctorial Pretty (,) where bifunctorial = W
 instance (Pretty a, Pretty b) => Pretty (a :+: b) where
   pretty (Inl a) = app (con "Inl") [pretty a]
   pretty (Inr b) = app (con "Inr") [pretty b]
 instance (Pretty a) => Pretty (Maybe a) where
   pretty (Just a) = pretty a
   pretty Nothing = con "Nothing"
-instance (Pretty a) => Pretty [a] where
-  pretty = collection "[" "]" "," . map pretty
+
+instance (Pretty a) => Pretty [a] where pretty = collection "[" "]" "," . map pretty
 instance Functorial Pretty [] where functorial = W
-instance (Pretty a) => Pretty (Set a) where
-  pretty = collection "{" "}" "," . map pretty . fromSet
+
+instance (Pretty a) => Pretty (Set a) where pretty = collection "{" "}" "," . map pretty . fromSet
+instance Functorial Pretty Set where functorial = W
+
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . fromMap
     where
       prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
-instance (Ord a, Pretty a) => Pretty (ListSet a) where
-  pretty = pretty . toSet . toList
+instance (Ord a, Pretty a) => Pretty (ListSet a) where pretty = pretty . toSet . toList
 
 instance (Functorial Pretty f) => Pretty (Fix f) where
   pretty (Fix f) =
     with (functorial :: W (Pretty (f (Fix f)))) $
     pretty f
+
 instance (Pretty a, Pretty f) => Pretty (Stamped a f) where
   pretty (Stamped a f) = 
     -- pretty f
     atLevel 0 $ exec [pretty a, pun ":", pretty f]
+
 instance (Pretty a, Functorial Pretty f) => Pretty (StampedFix a f) where
   pretty (StampedFix a f) = 
     with (functorial :: W (Pretty (f (StampedFix a f)))) $ 
     -- pretty f
     atLevel 0 $ exec [bump $ pretty a, pun ":", pretty f]
 
-instance (Pretty a) => Pretty (ID a) where
-  pretty (ID a) = pretty a
-instance Functorial Pretty ID where
-  functorial = W
+instance (Pretty a) => Pretty (ID a) where pretty (ID a) = pretty a
+instance Functorial Pretty ID where functorial = W
 
 instance (Functorial Pretty m, Pretty e, Pretty a) => Pretty (ErrorT e m a) where
   pretty (ErrorT aM) =

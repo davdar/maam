@@ -48,21 +48,21 @@ type Call = Fix PreCall
 data CPSKon r m a where
   MetaKon :: (a -> m r) -> CPSKon r m a
   ObjectKon :: Pico -> (Pico -> m Call) -> CPSKon Call m Pico
-instance Morphism3 (KFun r) (CPSKon r) where
-  morph3 (KFun mk) = MetaKon mk
-instance Morphism3 (CPSKon r) (KFun r) where
-  morph3 :: CPSKon r ~~> KFun r
-  morph3 (MetaKon mk) = KFun mk
-  morph3 (ObjectKon _ mk) = KFun mk
-instance Isomorphism3 (KFun r) (CPSKon r) where
+instance Morphism3 (ContFun r) (CPSKon r) where
+  morph3 (ContFun mk) = MetaKon mk
+instance Morphism3 (CPSKon r) (ContFun r) where
+  morph3 :: CPSKon r ~~> ContFun r
+  morph3 (MetaKon mk) = ContFun mk
+  morph3 (ObjectKon _ mk) = ContFun mk
+instance Isomorphism3 (ContFun r) (CPSKon r) where
 instance Balloon CPSKon Call where
-  inflate :: (Monad m) => CPSKon Call m ~> CPSKon Call (OpaqueKonT CPSKon Call m)
+  inflate :: (Monad m) => CPSKon Call m ~> CPSKon Call (OpaqueContT CPSKon Call m)
   inflate (MetaKon (mk :: a -> m Call)) = MetaKon $ \ (a :: a) -> makeMetaKonT $ \ (k :: Call -> m Call) -> k *$ mk a
   inflate (ObjectKon pk (mk :: Pico -> m Call)) = ObjectKon pk $ \ p -> makeMetaKonT $ \ (k :: Call -> m Call) -> k *$ mk p
-  deflate :: (Monad m) => CPSKon Call (OpaqueKonT CPSKon Call m) ~> CPSKon Call m
-  deflate (MetaKon (mk :: a -> OpaqueKonT CPSKon Call m Call)) = MetaKon $ \ (a :: a) -> runMetaKonTWith return $ mk a
-  deflate (ObjectKon pk (mk :: Pico -> OpaqueKonT CPSKon Call m Call)) = ObjectKon pk $ \ p -> evalOpaqueKonT $ mk p
-type CPSM m = (MonadOpaqueKon CPSKon Call m, MonadState UniqSupply m)
+  deflate :: (Monad m) => CPSKon Call (OpaqueContT CPSKon Call m) ~> CPSKon Call m
+  deflate (MetaKon (mk :: a -> OpaqueContT CPSKon Call m Call)) = MetaKon $ \ (a :: a) -> runMetaKonTWith return $ mk a
+  deflate (ObjectKon pk (mk :: Pico -> OpaqueContT CPSKon Call m Call)) = ObjectKon pk $ \ p -> evalOpaqueKonT $ mk p
+type CPSM m = (Monad m, MonadCont Call m, MonadOpaqueCont CPSKon Call m, MonadState UniqSupply m)
 
 fresh :: (CPSM m) => String -> m Name
 fresh x = do
@@ -104,7 +104,7 @@ cpsAtom e = case e of
   H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
-    c <- withOpaqueC (reflect $ Var k) $ cpsM e'
+    c <- opaqueWithC (reflect $ Var k) $ cpsM e'
     return $ LamF x k c
   _ -> do
     p <- cpsM e
@@ -124,22 +124,22 @@ cpsM e = case e of
   H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
-    c <- withOpaqueC (reflect $ Var k) $ cpsM e'
+    c <- opaqueWithC (reflect $ Var k) $ cpsM e'
     atom $ LamF x k c
-  H.Let (H.NonRec xv e₁) e₂ -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+  H.Let (H.NonRec xv e₁) e₂ -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
     let x = Var.varName xv
     a <- cpsAtom e₁
-    c <- withOpaqueC ko $ cpsM e₂
+    c <- opaqueWithC ko $ cpsM e₂
     return $ Fix $ Let x a c
-  H.Let (H.Rec xves) e₂ -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+  H.Let (H.Rec xves) e₂ -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
     rec $ map (Var.varName . fst) xves
     xas <- mapOnM xves $ uncurry $ \ xv e' -> do
       let x = Var.varName xv
       a <- cpsAtom e'
       return (x, a)
-    c <- withOpaqueC ko $ cpsM e₂
+    c <- opaqueWithC ko $ cpsM e₂
     return $ Fix $ Letrec xas c
-  H.Case e' xv _ bs -> callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+  H.Case e' xv _ bs -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
     let x = Var.varName xv
     a <- cpsAtom e'
     letAtom x a
@@ -147,7 +147,7 @@ cpsM e = case e of
     -- since it always shows up at the beginning as per ghc spec.
     b's <- mapOnM (reverse bs) $ \ (con, xvs, e'') -> do
       let xs = map Var.varName xvs
-      c <- withOpaqueC ko $ cpsM e''
+      c <- opaqueWithC ko $ cpsM e''
       return $ CaseBranch con xs c
     return $ Fix $ Case (Var x) b's
   H.Cast e' _ -> cpsM e'

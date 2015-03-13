@@ -27,13 +27,13 @@ makePrismLogic cx ty tyargs con args numcons = do
           ]
     , FunD lensName
         [ sclause [] $ app (ConE 'Prism)
-           [ LamE [VarP x] $ 
-               CaseE (VarE x) $ concat
-                 [ single $ smatch (ConP con $ map VarP argVars) $ 
-                     ConE 'Just #@ tup (map VarE argVars)
-                 , if numcons <= 1 then [] else single $ smatch WildP $ ConE 'Nothing
-                 ]
-            , LamE [tup $ map VarP argVars] $ ConE con #@| map VarE argVars
+            [ LamE [tup $ map VarP argVars] $ ConE con #@| map VarE argVars
+            , LamE [VarP x] $ 
+                CaseE (VarE x) $ concat
+                  [ single $ smatch (ConP con $ map VarP argVars) $ 
+                      ConE 'Just #@ tup (map VarE argVars)
+                  , if numcons <= 1 then [] else single $ smatch WildP $ ConE 'Nothing
+                  ]
             ]
         ]
     ]
@@ -41,7 +41,7 @@ makePrismLogic cx ty tyargs con args numcons = do
 
 makePrisms :: Name -> Q [Dec]
 makePrisms name = do
-  (cx, ty, tyargs, cs, _) <- liftMaybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
-  scs <- mapM (liftMaybeZero . coerceSimpleCon) cs
+  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
+  scs <- mapM (maybeZero . coerceSimpleCon) cs
   concat ^$ mapOnM scs $ \ (cname, args) -> do
     makePrismLogic cx ty tyargs cname args $ length scs

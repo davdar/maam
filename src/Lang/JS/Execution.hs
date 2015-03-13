@@ -63,7 +63,7 @@ type M' = IsoMonadStep Σ Σ'
 newtype M a = M { unM :: M' a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
+    , MonadBot, MonadPlus
     , MonadStateE 𝒮, MonadStateI 𝒮, MonadState 𝒮
     , MonadStep Σ
     )

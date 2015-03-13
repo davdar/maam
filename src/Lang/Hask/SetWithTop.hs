@@ -24,17 +24,17 @@ instance Meet (SetWithTop a) where
 instance MeetLattice (SetWithTop a)
 
 setWithTopInject :: (Ord a) => a -> SetWithTop a
-setWithTopInject = SetNotTop . singleton
+setWithTopInject = SetNotTop . single
 
 fromListWithTop :: (Ord a) => ListWithTop a -> SetWithTop a
 fromListWithTop ListTop = SetTop
-fromListWithTop (ListNotTop xs) = SetNotTop $ fromList xs
+fromListWithTop (ListNotTop xs) = SetNotTop $ fromList $ toList xs
 
 data ListWithTop a =
     ListTop
-  | ListNotTop [a]
+  | ListNotTop (ListSet a)
 
-instance Bot (ListWithTop a) where bot = ListNotTop []
+instance Bot (ListWithTop a) where bot = ListNotTop nil
 instance Join (ListWithTop a) where
   ListTop \/ _ = ListTop
   _ \/ ListTop = ListTop
@@ -47,11 +47,11 @@ instance Meet (ListWithTop a) where
   ListNotTop x /\ ListNotTop y = ListNotTop $ x ++ y
 instance MeetLattice (ListWithTop a)
 
-instance MonadZero ListWithTop where mzero = bot
+instance MonadBot ListWithTop where mbot = bot
 instance MonadPlus ListWithTop where (<+>) = (\/)
 instance MonadTop ListWithTop where mtop = top
 
-instance MonadConcat ListWithTop where (<++>) = (\/)
+instance MonadAppend ListWithTop where (<++>) = (\/)
 
 instance Unit ListWithTop where unit = ListNotTop . single
 instance Bind ListWithTop where

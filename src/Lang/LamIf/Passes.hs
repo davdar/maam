@@ -19,11 +19,11 @@ makeLenses ''Env
 stampEnv0 :: Env
 stampEnv0 = Env mapEmpty
 
-type StampM m = (MonadStateE StampSt m, MonadReader Env m)
+type StampM m = (Monad m, MonadState StampSt m, MonadReader Env m)
 
 lookupName :: (StampM m) => RawName -> m SRawName
 lookupName x = do
-  xi <- elimMaybe (nextL $ stampBdrIDL) return *$ lookup x ^$ askL bdrEnvL
+  xi <- maybeElim (nextL $ stampBdrIDL) return *$ lookup x ^$ askL bdrEnvL
   return $ Stamped xi x
 
 stampM :: (StampM m) => Fix (PreExp RawName) -> m Exp
@@ -63,7 +63,7 @@ stampL = lens lin lout
 cpsSt0 :: CPSSt
 cpsSt0 = CPSSt zer zer zer
 
-type CPSM m = (MonadOpaqueKon CPSKon Call m, MonadState CPSSt m)
+type CPSM m = (Monad m, MonadCont Call m, MonadOpaqueCont CPSKon Call m, MonadState CPSSt m)
 
 fresh :: (CPSM m) => String -> m Name
 fresh x = do
@@ -74,18 +74,18 @@ fresh x = do
 data CPSKon r m a where
   MetaKon :: (a -> m r) -> CPSKon r m a
   ObjectKon :: Pico -> (Pico -> m Call) -> CPSKon Call m Pico
-instance Morphism3 (KFun r) (CPSKon r) where
-  morph3 (KFun mk) = MetaKon mk
-instance Morphism3 (CPSKon r) (KFun r) where
-  morph3 :: CPSKon r ~~> KFun r
-  morph3 (MetaKon mk) = KFun mk
-  morph3 (ObjectKon _ mk) = KFun mk
-instance Isomorphism3 (KFun r) (CPSKon r) where
+instance Morphism3 (ContFun r) (CPSKon r) where
+  morph3 (ContFun mk) = MetaKon mk
+instance Morphism3 (CPSKon r) (ContFun r) where
+  morph3 :: CPSKon r ~~> ContFun r
+  morph3 (MetaKon mk) = ContFun mk
+  morph3 (ObjectKon _ mk) = ContFun mk
+instance Isomorphism3 (ContFun r) (CPSKon r) where
 instance Balloon CPSKon Call where
-  inflate :: (Monad m) => CPSKon Call m ~> CPSKon Call (OpaqueKonT CPSKon Call m)
+  inflate :: (Monad m) => CPSKon Call m ~> CPSKon Call (OpaqueContT CPSKon Call m)
   inflate (MetaKon mk) = MetaKon $ \ a -> makeMetaKonT $ \ k -> k *$ mk a
   inflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> makeMetaKonT $ \ k -> k *$ mk ax
-  deflate :: (Monad m) => CPSKon Call (OpaqueKonT CPSKon Call m) ~> CPSKon Call m
+  deflate :: (Monad m) => CPSKon Call (OpaqueContT CPSKon Call m) ~> CPSKon Call m
   deflate (MetaKon mk) = MetaKon $ \ a -> runMetaKonTWith return $ mk a
   deflate (ObjectKon kx mk) = ObjectKon kx $ \ ax -> evalOpaqueKonT $ mk ax
 
@@ -119,7 +119,7 @@ cpsM (StampedFix i e0) = case e0 of
   L.Lam x e -> do
     let sx = srawNameToName x
     kx <- fresh "k"
-    c <- withOpaqueC (reflect $ C.Var kx) $ cpsM e
+    c <- opaqueWithC (reflect $ C.Var kx) $ cpsM e
     letAtom "f" $ Stamped i $ LamF sx kx c
   L.Prim o e1 e2 -> do
     a1 <- cpsM e1
@@ -128,21 +128,21 @@ cpsM (StampedFix i e0) = case e0 of
   L.Let x e b -> do
     ea <- cpsAtomM e
     let sx = srawNameToName x
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
-      bc <- withOpaqueC ko $ cpsM b
+    opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
+      bc <- opaqueWithC ko $ cpsM b
       return $ StampedFix i $ C.Let sx ea bc
   L.App f e -> do
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+    opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
       fx <- cpsM f
       ex <- cpsM e
       ka <- reify ko
       return $ StampedFix i $ AppF fx ex ka
   L.If ce te fe -> do
-    callOpaqueCC $ \ (ko :: CPSKon Call m Pico) -> do
+    opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
       cx <- cpsM ce
       ko' <- reflect ^$ reify ko
-      tc <- withOpaqueC ko' $ cpsM te
-      fc <- withOpaqueC ko' $ cpsM fe
+      tc <- opaqueWithC ko' $ cpsM te
+      fc <- opaqueWithC ko' $ cpsM fe
       return $ StampedFix i $ C.If cx tc fc
 
 cpsAtomM :: (CPSM m) => Exp -> m Atom
@@ -150,7 +150,7 @@ cpsAtomM se@(StampedFix i e0) = Stamped i ^$ case e0 of
   L.Lam x e -> do
     let sx = srawNameToName x
     kx <- fresh "k"
-    c <- withOpaqueC (reflect $ C.Var kx) $ cpsM e
+    c <- opaqueWithC (reflect $ C.Var kx) $ cpsM e
     return $ LamF sx kx c
   L.Prim o e1 e2 -> do
     a1 <- cpsM e1

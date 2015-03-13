@@ -29,7 +29,7 @@ type ValC lτ dτ val =
   )
 
 type MonadC val lτ dτ m =
-  ( Monad m, MonadZero m, MonadPlus m
+  ( Monad m, MonadBot m, MonadPlus m
   , MonadState (𝒮 val lτ dτ Ψ) m
   )
 
@@ -86,7 +86,7 @@ var :: (Analysis val lτ dτ m) => Name -> m (val lτ dτ Ψ)
 var x = do
   ρ <- getL 𝓈ρL
   σ <- getL 𝓈σL
-  liftMaybeZero $ index σ *$ index ρ $ x
+  maybeZero $ index σ *$ index ρ $ x
 
 -- the denotation for lambdas
 lam :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> LocNum -> [Name] -> Call -> m (val lτ dτ Ψ)
@@ -109,7 +109,7 @@ apply :: (Analysis val lτ dτ m) => TimeFilter -> Call -> PrePico Name -> val l
 apply timeFilter c fx fv avs = do
   fclo@(Clo cid' xs c' ρ lτ) <- mset $ elimClo fv
   rebindPico fx $ clo fclo
-  xvs <- liftMaybeZero $ zip xs avs
+  xvs <- maybeZero $ zip xs avs
   putL 𝓈ρL ρ
   traverseOn xvs $ uncurry $ bindM 
   putL 𝓈lτL lτ
@@ -149,10 +149,10 @@ nogc :: (Monad m) => Call -> m ()
 nogc _ = return ()
 
 closureTouched :: (TimeC lτ, TimeC dτ) => Clo lτ dτ Ψ -> Set (Addr lτ dτ Ψ)
-closureTouched (Clo _ xs c ρ _) = liftMaybeSet . index ρ *$ freeVarsLam xs $ stampedFix c
+closureTouched (Clo _ xs c ρ _) = maybeSet . index ρ *$ freeVarsLam xs $ stampedFix c
 
 addrTouched :: (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Map (Addr lτ dτ Ψ) (val lτ dτ Ψ) -> Addr lτ dτ Ψ -> Set (Addr lτ dτ Ψ)
-addrTouched σ = closureTouched *. elimClo *. liftMaybeSet . index σ
+addrTouched σ = closureTouched *. elimClo *. maybeSet . index σ
 
 currClosure :: (Analysis val lτ dτ m) => Call -> m (Clo lτ dτ Ψ)
 currClosure c = do
@@ -181,7 +181,7 @@ copyClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ d�
 copyClo cid xs c = do
   let ys = toList $ freeVarsLam xs $ stampedFix c
   vs <- var ^*$ ys
-  yvs <- liftMaybeZero $ zip ys vs
+  yvs <- maybeZero $ zip ys vs
   ρ <- runKleisliEndo mapEmpty *$ execWriterT $ do
     traverseOn yvs $ tell . KleisliEndo . uncurry bind
   lτ <- getL 𝓈lτL

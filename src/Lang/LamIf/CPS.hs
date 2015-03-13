@@ -34,7 +34,7 @@ freeVarsLam xs c = freeVarsCall c \-\ toSet xs
 
 freeVarsPico :: Pico -> Set Name
 freeVarsPico (Lit _) = bot
-freeVarsPico (Var x) = singleton x
+freeVarsPico (Var x) = single x
 
 freeVarsAtom :: PreAtom Name Call -> Set Name
 freeVarsAtom (Pico p) = freeVarsPico p
@@ -43,7 +43,7 @@ freeVarsAtom (LamF x kx c) = freeVarsLam [x, kx] $ stampedFix c
 freeVarsAtom (LamK x c) = freeVarsLam [x] $ stampedFix c
 
 freeVarsCall :: PreCall Name Call -> Set Name
-freeVarsCall (Let x a c) = freeVarsAtom (stamped a) \/ (freeVarsCall (stampedFix c) \-\ singleton x)
+freeVarsCall (Let x a c) = freeVarsAtom (stamped a) \/ (freeVarsCall (stampedFix c) \-\ single x)
 freeVarsCall (If ax tc fc) = freeVarsPico ax \/ joins (freeVarsCall . stampedFix ^$ [tc, fc])
 freeVarsCall (AppF fx ax kx) = joins $ freeVarsPico ^$ [fx, ax, kx]
 freeVarsCall (AppK kx ax) = joins $ freeVarsPico ^$ [kx, ax]

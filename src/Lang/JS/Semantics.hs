@@ -17,7 +17,7 @@ popFrame :: (Analysis ς m) => m Frame
 popFrame = do
   fp <- getL konL
   kσ <- getL kstoreL
-  (fr, fp') <- mset $ mjoin $ liftMaybeSet $ kσ # fp
+  (fr, fp') <- mset $ mjoin $ maybeSet $ kσ # fp
   putL konL fp'
   return fr
 
@@ -101,8 +101,8 @@ bind x v = do
 bindMany :: (Analysis ς m) => [Name] -> [Set AValue] -> m ()
 bindMany []     []     = return ()
 bindMany (x:xs) (v:vs) = bind x v >> bindMany xs vs
-bindMany []     _      = mzero
-bindMany _      []     = mzero
+bindMany []     _      = mbot
+bindMany _      []     = mbot
 
 kreturn :: (Analysis ς m) => Set AValue -> m TExp
 kreturn v = do
@@ -128,7 +128,7 @@ kreturn' v fr = case fr of
   AppR v vs (arg:args) -> do
     touchNGo arg $ AppR v vs args
   AppR fv argvs [] -> do
-    Clo xs b <- liftMaybeZero . coerce cloAL *$ mset fv
+    Clo xs b <- maybeZero . coerce cloAL *$ mset fv
     bindMany xs argvs
     return b
   ObjK nvs n ((n',e'):nes) -> do
@@ -180,7 +180,7 @@ kreturn' v fr = case fr of
   DeRefK -> do
     σ <- getL storeL
     let locs = v >>= coerceLocSet
-        v'   = mjoin . liftMaybeSet . index σ *$ locs
+        v'   = mjoin . maybeSet . index σ *$ locs
     tailReturn v'
   -- Fig 8. Control Operators
   IfK tb fb -> do
@@ -330,21 +330,21 @@ updateField ms fields action = case ms of
 var :: (Analysis ς m) => Name -> m TExp
 var x = do
   e <- getL envL
-  kreturn $ setMap LocA $ liftMaybeSet $ e # x
+  kreturn $ setMap LocA $ maybeSet $ e # x
 
 coerceBool :: AValue -> Set Bool
 coerceBool v = msum
   [ do
-      liftMaybeSet $ coerce boolAL v
+      maybeSet $ coerce boolAL v
       singleton True <+> singleton False
-  , liftMaybeSet $ coerce (bL <.> litAL) v
+  , maybeSet $ coerce (bL <.> litAL) v
   ]
 
 coerceObjSet :: AValue -> Set Obj
-coerceObjSet = liftMaybeSet . coerce objAL
+coerceObjSet = maybeSet . coerce objAL
 
 coerceLocSet :: AValue -> Set Addr
-coerceLocSet = liftMaybeSet . coerce locAL
+coerceLocSet = maybeSet . coerce locAL
 
 nextLocation :: (Analysis ς m) => m Addr
 nextLocation = do

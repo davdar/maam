@@ -112,8 +112,8 @@ makeLenses ''𝒮
 
 class
   ( Monad m
-  , MonadStateE (𝒮 αν lτ dτ) m
-  , MonadZero m
+  , MonadState (𝒮 αν lτ dτ) m
+  , MonadBot m
   , MonadTop m
   , MonadPlus m
   , Val lτ dτ SetWithTop αν
@@ -175,7 +175,7 @@ extractIsLit l av = do
 addr :: (Analysis αν lτ dτ m) => Addr lτ dτ -> m (αν lτ dτ)
 addr 𝓁 = do
   σ <- getL 𝓈StoreL
-  liftMaybeZero $ σ # 𝓁
+  maybeZero $ σ # 𝓁
 
 argVal :: (Analysis αν lτ dτ m) => ArgVal lτ dτ -> m (αν lτ dτ)
 argVal (AddrVal 𝓁) = addr 𝓁
@@ -184,7 +184,7 @@ argVal (LitVal l) = return $ litI l
 varAddr :: (Analysis αν lτ dτ m) => Name -> m (Addr lτ dτ)
 varAddr x = do
   ρ <- getL 𝓈EnvL
-  liftMaybeZero $ ρ # x
+  maybeZero $ ρ # x
 
 var :: (Analysis αν lτ dτ m) => Name -> m (αν lτ dτ)
 var = addr *. varAddr
@@ -289,7 +289,7 @@ call c = do
         [ do
             -- loop through the alternatives
             let loop bs = do
-                  (CaseBranch acon xs c', bs') <- liftMaybeZero $ coerce consL bs
+                  (CaseBranch acon xs c', bs') <- maybeZero $ coerce consL bs
                   case acon of
                     DataAlt con -> msum
                       -- The alt is a Data and the value is a Data with the same
@@ -297,7 +297,7 @@ call c = do
                       [ do
                           Data dcon 𝓁s <- extract dataI dataE av
                           guard $ con == dcon
-                          x𝓁s <- liftMaybeZero $ zip xs 𝓁s
+                          x𝓁s <- maybeZero $ zip xs 𝓁s
                           traverseOn x𝓁s $ \ (x, av') -> do
                             v' <- argVal av'
                             bindJoin x v'

@@ -13,7 +13,7 @@ instance MonadStep ID ID where
 -- State
 instance (MonadStep ς m, Functor m) => MonadStep (ς :.: (,) 𝓈) (StateT 𝓈 m) where
   mstepγ :: (a -> StateT 𝓈 m b) -> ((ς :.: (,) 𝓈) a -> (ς :.: (,) 𝓈)  b)
-  mstepγ f = onComposeIso $ mstepγ $ \ (s, a) -> swap ^$ unStateT (f a) s
+  mstepγ f = onComposeIso $ mstepγ $ \ (s, a) -> unStateT (f a) s
 deriving instance (MonadStep ς m, Functor m) => MonadStep (ς :.: (,) 𝓈1) (AddStateT 𝓈12 𝓈1 m)
 
 -- Flow Insensitive
@@ -45,8 +45,8 @@ instance (Commute t ListSet, Commute u ListSet, Functor t) => Commute (t :.: u) 
 newtype IsoMonadStep ς1 ς2 m a = IsoMonadStep { runIsoMonadStep :: m a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
-    , MonadStateE s, MonadStateI s, MonadState s
+    , MonadBot, MonadPlus
+    , MonadState s
     )
 instance (MonadStep ς2 m, Isomorphism2 ς1 ς2) => MonadStep ς1 (IsoMonadStep ς1 ς2 m) where
   mstepγ :: (a -> IsoMonadStep ς1 ς2 m b) -> (ς1 a -> ς1 b)

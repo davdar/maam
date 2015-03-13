@@ -81,7 +81,7 @@ instance PartialOrder Frame where pcompare = discreteOrder
 class
   ( Monad m
   , MonadStateE 𝒮 m
-  , MonadZero m
+  , MonadBot m
   , MonadPlus m
   , MonadStep ς m
   , JoinLattice (ς TExp)

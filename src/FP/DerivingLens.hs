@@ -25,7 +25,7 @@ makeLensLogic cx ty tyargs field fieldty = do
 
 makeLenses :: Name -> Q [Dec]
 makeLenses name = do
-  (cx, ty, tyargs, c, _) <- liftMaybeZero . (coerceSingleConADT *. coerce tyConIL) *$ liftQ $ reify name
-  (_, fields) <- liftMaybeZero $ coerce recCL c
+  (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. coerce tyConIL) *$ liftQ $ reify name
+  (_, fields) <- maybeZero $ coerce recCL c
   concat ^$ mapOnM fields $ \ (field, _, fieldty) -> do
     makeLensLogic cx ty tyargs field fieldty

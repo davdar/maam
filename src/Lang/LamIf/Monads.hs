@@ -32,8 +32,8 @@ newtype PS val lτ dτ ψ a = FSPS
                  (StateT (𝒮 val lτ dτ ψ) (ListSetT ID)) a 
   } deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
-    , MonadStateE (𝒮 val lτ dτ ψ), MonadStateI (𝒮 val lτ dτ ψ), MonadState (𝒮 val lτ dτ ψ)
+    , MonadBot, MonadPlus
+    , MonadState (𝒮 val lτ dτ ψ)
     , MonadStep (PSΣ val lτ dτ ψ)
     )
 instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (PS val lτ dτ Ψ)
@@ -80,8 +80,8 @@ newtype FS val lτ dτ ψ a = FS
                  (AddStateT (𝒮 val lτ dτ ψ) (PI𝒮 lτ dτ ψ) (ListSetT (StateT (Store val lτ dτ ψ) ID))) a 
   } deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
-    , MonadStateE (𝒮 val lτ dτ ψ), MonadStateI (𝒮 val lτ dτ ψ), MonadState (𝒮 val lτ dτ ψ)
+    , MonadBot, MonadPlus
+    , MonadState (𝒮 val lτ dτ ψ)
     , MonadStep (FSΣ val lτ dτ ψ)
     )
 instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (FS val lτ dτ Ψ)
@@ -114,8 +114,8 @@ newtype FI val lτ dτ ψ a = FIPI
                  (AddStateT (𝒮 val lτ dτ ψ) (PI𝒮 lτ dτ ψ) (ListSetT (StateT (Store val lτ dτ ψ) ID))) a 
   } deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadPlus
-    , MonadStateE (𝒮 val lτ dτ ψ), MonadStateI (𝒮 val lτ dτ ψ), MonadState (𝒮 val lτ dτ ψ)
+    , MonadBot, MonadPlus
+    , MonadState (𝒮 val lτ dτ ψ)
     , MonadStep (FIΣ val lτ dτ ψ)
     )
 instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (FI val lτ dτ Ψ)

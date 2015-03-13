@@ -19,9 +19,9 @@ instance Monoid (ParserState t) where
 
 class 
   ( Monad m
-  , MonadZero m
-  , MonadConcat m
-  , MonadStateE (ParserState t) m
+  , MonadBot m
+  , MonadAppend m
+  , MonadState (ParserState t) m
   ) => MonadParser t m | m -> t where
 
 end :: (MonadParser t m) => m ()
@@ -29,7 +29,7 @@ end = do
   ts <- getL parserStateStreamL
   case ts of
     [] -> return ()
-    _:_ -> mzero
+    _:_ -> mbot
 
 final :: (MonadParser t m) => m a -> m a
 final aM = do
@@ -45,7 +45,7 @@ satisfies p = do
       putL parserStateStreamL ts'
       bumpL parserStateConsumedL
       return t
-    _ -> mzero
+    _ -> mbot
 
 pluck :: (MonadParser t m) => m t
 pluck = satisfies $ const True
@@ -62,12 +62,12 @@ string = fromChars ^. word . toChars
 newtype Parser t a = Parser { unParser :: StateT (ParserState t) (ListT ID) a }
   deriving 
     ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadZero, MonadConcat
-    , MonadStateI (ParserState t), MonadStateE (ParserState t), MonadState (ParserState t)
+    , MonadBot, MonadAppend
+    , MonadState (ParserState t)
     )
 instance MonadParser t (Parser t) where
 
-runParser :: [t] -> Parser t a -> [(a, ParserState t)]
+runParser :: [t] -> Parser t a -> [(ParserState t, a)]
 runParser ts = unID . unListT . runStateT (ParserState ts 0) . unParser
 
 data ParseError t a =
@@ -76,7 +76,7 @@ data ParseError t a =
 makePrettySum ''ParseError
 
 parseFinal :: Parser t a -> [t] -> ParseError t a :+: a
-parseFinal p ts = case map fst $ runParser ts $ final p of
+parseFinal p ts = case map snd $ runParser ts $ final p of
   [] -> Inl ParsingError
   [x] -> Inr x
   xs -> Inl $ AmbiguousParse xs
@@ -92,7 +92,7 @@ tokenize aM = loop
       case runParser ts aM of
         [] -> throw ts
         x:xs -> do
-          let (a, s) = findMax (parserStateConsumed . snd) x xs
+          let (s, a) = findMax (parserStateConsumed . fst) x xs
           (a :) ^$ loop $ parserStateStream s 
 
 data LexParseError c t a = 
@@ -106,10 +106,10 @@ lexParseFinal tp wp ep cs = do
   ts <- mapInl LexingError $ tokenize tp cs
   let ts' = filter (not . wp) ts
   (x,xs) <- 
-    elimMaybeOn (coerce consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
+    maybeElimOn (coerce consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
   if isL nilL xs
-    then return $ fst x
-    else throw (LexAmbiguousParse (ts', map fst $ x:xs) :: LexParseError c t a)
+    then return $ snd x
+    else throw (LexAmbiguousParse (ts', map snd $ x:xs) :: LexParseError c t a)
 
 -- Mixfix
 
@@ -131,11 +131,11 @@ data Level m a = Level
 
 splitMixes :: (MonadParser t m) => [Mix m a] -> Level m a
 splitMixes ms = Level
-  { levelPre = mconcat $ liftMaybeZero . coerce preL *$ ms
-  , levelPost = mconcat $ liftMaybeZero . coerce postL *$ ms
-  , levelInf = mconcat $ liftMaybeZero . coerce infL *$ ms
-  , levelInfL = mconcat $ liftMaybeZero . coerce infLL *$ ms
-  , levelInfR = mconcat $ liftMaybeZero . coerce infRL *$ ms
+  { levelPre = mconcat $ maybeZero . coerce preL *$ ms
+  , levelPost = mconcat $ maybeZero . coerce postL *$ ms
+  , levelInf = mconcat $ maybeZero . coerce infL *$ ms
+  , levelInfL = mconcat $ maybeZero . coerce infLL *$ ms
+  , levelInfR = mconcat $ maybeZero . coerce infRL *$ ms
   }
 
 pre :: (Monad m) => (b -> a -> a) -> m b -> Mix m a
@@ -169,13 +169,13 @@ between alM arM aM = do
   arM
   return a
 
-build :: (MonadParser t m) => [m a] -> Map Int [Mix m a] -> m a
-build lits lps = case mapRemove lps of
+buildMix :: (MonadParser t m) => [m a] -> Map Int [Mix m a] -> m a
+buildMix lits lps = case mapRemove lps of
   Nothing -> mconcat lits
-  Just ((_i, ms), lps') -> buildMix (build lits lps') $ splitMixes ms
+  Just ((_i, ms), lps') -> buildLevel (buildMix lits lps') $ splitMixes ms
 
-buildMix :: (MonadParser t m) => m a -> Level m a -> m a
-buildMix aM l = mconcat
+buildLevel :: (MonadParser t m) => m a -> Level m a -> m a
+buildLevel aM l = mconcat
   [ buildMixPre aM $ levelPre l
   , do
       a <- aM

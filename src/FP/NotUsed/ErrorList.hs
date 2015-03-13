@@ -24,8 +24,8 @@ instance Bind (ErrorList e) where
   ErrorListSuccess x [] >>= k = k x
   ErrorListSuccess x (x':xs') >>= k = k x ++ (ErrorListSuccess x' xs' >>= k)
 instance Monad (ErrorList e) where
-instance MonadZero (ErrorList e) where
-  mzero = null
+instance MonadBot (ErrorList e) where
+  mbot = null
 instance MonadMonoid (ErrorList e) where
   (<++>) = (++)
 -- instance CoIterable a (ErrorList e a) where
@@ -114,9 +114,9 @@ instance (Functorial Monoid m) => Monoid (ErrorListT e m a) where
     with (functorial :: W (Monoid (m (ErrorList e a)))) $
     ErrorListT $ unErrorListT xs ++ unErrorListT ys
 instance (Functorial Monoid m) => Functorial Monoid (ErrorListT e m) where functorial = W
-instance (Functorial Monoid m) => MonadZero (ErrorListT e m) where
-  mzero = null
-instance (Functorial Monoid m) => MonadConcat (ErrorListT e m) where
+instance (Functorial Monoid m) => MonadBot (ErrorListT e m) where
+  mbot = null
+instance (Functorial Monoid m) => MonadAppend (ErrorListT e m) where
   (<++>) = (++)
 
 instance (Monad m, Functorial Monoid m) => MonadErrorListI e (ErrorListT e m) where

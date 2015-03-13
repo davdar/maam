@@ -31,7 +31,7 @@ partitionMeet xs = do
       c = meets cs
       p = joins ps
   case c of
-    SetTop -> if isNil ps then mzero else mtop
+    SetTop -> if isNil ps then mbot else mtop
     SetNotTop candidates -> do
       candidate <- mlist $ toList candidates
       guard $ p candidate

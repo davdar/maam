@@ -71,7 +71,7 @@ liftBinaryOpBot pa pc op = liftBinaryOpSpecialBot pa op (pbot pc)
 liftUnaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue b) =>
                 P a -> P b -> (a -> b) -> AValue -> Set AValue
 liftUnaryOpBot pa pb op av1 =
-  joins $ map liftMaybeSet $
+  joins $ map maybeSet $
   [ do
        v1 <- pcoerce av1
        return $ pinject $ op v1
@@ -81,7 +81,7 @@ liftUnaryOpBot pa pb op av1 =
 liftBinaryOpSpecialBot :: (BottomPrismable AValue a) => (Injectable AValue c) =>
                           P a -> (a -> a -> c) -> AValue -> AValue -> AValue -> Set AValue
 liftBinaryOpSpecialBot pa op cbot av1 av2 =
-  joins $ map liftMaybeSet $
+  joins $ map maybeSet $
   [ do
        v1 <- pcoerce av1
        v2 <- pcoerce av2

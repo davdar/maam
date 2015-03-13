@@ -38,7 +38,7 @@ type Analysis m =
   ( MonadStateE Store m
   , MonadStateE Kon m
   , MonadFail m
-  , MonadZero m
+  , MonadBot m
   , MonadPlus m
   , MonadStep m
   , JoinLattice (SS m SExp)
@@ -98,7 +98,7 @@ kreturn v = do
 
 kreturn' :: (Analysis m) => Kon -> Set AValue -> m (SExp, Kon)
 kreturn' k v = case k of
-  HaltK -> mzero
+  HaltK -> mbot
   PrimK o κ -> kreturn' κ $ op o v
   LetK x b κ -> do
     bind x v
@@ -119,11 +119,11 @@ var x = do
 
 coerceClo :: (Analysis m) => AValue -> m Clo
 coerceClo (CloA c) = return c
-coerceClo _ = mzero
+coerceClo _ = mbot
 
 coerceBool :: (Analysis m) => AValue -> m Bool
 coerceBool (LitA (B b)) = return b
-coerceBool _ = mzero
+coerceBool _ = mbot
 
 op :: Op -> Set AValue -> Set AValue
 op = extend . opOne
@@ -157,7 +157,7 @@ somega = stamp omega
 type FIguts = StateT Kon (ListSetT (StateT Store ID))
 newtype FI a = FI { runFI :: FIguts a }
              deriving ( MonadStateE Kon
-                      , MonadZero
+                      , MonadBot
                       , MonadPlus
                       , Unit
                       , Functor

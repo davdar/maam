@@ -109,7 +109,7 @@ appExp :: Mix (Parser Token) RawExp
 appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
 exp :: Parser Token RawExp
-exp = build lits (fromList mixes)
+exp = buildMix lits $ fromList mixes
   where
     lits = 
       [ Fix . Lit ^$ litExp
