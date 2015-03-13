@@ -127,10 +127,6 @@ class ToDouble     a where toDouble     :: a        -> Double
 class FromDouble   a where fromDouble   :: Double   -> a
 class ToString     a where toString     :: a        -> String
 
--- for Overlaoded Strings extension
-fromString :: Chars -> String
-fromString = fromChars
-
 -- }}}
 
 -- Arithmetic {{{
@@ -827,11 +823,12 @@ instance Fractional     Double
 type String = Text
 type Chars = [Char]
 
-toChars   ::                     String -> Chars ; toChars   = Text.unpack
-fromChars ::                     Chars -> String ; fromChars = Text.pack
-error     ::                     String -> a     ; error     = Prelude.error . toChars 
-show      :: (Prelude.Show a) => a -> String     ; show      = fromChars . Prelude.show
-read      :: (Prelude.Read a) => String -> a     ; read      = Prelude.read . toChars
+fromChars  :: Chars -> String                 ; fromChars  = Text.pack
+fromString :: Chars -> String                 ; fromString = fromChars
+toChars    :: String -> Chars                 ; toChars    = Text.unpack
+error      :: String -> a                     ; error      = Prelude.error . toChars 
+show       :: (Prelude.Show a) => a -> String ; show       = fromChars . Prelude.show
+read       :: (Prelude.Read a) => String -> a ; read       = Prelude.read . toChars
 
 instance ToString Char where toString = show
 instance Monoid String where { null = Text.empty ; (++) = Text.append }
