@@ -19,7 +19,7 @@ data PreAtom e =
     Pico Pico
   | LamF Name Name e
   | LamK Name e
-  | Thunk Name Name Name Pico Pico
+  | Thunk Name Int Name Name Pico Pico
   deriving (Eq, Ord)
 type Atom = PreAtom Call
 
@@ -32,16 +32,16 @@ type CaseBranch = PreCaseBranch Call
 
 data PreCall e =
     Let Name (PreAtom e) e
-  | Rec [(Name, Name, Name)] e
+  | Rec [(Name, Name)] e
   | Letrec [(Name, PreAtom e)] e
   | AppK Pico Pico
-  | AppF Pico Pico Pico
-  | Case Pico [PreCaseBranch e]
+  | AppF Int Name Pico Pico Pico
+  | Case Int Name Pico [PreCaseBranch e]
   | Halt Pico
   deriving (Eq, Ord)
 instance (Functorial Eq PreCall) where functorial = W
 instance (Functorial Ord PreCall) where functorial = W
-type Call = Fix PreCall
+type Call = StampedFix Int PreCall
 
 -- CPS Conversion
 
@@ -62,14 +62,26 @@ instance Balloon CPSKon Call where
   deflate :: (Monad m) => CPSKon Call (OpaqueContT CPSKon Call m) ~> CPSKon Call m
   deflate (MetaKon (mk :: a -> OpaqueContT CPSKon Call m Call)) = MetaKon $ \ (a :: a) -> runMetaKonTWith return $ mk a
   deflate (ObjectKon pk (mk :: Pico -> OpaqueContT CPSKon Call m Call)) = ObjectKon pk $ \ p -> evalOpaqueKonT $ mk p
-type CPSM m = (Monad m, MonadCont Call m, MonadOpaqueCont CPSKon Call m, MonadState UniqSupply m)
+
+data CPS𝒮 = CPS𝒮
+  { cps𝒮UniqSupply :: UniqSupply
+  , cps𝒮ProgLoc    :: Int
+  }
+makeLenses ''CPS𝒮
+
+type CPSM m = (Monad m, MonadCont Call m, MonadOpaqueCont CPSKon Call m, MonadState CPS𝒮 m)
 
 fresh :: (CPSM m) => String -> m Name
 fresh x = do
-  supply <- get
+  supply <- getL cps𝒮UniqSupplyL
   let (u, supply') = takeUniqFromSupply supply
-  put supply'
+  putL cps𝒮UniqSupplyL supply'
   return $ mkSystemName u $ mkVarOcc $ toChars x
+
+stamp :: (CPSM m) => PreCall Call -> m Call
+stamp c = do
+  i <- nextL cps𝒮ProgLocL
+  return $ StampedFix i c
 
 atom :: (CPSM m) => Atom -> m Pico
 atom a = do
@@ -78,15 +90,14 @@ atom a = do
   return $ Var x
 
 letAtom :: (CPSM m) => Name -> Atom -> m ()
-letAtom x a = modifyC (return . Fix . Let x a) $ return ()
+letAtom x a = modifyC (stamp . Let x a) $ return ()
 
 rec :: (CPSM m) => [Name] -> m ()
 rec xs = do
-  rxrxs <- mapOnM xs $ \ x -> do
+  rxs <- mapOnM xs $ \ x -> do
     r <- fresh "r"
-    xr <- fresh "xr"
-    return (r, xr, x)
-  modifyC (return . Fix . Rec rxrxs) $ return ()
+    return (r, x)
+  modifyC (stamp . Rec rxs) $ return ()
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
 reify (MetaKon mk) = do
@@ -97,7 +108,7 @@ reify (ObjectKon k _) = return k
 
 reflect :: (CPSM m) => Pico -> CPSKon Call m Pico
 reflect k = ObjectKon k $ \ x -> do
-  return $ Fix $ AppK k x
+  stamp $ AppK k x
 
 cpsAtom :: (CPSM m) => H.Expr Var -> m Atom
 cpsAtom e = case e of
@@ -118,9 +129,10 @@ cpsM e = case e of
     p₁ <- cpsM e₁
     p₂ <- cpsM e₂
     r <- fresh "r"
-    xr <- fresh "xr"
+    xi <- nextL cps𝒮ProgLocL
+    x <- fresh "x"
     k <- fresh "k"
-    atom $ Thunk r xr k p₁ p₂
+    atom $ Thunk r xi x k p₁ p₂
   H.Lam xv e' -> do
     let x = Var.varName xv
     k <- fresh "k"
@@ -130,7 +142,7 @@ cpsM e = case e of
     let x = Var.varName xv
     a <- cpsAtom e₁
     c <- opaqueWithC ko $ cpsM e₂
-    return $ Fix $ Let x a c
+    stamp $ Let x a c
   H.Let (H.Rec xves) e₂ -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
     rec $ map (Var.varName . fst) xves
     xas <- mapOnM xves $ uncurry $ \ xv e' -> do
@@ -138,7 +150,7 @@ cpsM e = case e of
       a <- cpsAtom e'
       return (x, a)
     c <- opaqueWithC ko $ cpsM e₂
-    return $ Fix $ Letrec xas c
+    stamp $ Letrec xas c
   H.Case e' xv _ bs -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
     let x = Var.varName xv
     a <- cpsAtom e'
@@ -149,7 +161,9 @@ cpsM e = case e of
       let xs = map Var.varName xvs
       c <- opaqueWithC ko $ cpsM e''
       return $ CaseBranch con xs c
-    return $ Fix $ Case (Var x) b's
+    xi' <- nextL cps𝒮ProgLocL
+    x' <- fresh "x"
+    stamp $ Case xi' x' (Var x) b's
   H.Cast e' _ -> cpsM e'
   H.Tick _ e' -> cpsM e'
   H.Type _ -> error "type in term"

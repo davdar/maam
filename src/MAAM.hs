@@ -1,9 +1,9 @@
 module MAAM
-  ( module MAAM.Initial
+  ( module MAAM.Inject
   , module MAAM.MonadStep
   , module MAAM.Time
   ) where
 
-import MAAM.Initial
+import MAAM.Inject
 import MAAM.MonadStep
 import MAAM.Time

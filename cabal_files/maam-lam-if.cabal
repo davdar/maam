@@ -33,6 +33,7 @@ library
     FP.Parser
     FP.Pretty
     FP.TH
+    FP.Compat
     Lang.LamIf
     Lang.LamIf.Analyses
     Lang.LamIf.CPS
@@ -46,7 +47,7 @@ library
     Lang.LamIf.Syntax
     Lang.LamIf.Val
     MAAM
-    MAAM.Initial
+    MAAM.Inject
     MAAM.MonadStep
     MAAM.Time
   build-depends:

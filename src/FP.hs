@@ -23,3 +23,4 @@ import FP.DerivingMonoid
 import FP.DerivingJoinLattice
 import FP.DerivingPretty
 import FP.IO
+import FP.Compat ()

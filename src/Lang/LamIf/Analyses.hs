@@ -46,6 +46,6 @@ closureChoices =
 
 timeFilterChoices :: [(String, TimeFilter)]
 timeFilterChoices =
-  [ ("*"   , not . isL haltL . stampedFix )
-  , ("app" , isL appFL . stampedFix )
+  [ ("*"   , not . is haltL . stampedFix )
+  , ("app" , is appFL . stampedFix )
   ]

@@ -107,7 +107,7 @@ lexParseFinal tp wp ep cs = do
   let ts' = filter (not . wp) ts
   (x,xs) <- 
     maybeElimOn (coerce consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
-  if isL nilL xs
+  if is nilL xs
     then return $ snd x
     else throw (LexAmbiguousParse (ts', map snd $ x:xs) :: LexParseError c t a)
 

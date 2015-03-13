@@ -32,8 +32,9 @@ library
     FP.Parser
     FP.Pretty
     FP.TH
+    FP.Compat
     MAAM
-    MAAM.Initial
+    MAAM.Inject
     MAAM.MonadStep
     MAAM.Time
   build-depends:

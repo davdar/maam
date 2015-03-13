@@ -2,7 +2,6 @@ module MAAM.Time where
 
 import FP
 import qualified FP.Pretty as P
-import MAAM.Initial
 import GHC.TypeLits
 
 class Time τ where
@@ -15,10 +14,8 @@ newtype Cτ ψ = Cτ [ψ]
 instance Functorial Eq Cτ where functorial = W
 instance Functorial Ord Cτ where functorial = W
 instance Functorial Pretty Cτ where functorial = W
-instance Initial (Cτ ψ) where initial = nil
-instance Time Cτ where
-  tzero = initial
-  tick = (&)
+instance Bot (Cτ ψ) where bot = nil
+instance Time Cτ where { tzero = bot ; tick = (&) }
 
 -- kCFA
 newtype Kτ (k :: Nat) ψ = Kτ [ψ]
@@ -26,9 +23,9 @@ newtype Kτ (k :: Nat) ψ = Kτ [ψ]
 instance Functorial Eq (Kτ k) where functorial = W
 instance Functorial Ord (Kτ k) where functorial = W
 instance Functorial Pretty (Kτ k) where functorial = W
-instance Initial (Kτ k ψ) where initial = nil
+instance Bot (Kτ k ψ) where bot = nil
 instance (KnownNat k) => Time (Kτ k) where
-  tzero = initial
+  tzero = bot
   tick x y = fromList $ firstN (natVal (P :: P k)) $ toList $ x & y
 
 -- 0CFA
@@ -39,7 +36,5 @@ instance Pretty (Zτ a) where
 instance Functorial Eq Zτ where functorial = W
 instance Functorial Ord Zτ where functorial = W
 instance Functorial Pretty Zτ where functorial = W
-instance Initial (Zτ ψ) where initial = Zτ
-instance Time Zτ where
-  tzero = initial
-  tick = const id
+instance Bot (Zτ ψ) where bot = Zτ
+instance Time Zτ where { tzero = bot ; tick = const id }

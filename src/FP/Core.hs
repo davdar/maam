@@ -833,7 +833,7 @@ read       :: (Prelude.Read a) => String -> a ; read       = Prelude.read . toCh
 instance ToString Char where toString = show
 instance Monoid String where { null = Text.empty ; (++) = Text.append }
 instance ToString String where toString = show
-instance Container Char String where s ? c = isL justL $ Text.find (== c) s
+instance Container Char String where s ? c = is justL $ Text.find (== c) s
 instance Iterable Char String where
   foldl = Text.foldl'
   foldr = Text.foldr
@@ -873,10 +873,11 @@ data Prism a b = Prism { inject :: b -> a, coerce :: a -> Maybe b }
 prism         :: (b -> a) -> (a -> Maybe b) -> Prism a b ; prism            = Prism
 isoPrism      :: (b -> a) -> (a -> b)       -> Prism a b ; isoPrism from to = prism from $ Just . to
 unsafe_coerce :: Prism a b -> a -> b                     ; unsafe_coerce    = maybeElim (error "unsafe_coerce") id .: coerce
-isL           :: Prism a b -> a -> Bool                  ; isL              = maybeElim False (const True) .: coerce
+is            :: Prism a b -> a -> Bool                  ; is               = maybeElim False (const True) .: coerce
 alter         :: Prism a b -> (b -> b) -> a -> a         ; alter p f a      = maybeElim a (inject p . f) $ coerce p a
 (~^)          :: Prism a b -> (b -> b) -> a -> a         ; (~^)             = alter
 pset          :: Prism a b -> b -> a -> a                ; pset p           = alter p . const
+(=^)          :: Prism a b -> b -> a -> a                ; (=^)             = pset
 
 instance Category Prism where
   catid = isoPrism id id
@@ -1346,3 +1347,124 @@ instance (PartialOrder a) => PartialOrder (StampedFix a f) where pcompare = pcom
 data Annotated ann a = Annotated { annotation :: ann , annValue :: a }
 
 -- }}}
+
+-- ListSetWithTop {{{
+
+data ListSetWithTop a = ListSetTop | ListSetNotTop (ListSet a)
+
+instance Bot (ListSetWithTop a) where bot = ListSetNotTop nil
+instance Join (ListSetWithTop a) where
+  ListSetTop \/ _ = ListSetTop
+  _ \/ ListSetTop = ListSetTop
+  ListSetNotTop x \/ ListSetNotTop y = ListSetNotTop $ x ++ y
+instance Top (ListSetWithTop a) where top = ListSetTop
+instance Meet (ListSetWithTop a) where
+  ListSetTop /\ x = x
+  x /\ ListSetTop = x
+  ListSetNotTop x /\ ListSetNotTop y = ListSetNotTop $ x ++ y
+instance JoinLattice (ListSetWithTop a)
+instance MeetLattice (ListSetWithTop a)
+instance MonadBot ListSetWithTop where mbot = bot
+instance MonadPlus ListSetWithTop where (<+>) = (\/)
+instance MonadTop ListSetWithTop where mtop = top
+instance MonadAppend ListSetWithTop where (<++>) = (\/)
+instance Unit ListSetWithTop where unit = ListSetNotTop . single
+instance Bind ListSetWithTop where
+  ListSetTop >>= _ = ListSetTop
+  ListSetNotTop xs >>= f = joins $ map f xs
+instance Functor ListSetWithTop where map = mmap
+instance Product ListSetWithTop where (<*>) = mpair
+instance Applicative ListSetWithTop where (<@>) = mapply
+instance Monad ListSetWithTop
+
+-- }}}
+
+-- SetWithTop {{{
+
+data SetWithTop a = SetTop | SetNotTop (Set a) deriving (Eq, Ord)
+
+setWithTopElim :: b -> (Set a -> b) -> SetWithTop a -> b
+setWithTopElim b _ SetTop = b
+setWithTopElim _ f (SetNotTop x) = f x
+
+setFromListWithTop :: (Ord a) => ListSetWithTop a -> SetWithTop a
+setFromListWithTop ListSetTop = SetTop
+setFromListWithTop (ListSetNotTop xs) = SetNotTop $ fromList $ toList xs
+
+listFromSetWithTop :: SetWithTop a -> ListSetWithTop a
+listFromSetWithTop SetTop = ListSetTop
+listFromSetWithTop (SetNotTop xs) = ListSetNotTop $ fromSet xs
+
+instance Bot (SetWithTop a) where bot = SetNotTop empty
+instance Join (SetWithTop a) where
+  SetTop \/ _ = SetTop
+  _ \/ SetTop = SetTop
+  SetNotTop x \/ SetNotTop y = SetNotTop $ x \/ y
+instance Top (SetWithTop a) where top = SetTop
+instance Meet (SetWithTop a) where
+  SetTop /\ x = x
+  x /\ SetTop = x
+  SetNotTop x /\ SetNotTop y = SetNotTop $ x /\ y
+instance MonadBot SetWithTop where mbot = bot
+instance MonadPlus SetWithTop where (<+>) = (\/)
+instance MonadTop SetWithTop where mtop = top
+instance Product SetWithTop where 
+  SetTop <*> _ = SetTop
+  _ <*> SetTop = SetTop
+  SetNotTop xs <*> SetNotTop ys = SetNotTop $ xs <*> ys
+instance Bind SetWithTop where
+  SetTop >>= _ = SetTop
+  SetNotTop xs >>= f = joins $ setMap f xs
+
+instance JoinLattice (SetWithTop a)
+instance MeetLattice (SetWithTop a)
+
+-- }}}
+
+-- Constructive Classical {{{
+
+data ConstructiveClassical a = Constructive (Set a) | Classical (a -> Bool)
+
+conClaPartition :: [ConstructiveClassical a] -> ([Set a], [a -> Bool])
+conClaPartition = iter ff ([], [])
+  where
+    ff (Constructive c) (cs, ps) = (c : cs, ps)
+    ff (Classical p) (cs, ps) = (cs, p : ps)
+
+conClaBigProduct :: (Ord a) => [ConstructiveClassical a] -> ListSetWithTop a
+conClaBigProduct xs = do
+  let (cs, ps) = conClaPartition xs
+      c = meets $ map SetNotTop cs
+      p = joins ps
+  case c of
+    SetTop -> if is nilL ps then mbot else mtop
+    SetNotTop candidates -> do
+      candidate <- mlist $ toList candidates
+      guard $ p candidate
+      return candidate
+
+-- }}}
+
+-- SumOfProd {{{
+
+newtype SumOfProd a = SumOfProd { unSumOfProd :: Set (Set a) }
+instance (Ord a) => Buildable a (SumOfProd a) where { nil = SumOfProd empty ; a & s = SumOfProd $ single (single a) \/ unSumOfProd s }
+
+sumOfProdMap :: (Ord b) => (a -> b) -> SumOfProd a -> SumOfProd b
+sumOfProdMap f = SumOfProd . setMap (setMap f) . unSumOfProd
+
+sumOfProdConcretize :: (Ord b) => (a -> ConstructiveClassical b) -> SumOfProd a -> SetWithTop b
+sumOfProdConcretize p v = setFromListWithTop $ conClaBigProduct *$ mlist $ map (map p . toList) $ toList $ unSumOfProd v
+
+instance Bot (SumOfProd a) where bot = SumOfProd empty
+instance Join (SumOfProd a) where sps1 \/ sps2 = SumOfProd $ unSumOfProd sps1 \/ unSumOfProd sps2
+instance Meet (SumOfProd a) where
+  sps₁ /\ sps₂ = SumOfProd $ do
+    ps₁ <- unSumOfProd sps₁
+    ps₂ <- unSumOfProd sps₂
+    single $ ps₁ \/ ps₂
+instance (Ord a, Neg a) => Neg (SumOfProd a) where neg = sumOfProdMap neg . SumOfProd . setBigProduct . unSumOfProd
+instance JoinLattice (SumOfProd a)
+
+-- }}}
+

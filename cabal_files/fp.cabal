@@ -32,6 +32,7 @@ library
     FP.Parser
     FP.Pretty
     FP.TH
+    FP.Compat
   build-depends:
       base == 4.7.*
     , containers 
