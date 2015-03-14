@@ -19,6 +19,7 @@ data Moment lτ dτ = Moment
   , timeDyn :: dτ
   } deriving (Eq, Ord)
 makeLenses ''Moment
+instance (Time ψ lτ, Time ψ dτ) => Bot (Moment lτ dτ) where bot = Moment tzero tzero
 
 data Addr lτ dτ = Addr
   { addrName :: Name
@@ -105,25 +106,17 @@ data 𝒮 ν lτ dτ = 𝒮
   { 𝓈Env :: Env lτ dτ
   , 𝓈Store :: Store ν lτ dτ
   , 𝓈Time :: Moment lτ dτ
-  }
+  } deriving (Eq, Ord)
+instance (Time ψ lτ, Time ψ dτ) => Bot (𝒮 ν lτ dτ) where bot = 𝒮 bot bot bot
 makeLenses ''𝒮
 
 -- Analysis effects and constraints
 
-class
-  ( Monad m
-  , MonadState (𝒮 ν lτ dτ) m
-  , MonadBot m
-  , MonadTop m
-  , MonadPlus m
-  , Val lτ dτ SetWithTop ν
-  , Ord (Addr lτ dτ)
-  , JoinLattice (ν lτ dτ)
-  , Meet (ν lτ dτ)
-  , Neg (ν lτ dτ)
-  , Time Int lτ
-  , Time Int dτ
-  ) => Analysis ν lτ dτ m | m -> ν , m -> lτ , m -> dτ where
+type TimeC lτ dτ = (Ord lτ, Ord dτ, Time Int lτ, Time Int dτ)
+type ValC ν lτ dτ = (JoinLattice (ν lτ dτ), Meet (ν lτ dτ), Neg (ν lτ dτ), Val lτ dτ SetWithTop ν)
+type MonadC ν lτ dτ m = (Monad m, MonadBot m, MonadTop m, MonadPlus m, MonadState (𝒮 ν lτ dτ) m)
+
+class ( MonadC ν lτ dτ m , ValC ν lτ dτ , TimeC lτ dτ) => Analysis ν lτ dτ m | m -> ν , m -> lτ , m -> dτ
 
 -- Moment management
 
@@ -289,7 +282,7 @@ call c = do
         [ do
             -- loop through the alternatives
             let loop bs = do
-                  (CaseBranch acon xs c', bs') <- maybeZero $ coerce consL bs
+                  (CaseBranch acon xs c', bs') <- maybeZero $ view consL bs
                   case acon of
                     DataAlt con -> msum
                       -- The alt is a Data and the value is a Data with the same

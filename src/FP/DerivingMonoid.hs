@@ -26,6 +26,6 @@ makeMonoidLogic cx ty tyargs con fieldtys = do
 
 makeMonoid :: Name -> Q [Dec]
 makeMonoid name = do
-  (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. coerce tyConIL) *$ liftQ $ reify name
+  (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. view tyConIL) *$ liftQ $ reify name
   (con, fieldtys) <- maybeZero $ coerceSimpleCon c
   makeMonoidLogic cx ty tyargs con fieldtys

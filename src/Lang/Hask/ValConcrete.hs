@@ -25,10 +25,10 @@ data OCVal lτ dτ = Pos (CVal lτ dτ) | Neg (CVal lτ dτ)
   deriving (Eq, Ord)
 
 discreteE :: (Ord b) => Prism (CVal lτ dτ) b -> OCVal lτ dτ -> IValProj b
-discreteE l (Pos v) = case coerce l v of
+discreteE l (Pos v) = case view l v of
   Just x -> IConcrete $ singleton x
   Nothing -> IConcrete empty
-discreteE l (Neg v) = case coerce l v of
+discreteE l (Neg v) = case view l v of
   Just x -> IPredicate $ \ x' -> x /= x'
   Nothing -> IPredicate $ const True
 

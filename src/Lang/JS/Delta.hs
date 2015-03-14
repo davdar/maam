@@ -44,24 +44,24 @@ class Injectable a b => Prismable a b where
   pcoerce :: a -> Maybe b
 
 instance Prismable AValue Double where
-  pcoerce = coerce (nL <.> litAL)
+  pcoerce = view (nL <.> litAL)
 instance Prismable AValue Bool where
-  pcoerce = coerce (bL <.> litAL)
+  pcoerce = view (bL <.> litAL)
 instance Prismable AValue String where
-  pcoerce = coerce (sL <.> litAL)
+  pcoerce = view (sL <.> litAL)
 
 class (Prismable a b) => BottomPrismable a b where
   pcoerceBot :: P b -> a -> Maybe ()
   pbot :: P b -> a
 
 instance BottomPrismable AValue Double where
-  pcoerceBot _ = coerce numAL
+  pcoerceBot _ = view numAL
   pbot _ = NumA
 instance BottomPrismable AValue Bool where
-  pcoerceBot _ = coerce boolAL
+  pcoerceBot _ = view boolAL
   pbot _ = BoolA
 instance BottomPrismable AValue String where
-  pcoerceBot _ = coerce strAL
+  pcoerceBot _ = view strAL
   pbot _ = StrA
 
 liftBinaryOpBot :: (BottomPrismable AValue a) => (BottomPrismable AValue c) =>

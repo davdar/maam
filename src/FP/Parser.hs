@@ -106,7 +106,7 @@ lexParseFinal tp wp ep cs = do
   ts <- mapInl LexingError $ tokenize tp cs
   let ts' = filter (not . wp) ts
   (x,xs) <- 
-    maybeElimOn (coerce consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
+    maybeElimOn (view consL $ runParser ts' ep) (throw (LexParsingError ts' :: LexParseError c t a)) return
   if is nilL xs
     then return $ snd x
     else throw (LexAmbiguousParse (ts', map snd $ x:xs) :: LexParseError c t a)
@@ -131,11 +131,11 @@ data Level m a = Level
 
 splitMixes :: (MonadParser t m) => [Mix m a] -> Level m a
 splitMixes ms = Level
-  { levelPre = mconcat $ maybeZero . coerce preL *$ ms
-  , levelPost = mconcat $ maybeZero . coerce postL *$ ms
-  , levelInf = mconcat $ maybeZero . coerce infL *$ ms
-  , levelInfL = mconcat $ maybeZero . coerce infLL *$ ms
-  , levelInfR = mconcat $ maybeZero . coerce infRL *$ ms
+  { levelPre = mconcat $ maybeZero . view preL *$ ms
+  , levelPost = mconcat $ maybeZero . view postL *$ ms
+  , levelInf = mconcat $ maybeZero . view infL *$ ms
+  , levelInfL = mconcat $ maybeZero . view infLL *$ ms
+  , levelInfR = mconcat $ maybeZero . view infRL *$ ms
   }
 
 pre :: (Monad m) => (b -> a -> a) -> m b -> Mix m a

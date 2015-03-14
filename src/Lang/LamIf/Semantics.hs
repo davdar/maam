@@ -15,7 +15,7 @@ type Ψ = LocNum
 
 type TimeC τ =
   ( Time τ
-  , Initial (τ Ψ)
+  , Bot (τ Ψ)
   , Ord (τ Ψ)
   , Pretty (τ Ψ)
   )

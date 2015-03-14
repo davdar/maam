@@ -1,7 +1,6 @@
 module Lang.LamIf.StateSpace where
 
 import FP
-import MAAM
 import Lang.LamIf.Syntax
 import Lang.LamIf.CPS
 
@@ -21,8 +20,8 @@ data 𝒮 val lτ dτ ψ = 𝒮
   , 𝓈σ :: Store val lτ dτ ψ
   } deriving (Eq, Ord)
 makeLenses ''𝒮
-instance (Initial (lτ ψ), Initial (dτ ψ)) => Initial (𝒮 val lτ dτ ψ) where
-  initial = 𝒮 initial initial initial initial
+instance (Bot (lτ ψ), Bot (dτ ψ)) => Bot (𝒮 val lτ dτ ψ) where
+  bot = 𝒮 bot bot bot bot
 
 data Clo lτ dτ ψ = Clo 
   { cloLoc :: LocNum

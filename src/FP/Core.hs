@@ -7,6 +7,7 @@ module FP.Core
   , module GHC.Exts
   , module Data.Char
   , module Language.Haskell.TH
+  , module Data.Coerce
   ) where
 
 -- }}}
@@ -31,6 +32,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Language.Haskell.TH (Q)
 import Data.Char (isSpace, isAlphaNum, isLetter, isDigit)
+import Data.Coerce
 
 -- }}}
 
@@ -868,13 +870,13 @@ instance Category Lens where
 
 -- Prism {{{
 
-data Prism a b = Prism { inject :: b -> a, coerce :: a -> Maybe b }
+data Prism a b = Prism { inject :: b -> a, view :: a -> Maybe b }
 
 prism         :: (b -> a) -> (a -> Maybe b) -> Prism a b ; prism            = Prism
 isoPrism      :: (b -> a) -> (a -> b)       -> Prism a b ; isoPrism from to = prism from $ Just . to
-unsafe_coerce :: Prism a b -> a -> b                     ; unsafe_coerce    = maybeElim (error "unsafe_coerce") id .: coerce
-is            :: Prism a b -> a -> Bool                  ; is               = maybeElim False (const True) .: coerce
-alter         :: Prism a b -> (b -> b) -> a -> a         ; alter p f a      = maybeElim a (inject p . f) $ coerce p a
+unsafe_coerce :: Prism a b -> a -> b                     ; unsafe_coerce    = maybeElim (error "unsafe_coerce") id .: view
+is            :: Prism a b -> a -> Bool                  ; is               = maybeElim False (const True) .: view
+alter         :: Prism a b -> (b -> b) -> a -> a         ; alter p f a      = maybeElim a (inject p . f) $ view p a
 (~^)          :: Prism a b -> (b -> b) -> a -> a         ; (~^)             = alter
 pset          :: Prism a b -> b -> a -> a                ; pset p           = alter p . const
 (=^)          :: Prism a b -> b -> a -> a                ; (=^)             = pset
@@ -882,7 +884,7 @@ pset          :: Prism a b -> b -> a -> a                ; pset p           = al
 instance Category Prism where
   catid = isoPrism id id
   g <.> f = Prism
-    { coerce = coerce g *. coerce f
+    { view = view g *. view f
     , inject = inject f . inject g
     }
 
@@ -1209,11 +1211,12 @@ instance JoinLattice (Set a)
 -- ListSet {{{
 
 newtype ListSet a = ListSet { unListSet :: [a] }
-  deriving 
-    ( Container a, Iterable a, Buildable a
-    , Monoid
-    , Unit, Functor, Applicative, Product, Bind, Monad
-    )
+  deriving (Container a, Iterable a, Buildable a , Monoid , Unit, Functor, Applicative, Product, Bind, Monad)
+instance FunctorM ListSet where mapM f = map ListSet . mapM f . unListSet
+
+listSetTranspose :: forall a. ListSet (ListSet a) -> ListSet (ListSet a)
+listSetTranspose = coerce (transpose :: [[a]] -> [[a]])
+
 instance (Ord a) => PartialOrder (ListSet a) where pcompare = pcompare `on` toSet
 instance Bot (ListSet a) where bot = null
 instance Join (ListSet a) where (\/) = (++)
@@ -1289,6 +1292,7 @@ instance (Eq v) => Container (k, v) (Map k v) where m ? (k,v) = maybeElim False 
 instance (Ord k) => Buildable (k, v) (Map k v) where { nil = mapEmpty ; (&) = uncurry mapInsert }
 instance Bot (Map k v) where bot = mapEmpty
 instance (Join v) => Join (Map k v) where (\/) = mapUnionWith (\/)
+instance (Monoid v) => Monoid (Map k v) where { null = mapEmpty ; (++) = mapUnionWith (++) }
 instance (JoinLattice v) => JoinLattice (Map k v)
 
 -- }}}
@@ -1351,7 +1355,24 @@ data Annotated ann a = Annotated { annotation :: ann , annValue :: a }
 -- ListSetWithTop {{{
 
 data ListSetWithTop a = ListSetTop | ListSetNotTop (ListSet a)
+listSetWithTopElim :: b -> (ListSet a -> b) -> ListSetWithTop a -> b
+listSetWithTopElim i f = \case { ListSetTop -> i ; ListSetNotTop xs -> f xs }
 
+listSetWithTopTranspose :: ListSetWithTop (ListSetWithTop a) -> ListSetWithTop (ListSetWithTop a)
+listSetWithTopTranspose = 
+  listSetWithTopElim ListSetTop 
+    $ maybeElim ListSetTop (ListSetNotTop . map ListSetNotTop . listSetTranspose) 
+    . sequence . map (listSetWithTopElim Nothing Just)
+
+instance (Ord a) => PartialOrder (ListSetWithTop a) where
+  ListSetTop       `pcompare` ListSetTop       = PEQ
+  ListSetTop       `pcompare` _                = PGT
+  _                `pcompare` ListSetTop       = PLT
+  ListSetNotTop xs `pcompare` ListSetNotTop ys = xs `pcompare` ys
+instance Buildable a (ListSetWithTop a) where 
+  nil = ListSetNotTop nil 
+  _ & ListSetTop = ListSetTop
+  x & ListSetNotTop xs = ListSetNotTop $ x & xs
 instance Bot (ListSetWithTop a) where bot = ListSetNotTop nil
 instance Join (ListSetWithTop a) where
   ListSetTop \/ _ = ListSetTop
@@ -1362,6 +1383,7 @@ instance Meet (ListSetWithTop a) where
   ListSetTop /\ x = x
   x /\ ListSetTop = x
   ListSetNotTop x /\ ListSetNotTop y = ListSetNotTop $ x ++ y
+instance Monoid (ListSetWithTop a) where { null = bot ; (++) = (\/) }
 instance JoinLattice (ListSetWithTop a)
 instance MeetLattice (ListSetWithTop a)
 instance MonadBot ListSetWithTop where mbot = bot
@@ -1395,6 +1417,11 @@ listFromSetWithTop :: SetWithTop a -> ListSetWithTop a
 listFromSetWithTop SetTop = ListSetTop
 listFromSetWithTop (SetNotTop xs) = ListSetNotTop $ fromSet xs
 
+instance (Ord a) => PartialOrder (SetWithTop a) where
+  SetTop       `pcompare` SetTop       = PEQ
+  SetTop       `pcompare` _            = PGT
+  _            `pcompare` SetTop       = PLT
+  SetNotTop xs `pcompare` SetNotTop ys = xs `pcompare` ys
 instance Bot (SetWithTop a) where bot = SetNotTop empty
 instance Join (SetWithTop a) where
   SetTop \/ _ = SetTop

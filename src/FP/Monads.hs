@@ -287,8 +287,8 @@ instance FunctorFunctor2 (StateT s) where
   fmap2 :: (Functor m, Functor n) => (m ~> n) -> StateT s m ~> StateT s n
   fmap2 f aM = StateT $ f . unStateT aM
 
-instance (MonadBot m) => MonadBot (StateT s m) where
-  mbot = StateT $ const mbot
+instance (MonadBot m) => MonadBot (StateT s m) where mbot = StateT $ const mbot
+instance (MonadTop m) => MonadTop (StateT s m) where mtop = StateT $ const mtop
 instance (MonadPlus m) => MonadPlus (StateT s m) where
   aM1 <+> aM2 = StateT $ \ s -> unStateT aM1 s <+> unStateT aM2 s
 instance (MonadAppend m) => MonadAppend (StateT s m) where
@@ -460,7 +460,7 @@ maybeToList aM = ListT $ ff ^$ unMaybeT aM
 
 newtype ListSetT m a = ListSetT { unListSetT :: m (ListSet a) }
 listSetCommute :: (Functor m) => ListSetT (ListSetT m) ~> ListSetT (ListSetT m)
-listSetCommute = ListSetT . ListSetT . (ListSet . ListSet ^. transpose . unListSet ^. unListSet) ^. unListSetT . unListSetT
+listSetCommute = ListSetT . ListSetT . listSetTranspose ^. unListSetT . unListSetT
 
 instance (Unit m) => Unit (ListSetT m) where
   unit = ListSetT . unit . ListSet . single
@@ -574,6 +574,43 @@ instance (Functorial JoinLattice m) => MonadPlus (ListSetT m) where
   aM1 <+> aM2 = 
     with (functorial :: W (JoinLattice (m (ListSet a)))) $
     ListSetT $ unListSetT aM1 \/ unListSetT aM2
+
+-- }}}
+
+-- ListSetWithTopT {{{
+
+newtype ListSetWithTopT m a = ListSetWithTopT { unListSetWithTopT :: m (ListSetWithTop a) }
+listSetWithTopCommute :: (Functor m) => ListSetWithTopT (ListSetWithTopT m) ~> ListSetWithTopT (ListSetWithTopT m)
+listSetWithTopCommute = ListSetWithTopT . ListSetWithTopT . listSetWithTopTranspose ^. unListSetWithTopT . unListSetWithTopT
+
+instance (Unit m) => Unit (ListSetWithTopT m) where unit = ListSetWithTopT . unit . single
+instance (Functor m) => Functor (ListSetWithTopT m) where map f = ListSetWithTopT . f ^^. unListSetWithTopT
+instance (Monad m, Functorial JoinLattice m) => Product (ListSetWithTopT m) where (<*>) = mpair
+instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetWithTopT m) where (<@>) = mapply
+instance (Monad m, Functorial JoinLattice m) => Bind (ListSetWithTopT m) where
+  (>>=) :: forall a b. ListSetWithTopT m a -> (a -> ListSetWithTopT m b) -> ListSetWithTopT m b
+  aM >>= k = ListSetWithTopT $ do
+    xs <- unListSetWithTopT aM
+    unListSetWithTopT $ listSetWithTopElim mtop msum $ k ^$ xs
+instance (Monad m) => MonadTop (ListSetWithTopT m) where mtop = ListSetWithTopT $ return ListSetTop
+instance (Monad m, Functorial JoinLattice m) => Monad (ListSetWithTopT m) where
+instance FunctorUnit2 ListSetWithTopT where
+  funit2 = ListSetWithTopT .^ unit
+instance FunctorJoin2 ListSetWithTopT where
+  fjoin2 = ListSetWithTopT . listSetWithTopElim ListSetTop concat ^. unListSetWithTopT . unListSetWithTopT
+instance FunctorFunctor2 ListSetWithTopT where
+  fmap2 f = ListSetWithTopT . f . unListSetWithTopT
+
+instance (Functorial JoinLattice m) => MonadBot (ListSetWithTopT m) where
+  mbot :: forall a. ListSetWithTopT m a
+  mbot = 
+    with (functorial :: W (JoinLattice (m (ListSetWithTop a)))) $
+    ListSetWithTopT bot
+instance (Functorial JoinLattice m) => MonadPlus (ListSetWithTopT m) where
+  (<+>) :: forall a. ListSetWithTopT m a -> ListSetWithTopT m a -> ListSetWithTopT m a
+  aM1 <+> aM2 = 
+    with (functorial :: W (JoinLattice (m (ListSetWithTop a)))) $
+    ListSetWithTopT $ unListSetWithTopT aM1 \/ unListSetWithTopT aM2
 
 -- }}}
 

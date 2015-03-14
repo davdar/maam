@@ -47,12 +47,12 @@ makePrettyUnionLogic cx ty tyargs confieldtyss = do
 
 makePrettySum :: Name -> Q [Dec]
 makePrettySum name = do
-  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
+  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. view tyConIL) *$ liftQ $ reify name
   scs <- mapM (maybeZero . coerceSimpleCon) cs
   makePrettySumLogic cx ty tyargs scs
 
 makePrettyUnion :: Name -> Q [Dec]
 makePrettyUnion name = do
-  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
+  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. view tyConIL) *$ liftQ $ reify name
   scs <- mapM (maybeZero . coerceSimpleCon) cs
   makePrettyUnionLogic cx ty tyargs scs

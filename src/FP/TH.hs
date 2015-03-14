@@ -58,7 +58,7 @@ coerceSimpleCon (ForallC _ _ _) = Nothing
 
 tyConIL :: Prism Info Dec
 tyConIL = Prism
-  { coerce = \ case
+  { view = \ case
       TyConI d -> Just d
       _ -> Nothing
   , inject = TyConI
@@ -66,7 +66,7 @@ tyConIL = Prism
 
 dataDL :: Prism Dec (Cxt, Name, [TyVarBndr], [Con], [Name])
 dataDL = Prism
-  { coerce = \ case
+  { view = \ case
       DataD cx t args cs ders -> Just (cx, t, args, cs, ders)
       _ -> Nothing
   , inject = \ (cx, t, args, cs, ders) -> DataD cx t args cs ders
@@ -74,7 +74,7 @@ dataDL = Prism
 
 newtypeDL :: Prism Dec (Cxt, Name, [TyVarBndr], Con, [Name])
 newtypeDL = Prism
-  { coerce = \ case
+  { view = \ case
       NewtypeD cx t args c ders -> Just (cx, t, args, c, ders)
       _ -> Nothing
   , inject = \ (cx, t, args, c, ders) -> NewtypeD cx t args c ders
@@ -82,21 +82,21 @@ newtypeDL = Prism
 
 coerceADT :: Dec -> Maybe (Cxt, Name, [TyVarBndr], [Con], [Name])
 coerceADT =
-  coerce dataDL
+  view dataDL
   ++
-  (ff ^. coerce newtypeDL)
+  (ff ^. view newtypeDL)
   where
     ff (cx, t, args, c, ders) = (cx, t, args, [c], ders)
 
 coerceSingleConADT :: Dec -> Maybe (Cxt, Name, [TyVarBndr], Con, [Name])
 coerceSingleConADT dec = do
   (cx, t, args, cs, ders) <- coerceADT dec
-  c <- coerce singleL cs
+  c <- view singleL cs
   return(cx, t, args, c, ders)
 
 recCL :: Prism Con (Name, [VarStrictType])
 recCL = Prism
-  { coerce = \ case
+  { view = \ case
       RecC n fs -> Just (n, fs)
       _ -> Nothing
   , inject = \ (n, fs) -> RecC n fs

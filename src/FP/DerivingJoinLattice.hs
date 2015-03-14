@@ -25,7 +25,7 @@ makeJoinLatticeLogic cx ty tyargs con fieldtys = do
 
 makeJoinLattice :: Name -> Q [Dec]
 makeJoinLattice name = do
-  (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. coerce tyConIL) *$ liftQ $ reify name
+  (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. view tyConIL) *$ liftQ $ reify name
   (con, fieldtys) <- maybeZero $ coerceSimpleCon c
   makeJoinLatticeLogic cx ty tyargs con fieldtys
 

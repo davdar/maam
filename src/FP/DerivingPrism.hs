@@ -8,7 +8,7 @@ import Data.Char
 -- makePrismLogic [C, D] ty [a, b] Con [fty, gty] := [|
 --   fieldL :: (C, D) => Prism (ty a b) (fty, bty)
 --   fieldL := Prism 
---     { coerce = \ v -> case v of
+--     { view = \ v -> case v of
 --         Con f g -> Just (f, g)
 --         _ -> Nothing
 --     , inject = Con
@@ -41,7 +41,7 @@ makePrismLogic cx ty tyargs con args numcons = do
 
 makePrisms :: Name -> Q [Dec]
 makePrisms name = do
-  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. coerce tyConIL) *$ liftQ $ reify name
+  (cx, ty, tyargs, cs, _) <- maybeZero . (coerceADT *. view tyConIL) *$ liftQ $ reify name
   scs <- mapM (maybeZero . coerceSimpleCon) cs
   concat ^$ mapOnM scs $ \ (cname, args) -> do
     makePrismLogic cx ty tyargs cname args $ length scs

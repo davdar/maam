@@ -17,7 +17,7 @@ instance Morphism2 (PSΣ' val lτ dτ ψ) (PSΣ val lτ dτ ψ) where
   morph2 = PSΣ . map swap . unID . unCompose . unCompose
 instance Isomorphism2 (PSΣ val lτ dτ ψ) (PSΣ' val lτ dτ ψ) where
 instance (TimeC lτ, TimeC dτ) => Inject (PSΣ val lτ dτ Ψ) where
-  inj = PSΣ . inj . (,initial)
+  inj = PSΣ . inj . (,bot)
 
 newtype PSΣ𝒫 val lτ dτ ψ a = PSΣ𝒫 { runPSΣ𝒫 :: Set (a, 𝒮 val lτ dτ ψ) }
   deriving (PartialOrder, Bot, Join, JoinLattice, Pretty)
@@ -46,8 +46,9 @@ data PI𝒮 lτ dτ ψ = PI𝒮
   , piρ :: Env lτ dτ ψ
   } deriving (Eq, Ord)
 makePrettyUnion ''PI𝒮
-instance (Initial (lτ ψ), Initial (dτ ψ)) => Initial (PI𝒮 lτ dτ ψ) where
-  initial = PI𝒮 initial initial initial
+makeMonoid ''PI𝒮
+instance (Bot (lτ ψ), Bot (dτ ψ)) => Bot (PI𝒮 lτ dτ ψ) where
+  bot = PI𝒮 bot bot bot
 instance Morphism (𝒮 val lτ dτ ψ) (PI𝒮 lτ dτ ψ, Store val lτ dτ ψ) where
   morph (𝒮 lτ dτ ρ σ) = (PI𝒮 lτ dτ ρ, σ)
 instance Morphism (PI𝒮 lτ dτ ψ, Store val lτ dτ ψ) (𝒮 val lτ dτ ψ) where
@@ -65,7 +66,7 @@ instance Morphism2 (FSΣ' val lτ dτ ψ) (FSΣ val lτ dτ ψ) where
   morph2 = FSΣ . map ((\ (σ, (PI𝒮 lτ dτ ρ, a)) -> (a, 𝒮 lτ dτ ρ σ)) . unID . unCompose) . unCompose . unCompose
 instance Isomorphism2 (FSΣ val lτ dτ ψ) (FSΣ' val lτ dτ ψ) where
 instance (TimeC lτ, TimeC dτ) => Inject (FSΣ val lτ dτ Ψ) where
-  inj = FSΣ . inj . (,initial)
+  inj = FSΣ . inj . (,bot)
 
 newtype FSΣ𝒫 val lτ dτ ψ a = FSΣ𝒫 { runFSΣ𝒫 :: Set (a, 𝒮 val lτ dτ ψ) }
   deriving (PartialOrder, Bot, Join, JoinLattice, Pretty)
@@ -107,7 +108,7 @@ instance (Ord (val lτ dτ ψ), Ord (lτ ψ), Ord (dτ ψ), Ord a) => Morphism (
 instance (Ord (val lτ dτ ψ), Ord (lτ ψ), Ord (dτ ψ), Ord a) => Isomorphism (FIΣ val lτ dτ ψ a) (FIΣ𝒫 val lτ dτ ψ a)
 
 instance (TimeC lτ, TimeC dτ) => Inject (FIΣ val lτ dτ Ψ) where
-  inj = FIΣ . (,initial) . inj . (,initial)
+  inj = FIΣ . (,bot) . inj . (,bot)
 
 newtype FI val lτ dτ ψ a = FIPI 
   { runFI :: IsoMonadStep (FIΣ val lτ dτ ψ) (FIΣ' val lτ dτ ψ)

@@ -128,7 +128,7 @@ kreturn' v fr = case fr of
   AppR v vs (arg:args) -> do
     touchNGo arg $ AppR v vs args
   AppR fv argvs [] -> do
-    Clo xs b <- maybeZero . coerce cloAL *$ mset fv
+    Clo xs b <- maybeZero . view cloAL *$ mset fv
     bindMany xs argvs
     return b
   ObjK nvs n ((n',e'):nes) -> do
@@ -335,16 +335,16 @@ var x = do
 coerceBool :: AValue -> Set Bool
 coerceBool v = msum
   [ do
-      maybeSet $ coerce boolAL v
+      maybeSet $ view boolAL v
       singleton True <+> singleton False
-  , maybeSet $ coerce (bL <.> litAL) v
+  , maybeSet $ view (bL <.> litAL) v
   ]
 
 coerceObjSet :: AValue -> Set Obj
-coerceObjSet = maybeSet . coerce objAL
+coerceObjSet = maybeSet . view objAL
 
 coerceLocSet :: AValue -> Set Addr
-coerceLocSet = maybeSet . coerce locAL
+coerceLocSet = maybeSet . view locAL
 
 nextLocation :: (Analysis ς m) => m Addr
 nextLocation = do
