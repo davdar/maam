@@ -1,0 +1,20 @@
+{\scriptsize
+\begin{align*}
+& \hspace{0em}    \atomf : Atom → ℳ (Exp)                                       \\
+& \hspace{0em}    \atomf(a) := \ddo                                             \\
+& \hspace{2em}      v ← 𝒜 ⟦a⟧                                                   \\
+& \hspace{2em}      fr ← \popkon                                                \\
+& \hspace{2em}      \case{fr}                                                   \\
+& \hspace{4em}        [ □  \op e ] → \ldots                                     \\
+& \hspace{4em}        [ v' \op □ ] → \liftnondet(\adelta(\op, v', v))            \\
+& \hspace{4em}        [ □  \ap e ] → \ldots                                     \\
+& \hspace{4em}        [ v' \ap □ ] → \ddo                                       \\
+& \hspace{6em}          ⟨ \lam(x) → e, ρ' ⟩ ← \liftnondet(\acloE{Clo}(v'))       \\
+& \hspace{6em}          \putenv(ρ'[x ↦ v])                                      \\
+& \hspace{6em}          \ret(e)                                                 \\
+& \hspace{4em}        [ \ifz{□}{e₁}{e₂} ] → \ddo                                \\
+& \hspace{6em}          b ← \liftnondet(\aifzE(v))                               \\
+& \hspace{6em}          \mif{b ≟ 0}{\ret(e₁)}{\ret(e₂)}                        
+\end{align*}
+}
+

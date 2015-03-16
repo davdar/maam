@@ -1,8 +1,0 @@
-\begin{align*}
-   gc &: Exp → ℳ (1)                                     \\
-gc(e) &≔ \ddo                                            \\
-      &θ ← \getstore                                     \\
-      &𝓁₀ ← \touchedexp(e)                              \\
-      &\llet 𝓁_{∞} ≔ μ(𝓁) → 𝓁₀ ⊔ 𝓁 ⊔ \touchedvar(𝓁) \\
-      &\putstore(⋃_{x ∈ 𝓁_{∞}} [x ↦ (θ(x))])            \\
-\end{align*}

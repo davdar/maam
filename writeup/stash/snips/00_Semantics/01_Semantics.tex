@@ -1,0 +1,28 @@
+{\scriptsize
+\begin{alignat*}{2}
+          clo &∈ Clo     &&:= ⟨\lam(x) → e, ρ⟩                                                                                 \\
+            v &∈ Val     &&::= i \indor clo                                                                                    \\
+            ρ &∈ Env     &&:= Var ⇀ Val                                                                                        \\
+           fr &∈ Frame   &&::= [ □ \op e ] \indor [ v \op □ ] \indor [ □ \ap e ] \indor [ v \ap □ ] \indor [ \ifz{□}{e₁}{e₂} ] \\
+\overline{fr} &∈ Kon     &&:= Frame^*                                                                                          \\
+            ς &∈ Σ       &&:= Exp × Env × Kon
+\end{alignat*}
+\begin{alignat*}{1}
+  \steps &∈ 𝒫 (Σ × Σ)                                                                                                          \\
+  ⟨ a , ρ , [ □ \op e ] ∷ \overline{fr} ⟩ &\steps ⟨ e                         , ρ , [ 𝒜_ρ⟦a⟧ \op □ ] ∷ \overline{fr} ⟩         \\
+  ⟨ a , ρ , [ v \op □ ] ∷ \overline{fr} ⟩ &\steps ⟨ \delta(\op , v , 𝒜_ρ⟦a⟧ ) , ρ , \overline{fr} ⟩                            \\
+%
+  ⟨ a , ρ , [ □                   \ap e ] ∷ \overline{fr} ⟩ &\steps ⟨ e , ρ               , [ 𝒜_ρ⟦a⟧ \ap □ ] ∷ \overline{fr} ⟩ \\
+  ⟨ a , ρ , [ ⟨ \lam(x) → e, ρ' ⟩ \ap □ ] ∷ \overline{fr} ⟩ &\steps ⟨ e , ρ'[x ↦ 𝒜_ρ⟦a⟧ ] , \overline{fr} ⟩                    \\
+%
+  ⟨ a , ρ , [ \ifz{□}{e₁}{e₂} ] ∷ \overline{fr} ⟩ &\steps 
+  \begin{cases} 
+      ⟨ e₁ , ρ , \overline{fr} ⟩ & \text{if $𝒜_ρ⟦a⟧ = 0$} \\
+      ⟨ e₂ , ρ , \overline{fr} ⟩ & \text{otherwise} 
+  \end{cases}                                                                                                                  \\
+%
+  ⟨ e₁ \op e₂        , ρ , \overline{fr} ⟩ &\steps ⟨ e₁   , ρ , [ □ \op e₂ ]        ∷ \overline{fr} ⟩                          \\
+  ⟨ e₁ \ap e₂        , ρ , \overline{fr} ⟩ &\steps ⟨ e₁   , ρ , [ □ \ap e₂ ]        ∷ \overline{fr} ⟩                          \\
+  ⟨ \ifz{e₁}{e₂}{e₃} , ρ , \overline{fr} ⟩ &\steps ⟨ e₁   , ρ , [ \ifz{□}{e₂}{e₃} ] ∷ \overline{fr} ⟩
+\end{alignat*}
+}
