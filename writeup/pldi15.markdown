@@ -1,11 +1,11 @@
 # Introduction
 
-Traditional practice in the program analysis via abstract interpretation is to
-fix a language (as a concrete semantics) and an abstraction (as an abstraction
-map, concretization map or Galois connection) before constructing a static
-analyzer that it sound with respect to both the abstraction and the concrete
-semantics.  Thus, each pairing of abstraction and semantics requires a one-off
-manual derivation of the abstract semantics and a construction of a proof of
+Traditional practice in program analysis via abstract interpretation is to fix
+a language (as a concrete semantics) and an abstraction (as an abstraction map,
+concretization map or Galois connection) before constructing a static analyzer
+that it sound with respect to both the abstraction and the concrete semantics.
+Thus, each pairing of abstraction and semantics requires a one-off manual
+derivation of the abstract semantics and a construction of a proof of
 soundness.
 
 Work has focused on endowing abstractions with knobs, levers, and dials to tune
@@ -17,9 +17,9 @@ specific language_ and prove the framework sound.
 But this framework approach suffers from many of the same drawbacks as the
 one-off analyzers.  They are language-specific, preventing reuse of concepts
 across languages and require similar re-implementations and soundness proofs.
-This process is still manual, tedious, difficult and error-prone.    And,
-changes to the structure of the parameter-space require a completely new proof
-of soundness.  And, it prevents fruitful insights and results developed in one
+This process is still manual, tedious, difficult and error-prone. And, changes
+to the structure of the parameter-space require a completely new proof of
+soundness.  And, it prevents fruitful insights and results developed in one
 paradigm from being applied to others, e.g., functional to object-oriented and
 _vice versa_.
 
@@ -30,11 +30,12 @@ program analysis.  Inspired by \citeauthor*{dvanhorn:Liang1995Monad}'s
 interpreters in a specific monadic style. Changing the monad will change the
 interpreter from a concrete interpreter into an abstract interpreter. As we
 show, classical program abstractions can be embodied as language-independent
-monads.  Moreover, these abstractions can be written as monad transformers,
+monads.  Moreover, these abstractions can be written as monad _transformers_,
 thereby allowing their composition to achieve new forms of analysis.  We show
 that these monad transformers obey the properties of \emph{Galois connections}
 \cite{dvanhorn:Cousot1979Systematic} and introduce the concept of a
-\emph{Galois transformer}, a monad transformer transports Galois connection.
+\emph{Galois transformer}, a monad transformer which transports Galois
+connections.
 
 Most significantly, Galois transformers can be proved sound once and used
 everywhere.  Abstract interpreters, which take the form of monad transformer
@@ -48,9 +49,9 @@ For example, our implementation--called `maam`--supports command-line flags for 
 ``````````````````````````````````````````````````
 ./maam --gc --CFA=0 --flow-sen prog.lam
 ``````````````````````````````````````````````````
-These flags are implemented completely independent of one another, 
-  and are applied to a single parameterized monadic interpreter.
-Furthermore, using Galois transformers allows us to prove each combination correct in one fell swoop.
+These flags are implemented independently of one another and are applied to a
+single parameterized monadic interpreter. Furthermore, using Galois
+transformers allows us to prove each combination correct in one fell swoop.
 
 \paragraph{Setup}
 We describe a simple language and a garbage-collecting allocating semantics as the 
@@ -78,12 +79,12 @@ To ease the construction of monads for building abstract interpreters and their 
 Galois transformers are an extension of monad transformers which transport Galois connections in addition to monadic operations.
 Our Galois transformer framework allows us to reason about the correctness of an abstract interpreter piecewise for 
   each transformer in a stack.
-These Galois transformers are also language independent, and they can be proven correct one and for all in isolation from a particular semantics.
+Galois transformers are language independent and they can be proven correct one and for all in isolation from a particular semantics.
 
 \paragraph{Implementation}
 We implement our technique in Haskell and briefly discuss how the parameters from Section \ref{analysis-parameters} translate into 
   code (Section \ref{implementation-1}).
-Our implementation is publicly accessible on Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's package manager.
+Our implementation is publicly available on Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's package manager.
 
 
 \paragraph{Contributions}
@@ -97,34 +98,16 @@ We make the following contributions:
 
 # Semantics
 
-To demonstrate our framework we design an abstract interpreter for `λIF`, a simple applied lambda calculus shown in Figure`~\ref{SS}`{.raw}.
--- `\begin{figure}`{.raw}
--- \vspace{-1em}
--- `\caption{`{.raw} `λIF` `}`{.raw}
--- \label{Syntax} 
--- \vspace{-1em}
--- `\end{figure}`{.raw}
-`λIF` extends traditional lambda calculus with integers, addition, subtraction and conditionals.
--- We use the operator `@` as explicit syntax for function application.
--- This allows for `Op` to be a single syntactic class for all operators and simplifies the presentation.
-
-Before designing an abstract interpreter we first specify a formal semantics for `λIF`.
-Our semantics makes allocation explicit and separates value and continuation stores.
-We will aim to recover these semantics from our generic abstract interpreter.
-
-The state space `Σ` for `λIF` is a standard CESK machine augmented with a separate store for continuation values, 
-  shown in Figure \ref{SS}.
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````align````````````````````````````````````````
-  i ∈  ℤ
-  x ∈  Var
-  a ∈  Atom  ::= i | x | [λ](x).e
-  ⊕ ∈  IOp   ::= [+] | [-]
-  ⊙ ∈  Op    ::= ⊕ | @ 
-  e ∈  Exp   ::= a | e ⊙ e | if0(e){e}{e}
-``````````````````````````````````````````````````
-`````align````````````````````````````````````````
+ i ∈  ℤ
+ x ∈  Var
+ a ∈  Atom    ::= i | x | [λ](x).e
+ ⊕ ∈  IOp     ::= [+] | [-]
+ ⊙ ∈  Op      ::= ⊕ | @ 
+ e ∈  Exp     ::= a | e ⊙ e | if0(e){e}{e}
+<>
  τ ∈  Time    := ℤ
  l ∈  Addr    := Var × Time
  ρ ∈  Env     := Var ⇀ Addr
@@ -141,18 +124,33 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
 \vspace{-1em}
 `\end{figure}`{.raw}
 
+To demonstrate our framework we design an abstract interpreter for `λIF`, a
+simple applied lambda calculus shown in Figure`~\ref{SS}`{.raw}. `λIF` extends
+traditional lambda calculus with integers, addition, subtraction and
+conditionals. We use the operator `@` as explicit syntax for function
+application. This allows for `Op` to be a single syntactic class for all
+operators and simplifies the presentation.
+
+Before designing an abstract interpreter we first specify a formal semantics
+for `λIF`. Our semantics makes allocation explicit and separates value and
+continuation stores. We will recover these semantics from our generic abstract
+interpreter in Section \ref{recovering-analyses} .
+
+The state space `Σ` for `λIF` is a standard CESK machine augmented with a
+separate store for continuation values, shown in Figure \ref{SS}.
+
 Atomic expressions are denoted by `A⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
-A⟦_,_,_⟧ ∈ Env × Store × Atom ⇀ Val
-A⟦ρ,σ,i⟧ := i
-A⟦ρ,σ,x⟧ := σ(ρ(x))
-A⟦ρ,σ,[λ](x).e⟧ := ⟨[λ](x).e,ρ⟩ 
+A⟦_⟧(_,_) ∈ Atom → Env × Store ⇀ Val
+A⟦i⟧(ρ,σ) := i
+A⟦x⟧(ρ,σ) := σ(ρ(x))
+A⟦[λ](x).e⟧(ρ,σ).e) := ⟨[λ](x).e,ρ⟩ 
 ``````````````````````````````````````````````````
 Primitive operations are denotation denoted by `δ⟦_,_,_⟧`:
 `````indent```````````````````````````````````````
-δ⟦_,_,_⟧ ∈ IOp × ℤ × ℤ → ℤ
-δ⟦[+],i₁,i₂⟧ := i₁ + i₂
-δ⟦[-],i₁,i₂⟧ := i₁ - i₂
+δ⟦_⟧(_,_) ∈ IOp → ℤ × ℤ → ℤ
+δ⟦[+]⟧(i₁,i₂) := i₁ + i₂
+δ⟦[-]⟧(i₁,i₂) := i₁ - i₂
 ``````````````````````````````````````````````````
 
 The semantics of compound expressions are given relationally via the step relation `_~~>_` shown in Figure \ref{Sem}.

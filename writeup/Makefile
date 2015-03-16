@@ -1,5 +1,7 @@
 .PHONY: open clean update dependencies tidy
 
+GHC_FLAGS = -package-db=$(wildcard .cabal-sandbox/*-packages.conf.d)
+
 pldi15.pdf: pldi15.tex tmp/autogen/pldi15.markdown.tex tmp/dvanhorn.bib tmp/davdar.bib
 	mkdir -p tmp/latex-out/include
 	xelatex --output-directory=tmp/latex-out pldi15.tex 
@@ -10,8 +12,16 @@ pldi15.pdf: pldi15.tex tmp/autogen/pldi15.markdown.tex tmp/dvanhorn.bib tmp/davd
 	xelatex --output-directory=tmp/latex-out pldi15.tex 
 	cp tmp/latex-out/pldi15.pdf ./
 
+init:
+	cabal sandbox init
+	cabal install --dependencies-only
+
+reinit:
+	rm -rf .cabal-sandbox
+	make init
+
 tmp/autogen/pldi15.markdown.tex: pldi15.markdown Process.hs *.tbl
-	runhaskell Process.hs
+	runhaskell $(GHC_FLAGS) Process.hs
 
 tmp/davdar.bib:
 	mkdir -p tmp
@@ -33,7 +43,7 @@ clean:
 	rm -rf tmp
 
 tidy:
-	runhaskell Tidy.hs
+	runhaskell $(GHC_FLAGS) Tidy.hs
 
 tmp/dvanhorn.bib:
 	mkdir -p tmp
