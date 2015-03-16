@@ -63,7 +63,7 @@ infixr 7 <*>
 infixr 7 /\
 
 infix  6 -
-infix  6 \-\
+infix  6 \\
 infixr 6 +
 infixr 6 ++
 infixr 6 :+:
@@ -213,6 +213,16 @@ poiter f = loop
       let x' = f x
       in if x' ⊑ x then x else loop x'
 
+poiterHistory :: (PartialOrder a) => (a -> a) -> a -> [a]
+poiterHistory f = loop
+  where
+    loop x = 
+      let x' = f x
+      in if x ⊑ x' 
+        then [x]
+        else x : loop x'
+
+
 -- }}}
 
 -- Category {{{
@@ -256,11 +266,12 @@ concat     :: (Iterable a t, Monoid a)  => t -> a      ; concat       = foldr (+
 
 -- Lattice  {{{
 
-class Bot  a where bot  :: a
-class Join a where (\/) :: a -> a -> a
-class Top  a where top  :: a
-class Meet a where (/\) :: a -> a -> a
-class Neg a  where neg :: a -> a
+class Bot        a where bot  :: a
+class Join       a where (\/) :: a -> a -> a
+class Top        a where top  :: a
+class Meet       a where (/\) :: a -> a -> a
+class Neg        a where neg  :: a -> a
+class Difference a where (\\) :: a -> a -> a
 class (Bot a, Join a) => JoinLattice a
 class (Top a, Meet a) => MeetLattice a
 class (JoinLattice a, MeetLattice a) => Lattice a
@@ -274,6 +285,19 @@ collect f = poiter $ \ x -> x \/ f x
 
 collectN :: (Join a, PartialOrder a, Eq n, Peano n) => n -> (a -> a) -> a -> a
 collectN n f x0 = piterOn n x0 $ \ x -> x \/ f x
+
+collectHistory :: (Join a, PartialOrder a) => (a -> a) -> a -> [a]
+collectHistory f = poiterHistory $ \ x -> x \/ f x
+
+diffs :: forall a. (JoinLattice a, Difference a) => [a] -> [a]
+diffs = loop bot
+  where
+    loop :: a -> [a] -> [a]
+    loop _ [] = []
+    loop accum (x:xs) = x \\ accum : loop (x \/ accum) xs
+
+collectDiffs :: (PartialOrder a, JoinLattice a, Difference a) => (a -> a) -> a -> [a]
+collectDiffs f = diffs . collectHistory f
 
 -- }}}
 
@@ -363,7 +387,7 @@ class MonadJoin2       (t :: (* -> *) -> (* -> *)) where mjoin2   :: (Monad m)  
 class MonadFunctor2    (t :: (* -> *) -> (* -> *)) where mmap2    :: (Monad m, Monad n) => (m ~> n)         -> (t m ~> t n)
 class MonadIsoFunctor2 (t :: (* -> *) -> (* -> *)) where misoMap2 :: (Monad m, Monad n) => (m ~> n, n ~> m) -> (t m ~> t n)
 
-class MonadIO m where liftIO :: IO ~> m
+class MonadIO m where io     :: IO ~> m
 class MonadQ  m where liftQ  :: Q ~> m
 
 -- }}}
@@ -1163,8 +1187,8 @@ intersection = setPrimElim2' EmptySet (const EmptySet) $ Set .: Set.intersection
 remove :: Set a -> Maybe (a, Set a)
 remove = setPrimElim Nothing $ map (mapSnd Set) . Set.minView
 
-(\-\) :: Set a -> Set a -> Set a
-(\-\) = setPrimElim2 EmptySet (const EmptySet) Set $ Set .: (Set.\\)
+setDiff :: Set a -> Set a -> Set a
+setDiff = setPrimElim2 EmptySet (const EmptySet) Set $ Set .: (Set.\\)
 
 setMap :: (Ord b) => (a -> b) -> Set a -> Set b
 setMap f = setPrimElim EmptySet $ Set . Set.map f
@@ -1204,6 +1228,7 @@ instance Bot (Set a) where bot = empty
 instance Join (Set a) where (\/) = union
 instance Meet (Set a) where (/\) = intersection
 instance Monoid (Set a) where { null = empty ; (++) = union }
+instance Difference (Set a) where (\\) = setDiff
 instance JoinLattice (Set a)
 
 -- }}}
@@ -1299,15 +1324,15 @@ instance (JoinLattice v) => JoinLattice (Map k v)
 
 -- IO {{{
 
-print  :: (MonadIO m) => String -> m () ; print  = liftIO . Prelude.putStrLn . toChars
-failIO :: (MonadIO m) => String -> m a  ; failIO = liftIO . Prelude.fail . toChars
+print  :: (MonadIO m) => String -> m () ; print  = io . Prelude.putStrLn . toChars
+failIO :: (MonadIO m) => String -> m a  ; failIO = io . Prelude.fail . toChars
 
 instance Unit        IO where unit = Prelude.return
 instance Functor     IO where map = mmap
 instance Applicative IO where (<@>) = mapply
 instance Product     IO where (<*>) = mpair
 instance Bind        IO where (>>=) = (Prelude.>>=)
-instance MonadIO     IO where liftIO = id
+instance MonadIO     IO where io = id
 instance Monad       IO
 
 -- }}}
@@ -1383,6 +1408,11 @@ instance Meet (ListSetWithTop a) where
   ListSetTop /\ x = x
   x /\ ListSetTop = x
   ListSetNotTop x /\ ListSetNotTop y = ListSetNotTop $ x ++ y
+instance (Ord a) => Difference (ListSetWithTop a) where
+  ListSetTop \\ ListSetTop = nil
+  ListSetTop \\ ListSetNotTop _ = ListSetTop
+  ListSetNotTop _ \\ ListSetTop = nil
+  ListSetNotTop xs \\ ListSetNotTop ys = fromSet $ toSet xs \\ toSet ys
 instance Monoid (ListSetWithTop a) where { null = bot ; (++) = (\/) }
 instance JoinLattice (ListSetWithTop a)
 instance MeetLattice (ListSetWithTop a)
@@ -1423,6 +1453,15 @@ instance (Ord a) => PartialOrder (SetWithTop a) where
   _            `pcompare` SetTop       = PLT
   SetNotTop xs `pcompare` SetNotTop ys = xs `pcompare` ys
 instance Bot (SetWithTop a) where bot = SetNotTop empty
+instance (Ord a) => Buildable a (SetWithTop a) where
+  nil = bot
+  _ & SetTop = SetTop
+  x & SetNotTop xs = SetNotTop $ x & xs
+instance Difference (SetWithTop a) where
+  SetTop \\ SetTop = bot
+  SetTop \\ SetNotTop _ = SetTop
+  SetNotTop _ \\ SetTop = bot
+  SetNotTop xs \\ SetNotTop ys = SetNotTop $ xs \\ ys
 instance Join (SetWithTop a) where
   SetTop \/ _ = SetTop
   _ \/ SetTop = SetTop
@@ -1475,6 +1514,7 @@ conClaBigProduct xs = do
 -- SumOfProd {{{
 
 newtype SumOfProd a = SumOfProd { unSumOfProd :: Set (Set a) }
+  deriving (Eq, Ord)
 instance (Ord a) => Buildable a (SumOfProd a) where { nil = SumOfProd empty ; a & s = SumOfProd $ single (single a) \/ unSumOfProd s }
 
 sumOfProdMap :: (Ord b) => (a -> b) -> SumOfProd a -> SumOfProd b

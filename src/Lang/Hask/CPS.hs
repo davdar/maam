@@ -7,12 +7,12 @@ import Var
 import Literal
 import Name
 import UniqSupply
-
-makePrisms ''H.AltCon
+import Lang.Hask.Compat ()
 
 data Pico =
     Var Name
   | Lit Literal
+  | Type
   deriving (Eq, Ord)
 
 data PreAtom e =
@@ -42,7 +42,6 @@ data PreCall e =
 instance (Functorial Eq PreCall) where functorial = W
 instance (Functorial Ord PreCall) where functorial = W
 type Call = StampedFix Int PreCall
-
 -- CPS Conversion
 
 data CPSKon r m a where
@@ -78,7 +77,7 @@ fresh x = do
   putL cps𝒮UniqSupplyL supply'
   return $ mkSystemName u $ mkVarOcc $ toChars x
 
-stamp :: (CPSM m) => PreCall Call -> m Call
+stamp :: (Monad m, MonadState CPS𝒮 m) => PreCall Call -> m Call
 stamp c = do
   i <- nextL cps𝒮ProgLocL
   return $ StampedFix i c
@@ -90,14 +89,22 @@ atom a = do
   return $ Var x
 
 letAtom :: (CPSM m) => Name -> Atom -> m ()
-letAtom x a = modifyC (stamp . Let x a) $ return ()
+letAtom x a = do
+  i <- nextL cps𝒮ProgLocL
+  modifyC (return . StampedFix i . Let x a) $ return ()
 
 rec :: (CPSM m) => [Name] -> m ()
 rec xs = do
   rxs <- mapOnM xs $ \ x -> do
     r <- fresh "r"
     return (r, x)
-  modifyC (stamp . Rec rxs) $ return ()
+  i <- nextL cps𝒮ProgLocL
+  modifyC (return . StampedFix i . Rec rxs) $ return ()
+
+letrec :: (CPSM m) => [(Name, Atom)] -> m ()
+letrec xas = do
+  i <- nextL cps𝒮ProgLocL
+  modifyC (return . StampedFix i . Letrec xas) $ return ()
 
 reify :: (CPSM m) => CPSKon Call m Pico -> m Pico
 reify (MetaKon mk) = do
@@ -138,20 +145,21 @@ cpsM e = case e of
     k <- fresh "k"
     c <- opaqueWithC (reflect $ Var k) $ cpsM e'
     atom $ LamF x k c
-  H.Let (H.NonRec xv e₁) e₂ -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
+  H.Let (H.NonRec xv e₁) e₂ -> do
     let x = Var.varName xv
     a <- cpsAtom e₁
-    c <- opaqueWithC ko $ cpsM e₂
-    stamp $ Let x a c
-  H.Let (H.Rec xves) e₂ -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
+    letAtom x a
+    cpsM e₂
+  H.Let (H.Rec xves) e₂ -> do
     rec $ map (Var.varName . fst) xves
     xas <- mapOnM xves $ uncurry $ \ xv e' -> do
       let x = Var.varName xv
       a <- cpsAtom e'
       return (x, a)
-    c <- opaqueWithC ko $ cpsM e₂
-    stamp $ Letrec xas c
+    letrec xas
+    cpsM e₂
   H.Case e' xv _ bs -> opaqueCallCC $ \ (ko :: CPSKon Call m Pico) -> do
+    ko' <- reflect ^$ reify ko
     let x = Var.varName xv
     a <- cpsAtom e'
     letAtom x a
@@ -159,12 +167,17 @@ cpsM e = case e of
     -- since it always shows up at the beginning as per ghc spec.
     b's <- mapOnM (reverse bs) $ \ (con, xvs, e'') -> do
       let xs = map Var.varName xvs
-      c <- opaqueWithC ko $ cpsM e''
+      c <- opaqueWithC ko' $ cpsM e''
       return $ CaseBranch con xs c
     xi' <- nextL cps𝒮ProgLocL
     x' <- fresh "x"
     stamp $ Case xi' x' (Var x) b's
   H.Cast e' _ -> cpsM e'
   H.Tick _ e' -> cpsM e'
-  H.Type _ -> error "type in term"
+  H.Type _ -> return Type
   H.Coercion _ -> error "coercion in term"
+
+cps :: (Monad m, MonadReader UniqSupply m) =>  H.Expr Var -> m Call
+cps c = do
+  uniqueSupply <- ask
+  return $ evalState (CPS𝒮 uniqueSupply 0) $ runMetaKonT (cpsM c) $ stamp . Halt

@@ -297,6 +297,9 @@ class Pretty a where
 instance Pretty Doc where
   pretty = id
 
+class PrettyM m a where
+  prettyM :: a -> m Doc
+
 -- }}}
 
 -- No Format {{{
@@ -348,11 +351,16 @@ instance Functorial Pretty [] where functorial = W
 instance (Pretty a) => Pretty (Set a) where pretty = collection "{" "}" "," . map pretty . fromSet
 instance Functorial Pretty Set where functorial = W
 
+instance (Pretty a) => Pretty (SetWithTop a) where
+  pretty SetTop = con "⊤"
+  pretty (SetNotTop xs) = pretty xs
+
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . fromMap
     where
       prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
-instance (Ord a, Pretty a) => Pretty (ListSet a) where pretty = pretty . toSet . toList
+instance (Ord a, Pretty a) => Pretty (ListSet a) where pretty = pretty . toSet
+instance (Ord a, Pretty a) => Pretty (ListSetWithTop a) where pretty = pretty . setFromListWithTop
 
 instance (Functorial Pretty f) => Pretty (Fix f) where
   pretty (Fix f) =
@@ -382,5 +390,12 @@ instance (Functorial Pretty m, Pretty a) => Pretty (ListT m a) where
   pretty (ListT aM) =
     with (functorial :: W (Pretty (m [a]))) $
     pretty aM
+
+instance (Pretty a) => Pretty (SumOfProd a) where
+  pretty = 
+    collection "{" "}" "⊔"
+    . map (collection "{" "}" "⊓")
+    . map (map pretty . toList) . toList
+    . unSumOfProd
     
 -- }}}

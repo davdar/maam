@@ -14,6 +14,7 @@ newtype ID a = ID { unID :: a }
   , PartialOrder
   , Monoid
   , Bot
+  , Top
   , Join
   , JoinLattice
   )
@@ -26,6 +27,7 @@ instance Applicative ID where fM <@> aM = ID $ unID fM $ unID aM
 instance Bind ID where aM >>= k = k $ unID aM
 instance Monad ID
 instance Functorial Bot ID where functorial = W
+instance Functorial Top ID where functorial = W
 instance Functorial Join ID where functorial = W
 instance Functorial JoinLattice ID where functorial = W
 instance Functorial Monoid ID where functorial = W
@@ -585,15 +587,14 @@ listSetWithTopCommute = ListSetWithTopT . ListSetWithTopT . listSetWithTopTransp
 
 instance (Unit m) => Unit (ListSetWithTopT m) where unit = ListSetWithTopT . unit . single
 instance (Functor m) => Functor (ListSetWithTopT m) where map f = ListSetWithTopT . f ^^. unListSetWithTopT
-instance (Monad m, Functorial JoinLattice m) => Product (ListSetWithTopT m) where (<*>) = mpair
-instance (Monad m, Functorial JoinLattice m) => Applicative (ListSetWithTopT m) where (<@>) = mapply
-instance (Monad m, Functorial JoinLattice m) => Bind (ListSetWithTopT m) where
+instance (Monad m, Functorial JoinLattice m, Functorial Top m) => Product (ListSetWithTopT m) where (<*>) = mpair
+instance (Monad m, Functorial JoinLattice m, Functorial Top m) => Applicative (ListSetWithTopT m) where (<@>) = mapply
+instance (Monad m, Functorial JoinLattice m, Functorial Top m) => Bind (ListSetWithTopT m) where
   (>>=) :: forall a b. ListSetWithTopT m a -> (a -> ListSetWithTopT m b) -> ListSetWithTopT m b
   aM >>= k = ListSetWithTopT $ do
     xs <- unListSetWithTopT aM
     unListSetWithTopT $ listSetWithTopElim mtop msum $ k ^$ xs
-instance (Monad m) => MonadTop (ListSetWithTopT m) where mtop = ListSetWithTopT $ return ListSetTop
-instance (Monad m, Functorial JoinLattice m) => Monad (ListSetWithTopT m) where
+instance (Monad m, Functorial JoinLattice m, Functorial Top m) => Monad (ListSetWithTopT m) where
 instance FunctorUnit2 ListSetWithTopT where
   funit2 = ListSetWithTopT .^ unit
 instance FunctorJoin2 ListSetWithTopT where
@@ -606,6 +607,11 @@ instance (Functorial JoinLattice m) => MonadBot (ListSetWithTopT m) where
   mbot = 
     with (functorial :: W (JoinLattice (m (ListSetWithTop a)))) $
     ListSetWithTopT bot
+instance (Functorial Top m) => MonadTop (ListSetWithTopT m) where 
+  mtop :: forall a. ListSetWithTopT m a
+  mtop = 
+    with (functorial :: W (Top (m (ListSetWithTop a)))) $
+    ListSetWithTopT top
 instance (Functorial JoinLattice m) => MonadPlus (ListSetWithTopT m) where
   (<+>) :: forall a. ListSetWithTopT m a -> ListSetWithTopT m a -> ListSetWithTopT m a
   aM1 <+> aM2 = 

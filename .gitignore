@@ -8,6 +8,10 @@
 *.exrc
 *.dtx
 *.ins
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
 .DS_Store
 .ghc_options*
 .extensions*

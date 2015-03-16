@@ -6,7 +6,17 @@ import Lang.Hask.Semantics
 import MAAM
 import Lang.Hask.CPS
 
-class (PartialOrder (ς Call), Join (ς Call), Bot (ς Call), Inject ς, MonadStep ς m) => Execution ς m | m -> ς
+class 
+  ( PartialOrder (ς Call)
+  , JoinLattice (ς Call)
+  , Difference (ς Call)
+  , Inject ς'
+  , MonadStep ς' m
+  , Isomorphism (ς' Call) (ς Call)
+  ) => Execution ς ς' m | m -> ς, m -> ς'
 
-exec :: forall ς ν lτ dτ m. (Analysis ν lτ dτ m, Execution ς m) => P m -> Call -> ς Call
-exec P c = collect (mstepγ (call :: Call -> m Call)) $ inj c
+exec :: forall ς ς' ν lτ dτ m. (Analysis ν lτ dτ m, Execution ς ς' m) => P m -> Call -> ς Call
+exec m = collect (isoto . mstepγP m call . isofrom) . (isoto :: ς' Call -> ς Call) . inj
+
+execDiffs :: forall ς ς' ν lτ dτ m. (Analysis ν lτ dτ m, Execution ς ς' m) => P m -> Call -> [ς Call]
+execDiffs m = collectDiffs (isoto . mstepγP m call . isofrom) . (isoto :: ς' Call -> ς Call) . inj

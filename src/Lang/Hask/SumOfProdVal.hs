@@ -6,7 +6,7 @@ import Literal
 import DataCon
 
 newtype SumOfProdVal ν lτ dτ = SumOfProdVal { unSumOfProdVal :: SumOfProd (ν lτ dτ) }
-  deriving (Buildable (ν lτ dτ))
+  deriving (Eq, Ord, Buildable (ν lτ dτ), Bot, Join, JoinLattice, Meet, Neg, Pretty)
 
 sumOfProdValConcretize :: (Ord b) => (ν lτ dτ -> ConstructiveClassical b) -> SumOfProdVal ν lτ dτ -> SetWithTop b
 sumOfProdValConcretize f = sumOfProdConcretize f . unSumOfProdVal

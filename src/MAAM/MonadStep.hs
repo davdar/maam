@@ -5,6 +5,9 @@ import FP
 class MonadStep ς m | m -> ς where
   mstepγ :: (a -> m b) -> ς a -> ς b
 
+mstepγP :: (MonadStep ς m) => P m -> (a -> m b) -> ς a -> ς b
+mstepγP P = mstepγ
+
 -- Identity
 instance MonadStep ID ID where
   mstepγ :: (a -> ID b) -> (ID a -> ID b)

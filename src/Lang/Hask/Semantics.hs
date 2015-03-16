@@ -2,15 +2,12 @@ module Lang.Hask.Semantics where
 
 import FP
 
+import Lang.Hask.Time
 import Lang.Hask.CPS hiding (atom)
 import Name
 import Literal
 import DataCon
 import CoreSyn (AltCon(..))
-
-class Time ψ τ | τ -> ψ where
-  tzero :: τ
-  tick :: ψ -> τ -> τ
 
 -- Values
 
@@ -57,6 +54,16 @@ data KonClo lτ dτ = KonClo
   , konCloEnv :: Env lτ dτ
   } deriving (Eq, Ord)
 
+data ThunkClo lτ dτ = ThunkClo
+  { thunkCloKonXLoc :: Int
+  , thunkCloKonXArg :: Name
+  , thunkCloKonKArg :: Name
+  , thunkCloFun :: Pico
+  , thunkCloArg :: Pico
+  , thunkCloEnv :: Env lτ dτ
+  , thunkCloTime :: lτ
+  } deriving (Eq, Ord)
+
 data KonMemoClo lτ dτ = KonMemoClo
   { konMemoCloLoc :: Addr lτ dτ
   , konMemoCloThunk :: ThunkClo lτ dτ
@@ -67,16 +74,6 @@ data KonMemoClo lτ dτ = KonMemoClo
 
 data Forced lτ dτ = Forced
   { forcedVal :: ArgVal lτ dτ
-  } deriving (Eq, Ord)
-
-data ThunkClo lτ dτ = ThunkClo
-  { thunkCloKonXLoc :: Int
-  , thunkCloKonXArg :: Name
-  , thunkCloKonKArg :: Name
-  , thunkCloFun :: Pico
-  , thunkCloArg :: Pico
-  , thunkCloEnv :: Env lτ dτ
-  , thunkCloTime :: lτ
   } deriving (Eq, Ord)
 
 class Val lτ dτ γν αν | αν -> γν where

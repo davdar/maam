@@ -40,3 +40,6 @@ all:
 	rm -f maam.cabal
 	ln -s cabal_files/all.cabal maam.cabal
 	cabal build
+
+plugin:
+	ghc `cat .extensions.ghc` -isrc Lang.Hask.GHCPlugin data/hask-src/Prog2.hs

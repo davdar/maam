@@ -29,6 +29,10 @@ main = do
   withFile ".extensions.hdev" WriteMode $ \ h -> do
     forM_ extensions $ \ e -> do
       hPutStrLn h $ "-g-X" ++ show e
+  -- write out a file for ghc to load extensions
+  withFile ".extensions.ghc" WriteMode $ \ h -> do
+    forM_ extensions $ \ e -> do
+      hPutStr h $ " -X" ++ show e
   -- OPTIONS --
   let ops = fromJust $ lookup GHC $ options bi
   -- write out a file for ghci to load options
