@@ -3,7 +3,9 @@ Search For    Replace With                            Match Mode
 {             \{                                      Anywhere  
 }             \}                                      Anywhere  
 ;             \;;\;                                   Anywhere  
-_             \_                                      Anywhere  
+_[            \underline{\hspace{0.5em}}{             Anywhere
+]_            }\underline{\hspace{0.5em}}             Anywhere
+_             \underline{\hspace{0.5em}}              Anywhere  
 AMᶠⁱ          \Abstract{\litM}^{fi}                   Anywhere
 AM            \Abstract{\litM}                        Word      
 AStore        \Abstract{\litStore}                    Word      

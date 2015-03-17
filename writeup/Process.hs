@@ -83,13 +83,13 @@ ops = def
 
 main :: IO ()
 main = do
-  s <- T.readFile "pldi15.markdown"
+  s <- T.readFile "paper.markdown"
   let pre = preProcess s
       md = readMarkdown ops  $ T.unpack pre
       post = postProcess md
   system "mkdir -p tmp/autogen"
-  T.writeFile "tmp/autogen/pldi15.markdown.pre" pre
-  T.writeFile "tmp/autogen/pldi15.markdown.tex" $ T.pack $ writeLaTeX def post
+  T.writeFile "tmp/autogen/paper.markdown.pre" pre
+  T.writeFile "tmp/autogen/paper.markdown.tex" $ T.pack $ writeLaTeX def post
 
 -- Pre Processing {{{
 
