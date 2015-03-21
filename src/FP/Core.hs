@@ -218,7 +218,7 @@ poiterHistory f = loop
   where
     loop x = 
       let x' = f x
-      in if x ⊑ x' 
+      in if x' ⊑ x
         then [x]
         else x : loop x'
 
@@ -294,7 +294,7 @@ diffs = loop bot
   where
     loop :: a -> [a] -> [a]
     loop _ [] = []
-    loop accum (x:xs) = x \\ accum : loop (x \/ accum) xs
+    loop accum (x:xs) = (x \\ accum) : loop (x \/ accum) xs
 
 collectDiffs :: (PartialOrder a, JoinLattice a, Difference a) => (a -> a) -> a -> [a]
 collectDiffs f = diffs . collectHistory f
@@ -303,7 +303,8 @@ collectDiffs f = diffs . collectHistory f
 
 -- Functors {{{
 
-class Commute t u where commute :: t (u a)  -> u (t a)
+class Commute t u where 
+  commute :: t (u a)  -> u (t a)
 class Unit (t :: * -> *) where unit :: a -> t a
 class Functor (t :: * -> *) where map :: (a -> b) -> (t a -> t b)
 
@@ -647,9 +648,10 @@ elemAtN n t = case foldlk ff (Inr zer) t of
     ff (Inr i) x' k = if i == n then Inl x' else k $ Inr $ suc i
     ff (Inl _) _ _ = error "internal error"
 
-toList :: (Iterable a t)             => t -> [a]     ; toList = foldr (:) []
-toSet  :: (Ord a, Iterable a t)      => t -> Set a   ; toSet  = foldr insert empty
-toMap  :: (Ord k, Iterable (k, v) t) => t -> Map k v ; toMap  = foldr (uncurry mapInsert) mapEmpty
+toList    :: (Iterable a t)                     => t -> [a]     ; toList = foldr (:) []
+toSet     :: (Ord a, Iterable a t)              => t -> Set a   ; toSet  = foldr insert empty
+toMap     :: (Ord k, Iterable (k, v) t)         => t -> Map k v ; toMap  = foldr (uncurry mapInsert) mapEmpty
+toMapJoin :: (Ord k, Iterable (k, v) t, Join v) => t -> Map k v ; toMapJoin = foldr (uncurry $ mapInsertWith (\/)) mapEmpty
 
 -- }}}
 
@@ -962,6 +964,8 @@ instance (Join a, Join b, Join c, Join d, Join e) => Join (a, b, c, d, e) where
   (a1, b1, c1, d1, e1) \/ (a2, b2, c2, d2, e2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2, d1 \/ d2, e1 \/ e2)
 instance (JoinLattice a, JoinLattice b, JoinLattice c, JoinLattice d, JoinLattice e) => JoinLattice (a, b, c, d, e)
 instance (JoinLattice a) => Functorial JoinLattice ((,) a) where functorial = W
+instance (Difference a, Difference b) => (Difference (a, b)) where
+  (a1, b1) \\ (a2, b2) = (a1 \\ a2, b1 \\ b2)
 instance Bifunctorial Eq (,) where bifunctorial = W
 instance Bifunctorial Ord (,) where bifunctorial = W
 
@@ -1193,6 +1197,9 @@ setDiff = setPrimElim2 EmptySet (const EmptySet) Set $ Set .: (Set.\\)
 setMap :: (Ord b) => (a -> b) -> Set a -> Set b
 setMap f = setPrimElim EmptySet $ Set . Set.map f
 
+setMapOn :: (Ord b) => Set a -> (a -> b) -> Set b
+setMapOn = flip setMap
+
 maybeSet :: (Ord a) => Maybe a -> Set a
 maybeSet = maybeElim empty single
 
@@ -1216,7 +1223,7 @@ setBigProduct s = case remove s of
 instance Container a (Set a) where s ? e = setPrimElim False (Set.member e) s
 instance Iterable a (Set a) where { foldl f i = setPrimElim i $ Set.foldl' f i ; foldr f i = setPrimElim i $ Set.foldr' f i }
 instance (Ord a) => Buildable a (Set a) where { nil = empty ; (&) = insert }
-instance Eq (Set a) where (==) = setPrimElim2' True (const False) (==)
+instance Eq (Set a) where (==) = setPrimElim2' True (Set.null) (==)
 instance Ord (Set a) where compare = setPrimElim2 EQ (\ s -> compare Set.empty s) (\ s -> compare s Set.empty) compare
 instance PartialOrder (Set a) where (⊑) = setPrimElim2 True (const True) (const False) $ Set.isSubsetOf
 instance Product Set where xs <*> ys = learnSet xs empty $ learnSet ys empty $ build $ toList xs <*> toList ys
@@ -1306,10 +1313,16 @@ mapModify f k m = learnMap m mapEmpty $ case m # k of
 onlyKeys :: (Ord k) => Set k -> Map k v -> Map k v
 onlyKeys s m = iterOn s mapEmpty $ \ k -> maybeElim id (mapInsert k) $ m # k
 
+mapFilter :: (v -> Bool) -> Map k v -> Map k v
+mapFilter f = mapPrimElim EmptyMap $ Map . Map.filter f
+
+mapNoBot :: (Bot v, Eq v) => Map k v -> Map k v
+mapNoBot = mapFilter (/= bot)
+
 instance Iterable (k, v) (Map k v) where
   foldl f i = mapPrimElim i $ Map.foldlWithKey' (curry . f) i
   foldr f i = mapPrimElim i $ Map.foldrWithKey' (curry f) i
-instance (Eq k, Eq v) => Eq (Map k v) where (==) = mapPrimElim2 True (const False) (const False) (==)
+instance (Eq k, Eq v) => Eq (Map k v) where (==) = mapPrimElim2' True (Map.null) (==)
 instance (Ord k, Ord v) => Ord (Map k v) where compare = mapPrimElim2 EQ (\ m -> compare Map.empty m) (\ m -> compare m Map.empty) compare
 instance (Ord k, PartialOrder v) => PartialOrder (Map k v) where (⊑) = mapPrimElim2 True (const True) (const False) $ Map.isSubmapOfBy (⊑)
 instance Indexed k v (Map k v) where m # k = mapPrimElim Nothing (Map.lookup k) m
@@ -1318,7 +1331,10 @@ instance (Ord k) => Buildable (k, v) (Map k v) where { nil = mapEmpty ; (&) = un
 instance Bot (Map k v) where bot = mapEmpty
 instance (Join v) => Join (Map k v) where (\/) = mapUnionWith (\/)
 instance (Monoid v) => Monoid (Map k v) where { null = mapEmpty ; (++) = mapUnionWith (++) }
+instance (Difference v) => Difference (Map k v) where
+  (\\) = mapPrimElim2 EmptyMap (const EmptyMap) Map $ Map .: Map.differenceWith (Just .: (\\))
 instance (JoinLattice v) => JoinLattice (Map k v)
+instance Functor (Map k) where map f = mapPrimElim EmptyMap $ Map . Map.map f
 
 -- }}}
 

@@ -4,36 +4,50 @@ import FP
 import Lang.LamIf.Syntax
 import Lang.LamIf.CPS
 
-data Addr lτ dτ (ψ :: *) = Addr
+data Addr lτ dτ = Addr
   { addrLocation :: Name
-  , addrLexicalTime :: lτ ψ
-  , addrDynamicTime :: dτ ψ
+  , addrLexicalTime :: lτ
+  , addrDynamicTime :: dτ
   } deriving (Eq, Ord)
 
-type Env lτ dτ ψ = Map Name (Addr lτ dτ ψ)
-type Store val lτ dτ ψ = Map (Addr lτ dτ ψ) (val lτ dτ ψ)
+type Env lτ dτ = Map Name (Addr lτ dτ)
+type Store val lτ dτ = Map (Addr lτ dτ) val
 
-data 𝒮 val lτ dτ ψ = 𝒮
-  { 𝓈lτ :: lτ ψ
-  , 𝓈dτ :: dτ ψ
-  , 𝓈ρ :: Env lτ dτ ψ
-  , 𝓈σ :: Store val lτ dτ ψ
+data 𝒮Cxt lτ dτ = 𝒮Cxt
+  { 𝓈Cxtlτ :: lτ
+  , 𝓈Cxtdτ :: dτ
+  , 𝓈Cxtρ :: Env lτ dτ
+  } deriving (Eq, Ord)
+makeLenses ''𝒮Cxt
+instance (Bot lτ, Bot dτ) => Bot (𝒮Cxt lτ dτ) where bot = 𝒮Cxt bot bot bot
+
+data 𝒮 val lτ dτ = 𝒮
+  { 𝓈Cxt :: 𝒮Cxt lτ dτ
+  , 𝓈σ :: Store val lτ dτ
   } deriving (Eq, Ord)
 makeLenses ''𝒮
-instance (Bot (lτ ψ), Bot (dτ ψ)) => Bot (𝒮 val lτ dτ ψ) where
-  bot = 𝒮 bot bot bot bot
+instance (Bot lτ, Bot dτ) => Bot (𝒮 val lτ dτ) where bot = 𝒮 bot bot
 
-data Clo lτ dτ ψ = Clo 
+𝓈lτL :: Lens (𝒮 val lτ dτ) lτ
+𝓈lτL = 𝓈CxtlτL <.> 𝓈CxtL
+
+𝓈dτL :: Lens (𝒮 val lτ dτ) dτ
+𝓈dτL = 𝓈CxtdτL <.> 𝓈CxtL
+
+𝓈ρL :: Lens (𝒮 val lτ dτ) (Env lτ dτ)
+𝓈ρL = 𝓈CxtρL <.> 𝓈CxtL
+
+data Clo lτ dτ = Clo 
   { cloLoc :: LocNum
   , cloArgs :: [Name]
   , cloCall :: Call
-  , cloEnv :: Env lτ dτ ψ
-  , cloTime :: lτ ψ
+  , cloEnv :: Env lτ dτ
+  , cloTime :: lτ
   } deriving (Eq, Ord)
 
-class Val lτ dτ ψ val | val -> lτ, val -> dτ, val -> ψ where
+class Val lτ dτ val | val -> lτ, val -> dτ where
   lit :: Lit -> val 
-  clo :: Clo lτ dτ ψ -> val 
+  clo :: Clo lτ dτ -> val 
   binop :: BinOp -> val -> val -> val
   elimBool :: val -> Set Bool
-  elimClo :: val -> Set (Clo lτ dτ ψ)
+  elimClo :: val -> Set (Clo lτ dτ)

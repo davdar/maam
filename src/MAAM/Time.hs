@@ -4,9 +4,9 @@ import FP
 import qualified FP.Pretty as P
 import GHC.TypeLits
 
-class Time τ where
-  tzero :: τ ψ
-  tick :: ψ -> τ ψ -> τ ψ
+class Time ψ τ | τ -> ψ where
+  tzero :: τ
+  tick :: ψ -> τ -> τ
 
 -- Concrete
 newtype Cτ ψ = Cτ [ψ]
@@ -15,7 +15,7 @@ instance Functorial Eq Cτ where functorial = W
 instance Functorial Ord Cτ where functorial = W
 instance Functorial Pretty Cτ where functorial = W
 instance Bot (Cτ ψ) where bot = nil
-instance Time Cτ where { tzero = bot ; tick = (&) }
+instance Time ψ (Cτ ψ) where { tzero = bot ; tick = (&) }
 
 -- kCFA
 newtype Kτ (k :: Nat) ψ = Kτ [ψ]
@@ -24,7 +24,7 @@ instance Functorial Eq (Kτ k) where functorial = W
 instance Functorial Ord (Kτ k) where functorial = W
 instance Functorial Pretty (Kτ k) where functorial = W
 instance Bot (Kτ k ψ) where bot = nil
-instance (KnownNat k) => Time (Kτ k) where
+instance (KnownNat k) => Time ψ (Kτ k ψ) where
   tzero = bot
   tick x y = fromList $ firstN (natVal (P :: P k)) $ toList $ x & y
 
@@ -37,4 +37,4 @@ instance Functorial Eq Zτ where functorial = W
 instance Functorial Ord Zτ where functorial = W
 instance Functorial Pretty Zτ where functorial = W
 instance Bot (Zτ ψ) where bot = Zτ
-instance Time Zτ where { tzero = bot ; tick = const id }
+instance Time ψ (Zτ ψ) where { tzero = bot ; tick = const id }

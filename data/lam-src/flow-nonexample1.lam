@@ -1,0 +1,6 @@
+let b := (1 - 1) >= 0 in
+let k := lam x -> 
+  let y := if b then 10 else 20 in
+  H x y
+in
+if b then k 1 else k 2

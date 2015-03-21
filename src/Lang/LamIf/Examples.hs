@@ -47,33 +47,23 @@ withOptions os e =
     , localSetL P.maxRibbonWidthL 40 $ pretty c
     , P.vsep $ mapOn os $ \ (info, o) -> 
         case runWithOptions o c of
-          ExSigma ς -> P.vsep
+          ExSigma pty ς -> P.vsep
             [ pretty info
-            , pretty ς
+            , pty ς
             ]
     ]
 
 examplesMain :: IO ()
 examplesMain = do
-  e <- parseFile "data/lam-src/simp4.lam"
+  e <- parseFile "data/lam-src/flow-example.lam"
   let os =
-         makeOptions
-         ["*"]
-         ["*"]
-         ["concrete"]
-         ["ps"]
-         ["no"]
-         ["link"]
-         ["*"]
-         ["*"]
-         ++
          makeOptions
          ["0"]
          ["0"]
          ["abstract"]
-         ["fi"]
-         ["no"]
+         ["fi", "fs", "ps"]
+         ["yes"]
          ["link"]
-         ["*"]
-         ["*"]
+         ["app"]
+         ["app"]
   pprint $ withOptions os e

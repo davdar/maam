@@ -83,31 +83,32 @@ instance (Pretty n, Pretty c) => Pretty (PreCall n c) where
 instance (Pretty n) => Functorial Pretty (PreCall n) where
   functorial = W
 
-instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (Addr lτ dτ ψ) where
+instance (Pretty lτ, Pretty dτ) => Pretty (Addr lτ dτ) where
   pretty (Addr loc lτ dτ) = P.collection "<" ">" "," 
     [ exec [P.pun "x=", P.align $ pretty loc]
     , exec [P.pun "lτ=", P.align $ pretty lτ]
     , exec [P.pun "dτ=", P.align $ pretty dτ]
     ]
 
-instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (Clo lτ dτ ψ) where
+instance (Pretty lτ, Pretty dτ) => Pretty (Clo lτ dτ) where
   pretty (Clo l _xs _c _ρ lτ) = P.collection "<" ">" "," 
     [ exec [P.pun "λ=", pretty l]
     , exec [P.pun "lτ=", P.align $ pretty lτ]
     ]
 
+makePrettyUnion ''𝒮Cxt
 makePrettyUnion ''𝒮
 
-instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (CVal lτ dτ ψ) where
+instance (Pretty lτ, Pretty dτ) => Pretty (CVal lτ dτ) where
   pretty (LitC l) = pretty l
   pretty (CloC c) = pretty c
   pretty BotC = P.lit "⊥"
 
-instance (Pretty (lτ ψ), Pretty (dτ ψ)) => Pretty (AVal lτ dτ ψ) where
+instance (Pretty lτ, Pretty dτ) => Pretty (AVal lτ dτ) where
   pretty (LitA l) = pretty l
   pretty IA = P.lit "INT"
   pretty BA = P.lit "BOOL"
   pretty (CloA c) = pretty c
   pretty BotA = P.lit "⊥"
 
-deriving instance (Pretty (val lτ dτ ψ)) => Pretty (Power val lτ dτ ψ)
+deriving instance (Pretty (val lτ dτ)) => Pretty (Power val lτ dτ)

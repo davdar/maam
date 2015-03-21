@@ -358,7 +358,7 @@ instance (Pretty a) => Pretty (SetWithTop a) where
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = collection "{" "}" "," . map prettyMapping . fromMap
     where
-      prettyMapping (k, v) = nest 2 $ hvsep [hsep [pretty k, pun "=>"], pretty v]
+      prettyMapping (k, v) = nest 2 $ hvsep [nest (-2) $ hsep [pretty k, pun "=>"], pretty v]
 instance (Ord a, Pretty a) => Pretty (ListSet a) where pretty = pretty . toSet
 instance (Ord a, Pretty a) => Pretty (ListSetWithTop a) where pretty = pretty . setFromListWithTop
 
