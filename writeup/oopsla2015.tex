@@ -113,15 +113,14 @@
 % Abstract {-{
 \begin{abstract}
 
-The design and implementation of static analyzers have becoming increasingly
-systematic.  In fact, for large classes of analyzers, design and implementation
-have remained seemingly (and now stubbornly) on the verge of full mechanization
-for several years.  A stumbling block in full mechanization has been the
-\emph{ad hoc} nature of soundness proofs accompanying each analyzer. While
-design and implementation is largely systematic, soundness proofs can change
-significantly with seemingly minor changes to the semantics or analyzers.  An
-achievement of this work is to systematize, parameterize and modularize the
-proofs of soundness, so as to make them composable across analytic properties.
+The design and implementation of static analyzers have becoming
+increasingly systematic.  Yet for a given language or analysis
+feature, it often requires tedious and error prone work to implement
+an analyzer and prove it sound.
+%
+In short, static analysis features and their proofs of soundness do
+not compose well, causing a dearth of reuse in both implementation and
+metatheory.
 
 \par 
 
