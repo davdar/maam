@@ -77,7 +77,7 @@ flow  and path sensitivity (Section \ref{recovering-analyses}).
 \paragraph{Isolating Path  and Flow Sensitivity}
 We give specific monads for instantiating the interpreter from Section
 \ref{the-interpreter} which give rise to path-sensitive and flow-insensitive
-analyses (Section \ref{varying-path--and-flow-sensitivity}). This leads to an
+analyses (Section \ref{varying-path-and-flow-sensitivity}). This leads to an
 isolated understanding of path  and flow sensitivity as mere variations in the
 monad used for execution. Furthermore, these monads are language independent,
 allowing one to reuse the same path  and flow sensitivity machinery for any
@@ -392,137 +392,150 @@ effects interact in the monad.
 
 We briefly review monad, state and nondeterminism operators and their laws.
 
-\paragraph{Base Monad Operations}
+\paragraph{Monadic Sequencing}
 A type operator `M` is a monad if it supports `bind`, a sequencing operator,
-and its unit `return`. The monad interface is summarized in
-Figure`~\ref{StateMonadInterface}`{.raw}.
-
-`\begin{figure}`{.raw}
-\vspace{-1em}
+and its unit `return`.
 `````align```````````````````````````````````````` 
 M        : Type → Type
 bind     : ∀ α β, M(α) → (α → M(β)) → M(β)
 return   : ∀ α, α → M(α)
-<>
-s        : Type
-get      : M(s)
-put      : s → M(1)
-mzero    : ∀ α, M(α)
-_[⟨+⟩]_  : ∀ α, M(α) × M(α) → M(α)
 ``````````````````````````````````````````````````
-\caption{Combined Monad Interface}
-\label{StateMonadInterface}
-\vspace{-1em}
-`\end{figure}`{.raw}
 
-We use the monad laws (left and right units and associativity) to reason about
-our implementation in the absence of a particular implementation of `bind` and
-`return`. For state, `bind` is a sequencer of state and `return` is the "no
-change in state" effect. For nondeterminism, `bind` implements a merging of
-multiple branches and `return` is the singleton branch.
-
-As is traditional with monadic programming, we use semicolon notation as
-syntactic sugar for `bind`. For example: `a ← m ; k(a)` is just sugar for
+We use monad laws (left and right units, and associativity) to reason about our
+interpreter in the absence of a particular implementation of `bind` and
+`return`. As is traditional with monadic programming, we use semicolon notation
+as syntactic sugar for `bind`. For example: `a ← m ; k(a)` is just sugar for
 `bind(m)(k)`. We replace semicolons with line breaks headed by a `do` command
 for multiline monadic definitions.
 
-\paragraph{Monadic State Operations}
+\paragraph{State Effect}
 A type operator `M` supports the monadic state effect for a type `s` if it
-supports `get` and `put` actions over `s`. The interface is summarized in
-Figure`~\ref{StateMonadInterface}`{.raw}.
-
+supports `get` and `put` actions over `s`.
+`````align```````````````````````````````````````` 
+M        : Type → Type
+s        : Type
+get      : M(s)
+put      : s → M(1)
+``````````````````````````````````````````````````
 We use the state monad laws to reason about state effects, and we refer the
 reader to \citet{dvanhorn:Liang1995Monad} for the definitions.
 
-\paragraph{Nondeterminism Operations}
-A type operator `M` support the nondeterminism effect if it supports an
-alternation operator `⟨+⟩` and its unit `mzero`. The nondeterminism interface
-is summarized in Figure`~\ref{StateMonadInterface}`{.raw}.
+\paragraph{Nondeterminism Effect}
+A type operator `M` support the monadic nondeterminism effect if it supports an
+alternation operator `⟨+⟩` and its unit `mzero`.
+`````align```````````````````````````````````````` 
+M        : Type → Type
+_[⟨+⟩]_  : ∀ α, M(α) × M(α) → M(α)
+mzero    : ∀ α, M(α)
+``````````````````````````````````````````````````
+Nondeterminism laws state that `M(α)` must have a join-semilattice structure,
+that `mzero` be a zero for `bind`, and that `bind` distributes through `⟨+⟩`.
 
-Nondeterminism laws state that the monad must have a join-semilattice
-structure, that `mzero` be a zero for `bind`, and that bind distributes through
-`⟨+⟩`.
+\paragraph{Monad Examples}
+The state monad `Stateₛ(α)` is defined as `s → (α × s)` and supports monadic
+sequencing (`bind` and `return`) and state effects (`get` and `put`). The
+nondeterminism monad `Nondet(α)` is defined as `𝒫(α)` and supports monadic
+sequencing (`bind` and `return`) and nondeterminism effects (`_[⟨+⟩]_` and
+`mzero`).
 
-Together, all the monadic operators we have shown capture the abstract essence
-of combining explicit state-passing and set comprehension. Our interpreter will
-use these operators and avoid referencing an explicit configuration `ς` or
-explicit collections of results.
+The combined interface of monadic sequencing, state and nondeterminism captures
+the abstract essence of definitions which use explicit state-passing and set
+comprehensions. Our interpreter will be defined up to this effect interface and
+avoid referencing an explicit configuration `ς` or explicit collections of
+results. This level of indirection will they be exploited: different monads
+will meet the same effect interface, but yield different analysis properties.
 
 ## The Abstract Domain
 
-`\begin{figure}`{.raw}
-\vspace{-1em}
 `````align````````````````````````````````````````
-      Val  : Type
-        ⊥  : Val
-      _[⊔]_  : Val × Val → Val
     int-I  : ℤ → Val
 int-if0-E  : Val → 𝒫(Bool)
     clo-I  : Clo → Val
     clo-E  : Val → 𝒫(Clo)
- δ⟦_⟧(_,_)  : IOp → Val × Val → Val
-Time  : Type
-tick  : Exp × KAddr × Time → Time
 ``````````````````````````````````````````````````
-\caption{Abstract Domain and Abstract Time Interfaces}
-\label{AbstractDomainInterface}
-\vspace{-1em}
-`\end{figure}`{.raw}
 
 The abstract domain is encapsulated by the `Val` type in the semantics. To
-parameterize over it, we make `Val` opaque but require it support various
-operations. There is a constraint on `Val` its self: it must be a
-join-semilattice with `⊥` and `⊔` respecting the usual laws. We require `Val`
-to be a join-semilattice so it can be merged in the `Store`. The interface for
-the abstract domain is shown in Figure`~\ref{AbstractDomainInterface}`{.raw}.
+parameterize over the abstract domain we make `Val` opaque, but require that it
+support various operations.
 
-The laws for this interface are designed to induce a Galois connection between
-`ℤ` and `Val`:
+`Val` must be a join-semilattice with `⊥` and `⊔` respecting the usual
+laws. We require `Val` to be a join-semilattice so it can be merged in the
+`Store` to preserve soundness. 
+`````align````````````````````````````````````````
+⊥      : Val
+_[⊔]_  : Val × Val → Val
+``````````````````````````````````````````````````
+
+`Val` must also support conversions to and from concrete values. These
+conversions take the form of introduction and elimination rules. Introduction
+rules inject concrete values into abstract values. Elimination rules project
+abstract values into a _finite_ set of concrete observations. For example, we
+do not require that abstract values support elimination to integers, only the
+finite observation of comparing with zero.
+`````align````````````````````````````````````````
+    int-I  : ℤ → Val
+int-if0-E  : Val → 𝒫(Bool)
+    clo-I  : Clo → Val
+    clo-E  : Val → 𝒫(Clo)
+``````````````````````````````````````````````````
+
+The laws for the introduction and elmination rules are designed to induce a
+Galois connection between `𝒫(ℤ)` and `Val`:
 `````indent```````````````````````````````````````
 {true}  ⊑ int-if0-E(int-I(i))     if i = 0
 {false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
-⨆⸤b ∈ int-if0-E(v)⸥ θ(b) ⊑ v
+⨆⸤b ∈ int-if0-E(v), i ∈ θ(b)⸥ int-I(i) ⊑ v
   where 
-    θ(true)  = int-I(0)
-    θ(false) = ⨆⸤i ∈ ℤ | i ≠ 0⸥ int-I(i)
+    θ(true)  = {0}
+    θ(false) = {i | i ∈ ℤ ; i ≠ 0}
 ``````````````````````````````````````````````````
-Closures must follow similar laws:
+Closures must follow similar laws, inducing a Galois connection between
+`𝒫(Clo)` and `Val`:
 `````indent```````````````````````````````````````
 {c} ⊑ clo-E(cloI(c))
 ⨆⸤c ∈ clo-E(v)⸥ clo-I(c) ⊑ v
 ``````````````````````````````````````````````````
-And `δ` must be sound w.r.t. the abstract semantics:
+Finally, `δ` must be sound and complete w.r.t. the abstract semantics:
 `````indent```````````````````````````````````````
 int-I(i₁ + i₂) ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
-int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂)⟧)
+int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
+⨆⸤b₁ ∈ int-if0-E(v₁), b₂ ∈ int-if0-E(v₂), i ∈ θ(b₁,b₂)⸥ int-I(i) ⊑ δ⟦⊙⟧(v₁,v₂)
+  where
+    θ(true,true) = {0}
+    θ(true,false) = {i | i ∈ ℤ ; i ≠ 0}
+    θ(false,true) = {i | i ∈ ℤ ; i ≠ 0}
+    θ(false,false) = ℤ
 ``````````````````````````````````````````````````
 
 Supporting additional primitive types like booleans, lists, or arbitrary
 inductive datatypes is analogous. Introduction functions inject the type into
 `Val`. Elimination functions project a finite set of discrete observations.
-Introduction and elimination operators must follow a Galois connection
-discipline.
-
-Of note is our restraint from allowing operations over `Val` to have monadic
-effects. We set things up specifically in this way so that `Val` and the monad
-`M` can be varied independent of each other.
+Introduction, elimination and `δ` operators must be sound and complete
+following a Galois connection discipline.
 
 ## Abstract Time 
 
-The interface for abstract time is familiar from Abstracting Abstract
-Machines`~\cite{davdar:van-horn:2010:aam}`{.raw}(AAM)--which introduces
-abstract time as a single parameter from variations in
-call-site sensitivity--and is shown in
-Figure`~\ref{AbstractDomainInterface}`{.raw}.
+The interface for abstract time is familiar from
+`\citet{davdar:van-horn:2010:aam}`{.raw}(AAM) which introduces abstract time as
+a single parameter from variations in call-site sensitivity, and
+`\citet{dvanhorn:Smaragdakis2011Pick}`{.raw} which instantiates the parameter
+to achieve both call-site and object sensitivity.
+`````align````````````````````````````````````````
+Time  : Type
+tick  : Exp × KAddr × Time → Time
+``````````````````````````````````````````````````
 
 Remarkably, we need not state laws for `tick`. Our interpreter will always
 merge values which reside at the same address to achieve soundness. Therefore,
 any supplied implementations of `tick` is valid from a soundness perspective.
+Different choices in `tick` merely yield different tradoffs in precision and
+performance of the abstract semantics.
 
 # The Interpreter
 
-`\begin{figure}`{.raw}
-\vspace{-1em}
+We now present a generic monadic interpreter for `λIF` parameterized over `M`,
+`Val` and `Time`. First we implement `A⟦_⟧`, a _monadic_ denotation for atomic
+expressions.
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -536,20 +549,16 @@ A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
 ``````````````````````````````````````````````````
-\caption{Monadic denotation for atoms}
-\label{InterpreterA} 
-\vspace{-1em}
-`\end{figure}`{.raw}
+`get-Env` and `get-Store` are primitive operations for monadic state. `clo-I`
+comes from the abstract domain interface. 
 
-We now present a generic monadic interpreter for `λIF` parameterized over `M`,
-`Val` and `Time`. First we implement `A⟦_⟧`, a _monadic_ denotation for atomic
-expressions, shown in Figure \ref{InterpreterA}. `get-Env` and `get-Store` are
-primitive operations for monadic state. `clo-I` comes from the abstract domain
-interface. `↑ₚ` is the lifting of values from `𝒫` into `M`:
-`````indent```````````````````````````````````````
-↑ₚ : ∀ α, 𝒫(α) → M(α)
-↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
-``````````````````````````````````````````````````
+Next we implement `step`, a _monadic_ small-step function for compound
+expressions, shown in Figure \ref{InterpreterStep}. `step` uses helper
+functions `push` and `pop` for manipulating stack frames, `↑ₚ` for lifting
+values from `𝒫` into `M`, and a monadic version of `tick` called `tickM`, each
+of which are shown in Figure \ref{InterpreterHelpers}. The interpreter looks
+deterministic, however the nondeterminism is abstracted away behind `↑ₚ` and
+monadic bind `x ← e₁ ; e₂`.
 
 `\begin{figure}`{.raw}
 \vspace{-1em}
@@ -585,14 +594,12 @@ step(a) := do
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-Next we implement `step`, a _monadic_ small-step function for compound
-expressions, shown in Figure \ref{InterpreterStep}. `step` uses helper
-functions `push` and `pop` for manipulating stack frames, and a monadic version
-of `tick` called `tickM`, each of which are shown in Figure \ref{Push}.
-
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````indent```````````````````````````````````````
+↑ₚ : ∀ α, 𝒫(α) → M(α)
+↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
+<>
 push : Frame → M(1)
 push(fr) := do
   κl ← get-KAddr
@@ -600,6 +607,7 @@ push(fr) := do
   κl' ← get-Time
   put-KStore(κσ ⊔ [κl' ↦ {fr∷κl}])
   put-KAddr(κl')
+<>
 pop : M(Frame)
 pop := do
   κl ← get-KAddr
@@ -607,14 +615,15 @@ pop := do
   fr∷κl' ← ↑ₚ(κσ(κl))
   put-KAddr(κl')
   return(fr)
+<>
 tickM : Exp → M(1)
 tickM(e) = do
   τ ← get-Time
   κl ← get-KAddr
   put-Time(tick(e,κl,τ))
 ``````````````````````````````````````````````````
-\caption{Interpreter Helper Functions}
-\label{Push} 
+\caption{Monadic step function and garbage collection}
+\label{InterpreterHelpers} 
 \vspace{-1em}
 `\end{figure}`{.raw}
 
@@ -629,31 +638,30 @@ gc(e) := do
   put-Store({l ↦ σ(l) | l ∈ R(σ,ρ,e))
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR(κσ,κl)})
 ``````````````````````````````````````````````````
-where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}. The
-interpreter looks deterministic, however the nondeterminism is abstracted away
-behind `↑ₚ` and monadic bind.
+where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}. 
 
 In generalizing the semantics to account for nondeterminism, updates to both
-the value and continuation store must merge rather than strong update. This is
-because we place no restriction on the semantics for `Time`, and we must
-preserve soundness in the presence of reused addresses. To support the `⊔`
-operator for our stores (in observation of soundness), we modify our
-definitions of `Store` and `KStore` Our interpreter is therefore operating over
-a modified state space (noting that `Val` comes with a join-semilattice
-structure):
+the value and continuation store must merge values rather than performing a
+strong update. This is because we place no restriction on the semantics for
+`Time` and therefore must preserve soundness in the presence of reused
+addresses.
+
+To support the `⊔` operator for our stores (in observation of soundness), we
+modify our definitions of `Store` and `KStore`.
 `````indent```````````````````````````````````````
 σ  ∈ Store  : Addr → Val
 κσ ∈ KStore : KAddr → 𝒫(Frame × KAddr)
 ``````````````````````````````````````````````````
-We have already established a join-semilattice structure in the interface for
-`Val` in the abstract domain interface. Developing a custom join-semilattice
-for continuations is possible, and is the key component of recent developments
-in pushdown abstraction. For this presentation we use `𝒫(Frame × KAddr)` as an
+
+We have already established a join-semilattice structure for `Val` in the
+abstract domain interface. Developing a custom join-semilattice for
+continuations is possible and is the key component of recent developments in
+pushdown abstraction. For this presentation we use `𝒫(Frame × KAddr)` as an
 abstraction for continuations for simplicity.
 
 To execute the interpreter we must introduce one more parameter. In the
 concrete semantics, execution takes the form of a least-fixed-point computation
-over the collecting semantics This in general requires a join-semilattice
+over the collecting semantics. This in general requires a join-semilattice
 structure for some `Σ` and a transition function `Σ → Σ`.
 
 For the monadic interpreter we require that monadic actions `Exp → M(Exp)` form
@@ -666,16 +674,21 @@ versions of `Val`, we carry `CVal α⇄γ AVal` through the Galois connection to
 establish `CΣ α⇄γ AΣ`.
 
 A collecting-semantics execution of our interpreter is defined as the
-least-fixed-point of `step` transported through the Galois connection.
+least-fixed-point of `step` transported through the Galois connection `(Σ → Σ)
+α⇄γ (Exp → M(Exp))`.
 `````indent```````````````````````````````````````
 μ(X). X ⊔ ς₀ ⊔ γ(step)(X)
 ``````````````````````````````````````````````````
-where `ς₀` is the injection of the initial program `e₀` into `Σ `.
+where `ς₀` is the injection of the initial program `e₀` into `Σ` and `γ` has
+type `(Exp → M(Exp)) → (Σ → Σ)`.
 
 # Recovering Analyses
 
 To recover concrete and abstract interpreters we need only instantiate our
-generic monadic interpreter with concrete and abstract components.
+generic monadic interpreter with concrete and abstract components. The concrete
+interpreter will recover the concrete semantics from Section \ref{semantics},
+and through that correspondance, the soundness proof for the abstract semantics
+will be recovered largely for free.
 
 ## Recovering a Concrete Interpreter
 
@@ -692,7 +705,7 @@ int-I(i) := {i}
 int-if0-E : CVal → 𝒫(Bool)
 int-if0-E(v) := { true | 0 ∈ v } ∪ { false | ∃ i ∈ v ∧ i ≠ 0 }
 ``````````````````````````````````````````````````
-and the concrete `δ` you would expect:
+and a straightforward concrete `δ`:
 `````indent```````````````````````````````````````
 δ⟦_⟧(_,_) : IOp → CVal × CVal → CVal
 δ⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
@@ -701,13 +714,13 @@ and the concrete `δ` you would expect:
 
 `\begin{proposition}`{.raw}
 `CVal` satisfies the abstract domain laws shown in Section
-\ref{the-abstract-domain} Figure`~\ref{AbstractDomainInterface}`{.raw}.
+\ref{the-abstract-domain}.
 `\end{proposition}`{.raw}
 
 Concrete time `CTime` captures program contours as a product of `Exp` and
 `CKAddr`:
 `````indent```````````````````````````````````````
-τ ∈ CTime := (Exp × KAddr)⋆
+τ ∈ CTime := (Exp × KAddr)⸢*⸣
 ``````````````````````````````````````````````````
 and `tick` is just a cons operator:
 `````indent```````````````````````````````````````
@@ -750,7 +763,7 @@ _[⟨+⟩]_ : ∀ α, CM(α) × CM(α) → CM(α)
 
 `\begin{proposition}`{.raw}
 `CM` satisfies monad, state, and nondeterminism laws shown in Section
-\ref{the-analysis-monad} Figure \ref{StateMonadInterface}.
+\ref{the-analysis-monad}.
 `\end{proposition}`{.raw}
 
 Finally, we must establish a Galois connection between `Exp → CM(Exp)` and `CΣ
@@ -763,7 +776,7 @@ CΣ := 𝒫(Exp × Ψ)
 The Galois connection between `CM` and `CΣ` is straightforward:
 `````indent```````````````````````````````````````
 γ : (Exp → CM(Exp)) → (CΣ → CΣ)
-γ(f)(eψ*) := {(e,ψ') | (e,ψ') ∈ f(e)(ψ) ; (e,ψ) ∈ eψ*}
+γ(f)(eψ⸢*⸣) := {(e,ψ') | (e,ψ') ∈ f(e)(ψ) ; (e,ψ) ∈ eψ⸢*⸣}
 α : (CΣ → CΣ) → (Exp → CM(Exp))
 α(f)(e)(ψ) := f({(e,ψ)})
 ``````````````````````````````````````````````````
@@ -774,7 +787,7 @@ The injection `ς₀` for a program `e₀` is:
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`γ` and `α` form an isomorphism.
+`γ` and `α` form an isomorphism, and therefore a Galois connection.
 `\end{proposition}`{.raw}
 
 ## Recovering an Abstract Interpreter
@@ -800,10 +813,10 @@ The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
 δ : IOp → AVal × AVal → AVal 
 δ⟦[+]⟧(v₁,v₂) := 
-    { i     | 0 ∈ v₁ ∧ i ∈ v₂ }
-  ∪ { i     | i ∈ v₁ ∧ 0 ∈ v₂ }
-  ∪ { [+]     | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
-  ∪ { [-]     | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
+    { i         | 0 ∈ v₁ ∧ i ∈ v₂ }
+  ∪ { i         | i ∈ v₁ ∧ 0 ∈ v₂ }
+  ∪ { [+]       | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
+  ∪ { [-]       | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
   ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
   ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
@@ -811,7 +824,7 @@ The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
 
 `\begin{proposition}`{.raw}
 `AVal` satisfies the abstract domain laws shown in
-Section`~\ref{the-abstract-domain}`{.raw} Figure \ref{AbstractDomainInterface}.
+Section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -824,14 +837,15 @@ execution contexts:
 `````indent```````````````````````````````````````
 ATime := (Exp × AKAddr)⋆ₖ
 ``````````````````````````````````````````````````
-The `tick` operator becomes cons followed by k-truncation:
+The `tick` operator becomes cons followed by k-truncation, which restricts the
+list to the first-k elements:
 `````indent```````````````````````````````````````
 tick : Exp × AKAddr × ATime → ATime
 tick(e,κl,τ) = ⌊(e,κl)∷τ⌋ₖ
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`CTime α⇄γ ATime` and `tick` is ordered `⊑` through the Galois connection.
+`CTime α⇄γ ATime` and `tick` are ordered `⊑` through the Galois connection.
 `\end{proposition}`{.raw}
 
 The monad `AM` need not change in implementation from `CM`; they are identical
@@ -843,11 +857,11 @@ up the choice of `Ψ`.
 The resulting state space `AΣ` is finite, and its least-fixed-point iteration
 will give a sound and computable analysis.
 
-# Varying Path  and Flow Sensitivity
+# Varying Path and Flow Sensitivity
 
-We are able to recover flow insensitivity in the analysis through a new
-definition for `M`: `AM⸢fi⸣`. To do this we pull `AStore` out of the powerset,
-exploiting its join-semilattice structure:
+We are able to recover a flow insensitive analysis through a new definition for
+`M`: `AM⸢fi⸣`. To do this we pull `AStore` out of the powerset, exploiting its
+join-semilattice structure:
 `````indent```````````````````````````````````````
 Ψ := AEnv × AKAddr × AKStore × ATime
 AM⸢fi⸣(α) := Ψ × AStore → 𝒫(α × Ψ) × AStore
@@ -902,7 +916,7 @@ AΣ⸢fi⸣ := 𝒫(Exp × Ψ) × AStore
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-`γ` and `α` form an isomorphism.
+`γ` and `α` form an isomorphism, and therefore a Galois connection.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -911,11 +925,11 @@ There exists Galois connections:
 CM α₁⇄γ₁ AM α₂⇄γ₂ AM⸢fi⸣
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
-The first Galois connection `CM α₁⇄γ₁ AM` is justified by the Galois
+The first Galois connection `CM α₁⇄γ₁ AM` is justified piecewise by the Galois
 connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`. The second Galois
-connection `AM α₂⇄γ₂ AM⸢fi⸣` is justified by calculation over their definitions.
-We aim to recover this proof more easily through compositional components in
-Section \ref{a-compositional-monadic-framework}.
+connection `AM α₂⇄γ₂ AM⸢fi⸣` is justified by calculation over their
+definitions. We aim to recover this proof more easily through compositional
+components in Section \ref{a-compositional-monadic-framework}.
 
 `\begin{corollary}`{.raw}
 `````align````````````````````````````````````````
@@ -924,7 +938,6 @@ CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣ⸢fi⸣
 `\end{corollary}`{.raw}
 This property is derived by transporting each Galois connection between monads
 through their respective Galois connections to `Σ`.
-
 
 `\begin{proposition}`{.raw}
 The following orderings hold between the three induced transition relations:
@@ -937,26 +950,32 @@ connections between monads.
 
 We note that the implementation for our interpreter and abstract garbage
 collector remain the same for each instantiation. They scale seamlessly to
-flow-sensitive and flow-insensitive variants when instantiated with the
-appropriate monad.
+path-sensitive and flow-insensitive variants when instantiated with the
+appropriate monad. 
+
+Recovering flow sensitivity is done through another analysis monad, which we
+develop in Section \ref{a-compositional-monadic-framework} in a more general
+setting.
 
 # A Compositional Monadic Framework
 
 In our development thus far, any modification to the interpreter requires
-redesigning the monad `AM` and constructing new proofs. We want to avoid
-reconstructing complicated monads for our interpreters, especially as languages
-and analyses grow and change. Even more, we want to avoid reconstructing
-complicated _proofs_ that such changes will necessarily alter. Toward this goal
-we introduce a compositional framework for constructing monads which are
-correct-by-construction. To do this we extend the well-known structure of monad
-transformer to that of _Galois transformer_.
+redesigning the monad `AM` and constructing new proofs relating `AM` to `CM`.
+We want to avoid reconstructing complicated monads for our interpreters,
+especially as languages and analyses grow and change. Even more, we want to
+avoid reconstructing complicated _proofs_ that such changes will necessarily
+require. Toward this goal we introduce a compositional framework for
+constructing monads which are correct-by-construction--we extend the well-known
+structure of monad transformer to that of _Galois transformer_.
 
 There are two types of monadic effects used in our monadic interpreter: state
 and nondeterminism. Each of these effects have corresponding monad
-transformers. Our definition of a monad transformer for nondeterminism is novel
-in this work.
+transformers. Transformers can be composed in either direction, and the two
+possible directions of composition give rise naturally to path-sensitive and
+flow-insenstive analyses. Furthermore, our definition of nondeterminism monad
+transformer is novel in this work.
 
-In the proceeding definitions, we must necessarily use `bind`, `return`, and
+In the proceeding definitions, we must necessarily use `bind`, `return` and
 other operations from the underlying monad. We notate these `bindₘ`, `returnₘ`,
 `doₘ`, `←ₘ`,  etc. for clarity.
 
@@ -967,7 +986,6 @@ Briefly we review the state monad transformer, `Sₜ[s]`:
 Sₜ[_] : (Type → Type) → (Type → Type)
 Sₜ[s](m)(α) := s → m(α × s)
 ``````````````````````````````````````````````````
-
 
 The state monad transformer can transport monadic operations from `m` to
 `Sₜ[s](m)`:
@@ -989,8 +1007,8 @@ _[⟨+⟩]_ : ∀ α, Sₜ[s](m)(α) × Sₜ[s](m)(α) → Sₜ[s](m)(α)
 (m₁ ⟨+⟩ m₂)(s) := m₁(s) ⟨+⟩ₘ m₂(s) 
 ``````````````````````````````````````````````````
 
-Finally, the state monad transformer exposes `get` and `put` operations given
-that `m` is a monad:
+Finally, the state monad transformer exposes `get` and `put` operations
+provided that `m` is a monad:
 `````indent```````````````````````````````````````
 get : Sₜ[s](m)(s)
 get(s) := returnₘ(s,s)
@@ -1002,11 +1020,11 @@ put(s')(s) := returnₘ(1,s')
 
 We have developed a new monad transformer for nondeterminism which composes
 with state in both directions. Previous attempts to define a monad transformer
-for nondeterminism have resulted in monad operations which do not respect monad
-laws.
+for nondeterminism have resulted in monad operations which do not respect
+either monad laws or nondeterminism effect laws.
 
-Our nondeterminism monad transformer shares the "expected" type, embedding `𝒫`
-inside `m`:
+Our nondeterminism monad transformer is defined with the expected type,
+embedding `𝒫` inside `m`:
 `````indent```````````````````````````````````````
 𝒫ₜ : (Type → Type) → (Type → Type)
 𝒫ₜ(m)(α) := m(𝒫(α))
@@ -1064,12 +1082,18 @@ join-semilattice functor.
 ## Mapping to State Spaces
 
 Both our execution and correctness frameworks requires that monadic actions in
-`M` map to some state space transitions `Σ`. We extend the earlier statement of
-Galois connection to the transformer setting:
+`M` map to state space transitions in `Σ`. We extend the earlier statement of
+Galois connection to the transformer setting, mapping monad _transformer_
+actions in `T` to state space _functor_ transitions in `Π`.
 `````indent```````````````````````````````````````
-mstep : ∀ α β, (α → M(β)) α⇄γ (Σ(α) → Σ(β))
+T : (Type → Type) → (Type → Type)
+Π : (Type → Type) → (Type → Type)
+mstepᵗ : ∀ α β M, (α → T(M)(β)) α⇄γ (Π(Σₘ)(α) → Π(Σₘ)(β))
 ``````````````````````````````````````````````````
-Here `M` must map _arbitrary_ monadic actions `α → M(β)` to state space
+In the type of `mstepᵗ`, `M` is an arbitrary monad whose monadic actions map to
+state space `Σₘ`. The monad transformer `T` must induce a state space transformer `Π`
+
+Here `mstepᵗ` must map arbitrary monadic actions `α → T(M)(β)` to state space
 transitions for a state space _functor_ `Σ(_)` We only show the `γ` sides of
 the mappings in this section, which allow one to execute the analyses.
 
