@@ -1,4 +1,4 @@
-\documentclass[10pt,preprint]{sigplanconf}
+\documentclass[nocopyrightspace,preprint,10pt]{sigplanconf}
 
 % OOPSLA Setup {-{
 
@@ -31,7 +31,6 @@
 \floatstyle{boxed}
 \restylefloat{figure}
 \usepackage[font=small,skip=0pt]{caption}
-% \usepackage[belowskip=-15pt,aboveskip=0pt]{caption}
 
 \newtheorem{proposition}{Proposition}
 \newtheorem{corollary}{Corollary}
@@ -75,9 +74,9 @@
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
-\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country} 
-\copyrightyear{20yy} 
-\copyrightdata{978-1-nnnn-nnnn-n/yy/mm} 
+% \conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country} 
+% \copyrightyear{20yy} 
+% \copyrightdata{978-1-nnnn-nnnn-n/yy/mm} 
 \doi{nnnnnnn.nnnnnnn}
 
 % -- I'm not sure which one of these we use (or none?)... -DCD
@@ -98,16 +97,17 @@
 % }-}
 
 % These are supposed to make align* not have breaks around it...
-% \setlength{\abovedisplayskip}{0em}
-% \setlength{\belowdisplayskip}{0em}
-% \setlength{\abovedisplayshortskip}{0em}
-% \setlength{\belowdisplayshortskip}{0em}
+\setlength{\abovedisplayskip}{0em}
+\setlength{\belowdisplayskip}{0em}
+\setlength{\abovedisplayshortskip}{0em}
+\setlength{\belowdisplayshortskip}{0em}
 
 \title{Galois Transformers and Modular Abstract Interpreters}
 \subtitle{Reusable Metatheory for Program Analysis}
-\authorinfo{David Darais}{University of Maryland, USA}{darais@cs.umd.edu}
-\authorinfo{Matthew Might}{University of Utah, USA}{might@cs.utah.edu}
-\authorinfo{David Van Horn}{University of Maryland, USA}{dvanhorn@cs.umd.edu}
+% \authorinfo{David Darais}{University of Maryland, USA}{darais@cs.umd.edu}
+% \authorinfo{Matthew Might}{University of Utah, USA}{might@cs.utah.edu}
+% \authorinfo{David Van Horn}{University of Maryland, USA}{dvanhorn@cs.umd.edu}
+\authorinfo{}{}{}
 \maketitle
 
 % Abstract {-{
@@ -152,20 +152,20 @@ synthesize sound analyzers over a number of parameters.
 \end{abstract}
 % }-}
 
-\category{CR-number}{subcategory}{third-level}
-\terms term1, term2
-\keywords keyword1, keyword2
+% \category{CR-number}{subcategory}{third-level}
+% \terms term1, term2
+% \keywords keyword1, keyword2
 
 \input{tmp/autogen/paper.markdown.tex}
 
-\appendix
-\section{Appendix Title}
-
-Appendix body.
-
-\acks
-
-Acknowledgments body.
+% \appendix
+% \section{Appendix Title}
+% 
+% Appendix body.
+% 
+% \acks
+% 
+% Acknowledgments body.
 
 \balance
 \bibliographystyle{abbrvnat}
