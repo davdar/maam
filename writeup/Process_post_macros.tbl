@@ -2,13 +2,6 @@ Search For    Replace With        Match Mode
 ============================================
 ⸤             _{                  Anywhere  
 ⸥             }                   Anywhere  
-₁₁            _{11}               Anywhere  
-ₙ₁            _{n1}               Anywhere  
-ₙₘ            _{nm}               Anywhere  
-ᵢ₁            _{i1}               Anywhere  
-ᵢₘ            _{im}               Anywhere  
-ₚ₁            _{p1}               Anywhere  
-ₚ₂            _{p2}               Anywhere  
 ₀             _0                  Anywhere  
 ₁             _1                  Anywhere  
 ₂             _2                  Anywhere  
@@ -22,10 +15,6 @@ Search For    Replace With        Match Mode
 ₖ             _k                  Anywhere  
 ⸢             ^{                  Anywhere  
 ⸣             }                   Anywhere  
-ᵍᶜ            ^{gc}               Anywhere  
-ᵖˢ            ^{ps}               Anywhere  
-ᶠˢ            ^{fs}               Anywhere  
-ᶠⁱ            ^{fi}               Anywhere  
 ρ             \rho                Anywhere  
 α             \alpha              Anywhere  
 β             \beta               Anywhere  
@@ -83,5 +72,6 @@ Search For    Replace With        Match Mode
 ⌊             \lfloor             Anywhere  
 ⌋             \rfloor             Anywhere  
 ,,            ,\;\;               Anywhere  
-⇒             \implies            Anywhere
-<>            \\                  Anywhere
+⇒             \implies            Anywhere  
+<>            \\                  Anywhere  
+␣             \hspace{1em}        Anywhere

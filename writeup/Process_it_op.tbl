@@ -11,6 +11,7 @@ mstepₘ-γ      mstep_m\gamma      Anywhere
 mstepₘ-α      mstep_m\alpha      Anywhere  
 ⊥-unit        \bot-unit          Anywhere  
 ⊥-zero        \bot-zero          Anywhere  
+↑ₚ            \uparrow_p         Anywhere  
 Addr          _                  Word      
 Atom          _                  Word      
 Clo           _                  Word      

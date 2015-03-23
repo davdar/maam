@@ -121,8 +121,8 @@
  i ∈  ℤ       x ∈ Var
  a ∈  Atom    ::= i | x | [λ](x).e
  ⊕ ∈  IOp     ::= [+] | [-]
- ⊙ ∈  Op      ::= ⊕ | @ 
- e ∈  Exp     ::= a | e ⊙ e | if0(e){e}{e}
+ ⊙ ∈  Op      ::= ⊕ | [@]
+ e ∈  Exp     ::= a | e ⊙ e | [if0](e){e}{e}
 <>
  τ ∈  Time    := ℤ
  l ∈  Addr    := Var × Time
@@ -132,7 +132,7 @@
  v ∈  Val     ::= i | c
 κl ∈  KAddr   := Time
 κσ ∈  KStore  := KAddr ⇀ Frame × KAddr
-fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
+fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
  ς ∈  Σ       ::= Exp × Env × Store × KAddr × KStore
 ``````````````````````````````````````````````````
 `\caption{`{.raw} `λIF` Syntax and Concrete State Space `}`{.raw}
@@ -143,7 +143,7 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨if0(□){e}{e}⟩
 To demonstrate our framework we design an abstract interpreter for `λIF`, a
 simple applied lambda calculus shown in Figure`~\ref{SS}`{.raw}. `λIF` extends
 traditional lambda calculus with integers, addition, subtraction and
-conditionals. We use the operator `@` as explicit syntax for function
+conditionals. We use the operator `[@]` as explicit syntax for function
 application. This allows for `Op` to be a single syntactic class for all
 operators and simplifies the presentation.
 
@@ -178,7 +178,7 @@ _[~~>]_ ∈ 𝒫(Σ × Σ)
     κσ' := κσ[τ ↦ (⟨A⟦a⟧(ρ,σ) ⊙ □⟩,κl')]
 ⟨a,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ'',σ',κl',κσ,τ+1⟩
   where 
-    (⟨⟨[λ](x).e,ρ'⟩ @ □⟩,κl') := κσ(κl)
+    (⟨⟨[λ](x).e,ρ'⟩ [@] □⟩,κl') := κσ(κl)
     ρ'' := ρ'[x ↦ (x,τ)]
     σ' := σ[(x,τ) ↦ A⟦a⟧(ρ,σ)]
 ⟨i₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨i,ρ,σ,κl',κσ,τ+1⟩
@@ -187,7 +187,7 @@ _[~~>]_ ∈ 𝒫(Σ × Σ)
     i := δ⟦⊕⟧(i₁,i₂)
 ⟨i,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ,σ,κl',κσ,τ+1⟩
   where 
-    (⟨if0(□){e₁}{e₂}⟩,κl') := κσ(κl)
+    (⟨[if0](□){e₁}{e₂}⟩,κl') := κσ(κl)
     e := e₁ when i = 0
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
@@ -235,14 +235,14 @@ KR[_] ∈ KStore → KAddr → 𝒫(KAddr)
 KR[κσ](κl₀) := μ(X). X ∪ {κl₀} ∪ {π₂(κσ(κl)) | κl ∈ X}
 ``````````````````````````````````````````````````
 
-Our final semantics is given via the step relation `_[~~>ᵍᶜ]_` which
+Our final semantics is given via the step relation `_[~~>⸢gc⸣]_` which
 nondeterministically either takes a semantic step or performs garbage
 collection.
 `````indent```````````````````````````````````````
-_[~~>ᵍᶜ]_ ∈ 𝒫(Σ × Σ)
-ς ~~>ᵍᶜ ς' 
+_[~~>⸢gc⸣]_ ∈ 𝒫(Σ × Σ)
+ς ~~>⸢gc⸣ ς' 
   where ς ~~> ς'
-⟨e,ρ,σ,κl,κσ,τ⟩ ~~>ᵍᶜ ⟨e,ρ,σ',κl,κσ',τ⟩
+⟨e,ρ,σ,κl,κσ,τ⟩ ~~>⸢gc⸣ ⟨e,ρ,σ',κl,κσ',τ⟩
   where 
     σ' := {l ↦ σ(l) | l ∈ R[σ](ρ,e)}
     κσ' := {κl ↦ κσ(κl) | κl ∈ KR[κσ](κl)}
@@ -251,7 +251,7 @@ _[~~>ᵍᶜ]_ ∈ 𝒫(Σ × Σ)
 An execution of the semantics is the least-fixed-point of a collecting
 semantics:
 `````indent```````````````````````````````````````
-μ(X).X ∪ {ς₀} ∪ { ς' | ς ~~>ᵍᶜ ς' ; ς ∈ X }
+μ(X).X ∪ {ς₀} ∪ { ς' | ς ~~>⸢gc⸣ ς' ; ς ∈ X }
 ``````````````````````````````````````````````````
 where `ς₀` is the injection of the initial program `e₀`:
 `````indent```````````````````````````````````````
@@ -262,68 +262,90 @@ Galois connection with this concrete collecting semantics.
 
 # Flow Properties in Analysis
 
-The term "flow" is heavily overloaded in static analysis. We wish to draw a
-sharper distinction on what a flow property is, and what characteristics
-different flow properties have. In this paper we identify three types of
-analysis flow:
+The term "flow" is heavily overloaded in static analysis. In this paper we
+identify three types of analysis flow:
 
-1. Path-sensitive and flow-sensitive
-2. Path-insensitive and flow-sensitive
-3. Path-insensitive and flow-insensitive
+1. Path-sensitive
+2. Flow-sensitive
+3. Flow-insensitive
 
-Missing from this list is "path-sensitive flow-insensitive", which is identical
-to "path-sensitive flow-sensitive". This is because path sensitivity recovers
-the effects of flow-sensitivity (or, is immune to the effects of
-flow-insensitivity).
 
-Consider a simple if-statement in our example language `λIF` (extended with
-let-bindings) where an analysis cannot determine the value of `N`:
-`````indent```````````````````````````````````````
-1: let x := if0(N){1}{-1};
-2: let y := if0(N){1}{-1};
-3: e
+Our framework exposes the essence of analysis flow and therefore allows for
+many other choices, as well as variations on these three. However, these are
+the only properties which occur frequently in the literature and have
+well-understood definitions, so we restrict our discussion them.
+
+Consider a combination of if-statements in our example language `λIF` (extended
+with let-bindings) where an analysis cannot determine the value of `N`:
+`````raw``````````````````````````````````````````
+\begin{alignat*}{3}
+``````````````````````````````````````````````````
+`````rawmacro`````````````````````````````````````
+& 1: [let] x :=           && ␣␣[in]                 \\
+& ␣␣2: [if0](N){          && ␣␣5: [let] y :=        \\
+& ␣␣␣␣3: [if0](N){1}{2}   && ␣␣␣␣6: [if0](N){5}{6}  \\
+& ␣␣} [else] {            && ␣␣[in]                 \\
+& ␣␣␣␣4: [if0](N){3}{4}   && ␣␣7: [exit](x, y)      \\
+& ␣␣}                     && \\
+``````````````````````````````````````````````````
+`````raw``````````````````````````````````````````
+\end{alignat*}
 ``````````````````````````````````````````````````
 
-\paragraph{Path-Sensitive Flow-Sensitive}
-A path- and flow-sensitive analysis will track both control and data flow
-precisely. At program point 2 the analysis considers separate worlds:
+\paragraph{Path-Sensitive}
+A path-sensitive analysis will track both data and control flow precisely. At
+program points 3 and 4 the analysis considers separate worlds:
 `````align````````````````````````````````````````
-{N=0,,  x=   1} \quad {N≠0,,  x=-  1}
+3: {N=0} \quad 4: {N≠0}
 ``````````````````````````````````````````````````
-At program point 3 the analysis remains precise:
+At program point 6 the analysis continues in two separate, precise worlds:
 `````align````````````````````````````````````````
-{N=0,,  x=   1,,  y=   1} \quad {N≠0,,  x=-  1,,  y=-  1}
+6: {N=0,, x=1} {N≠0,, x=4}
+``````````````````````````````````````````````````
+At program point 7 the analysis correctly corrolates the values of `x` and
+`y`:
+`````align````````````````````````````````````````
+7: {N=0,, x=1,, y=5} {N≠0,, x=4,, y=6}
 ``````````````````````````````````````````````````
 
-\paragraph{Path-Insensitive Flow-Sensitive}
-A path-insensitive flow-sensitive analysis will track control flow precisely
-but merge the heap after control flow branches. At program points 2 and 3 the
-analysis considers a single abstract world:
-`````raw```````````````````````````````````````````
-\small\begin{alignat*}{4}
- \{ N=ANY ,\;\;  & x= \{ -1, 1 \} \}     &&                    && \text{ and}  \\
- \{ N=ANY ,\;\;  & x= \{ -1, 1 \}  ,\;\; && y= \{ -1, 1 \}  \} && \text{ respectively.} 
-\end{alignat*}\normalsize
+\paragraph{Flow-Sensitive}
+A flow-sensitive analysis will collect a _single_ set of facts about each
+variable _at each program point_. At program points 3 and 4, the analysis
+considers separate worlds:
+`````align````````````````````````````````````````
+3: {N=0} \quad 4: {N≠0}
+``````````````````````````````````````````````````
+Each nested if-statement then evaluates only one side of the branch. At program
+point 6 the analysis is only allowed one set of facts, so it must merge the
+possible values that `x` and `N` could take:
+`````align````````````````````````````````````````
+6: {N∈ℤ,, x∈{1,4}}
+``````````````````````````````````````````````````
+The analysis must then explore both branches at program point 6 resulting in no
+corrolation between values for `x` and `y`:
+`````align````````````````````````````````````````
+7: {N∈ℤ,, x∈{1,4},, y∈{5,6}}
 ``````````````````````````````````````````````````
 
 \paragraph{Path-Insensitive Flow-Insensitive}
-A path-insensitive flow-insensitive analysis will compute a single global set
-of facts that must be true at all points of execution. At program points 2 and
-3 the analysis considers a single abstract world:
-`````raw```````````````````````````````````````````
-\small\begin{alignat*}{4}
- \{ N=ANY ,\;\;  & x= \{ -1, 1 \} \}     &&                    && \text{ and}  \\
- \{ N=ANY ,\;\;  & x= \{ -1, 1 \}  ,\;\; && y= \{ -1, 1 \}  \} && \text{ respectively.} 
-\end{alignat*}\normalsize
+A flow-insensitive analysis will collect a _single_ set of facts about each
+variable which must hold true _for the entire program_. Because the value of
+`N` is unknown at _some_ point in the program, the value of `x` must consider
+both branches of the nested if-statement. This results in the global set of
+facts giving four values to `x`.
+`````align````````````````````````````````````````
+{N∈ℤ,, x∈{1,2,3,4},, y∈{5,6}}
 ``````````````````````````````````````````````````
 
-In our framework we capture both path- and flow-sensitivity as orthogonal
-parameters to our interpreter. Path-sensitivity will arise from the order of
-monad transformers used to construct the analysis. Flow-sensitivity will arise
-from the Galois connection used to map interpreters to state space transition
-systems. Because flow-sensitivity is redundant in the presence of
-path-sensitivity, we refer to the three distinct analyses that arise as
-"path-sensitive", "flow-sensitive" and "flow-insensitive".
+In our framework we capture each flow property as a purely orthogonal parameter
+to the abstract interpreter. Flow properties will compose seamlessly with
+choices of call-site sensitivity, object-sensitivity, abstract garbage
+collection, mcfa a la Might et al, shape analysis, abstract domain, etc. Most
+importantly, we enable the analysis designer to _compartmentalize_ the flow
+sensitivity of each component in the abstract state space. Constructing an
+analysis which is flow-sensitive in the data-store and path-sensitive in the
+control-store is just as easy as constructing a single flow-property across the
+board.
 
 # Analysis Parameters
 
@@ -372,7 +394,7 @@ We briefly review monad, state and nondeterminism operators and their laws.
 `\begin{figure}`{.raw}
 \vspace{-1em}
 `````align```````````````````````````````````````` 
-M        : Type → type
+M        : Type → Type
 bind     : ∀ α β, M(α) → (α → M(β)) → M(β)
 return   : ∀ α, α → M(α)
 <>
@@ -544,7 +566,7 @@ step(a) := do
     ⟨□ ⊙ e⟩ → do
       push(⟨v ⊙ □⟩)
       return(e)
-    ⟨v' @ □⟩ → do
+    ⟨v' [@] □⟩ → do
       ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
       τ ← get-Time
       σ ← get-Store
@@ -553,7 +575,7 @@ step(a) := do
       return(e)
     ⟨v' ⊕ □⟩ → do
       return(δ⟦⊕⟧(v',v))
-    ⟨if0(□){e₁}{e₂}⟩ → do
+    ⟨[if0](□){e₁}{e₂}⟩ → do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
 ``````````````````````````````````````````````````
@@ -823,17 +845,17 @@ will give a sound and computable analysis.
 # Varying Path- and Flow-Sensitivity
 
 We are able to recover flow-insensitivity in the analysis through a new
-definition for `M`: `AMᶠⁱ`. To do this we pull `AStore` out of the powerset,
+definition for `M`: `AM⸢fi⸣`. To do this we pull `AStore` out of the powerset,
 exploiting its join-semilattice structure:
 `````indent```````````````````````````````````````
 Ψ := AEnv × AKAddr × AKStore × ATime
-AMᶠⁱ(α) := Ψ × AStore → 𝒫(α × Ψ) × AStore
+AM⸢fi⸣(α) := Ψ × AStore → 𝒫(α × Ψ) × AStore
 ``````````````````````````````````````````````````
 
 The monad operator `bind` performs the store merging needed to capture a
 flow-insensitive analysis.
 `````indent```````````````````````````````````````
-bind : ∀ α β, AMᶠⁱ(α) → (α → AMᶠⁱ(β)) → AMᶠⁱ(β)
+bind : ∀ α β, AM⸢fi⸣(α) → (α → AM⸢fi⸣(β)) → AM⸢fi⸣(β)
 bind(m)(f)(ψ,σ) := ({bs⸤11⸥ .. bs⸤1m₁⸥ .. bs⸤n1⸥ .. bs⸤nmₙ⸥},σ₁ ⊔ .. ⊔ σₙ)
   where
     ({(a₁,ψ₁) .. (aₙ,ψₙ)},σ') := m(ψ,σ)
@@ -841,16 +863,16 @@ bind(m)(f)(ψ,σ) := ({bs⸤11⸥ .. bs⸤1m₁⸥ .. bs⸤n1⸥ .. bs⸤nmₙ�
 ``````````````````````````````````````````````````
 The unit for `bind` returns one nondeterminism branch and a single store:
 `````indent```````````````````````````````````````
-return : ∀ α, α → AMᶠⁱ(α)
+return : ∀ α, α → AM⸢fi⸣(α)
 return(a)(ψ,σ) := ({a,ψ},σ)
 ``````````````````````````````````````````````````
 
 State effects `get-Env` and `put-Env` are also straightforward, returning one
 branch of nondeterminism:
 `````indent```````````````````````````````````````
-get-Env : AMᶠⁱ(AEnv)
+get-Env : AM⸢fi⸣(AEnv)
 get-Env(⟨ρ,κ,τ⟩,σ) := ({(ρ,⟨ρ,κ,τ⟩)},σ)
-put-Env : AEnv → AMᶠⁱ(1)
+put-Env : AEnv → AM⸢fi⸣(1)
 put-Env(ρ')(⟨ρ,κ,τ⟩,σ) := ({(1,⟨ρ',κ,τ⟩)},σ)
 ``````````````````````````````````````````````````
 State effects `get-Store` and `put-Store` are analogous to `get-Env` and
@@ -865,16 +887,16 @@ _[⟨+⟩]_ : ∀ α, M(α) × M(α) → M α
   where (aψ*ᵢ,σᵢ) := mᵢ(ψ,σ)
 ``````````````````````````````````````````````````
 
-Finally, the Galois connection relating `AMᶠⁱ` to a state space transition over
-`AΣᶠⁱ` must also compute set unions and store joins pairwise:
+Finally, the Galois connection relating `AM⸢fi⸣` to a state space transition over
+`AΣ⸢fi⸣` must also compute set unions and store joins pairwise:
 `````indent```````````````````````````````````````
-AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
-γ : (Exp → AMᶠⁱ(Exp)) → (AΣᶠⁱ → AΣᶠⁱ)
-γ(f)(eψ*,σ) := ({eψ₁₁ .. eψₙ₁ .. eψₙₘ}, σ₁ ⊔ .. ⊔ σₙ)
+AΣ⸢fi⸣ := 𝒫(Exp × Ψ) × AStore
+γ : (Exp → AM⸢fi⸣(Exp)) → (AΣ⸢fi⸣ → AΣ⸢fi⸣)
+γ(f)(eψ*,σ) := ({eψ⸤11⸥ .. eψ⸤n1⸥ .. eψ⸤nm⸥}, σ₁ ⊔ .. ⊔ σₙ)
   where 
     {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ*
-    ({eψᵢ₁ .. eψᵢₘ},σᵢ) := f(eᵢ)(ψᵢ,σ)
-α  : (AΣᶠⁱ → AΣᶠⁱ) → (Exp → AMᶠⁱ(Exp))
+    ({eψ⸤i1⸥ .. eψ⸤im⸥},σᵢ) := f(eᵢ)(ψᵢ,σ)
+α  : (AΣ⸢fi⸣ → AΣ⸢fi⸣) → (Exp → AM⸢fi⸣(Exp))
 α(f)(e)(ψ,σ) := f({(e,ψ)},σ)
 ``````````````````````````````````````````````````
 
@@ -885,18 +907,18 @@ AΣᶠⁱ := 𝒫(Exp × Ψ) × AStore
 `\begin{proposition}`{.raw}
 There exists Galois connections:
 `````align````````````````````````````````````````
-CM α₁⇄γ₁ AM α₂⇄γ₂ AMᶠⁱ
+CM α₁⇄γ₁ AM α₂⇄γ₂ AM⸢fi⸣
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
 The first Galois connection `CM α₁⇄γ₁ AM` is justified by the Galois
 connections between `CVal α⇄γ AVal` and `CTime α⇄γ ATime`. The second Galois
-connection `AM α₂⇄γ₂ AMᶠⁱ` is justified by calculation over their definitions.
+connection `AM α₂⇄γ₂ AM⸢fi⸣` is justified by calculation over their definitions.
 We aim to recover this proof more easily through compositional components in
 Section \ref{a-compositional-monadic-framework}.
 
 `\begin{corollary}`{.raw}
 `````align````````````````````````````````````````
-CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣᶠⁱ
+CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣ⸢fi⸣
 ``````````````````````````````````````````````````
 `\end{corollary}`{.raw}
 This property is derived by transporting each Galois connection between monads
@@ -906,7 +928,7 @@ through their respective Galois connections to `Σ`.
 `\begin{proposition}`{.raw}
 The following orderings hold between the three induced transition relations:
 `````align````````````````````````````````````````
-α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγᶠⁱ(step) ∘ α₂
+α₁ ∘ Cγ(step) ∘ γ₁ ⊑ Aγ(step) ⊑ γ₂ ∘ Aγ⸢fi⸣(step) ∘ α₂
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
 This is a direct consequence of the monotonicity of step and the Galois

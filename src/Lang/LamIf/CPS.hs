@@ -29,22 +29,26 @@ instance (Eq n, Eq c) => PartialOrder (PreCall n c) where pcompare = discreteOrd
 type Call = StampedFix LocNum (PreCall Name)
 makePrisms ''PreCall
 
-freeVarsLam :: [Name] -> PreCall Name Call -> Set Name
-freeVarsLam xs c = freeVarsCall c \\ toSet xs
+freeVarsLam :: Set Name -> [Name] -> Call -> Set Name
+freeVarsLam ρ xs c = freeVarsCall (ρ \/ toSet xs) c
 
-freeVarsPico :: Pico -> Set Name
-freeVarsPico (Lit _) = bot
-freeVarsPico (Var x) = single x
+freeVarsPico :: Set Name -> Pico -> Set Name
+freeVarsPico _ (Lit _) = bot
+freeVarsPico ρ (Var x) 
+  | ρ ? x = bot
+  | otherwise = single x
 
-freeVarsAtom :: PreAtom Name Call -> Set Name
-freeVarsAtom (Pico p) = freeVarsPico p
-freeVarsAtom (Prim _ a1 a2) = freeVarsPico a1 \/ freeVarsPico a2
-freeVarsAtom (LamF x kx c) = freeVarsLam [x, kx] $ stampedFix c
-freeVarsAtom (LamK x c) = freeVarsLam [x] $ stampedFix c
+freeVarsAtom :: Set Name -> Atom -> Set Name
+freeVarsAtom ρ a = case stamped a of
+  Pico p -> freeVarsPico ρ p
+  Prim _ a1 a2 -> freeVarsPico ρ a1 \/ freeVarsPico ρ a2
+  LamF x kx c -> freeVarsLam ρ [x, kx] c
+  LamK x c -> freeVarsLam ρ [x] c
 
-freeVarsCall :: PreCall Name Call -> Set Name
-freeVarsCall (Let x a c) = freeVarsAtom (stamped a) \/ (freeVarsCall (stampedFix c) \\ single x)
-freeVarsCall (If ax tc fc) = freeVarsPico ax \/ joins (freeVarsCall . stampedFix ^$ [tc, fc])
-freeVarsCall (AppF fx ax kx) = joins $ freeVarsPico ^$ [fx, ax, kx]
-freeVarsCall (AppK kx ax) = joins $ freeVarsPico ^$ [kx, ax]
-freeVarsCall (Halt ax) = freeVarsPico ax
+freeVarsCall :: Set Name -> Call -> Set Name
+freeVarsCall ρ c = case stampedFix c of
+  Let x a c' -> joins [ freeVarsAtom ρ a, freeVarsCall (insert x ρ) c' ]
+  If ax tc fc -> joins [ freeVarsPico ρ ax, freeVarsCall ρ tc, freeVarsCall ρ fc ]
+  AppF fx ax kx -> joins $ freeVarsPico ρ ^$ [fx, ax, kx]
+  AppK kx ax -> joins $ freeVarsPico ρ ^$ [kx, ax]
+  Halt ax -> freeVarsPico ρ ax

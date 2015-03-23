@@ -1,5 +1,6 @@
 Search For    Replace With    Match Mode
 ========================================
+λIF           \lambda{}IF     Anywhere  
 do            _               Word      
 if            _               Word      
 case          _               Word      
@@ -8,3 +9,5 @@ cabal         \;cabal\;       Word
 install       \;install\;     Word      
 maam          \;maam\;        Word      
 type          _               Word      
+true          _               Word      
+false         _               Word      

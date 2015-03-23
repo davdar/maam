@@ -54,11 +54,14 @@
 \newcommand\litKStore{KStore}
 \newcommand\litEnv{Env}
 \newcommand\litClo{Clo}
+\newcommand\litelse{else}
 
 \newcommand{\itop}[1]{\operatorname{\mathit{#1}}}
-\newcommand{\ttbfop}[1]{\operatorname{\mathtt{\boldsymbol{\mathbf{#1}}}}}
-\newcommand{\ttbfbin}[1]{\mathbin{\mathtt{\mathbf{\boldsymbol{#1}}}}}
 \newcommand{\ttop}[1]{\operatorname{\mathtt{#1}}}
+\newcommand{\ttbfop}[1]{\ttop{\boldsymbol{\mathbf{#1}}}}
+\newcommand{\ttbfbin}[1]{\mathbin{\mathtt{\mathbf{\boldsymbol{#1}}}}}
+\newcommand{\keyword}[1]{\underline{\ttbfop{#1}}}
+\newcommand{\keywordop}[1]{\ttbfbin{#1}}
 \newcommand{\Concrete}[1]{\mathtt{\mathbf{#1}}}
 \newcommand{\Abstract}[1]{\widehat{\mathtt{\mathbf{#1}}}}
 

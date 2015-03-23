@@ -149,24 +149,22 @@ call gc createClo ltimeFilter dtimeFilter c = do
 nogc :: (Monad m) => Call -> m ()
 nogc _ = return ()
 
+yesgc :: (Analysis val lτ dτ m) => Call -> m ()
+yesgc c = do
+  ρ <- getL 𝓈ρL
+  σ <- getL 𝓈σL
+  let live0 = callTouched ρ $ freeVarsLam empty [] c
+  let live = collect (extend $ addrTouched σ) live0
+  modifyL 𝓈σL $ onlyKeys live
+
+callTouched :: (TimeC lτ, TimeC dτ) => Env lτ dτ -> Set Name -> Set (Addr lτ dτ)
+callTouched ρ xs = maybeSet . index ρ *$ xs
+
 closureTouched :: (TimeC lτ, TimeC dτ) => Clo lτ dτ -> Set (Addr lτ dτ)
-closureTouched (Clo _ xs c ρ _) = maybeSet . index ρ *$ freeVarsLam xs $ stampedFix c
+closureTouched (Clo _ xs c ρ _) = callTouched ρ $ freeVarsLam empty xs c
 
 addrTouched :: (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Map (Addr lτ dτ) val -> Addr lτ dτ -> Set (Addr lτ dτ)
 addrTouched σ = closureTouched *. elimClo *. maybeSet . index σ
-
-currClosure :: (Analysis val lτ dτ m) => Call -> m (Clo lτ dτ)
-currClosure c = do
-  ρ <- getL 𝓈ρL
-  lτ <- getL 𝓈lτL
-  return $ Clo (LocNum (-1)) [] c ρ lτ
-
-yesgc :: (Analysis val lτ dτ m) => Call -> m ()
-yesgc c = do
-  σ <- getL 𝓈σL
-  live0 <- closureTouched ^$ currClosure c
-  let live = collect (extend $ addrTouched $ σ) live0
-  modifyL 𝓈σL $ onlyKeys live
 
 -- }}}
 
@@ -180,7 +178,7 @@ linkClo cid xs c = do
 
 copyClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ dτ)
 copyClo cid xs c = do
-  let ys = toList $ freeVarsLam xs $ stampedFix c
+  let ys = toList $ freeVarsLam empty xs c
   vs <- var ^*$ ys
   yvs <- maybeZero $ zip ys vs
   ρ <- runKleisliEndo mapEmpty *$ execWriterT $ do

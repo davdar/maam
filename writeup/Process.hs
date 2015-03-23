@@ -47,7 +47,7 @@ wrapMacro c = alterMacro $ \ r -> T.concat [ "\\" , c ,  "{" , r , "}" ]
 allMacros :: [(Text,Text,MatchMode)]
 allMacros = concat
   [ getMacros "Process_pre_macros.tbl"
-  , map (wrapMacro "ttop") $ getMacros "Process_tt_op.tbl"
+  , map (wrapMacro "ttbfop") $ getMacros "Process_ttbf_op.tbl"
   , map (wrapMacro "itop") $ getMacros "Process_it_op.tbl"
   , getMacros "Process_post_macros.tbl"
   ]
@@ -119,6 +119,7 @@ postProcess = walkInlineMath . walkBlocksMath . walkInlineRaw . walkBlocksRaw
   where
     walkBlocksRaw = walk $ \ (b :: Block) -> case b of
       CodeBlock (_,[c],_) s
+        | "rawmacro" `isPrefixOf` c -> RawBlock (Format "latex") $ T.unpack $ macroText $ T.pack s
         | "raw" `isPrefixOf` c -> RawBlock (Format "latex") s
       _ -> b
     walkInlineRaw = walk $ \ (i :: Inline) -> case i of

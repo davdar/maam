@@ -1,47 +1,46 @@
-Search For    Replace With                            Match Mode
-================================================================
-{             \{                                      Anywhere  
-}             \}                                      Anywhere  
-;             \;;\;                                   Anywhere  
-_[            \underline{\hspace{0.5em}}{             Anywhere
-]_            }\underline{\hspace{0.5em}}             Anywhere
-_             \underline{\hspace{0.5em}}              Anywhere  
-AMᶠⁱ          \Abstract{\litM}^{fi}                   Anywhere
-AM            \Abstract{\litM}                        Word      
-AStore        \Abstract{\litStore}                    Word      
-AEnv          \Abstract{\litEnv}                      Word      
-AKAddr        \Abstract{\litKAddr}                    Word      
-AKStore       \Abstract{\litKStore}                   Word      
-ATime         \Abstract{\litTime}                     Word      
-AVal          \Abstract{\litVal}                      Word      
-AClo          \Abstract{\litClo}                      Word
-AΣ            \Abstract{\Sigma}                       Anywhere  
-Aγ            \Abstract{\gamma}                       Anywhere  
-CM            \Concrete{\litM}                        Word      
-CStore        \Concrete{\litStore}                    Word      
-CEnv          \Concrete{\litEnv}                      Word      
-CKAddr         \Concrete{\litKAddr}                    Word      
-CKStore        \Concrete{\litKStore}                   Word      
-CTime         \Concrete{\litTime}                     Word      
-CVal          \Concrete{\litVal}                      Word      
-CClo          \Concrete{\litClo}                      Word
-CΣ            \Concrete{\Sigma}                       Anywhere  
-Cγ            \Concrete{\gamma}                       Anywhere  
-[+]           \ttbfbin{+}                             Anywhere  
-[-]           \ttbfbin{-}                             Anywhere  
-[λ]           \underline{\ttbfop{\lambda}}            Anywhere  
-else          \;\;\operatorname{\mathtt{else}}\;\;    Word      
-let           \text{let}\;\;                          Word      
-then          \;\;\operatorname{\mathtt{then}}\;\;    Word      
-when          \;\;\text{when}\;\;                     Word      
-where         \text{where}\;\;                        Word      
-α₁⇄γ₁         \galois{\alpha_1}{\gamma_1}             Anywhere  
-α₂⇄γ₂         \galois{\alpha_2}{\gamma_2}             Anywhere  
-α⇄γ           \galois{\alpha}{\gamma}                 Anywhere  
-λIF           \ttbfop{\lambda IF}                     Anywhere  
-↑ₚ            \itop{\uparrow_p}                       Anywhere  
-⟨+⟩           \mathbin{\langle + \rangle}                           Anywhere  
-⟨∘⟩           \mathbin{\langle \circ \rangle}                           Anywhere  
-if0           \underline{\ttbfop{if0}}                Word      
-true          \ttbfop{true}                           Word      
-false         \ttbfop{false}                          Word      
+Search For    Replace With                       Match Mode
+===========================================================
+{             \{                                 Anywhere  
+}             \}                                 Anywhere  
+;             \;;\;                              Anywhere  
+_[            \underline{\hspace{0.5em}}{        Anywhere  
+]_            }\underline{\hspace{0.5em}}        Anywhere  
+_             \underline{\hspace{0.5em}}         Anywhere  
+α₁⇄γ₁         \galois{\alpha_1}{\gamma_1}        Anywhere  
+α₂⇄γ₂         \galois{\alpha_2}{\gamma_2}        Anywhere  
+α⇄γ           \galois{\alpha}{\gamma}            Anywhere  
+⟨+⟩           \mathbin{\langle + \rangle}        Anywhere  
+⟨∘⟩           \mathbin{\langle \circ \rangle}    Anywhere  
+[λ]           \keyword{\lambda}                  Anywhere  
+[if0]         \keyword{if0}                      Anywhere  
+[else]        \;\;\keyword{\litelse}\;\;         Anywhere  
+[let]         \keyword{let}\;\;                  Anywhere  
+[in]          \keyword{in}                       Anywhere  
+[exit]        \keyword{exit}                     Anywhere
+[+]           \keywordop{+}                      Anywhere  
+[-]           \keywordop{-}                      Anywhere  
+[@]           \keywordop{@}                      Anywhere  
+AM            \Abstract{\litM}                   Word      
+AStore        \Abstract{\litStore}               Word      
+AEnv          \Abstract{\litEnv}                 Word      
+AKAddr        \Abstract{\litKAddr}               Word      
+AKStore       \Abstract{\litKStore}              Word      
+ATime         \Abstract{\litTime}                Word      
+AVal          \Abstract{\litVal}                 Word      
+AClo          \Abstract{\litClo}                 Word      
+AΣ            \Abstract{\Sigma}                  Anywhere  
+Aγ            \Abstract{\gamma}                  Anywhere  
+CM            \Concrete{\litM}                   Word      
+CStore        \Concrete{\litStore}               Word      
+CEnv          \Concrete{\litEnv}                 Word      
+CKAddr        \Concrete{\litKAddr}               Word      
+CKStore       \Concrete{\litKStore}              Word      
+CTime         \Concrete{\litTime}                Word      
+CVal          \Concrete{\litVal}                 Word      
+CClo          \Concrete{\litClo}                 Word      
+CΣ            \Concrete{\Sigma}                  Anywhere  
+Cγ            \Concrete{\gamma}                  Anywhere  
+else          \;\;\ttbfop{\litelse}\;\;              Word      
+then          \;\;\ttbfop{then}\;\;              Word      
+when          \;\;\text{when}\;\;                Word      
+where         \;\;\text{where}\;\;               Word      

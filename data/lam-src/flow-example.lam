@@ -1,5 +1,8 @@
 let b := (1 - 1) >= 0 in
-let id := lam x -> x in
-let v := id (if b then 1 else 2) in
-let w := id (if b then 10 else 20) in
-H v w
+let v := 
+  if b 
+  then if b then 1 else 2
+  else if b then 3 else 4
+in 
+let w := if b then 5 else 6 in
+K v w
