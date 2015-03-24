@@ -100,7 +100,7 @@ stripComments :: Text -> Text
 stripComments = newlines . map fixEmpties . filter (not . isComment) . T.lines
   where
     isComment :: Text -> Bool
-    isComment s = T.unpack s =~ ("^\\s*--" :: String)
+    isComment s = T.unpack s =~ ("^\\s*--\\s" :: String)
     fixEmpties :: Text -> Text
     fixEmpties s = if T.unpack s =~ ("^\\s*$" :: String) then "" else s
 
@@ -119,6 +119,11 @@ postProcess = walkInlineMath . walkBlocksMath . walkInlineRaw . walkBlocksRaw
   where
     walkBlocksRaw = walk $ \ (b :: Block) -> case b of
       CodeBlock (_,[c],_) s
+        | "verb" `isPrefixOf` c -> RawBlock (Format "latex") $ T.unpack $ newlines
+          [ "\\begin{verbatim}"
+          , macroText $ T.pack s
+          , "\\end{verbatim}"
+          ]
         | "rawmacro" `isPrefixOf` c -> RawBlock (Format "latex") $ T.unpack $ macroText $ T.pack s
         | "raw" `isPrefixOf` c -> RawBlock (Format "latex") s
       _ -> b

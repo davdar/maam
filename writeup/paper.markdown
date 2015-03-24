@@ -1341,9 +1341,15 @@ for each component of the state space.
 Our implementation `maam` supports command-line flags for garbage collection,
 mCFA, call-site sensitivity, object sensitivity, and path and flow sensitivities.
 ``````````````````````````````````````````````````
-./maam --gc --mcfa --kCFA=1 --oCFA=2 
-       --data-store=flow-sen --stack-store=path-sen 
-       prog.lam
+./maam --gc --mcfa --kCFA=1 --oCFA=2
+``````````````````````````````````````````````````
+\vspace{-1em}
+``````````````````````````````````````````````````
+  --data-store=flow-sen --stack-store=path-sen
+``````````````````````````````````````````````````
+\vspace{-1em}
+``````````````````````````````````````````````````
+  prog.lam
 ``````````````````````````````````````````````````
 These flags are implemented completely independently of one another and their
 combination is applied to a single parameterized monadic interpreter.
