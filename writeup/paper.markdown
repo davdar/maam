@@ -146,7 +146,17 @@ To demonstrate our framework we design an abstract interpreter for `λIF`, a
 simple applied lambda calculus shown in Figure`~\ref{SS}`{.raw}. `λIF` extends
 traditional lambda calculus with integers, addition, subtraction and
 conditionals. We use the operator `[@]` as explicit abstract syntax for
-function application.
+function application. The state-space `Σ` for `λIF` makes allocation explicit
+using two separate stores for values (`Store`) and for the stack (`KStore`).
+
+Guided by the syntax and semantics of `λIF` defined in this section we develop
+interpretation parameters in Section \ref{analysis-parameters}, a monadic
+interpreter in Section \ref{the-interpreter}, and both concrete and abstract
+instantiations for the interpretation parameters in Section
+\ref{recovering-analyses}. The variations in flow sensitivity developed in
+sections \ref{varying-path-and-flow-sensitivity} and
+\ref{a-compositional-monadic-framework} are independent of this (or any other)
+semantics.
 
 `\begin{figure}`{.raw}
 \vspace{-1em}
@@ -173,16 +183,12 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
 \vspace{-1em}
 `\end{figure}`{.raw}
 
-Before designing an abstract interpreter we first specify a formal semantics
-for `λIF`. Our semantics makes allocation explicit using two separate stores
-for values (`Store`) and for the stack (`KStore`). We will recover these
-semantics from our generic abstract interpreter in Section
-\ref{recovering-analyses}.
-
 We give semantics to atomic expressions and primitive operators denotationally
-through `A⟦_⟧` and `ν⟦_⟧` respectively as shown in
-Figure`~\ref{ConcreteDenotationFunctions}`{.raw}; and to compound expressions
-relationally as shown in Figure`~\ref{ConcreteStepRelation}`{.raw}.
+through `A⟦_⟧` and `ν⟦_⟧` as shown in
+Figure`~\ref{ConcreteDenotationFunctions}`{.raw}, and to compound expressions
+relationally as shown in Figure`~\ref{ConcreteStepRelation}`{.raw}. We will
+recover these semantics from a concrete instantiation of our generic abstract
+interpreter in Section \ref{recovering-analyses}.
 
 `\begin{figure}`{.raw}
 \vspace{-1em}
@@ -191,7 +197,6 @@ A⟦_⟧ ∈ Atom → (Env × Store ⇀ Val)
 A⟦i⟧(ρ,σ) := i
 A⟦x⟧(ρ,σ) := σ(ρ(x))
 A⟦[λ](x).e⟧(ρ,σ) := ⟨[λ](x).e,ρ⟩ 
-<>
 ν⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
 ν⟦[+]⟧(i₁,i₂) := i₁ + i₂
 ν⟦[-]⟧(i₁,i₂) := i₁ - i₂
@@ -252,7 +257,6 @@ set and `R-Val` for computing addresses reachable from values.
 `````indent```````````````````````````````````````
 R₀ ∈ Env × Exp → 𝒫(Addr)
 R₀(ρ,e) := {ρ(x) | x ∈ FV(e)}
-<>
 R-Val ∈ Val → 𝒫(Addr)
 R-Val(i) := {}
 R-Val(⟨[λ](x).e,ρ⟩) := {ρ(y) | y ∈ FV([λ](x).e)}
@@ -304,7 +308,7 @@ identify three types of analysis flow:
 Our framework exposes the essence of analysis flow, and therefore allows for
 many other choices in addition to these three. However, these properties occur
 frequently in the literature and have well-understood definitions, so we
-restrict our discussion them.
+restrict our discussion to them.
 
 Consider a combination of if-statements in our example language `λIF` (extended
 with let-bindings) where an analysis cannot determine the value of `N`:
@@ -329,9 +333,10 @@ program points 3 and 4 the analysis considers separate worlds:
 `````align````````````````````````````````````````
 3: {N=0} \quad 4: {N≠0}
 ``````````````````````````````````````````````````
-At program point 6 the analysis continues in two separate, precise worlds:
+At program points 5 and 6 the analysis continues in two separate, precise
+worlds:
 `````align````````````````````````````````````````
-6: {N=0,, x=1} {N≠0,, x=4}
+5,6: {N=0,, x=1} {N≠0,, x=4}
 ``````````````````````````````````````````````````
 At program point 7 the analysis correctly corrolates the values of `x` and
 `y`:
@@ -346,11 +351,12 @@ considers separate worlds:
 `````align````````````````````````````````````````
 3: {N=0} \quad 4: {N≠0}
 ``````````````````````````````````````````````````
-Each nested if-statement then evaluates only one side of the branch. At program
-point 6 the analysis is only allowed one set of facts, so it must merge the
-possible values that `x` and `N` could take:
+Each nested if-statement then evaluates only one side of the branch, resulting
+in values `1` and `4`. At program points 5 and 6 the analysis is only allowed
+one set of facts, so it must merge the possible values that `x` and `N` could
+take:
 `````align````````````````````````````````````````
-6: {N∈ℤ,, x∈{1,4}}
+5,6: {N∈ℤ,, x∈{1,4}}
 ``````````````````````````````````````````````````
 The analysis must then explore both branches at program point 6 resulting in no
 corrolation between values for `x` and `y`:
@@ -373,10 +379,11 @@ to the abstract interpreter. Flow properties will compose seamlessly with
 choices of call-site sensitivity, object sensitivity, abstract garbage
 collection, mcfa a la \citet{dvanhorn:Might2010Resolving}, shape analysis,
 abstract domain, etc. Most importantly, we empower the analysis designer to
-_compartmentalize_ the flow sensitivity of each component in the abstract state
-space. Constructing an analysis which is flow-sensitive in the data-store and
-path-sensitive in the stack-store is just as easy as constructing a single flow
-property across the board, and one can alternate between them for free.
+compartmentalize the flow sensitivity of each component in the abstract state
+space independently. Constructing an analysis which is flow-sensitive in the
+data-store and path-sensitive in the stack-store is just as easy as
+constructing a single flow property across the board, and one can alternate
+between them for free.
 
 # Analysis Parameters
 
