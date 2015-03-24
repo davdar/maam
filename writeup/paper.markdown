@@ -155,7 +155,7 @@ semantics from our generic abstract interpreter in Section
 \ref{recovering-analyses}.
 
 We give semantics to atomic expressions and primitive operators denotationally
-through `A⟦_⟧` and `δ⟦_⟧` respectively as shown in
+through `A⟦_⟧` and `ν⟦_⟧` respectively as shown in
 Figure`~\ref{ConcreteDenotationFunctions}`{.raw}; and to compound expressions
 relationally as shown in Figure`~\ref{ConcreteStepRelation}`{.raw}.
 
@@ -167,9 +167,9 @@ A⟦i⟧(ρ,σ) := i
 A⟦x⟧(ρ,σ) := σ(ρ(x))
 A⟦[λ](x).e⟧(ρ,σ) := ⟨[λ](x).e,ρ⟩ 
 <>
-δ⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
-δ⟦[+]⟧(i₁,i₂) := i₁ + i₂
-δ⟦[-]⟧(i₁,i₂) := i₁ - i₂
+ν⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
+ν⟦[+]⟧(i₁,i₂) := i₁ + i₂
+ν⟦[-]⟧(i₁,i₂) := i₁ - i₂
 ``````````````````````````````````````````````````
 \caption{Concrete Denotation Functions}
 \label{ConcreteDenotationFunctions} 
@@ -194,7 +194,7 @@ _[~~>]_ ∈ 𝒫(Σ × Σ)
 ⟨i₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨i,ρ,σ,κl',κσ,τ+1⟩
   where 
     (⟨i₁ ⊕ □⟩,κl') := κσ(κl)
-    i := δ⟦⊕⟧(i₁,i₂)
+    i := ν⟦⊕⟧(i₁,i₂)
 ⟨i,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ,σ,κl',κσ,τ+1⟩
   where 
     (⟨[if0](□){e₁}{e₂}⟩,κl') := κσ(κl)
@@ -497,11 +497,11 @@ Closures must follow similar laws, inducing a Galois connection between
 {c} ⊑ clo-E(cloI(c))
 ⨆⸤c ∈ clo-E(v)⸥ clo-I(c) ⊑ v
 ``````````````````````````````````````````````````
-Finally, `δ` must be sound and complete w.r.t. the abstract semantics:
+Finally, `ν` must be sound and complete w.r.t. the abstract semantics:
 `````indent```````````````````````````````````````
-int-I(i₁ + i₂) ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
-int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
-⨆⸤b₁ ∈ int-if0-E(v₁), b₂ ∈ int-if0-E(v₂), i ∈ θ(b₁,b₂)⸥ int-I(i) ⊑ δ⟦⊙⟧(v₁,v₂)
+int-I(i₁ + i₂) ⊑ ν⟦[+]⟧(int-I(i₁),int-I(i₂))
+int-I(i₁ - i₂) ⊑ ν⟦[-]⟧(int-I(i₁),int-I(i₂))
+⨆⸤b₁ ∈ int-if0-E(v₁), b₂ ∈ int-if0-E(v₂), i ∈ θ(b₁,b₂)⸥ int-I(i) ⊑ ν⟦⊙⟧(v₁,v₂)
   where
     θ(true,true) = {0}
     θ(true,false) = {i | i ∈ ℤ ; i ≠ 0}
@@ -512,7 +512,7 @@ int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
 Supporting additional primitive types like booleans, lists, or arbitrary
 inductive datatypes is analogous. Introduction functions inject the type into
 `Val`. Elimination functions project a finite set of discrete observations.
-Introduction, elimination and `δ` operators must be sound and complete
+Introduction, elimination and `ν` operators must be sound and complete
 following a Galois connection discipline.
 
 ## Abstract Time 
@@ -586,7 +586,7 @@ step(a) := do
       put-Store(σ ⊔ [(x,τ) ↦ {v}])
       return(e)
     ⟨v' ⊕ □⟩ → do
-      return(δ⟦⊕⟧(v',v))
+      return(ν⟦⊕⟧(v',v))
     ⟨[if0](□){e₁}{e₂}⟩ → do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
@@ -707,11 +707,11 @@ int-I(i) := {i}
 int-if0-E : CVal → 𝒫(Bool)
 int-if0-E(v) := { true | 0 ∈ v } ∪ { false | ∃ i ∈ v ∧ i ≠ 0 }
 ``````````````````````````````````````````````````
-and a straightforward concrete `δ`:
+and a straightforward concrete `ν`:
 `````indent```````````````````````````````````````
-δ⟦_⟧(_,_) : IOp → CVal × CVal → CVal
-δ⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
-δ⟦[-]⟧(v₁,v₂) := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+ν⟦_⟧(_,_) : IOp → CVal × CVal → CVal
+ν⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+ν⟦[-]⟧(v₁,v₂) := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
@@ -811,10 +811,10 @@ int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ [+] ∈ v }
 ``````````````````````````````````````````````````
 Introduction and elimination for `AClo` is identical to the concrete domain.
 
-The abstract `δ` operator is defined:
+The abstract `ν` operator is defined:
 `````indent```````````````````````````````````````
-δ : IOp → AVal × AVal → AVal 
-δ⟦[+]⟧(v₁,v₂) := 
+ν : IOp → AVal × AVal → AVal 
+ν⟦[+]⟧(v₁,v₂) := 
     { i         | 0 ∈ v₁ ∧ i ∈ v₂ }
   ∪ { i         | i ∈ v₁ ∧ 0 ∈ v₂ }
   ∪ { [+]       | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
@@ -822,7 +822,7 @@ The abstract `δ` operator is defined:
   ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
   ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
-The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
+The definition for `ν⟦[-]⟧(v₁,v₂)` is analogous.
 
 `\begin{proposition}`{.raw}
 `AVal` satisfies the abstract domain laws shown in
@@ -830,7 +830,7 @@ Section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
-`CVal α⇄γ AVal` and their operations `int-I`, `int-if0-E` and `δ` are ordered
+`CVal α⇄γ AVal` and their operations `int-I`, `int-if0-E` and `ν` are ordered
 `⊑` respectively through the Galois connection.
 `\end{proposition}`{.raw}
 
@@ -1331,41 +1331,52 @@ for `λIF`. Our implementation provides path sensitivity, flow sensitivity, and
 flow insensitivity as a semantics-independent monad library. The code shares a
 striking resemblance with the math.
 
-Our interpreter for `λIF` is parameterized as discussed in
-Section`~\ref{analysis-parameters}`{.raw}. We express a valid analysis with the
-following Haskell constraint:
-`````indent```````````````````````````````````````
-type Analysis(δ,μ,m) ∷ Constraint = 
-  (AAM(μ),Delta(δ),AnalysisMonad(δ,μ,m))
-``````````````````````````````````````````````````
-Constraints `AAM(μ)` and `Delta(δ)` are interfaces for abstract time and the
-abstract domain.
+Our implementation is suitable for prototyping and exploring the design space
+of static analyzers. Our analyzer supports exponentially more compositions of
+analysis features than any current analyzer. For example, our implementation is
+the first which can combine arbitrary choices in call-site, object and flow
+sensitivities. Furthermore, the user can choose different flow sensitivities
+for each component of the state space.
 
-\noindent
-The constraint `AnalysisMonad(m)` requires only that `m` has the required
-effects:
-`````indent```````````````````````````````````````
-type AnalysisMonad(δ,μ,m) ∷ Constraint = (
-   Monad(m(δ,μ)), 
-   MonadNondeterminism(m(δ,μ)),
-   MonadState⸤Env(μ)⸥(m(δ,μ)),
-   MonadState⸤Store(δ,μ)⸥(m(δ,μ)),
-   MonadState⸤Time(μ,Exp)⸥(m(δ,μ)))
+Our implementation `maam` supports command-line flags for garbage collection,
+mCFA, call-site sensitivity, object sensitivity, and path and flow sensitivities.
 ``````````````````````````````````````````````````
-Our interpreter is implemented against this interface and concrete and abstract
-interpreters are recovered by instantiating `δ`, `μ` and `m`.
-
-Using Galois transformers, we enable arbitrary composition of choices for
-various analysis components. For example, our implementation, called `maam`
-supports command-line flags for garbage collection, k-CFA, and path- and
-flow sensitivity.
+./maam --gc --mcfa --kCFA=1 --oCFA=2 
+       --data-store=flow-sen --stack-store=path-sen 
+       prog.lam
 ``````````````````````````````````````````````````
-./maam --gc --CFA=0 --flow-sen prog.lam
-``````````````````````````````````````````````````
-These flags are implemented completely independent of one another, and their
+These flags are implemented completely independently of one another and their
 combination is applied to a single parameterized monadic interpreter.
 Furthermore, using Galois transformers allows us to prove each combination
 correct in one fell swoop.
+
+A developer wishing to use our library to develop analyzers for their language
+of choice inherits as much of the analysis infrastructure as possible. We
+provide call-site, object and flow sensitivities and language-independent
+libraries. To support analysis for a new language a developer need only
+implement:
+
+- A monadic semantics for their language, using state and nondeterminism
+  effects.
+- The abstract value domain, and optionally the concrete value domain if they
+  wish to recover concrete execution.
+- Intentional optimizations for their semantics like garbage collection and
+  mcfa.
+
+The developer then receives the following for free through our analysis
+library:
+
+- A family of monads which implement their required effects and have different
+  flow sensitivity properties.
+- An execution engine for each monad to drive the analysis.
+- Mechanisms for call-site and object sensitivities.
+
+Not only is a developer able to reuse our implementation of call-site, object
+and flow sensitivity, they need not understand the execution machinery or
+soundness proofs for them either. They need only verify that their monadic
+semantics is monotonic, and that their abstract value domain is sound and
+complete (forms a Galois connection). The execution and correctness of the
+final analyzer is constructed for free given these two properties.
 
 Our implementation is publicly available and can be installed as a cabal
 package by executing:
