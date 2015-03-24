@@ -175,7 +175,7 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
 
 Before designing an abstract interpreter we first specify a formal semantics
 for `λIF`. Our semantics makes allocation explicit using two separate stores
-for values (`Store`) and the control stack (`KStore`). We will recover these
+for values (`Store`) and for the stack (`KStore`). We will recover these
 semantics from our generic abstract interpreter in Section
 \ref{recovering-analyses}.
 
@@ -374,8 +374,8 @@ choices of call-site sensitivity, object sensitivity, abstract garbage
 collection, mcfa a la \citet{dvanhorn:Might2010Resolving}, shape analysis,
 abstract domain, etc. Most importantly, we empower the analysis designer to
 _compartmentalize_ the flow sensitivity of each component in the abstract state
-space. Constructing an analysis which is flow-sensitive in the data store and
-path-sensitive in the stack store is just as easy as constructing a single flow
+space. Constructing an analysis which is flow-sensitive in the data-store and
+path-sensitive in the stack-store is just as easy as constructing a single flow
 property across the board, and one can alternate between them for free.
 
 # Analysis Parameters
@@ -667,7 +667,7 @@ gc(e) := do
 where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}. 
 
 In generalizing the semantics to account for nondeterminism, updates to both
-the value and stack stores must merge values rather than performing a
+the value-store and stack-store must merge values rather than performing a
 strong update. This is because we place no restriction on the semantics for
 `Time` and therefore must preserve soundness in the presence of reused
 addresses.
@@ -681,7 +681,7 @@ modify our definitions of `Store` and `KStore`.
 
 We have already established a join-semilattice structure for `Val` in the
 abstract domain interface. Developing a custom join-semilattice for
-the stack store is possible and is the key component of recent developments in
+the stack-store is possible and is the key component of recent developments in
 pushdown abstraction. For this presentation we use `𝒫(Frame × KAddr)` as an
 abstraction for stack frames for simplicity.
 
@@ -1331,9 +1331,9 @@ Sₜ[CStore]   &               & 𝒫ₜ          \\
 `\end{tabular}`{.raw}
 \vspace{1em}
 
-Another benefit of our approach is that we can selectively widen the value and
-stack stores independent of each other. To do this we merely swap the order of
-transformers:
+Another benefit of our approach is that we can selectively widen the
+value-store and stack-store independent of each other. To do this we merely
+swap the order of transformers:
 
 \vspace{1em}
 `\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
@@ -1547,18 +1547,18 @@ primary objective. While WFC is based on a language-dependent instrumentation
 of the semantics, we achieve variations in flow sensitivity by modifying
 control properties of the interpreter--through the monad.
 
-Particular strengths of WCF are the wide range of choices for control
+Particular strengths of WCF are the wide range of choices for flow
 sensitivity which are shown to be implementable within the design, and the
 modular proof framework. For example, WCF is able to also account for call-site
 sensitivity through their design; we must account for call-site sensitivity
 through a different mechanism.
 
-Particular strengths of our work is the understanding of control sensitivity
+Particular strengths of our work is the understanding of flow sensitivity
 not through instrumentation but through control properties of the interpreter,
 and also a modular proof framework, although modular in a different sense from
 WCF. We also show how to make different flow sensitivity choices for
 independent components of the state space, like a flow-sensitive data-store and
-path-sensitive control-store, for example.
+path-sensitive stack-store, for example.
 
 # Conclusion
 
