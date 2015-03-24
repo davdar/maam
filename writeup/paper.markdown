@@ -49,7 +49,7 @@ parameters. Our implementation `{\tt maam}`{.raw} supports command-line flags
 for garbage collection, mCFA, call-site sensitivity, object sensitivity, and
 path and flow sensitivities.
 ``````````````````````````````````````````````````
-./maam --gc --mcfa --kCFA=1 --oCFA=2
+./maam --gc --mcfa --kcfa=1 --ocfa=2
 ``````````````````````````````````````````````````
 \vspace{-1em}
 ``````````````````````````````````````````````````
@@ -260,8 +260,8 @@ R-Val(⟨[λ](x).e,ρ⟩) := {ρ(y) | y ∈ FV([λ](x).e)}
 We omit the definition of `FV`, which is the standard recursive definition for
 computing free variables of an expression.
 
-Analogously, `KR` is the set of transitively reachable continuation addresses
-in `κσ`:
+Analogously, `KR` is the set of transitively reachable stack-frame addresses in
+`κσ`:
 `````indent```````````````````````````````````````
 KR ∈ KStore × KAddr → 𝒫(KAddr)
 KR(κσ,κl₀) := μ(X). X ∪ {κl₀} ∪ {π₂(κσ(κl)) | κl ∈ X}
@@ -300,7 +300,6 @@ identify three types of analysis flow:
 1. Path sensitivity
 2. Flow sensitivity
 3. Flow insensitivity
-
 
 Our framework exposes the essence of analysis flow, and therefore allows for
 many other choices in addition to these three. However, these properties occur
@@ -376,8 +375,8 @@ collection, mcfa a la \citet{dvanhorn:Might2010Resolving}, shape analysis,
 abstract domain, etc. Most importantly, we empower the analysis designer to
 _compartmentalize_ the flow sensitivity of each component in the abstract state
 space. Constructing an analysis which is flow-sensitive in the data store and
-path-sensitive in the control store is just as easy as constructing a single
-flow property across the board, and one can alternate between them for free.
+path-sensitive in the stack store is just as easy as constructing a single flow
+property across the board, and one can alternate between them for free.
 
 # Analysis Parameters
 
@@ -668,7 +667,7 @@ gc(e) := do
 where `R` and `KR` are as defined in Section`~\ref{semantics}`{.raw}. 
 
 In generalizing the semantics to account for nondeterminism, updates to both
-the value and continuation store must merge values rather than performing a
+the value and stack stores must merge values rather than performing a
 strong update. This is because we place no restriction on the semantics for
 `Time` and therefore must preserve soundness in the presence of reused
 addresses.
@@ -682,9 +681,9 @@ modify our definitions of `Store` and `KStore`.
 
 We have already established a join-semilattice structure for `Val` in the
 abstract domain interface. Developing a custom join-semilattice for
-continuations is possible and is the key component of recent developments in
+the stack store is possible and is the key component of recent developments in
 pushdown abstraction. For this presentation we use `𝒫(Frame × KAddr)` as an
-abstraction for continuations for simplicity.
+abstraction for stack frames for simplicity.
 
 To execute the interpreter we must introduce one more parameter. In the
 concrete semantics, execution takes the form of a least-fixed-point computation
@@ -1333,8 +1332,8 @@ Sₜ[CStore]   &               & 𝒫ₜ          \\
 \vspace{1em}
 
 Another benefit of our approach is that we can selectively widen the value and
-continuation stores independent of each other. To do this we merely swap the
-order of transformers:
+stack stores independent of each other. To do this we merely swap the order of
+transformers:
 
 \vspace{1em}
 `\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
@@ -1367,7 +1366,7 @@ Our implementation `{\tt maam}`{.raw} supports command-line flags for garbage
 collection, mCFA, call-site sensitivity, object sensitivity, and path and flow
 sensitivities.
 ``````````````````````````````````````````````````
-./maam --gc --mcfa --kCFA=1 --oCFA=2
+./maam --gc --mcfa --kcfa=1 --ocfa=2
 ``````````````````````````````````````````````````
 \vspace{-1em}
 ``````````````````````````````````````````````````
