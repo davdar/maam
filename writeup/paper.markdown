@@ -103,7 +103,6 @@ http://...[redacted]...
 }, Haskell's package
 manager.
 
-
 \paragraph{Contributions}
 We make the following contributions:
 
@@ -1205,11 +1204,53 @@ between Galois monads.
 
 `\begin{definition}`{.raw}
 A monad transformer `T` is a Galois transformer if:
+`\begin{enumerate}`{.raw}
+\item For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`:
 
-1. For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`
-2. For all monads `m` and functors `Σ` there exists `Π` s.t. 
-   `(α → m(β)) α⇄γ (Σ(α) → Σ(β)) ⇒ (α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`. 
+`````raw``````````````````````````````````````````
+\begin{center}
+\begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  {
+     m_1 & T(m_1) \\
+     m_2 & T(m_2) \\
+  };
+  \path[-stealth]
+    (m-1-1) edge [bend right=40] node [left]  {$\alpha$}   (m-2-1)
+            edge                 node [below] {$T$}        (m-1-2)
+    (m-2-1) edge [bend right=40] node [right] {$\gamma$}   (m-1-1)
+            edge                 node [below] {$T$}        (m-2-2)
+    (m-1-2) edge [bend right=40] node [left]  {$\alpha_T$} (m-2-2)
+    (m-2-2) edge [bend right=40] node [right] {$\gamma_T$} (m-1-2)
+  ;
+\end{tikzpicture}
+\end{center}
+``````````````````````````````````````````````````
 
+\item For all monads `m` and functors `Σ` there exists `Π` s.t. `(α → m(β)) α⇄γ
+      (Σ(α) → Σ(β))` implies `(α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`:
+
+`````raw``````````````````````````````````````````
+\begin{center}
+\begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  {
+             \alpha \rightarrow m(\beta)      & \alpha              \rightarrow T(m)(\beta)        \\
+     \Sigma(\alpha) \rightarrow \Sigma(\beta) & \Pi(\Sigma)(\alpha) \rightarrow \Pi(\Sigma)(\beta) \\
+  };
+  \path[-stealth]
+    (m-1-1) edge [bend right=40] node [left]  {$\alpha$}   (m-2-1)
+            edge                 node [below] {$T$}        (m-1-2)
+    (m-2-1) edge [bend right=40] node [right] {$\gamma$}   (m-1-1)
+            edge                 node [below] {$\Pi$}      (m-2-2)
+    (m-1-2) edge [bend right=40] node [left]  {$\alpha_T$} (m-2-2)
+    (m-2-2) edge [bend right=40] node [right] {$\gamma_T$} (m-1-2)
+  ;
+\end{tikzpicture}
+\end{center}
+``````````````````````````````````````````````````
+
+`\end{enumerate}`{.raw}
 `\end{definition}`{.raw}
 
 `\begin{proposition}`{.raw}
@@ -1221,7 +1262,7 @@ The proofs are sketched earlier in Section
 ## Building Transformer Stacks
 
 We can now build monad transformer stacks from combinations of `Sₜ[s]`,
-`FS[s]ₜ` and `𝒫ₜ` with the following properties:
+`FS[s]ₜ` and `𝒫ₜ` which automatically construct the following properties:
 
 - The resulting monad has the combined effects of all pieces of the transformer
   stack.
@@ -1248,8 +1289,7 @@ Sₜ[AStore]   &               & 𝒫ₜ          \\
 `\end{tabular}`{.raw}
 \vspace{1em}
 
-\noindent
-From left to right, these give path-sensitive, flow-sensitive, and
+From left to right these give path-sensitive, flow-sensitive and
 flow-insensitive analyses. Furthermore, each monad stack with abstract
 components is assigned a Galois connection by-construction with their concrete
 analogues:
@@ -1270,6 +1310,7 @@ Sₜ[CStore]   &               & 𝒫ₜ          \\
 Another benefit of our approach is that we can selectively widen the value and
 continuation stores independent of each other. To do this we merely swap the
 order of transformers:
+
 \vspace{1em}
 `\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
 `````rawmacro``````````````````````````````````````
@@ -1426,45 +1467,3 @@ composable metatheory for program analysis.
 In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program analyses
 and bridge the gap between various communities which often work in isolation.
-
--- We use the nondeterminism laws to reason about nondeterminism effects, w
--- `````indent```````````````````````````````````````
--- ⊥-zero₁ : bind(mzero)(k) = mzero
--- ⊥-zero₂ : bind(m)(λ(a).mzero) = mzero
--- ⊥-unit₁ : mzero ⟨+⟩ m = m
--- ⊥-unit₂ : m ⟨+⟩ mzero = m 
--- +-assoc : m₁ ⟨+⟩ (m₂ ⟨+⟩ m₃) = (m₁ ⟨+⟩ m₂) ⟨+⟩ m₃
--- +-comm : m₁ ⟨+⟩ m₂ = m₂ ⟨+⟩ m₁
--- +-dist : 
---   bind(m₁ ⟨+⟩ m₂)(k) = bind(m₁)(k) ⟨+⟩ bind(m₂)(k)
--- ``````````````````````````````````````````````````
-
--- `````indent``````````````````````````````````````` 
--- put-put : put(s₁) ; put(s₂) = put(s₂)
--- put-get : put(s) ; get = return(s)
--- get-put : s ← get ; put(s) = return(1)
--- get-get : s₁ ← get ; s₂ ← get ; k(s₁,s₂) = s ← get ; k(s,s)
--- ``````````````````````````````````````````````````
-
--- `\begin{figure}`{.raw}
--- \vspace{-1em}
--- `````align```````````````````````````````````````` 
---     M  : Type → Type
--- `````````````````````````````````````````````````` 
--- \caption{Nondeterminism Interface}
--- \label{NondeterminismInterface}
--- \vspace{-1em}
--- `\end{figure}`{.raw}
-
--- `````align````````````````````````````````````````
--- unit₁ :  bind(return(a))(k) = k(a)
--- unit₂ :  bind(m)(return) = m
--- assoc :  bind(bind(m)(k₁))(k₂) 
---       =  bind(m)(λ(a).bind(k₁(a))(k₂))
--- ``````````````````````````````````````````````````
-
--- --, despite the fruitful results of mapping between
--- langauge paradigms such as the work of \citet{dvanhorn:Might2010Resolving},
--- showing that object-oriented $k$-CFA can be applied to functional
--- languages to avoid the exponential time lower bound
--- \cite{dvanhorn:VanHorn-Mairson:ICFP08}.
