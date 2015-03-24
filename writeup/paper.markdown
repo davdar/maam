@@ -1212,7 +1212,7 @@ A monad transformer `T` is a Galois transformer if:
 `\begin{proposition}`{.raw}
 `Sₜ[s]`, `FSₜ[s]` and `𝒫ₜ` are Galois transformers.
 `\end{proposition}`{.raw}
-The proofs were sketched earlier in Section
+The proofs are sketched earlier in Section
 \ref{a-compositional-monadic-framework}.
 
 ## Building Transformer Stacks
@@ -1233,7 +1233,7 @@ We instantiate our interpreter to the following monad stacks in decreasing
 order of precision:
 
 \vspace{1em}
-`\begin{tabular}{l | l | l}`{.raw}
+`\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
 `````rawmacro````````````````````````````````````
 Sₜ[AEnv]     & Sₜ[AEnv]      & Sₜ[AEnv]    \\
 Sₜ[AKAddr]   & Sₜ[AKAddr]    & Sₜ[AKAddr]  \\
@@ -1252,7 +1252,7 @@ components is assigned a Galois connection by-construction with their concrete
 analogues:
 
 \vspace{1em}
-`\begin{tabular}{l | l | l}`{.raw}
+`\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
 `````rawmacro``````````````````````````````````````
 Sₜ[CEnv]     & Sₜ[CEnv]      & Sₜ[CEnv]    \\
 Sₜ[CKAddr]   & Sₜ[CKAddr]    & Sₜ[CKAddr]  \\
@@ -1268,7 +1268,7 @@ Another benefit of our approach is that we can selectively widen the value and
 continuation stores independent of each other. To do this we merely swap the
 order of transformers:
 \vspace{1em}
-`\begin{tabular}{l | l | l}`{.raw}
+`\begin{tabular}{ >{$}l<{$} | >{$}l<{$} | >{$}l<{$} }`{.raw}
 `````rawmacro``````````````````````````````````````
 Sₜ[CEnv]     & Sₜ[CEnv]      & Sₜ[CEnv]    \\
 Sₜ[CKAddr]   & Sₜ[CKAddr]    & Sₜ[CKAddr]  \\
