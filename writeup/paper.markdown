@@ -97,7 +97,10 @@ correct one and for all in isolation from a particular semantics.
 We implement our technique in Haskell and briefly discuss how the parameters
 from Section \ref{analysis-parameters} translate into code (Section
 \ref{implementation-1}). Our implementation is publicly available on
-Hackage\footnote{http://hackage.haskell.org/package/maam}, Haskell's package
+Hackage\footnote{
+-- http://hackage.haskell.org/package/maam
+http://...[redacted]...
+}, Haskell's package
 manager.
 
 
