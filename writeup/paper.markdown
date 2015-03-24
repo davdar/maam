@@ -1338,7 +1338,7 @@ the first which can combine arbitrary choices in call-site, object and flow
 sensitivities. Furthermore, the user can choose different flow sensitivities
 for each component of the state space.
 
-Our implementation `maam` supports command-line flags for garbage collection,
+Our implementation `{\tt maam}`{.raw} supports command-line flags for garbage collection,
 mCFA, call-site sensitivity, object sensitivity, and path and flow sensitivities.
 ``````````````````````````````````````````````````
 ./maam --gc --mcfa --kCFA=1 --oCFA=2
@@ -1392,6 +1392,8 @@ cabal install maam
 
 # Related Work
 
+\paragraph{Overview}
+
 Program analysis comes in many forms such as points-to
 \cite{dvanhorn:Andersen1994Program}, flow
 \cite{dvanhorn:Jones:1981:LambdaFlow}, or shape analysis
@@ -1403,9 +1405,9 @@ to tune precision and compute efficiently (some examples include
 \citet{dvanhorn:Shivers:1991:CFA, dvanhorn:nielson-nielson-popl97,
 dvanhorn:Milanova2005Parameterized, davdar:van-horn:2010:aam}; there are many
 more).  These parameters come in various forms with overloaded meanings such as
-object- \cite{dvanhorn:Milanova2005Parameterized,
-dvanhorn:Smaragdakis2011Pick}, context- \cite{dvanhorn:Sharir:Interprocedural,
-dvanhorn:Shivers:1991:CFA}, path- \cite{davdar:das:2002:esp}, and heap-
+object \cite{dvanhorn:Milanova2005Parameterized,
+dvanhorn:Smaragdakis2011Pick}, context \cite{dvanhorn:Sharir:Interprocedural,
+dvanhorn:Shivers:1991:CFA}, path \cite{davdar:das:2002:esp}, and heap
 \cite{davdar:van-horn:2010:aam} sensitivities, or some combination thereof
 \cite{dvanhorn:Kastrinis2013Hybrid}.
 
@@ -1416,7 +1418,7 @@ approximations of an underlying concrete interpreter.  Our work
 demonstrates that if this underlying concrete interpreter is written
 in monadic style, monad transformers are a useful way to organize and
 compose these various kinds of program abstractions in a modular and
-language-independent way.  
+language-independent way.
 
 This work is inspired by the combination of
 \citeauthor{dvanhorn:Cousot:1977:AI}'s theory of abstract interpretation based
@@ -1433,7 +1435,7 @@ applying monads to programming language semantics pioneered by
 be used to define building blocks for constructing (concrete) interpreters.
 Their interpreter monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblance
 to ours.  We show this "building blocks" approach to interpreter construction
-extends to \emph{abstract} interpreter construction, too, by using Galois
+also extends to \emph{abstract} interpreter construction using Galois
 transfomers.  Moreover, we show that these monad transformers can be proved
 sound via a Galois connection to their concrete counterparts, ensuring the
 soundness of any stack built from sound blocks of Galois transformers.
@@ -1449,30 +1451,60 @@ concrete interpreter using Galois connections.  These calculations are done by
 hand.  Our approach offers a limited ability to automate the calculation
 process by relying on monad transformers to combine different abstractions.
 
+We build directly on the work of Abstracting Abstract Machines (AAM) by
+\citet{davdar:van-horn:2010:aam} and \citet{dvanhorn:Smaragdakis2011Pick} in
+our parameterization of abstract time to achieve call-site and object
+sensitivity. More notably, we follow the AAM philosophy of instrumenting a
+concrete semantics _first_ and performing a systematic abstraction _second_.
+This greatly simplifies the Galois connection arguments during systematic
+abstraction. However, this is at the added cost of proving that the
+instrumented semantics simulate the original concrete semantics.
+
+\paragraph{Monadic Abstract Interpreters}
+
 \citet{dvanhorn:Sergey2013Monadic} first introduced Monadic Abstract
 Interpreters (MAI), in which interpreters are also written in monadic style and
 variations in analysis are recovered through new monad implementations.
-However, each monad in MAI is designed from scratch for a specific language to
-have specific analysis properties.  The MAI work is analogous to monadic
-interpreter of \citet{dvanhorn:Wadler1992Essence}, in which the monad structure
-is monolithic and must be reconstructed for each new language feature. Our work
-extends the ideas in MAI in a way that isolates each parameter to be
-independent of others, similar to the approach of
-\citet{dvanhorn:Liang1995Monad}.  We factor out the monad as a truly semantics
-independent feature.  This factorization reveals an orthogonal tuning knob for
-path  and flow sensitivity.  Even more, we give the user building blocks for
-constructing monads that are correct and give the desired properties by
-construction.  Our framework is also motivated by the needs of reasoning
-formally about abstract interpreters, no mention of which is made in MAI.
+However, our approach is considerably different from MAI.
 
-We build directly on the work of Abstracting Abstract Machines (AAM) by
-\citet{davdar:van-horn:2010:aam} in our parameterization of abstract time and
-call-site sensitivity. More notably, we follow the AAM philosophy of
-instrumenting a concrete semantics _first_ and performing a systematic
-abstraction _second_. This greatly simplifies the Galois connection arguments
-during systematic abstraction. However, this is at the cost of proving that the
-instrumented semantics simulate the original concrete semantics.
+In MAI, the framework's interface is based on _denotation functions_ for every
+syntactic form of the language (See "CPSInterface", Figure 2 in MAI). This
+design decision has far reaching consequences for the entire approach. The
+denotation functions in MAI are language-specific and specialized to their
+example language. MAI uses a single monad stack fixed to the denotation
+function interface: state on top of list (Section 5.3.1 in MAI). New analyses
+are achieved through multiple denotation functions into this single monad.
+Analyses in MAI are all fixed to be path-sensitive, and the methodology for
+incorporating other flow properties is to surgically instrument the execution
+of the analysis with a custom Galois connection (Section 6.5 in MAI). Lastly,
+the framework provides no reasoning principles or proofs of soundness for the
+denotation function interface. A user of MAI must inline the definitions of
+each analysis and prove their implementation correct from scratch each time.
 
+By contrast, our framework's interface is based on state and nondeterminism
+_monadic effects_ (Section \ref{the-analysis-monad}). This interface comes
+equipped with reasoning principles, allowing one to verify the correctness of
+their monadic interpreter _independent of a particular monad_, which is not
+possible in MAI. State and nondeterminism monadic effects capture the essence
+of _small-step relational semantics_, and are therefore truly language
+independent. Our tools are reusable for any semanatics described as a
+small-step state machine. Because we place the monadic interpreter behind an
+interface of effects rather than denotation functions, we are able to introduce
+language-independent monads which capture flow-sensitivity and
+flow-insensitivity (Sections \ref{varying-path-and-flow-sensitivity} and
+\ref{a-compositional-monadic-framework}), and we show how to compose these
+features with other analysis design choices (Sections \ref{analysis-parameters}
+and \ref{a-compositional-monadic-framework}). The monadic effect interface also
+allows us to completely separate the execution monad from the abstract domain,
+both of which are tightly coupled in the MAI approach. Finally, our framework
+is compositional through the use of monad transformers (Section
+\ref{a-compositional-monadic-framework}) which construct execution engines and
+proofs of soundness for free. 
+
+We do not achieve correctness and compositionality _in addition_ to our
+transition from denotation functions to monadic effects; rather we achieve
+correctness and compositionality _through it_, making such a transition
+essential and primary to our technique. 
 
 # Conclusion
 
