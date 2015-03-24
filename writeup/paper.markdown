@@ -1532,6 +1532,33 @@ transition from denotation functions to monadic effects; rather we achieve
 correctness and compositionality _through it_, making such a transition
 essential and primary to our technique. 
 
+\paragraph{Unified Frameworks for Flow Sensitivity}
+
+\citet{dvanhorn:Hardekopf2014Widening} (WFC) also introduces a unifying account
+of flow properties in analysis. WFC achieves this through an instrumentation of
+the abstract machine's state space which is allowed to track arbitrary
+contextual information, up to the path-history of the entire execution. WFC
+also develops a modular proof framework, proving the bulk of soundness proofs
+for each instantiation of the instrumentation at once.
+
+Our work achieves similar goals, although isolating flow sensitivity is not our
+primary objective. While WFC is based on a language-dependent instrumentation
+of the semantics, we achieve variations in flow sensitivity by modifying
+control properties of the interpreter--through the monad.
+
+Particular strengths of WCF are the wide range of choices for control
+sensitivity which are shown to be implementable within the design, and the
+modular proof framework. For example, WCF is able to also account for call-site
+sensitivity through their design; we must account for call-site sensitivity
+through a different mechanism.
+
+Particular strengths of our work is the understanding of control sensitivity
+not through instrumentation but through control properties of the interpreter,
+and also a modular proof framework, although modular in a different sense from
+WCF. We also show how to make different flow sensitivity choices for
+independent components of the state space, like a flow-sensitive data-store and
+path-sensitive control-store, for example.
+
 # Conclusion
 
 We have shown that \emph{Galois transfomers}, monad transfomers that form
