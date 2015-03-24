@@ -184,11 +184,10 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
 `\end{figure}`{.raw}
 
 We give semantics to atomic expressions and primitive operators denotationally
-through `A⟦_⟧` and `ν⟦_⟧` as shown in
-Figure`~\ref{ConcreteDenotationFunctions}`{.raw}, and to compound expressions
-relationally as shown in Figure`~\ref{ConcreteStepRelation}`{.raw}. We will
-recover these semantics from a concrete instantiation of our generic abstract
-interpreter in Section \ref{recovering-analyses}.
+through `A⟦_⟧` and `δ⟦_⟧`, and to compound expressions relationally through
+`~~>`, as shown in Figure \ref{ConcreteSemantics}. We will recover these
+semantics from a concrete instantiation of our generic abstract interpreter in
+Section \ref{recovering-analyses}.
 
 `\begin{figure}`{.raw}
 \vspace{-1em}
@@ -197,18 +196,11 @@ A⟦_⟧ ∈ Atom → (Env × Store ⇀ Val)
 A⟦i⟧(ρ,σ) := i
 A⟦x⟧(ρ,σ) := σ(ρ(x))
 A⟦[λ](x).e⟧(ρ,σ) := ⟨[λ](x).e,ρ⟩ 
-ν⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
-ν⟦[+]⟧(i₁,i₂) := i₁ + i₂
-ν⟦[-]⟧(i₁,i₂) := i₁ - i₂
-``````````````````````````````````````````````````
-\caption{Concrete Denotation Functions}
-\label{ConcreteDenotationFunctions} 
-\vspace{-1em}
-`\end{figure}`{.raw}
-
-`\begin{figure}`{.raw}
-\vspace{-1em}
-`````indent```````````````````````````````````````
+<>
+δ⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
+δ⟦[+]⟧(i₁,i₂) := i₁ + i₂
+δ⟦[-]⟧(i₁,i₂) := i₁ - i₂
+<>
 _[~~>]_ ∈ 𝒫(Σ × Σ)
 ⟨e₁ ⊙ e₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e₁,ρ,σ,τ,κσ',τ+1⟩
   where κσ' := κσ[τ ↦ (⟨□ ⊙ e₂⟩,κl)]
@@ -224,15 +216,15 @@ _[~~>]_ ∈ 𝒫(Σ × Σ)
 ⟨i₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨i,ρ,σ,κl',κσ,τ+1⟩
   where 
     (⟨i₁ ⊕ □⟩,κl') := κσ(κl)
-    i := ν⟦⊕⟧(i₁,i₂)
+    i := δ⟦⊕⟧(i₁,i₂)
 ⟨i,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e,ρ,σ,κl',κσ,τ+1⟩
   where 
     (⟨[if0](□){e₁}{e₂}⟩,κl') := κσ(κl)
     e := e₁ when i = 0
     e := e₂ when i ≠ 0
 ``````````````````````````````````````````````````
-\caption{Concrete Step Relation}
-\label{ConcreteStepRelation} 
+\caption{Concrete Semantics}
+\label{ConcreteSemantics} 
 \vspace{-1em}
 `\end{figure}`{.raw}
 
@@ -305,10 +297,12 @@ identify three types of analysis flow:
 2. Flow sensitivity
 3. Flow insensitivity
 
-Our framework exposes the essence of analysis flow, and therefore allows for
-many other choices in addition to these three. However, these properties occur
-frequently in the literature and have well-understood definitions, so we
-restrict our discussion to them.
+Our framework exposes the essence of analysis flow (Sections
+\ref{varying-path-and-flow-sensitivity} and
+\ref{a-compositional-monadic-framework}), and therefore allows for many other
+choices in addition to these three. However, these properties occur frequently
+in the literature and have well-understood definitions, so we restrict our
+discussion to them.
 
 Consider a combination of if-statements in our example language `λIF` (extended
 with let-bindings) where an analysis cannot determine the value of `N`:
@@ -528,11 +522,11 @@ Closures must follow similar laws, inducing a Galois connection between
 {c} ⊑ clo-E(cloI(c))
 ⨆⸤c ∈ clo-E(v)⸥ clo-I(c) ⊑ v
 ``````````````````````````````````````````````````
-Finally, `ν` must be sound and complete w.r.t. the abstract semantics:
+Finally, `δ` must be sound and complete w.r.t. the abstract semantics:
 `````indent```````````````````````````````````````
-int-I(i₁ + i₂) ⊑ ν⟦[+]⟧(int-I(i₁),int-I(i₂))
-int-I(i₁ - i₂) ⊑ ν⟦[-]⟧(int-I(i₁),int-I(i₂))
-⨆⸤b₁ ∈ int-if0-E(v₁), b₂ ∈ int-if0-E(v₂), i ∈ θ(b₁,b₂)⸥ int-I(i) ⊑ ν⟦⊙⟧(v₁,v₂)
+int-I(i₁ + i₂) ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
+int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
+⨆⸤b₁ ∈ int-if0-E(v₁), b₂ ∈ int-if0-E(v₂), i ∈ θ(b₁,b₂)⸥ int-I(i) ⊑ δ⟦⊙⟧(v₁,v₂)
   where
     θ(true,true) = {0}
     θ(true,false) = {i | i ∈ ℤ ; i ≠ 0}
@@ -543,7 +537,7 @@ int-I(i₁ - i₂) ⊑ ν⟦[-]⟧(int-I(i₁),int-I(i₂))
 Supporting additional primitive types like booleans, lists, or arbitrary
 inductive datatypes is analogous. Introduction functions inject the type into
 `Val`. Elimination functions project a finite set of discrete observations.
-Introduction, elimination and `ν` operators must be sound and complete
+Introduction, elimination and `δ` operators must be sound and complete
 following a Galois connection discipline.
 
 ## Abstract Time 
@@ -617,7 +611,7 @@ step(a) := do
       put-Store(σ ⊔ [(x,τ) ↦ {v}])
       return(e)
     ⟨v' ⊕ □⟩ → do
-      return(ν⟦⊕⟧(v',v))
+      return(δ⟦⊕⟧(v',v))
     ⟨[if0](□){e₁}{e₂}⟩ → do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
@@ -738,11 +732,11 @@ int-I(i) := {i}
 int-if0-E : CVal → 𝒫(Bool)
 int-if0-E(v) := { true | 0 ∈ v } ∪ { false | ∃ i ∈ v ∧ i ≠ 0 }
 ``````````````````````````````````````````````````
-and a straightforward concrete `ν`:
+and a straightforward concrete `δ`:
 `````indent```````````````````````````````````````
-ν⟦_⟧(_,_) : IOp → CVal × CVal → CVal
-ν⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
-ν⟦[-]⟧(v₁,v₂) := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+δ⟦_⟧(_,_) : IOp → CVal × CVal → CVal
+δ⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
+δ⟦[-]⟧(v₁,v₂) := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
@@ -842,10 +836,10 @@ int-if0-E(v) := { true | 0 ∈ v } ∪ { false | [-] ∈ v ∨ [+] ∈ v }
 ``````````````````````````````````````````````````
 Introduction and elimination for `AClo` is identical to the concrete domain.
 
-The abstract `ν` operator is defined:
+The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
-ν : IOp → AVal × AVal → AVal 
-ν⟦[+]⟧(v₁,v₂) := 
+δ : IOp → AVal × AVal → AVal 
+δ⟦[+]⟧(v₁,v₂) := 
     { i         | 0 ∈ v₁ ∧ i ∈ v₂ }
   ∪ { i         | i ∈ v₁ ∧ 0 ∈ v₂ }
   ∪ { [+]       | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
@@ -853,7 +847,7 @@ The abstract `ν` operator is defined:
   ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
   ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
-The definition for `ν⟦[-]⟧(v₁,v₂)` is analogous.
+The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
 
 `\begin{proposition}`{.raw}
 `AVal` satisfies the abstract domain laws shown in
@@ -861,7 +855,7 @@ Section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 
 `\begin{proposition}`{.raw}
-`CVal α⇄γ AVal` and their operations `int-I`, `int-if0-E` and `ν` are ordered
+`CVal α⇄γ AVal` and their operations `int-I`, `int-if0-E` and `δ` are ordered
 `⊑` respectively through the Galois connection.
 `\end{proposition}`{.raw}
 
@@ -1419,7 +1413,8 @@ final analyzer is constructed for free given these two properties.
 Our implementation is publicly available and can be installed as a cabal
 package by executing:
 ``````````````````````````````````````````````````
-cabal install maam
+-- cabal install maam
+cabal install [redacted]
 ``````````````````````````````````````````````````
 
 # Related Work
@@ -1542,15 +1537,16 @@ essential and primary to our technique.
 
 \paragraph{Unified Frameworks for Flow Sensitivity}
 
-\citet{dvanhorn:Hardekopf2014Widening} (WFC) also introduces a unifying account
-of flow properties in analysis. WFC achieves this through an instrumentation of
-the abstract machine's state space which is allowed to track arbitrary
-contextual information, up to the path-history of the entire execution. WFC
-also develops a modular proof framework, proving the bulk of soundness proofs
-for each instantiation of the instrumentation at once.
+\citeauthor{dvanhorn:Hardekopf2014Widening} also introduces a unifying account
+of flow properties in Widening for Control-Flow
+(WCF)\citeyearpar{dvanhorn:Hardekopf2014Widening} . WCF achieves this through
+an instrumentation of the abstract machine's state space which is allowed to
+track arbitrary contextual information, up to the path-history of the entire
+execution. WCF also develops a modular proof framework, proving the bulk of
+soundness proofs for each instantiation of the instrumentation at once.
 
 Our work achieves similar goals, although isolating flow sensitivity is not our
-primary objective. While WFC is based on a language-dependent instrumentation
+primary objective. While WCF is based on a language-dependent instrumentation
 of the semantics, we achieve variations in flow sensitivity by modifying
 control properties of the interpreter--through the monad.
 
@@ -1569,10 +1565,11 @@ path-sensitive stack-store, for example.
 
 # Conclusion
 
-We have shown that \emph{Galois transfomers}, monad transfomers that form
-Galois connections, are effective, language-inde\-pendent building blocks for
-constructing program analyzers and form the basis of a modular, reusable, and
-composable metatheory for program analysis.
+We have shown that \emph{Galois transfomers}, monad transfomers that transport
+1) Galois connections and 2) mappings to transition systems, are effective,
+language-independent building blocks for constructing program analyzers and
+form the basis of a modular, reusable, and composable metatheory for program
+analysis.
 
 In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program analyses

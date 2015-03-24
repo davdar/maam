@@ -100,9 +100,9 @@ stripComments :: Text -> Text
 stripComments = newlines . map fixEmpties . filter (not . isComment) . T.lines
   where
     isComment :: Text -> Bool
-    isComment s = T.unpack s =~ ("^\\s*--\\s" :: String)
+    isComment s = T.unpack s =~ ("^[[:blank:]]*--[[:blank:]]" :: String)
     fixEmpties :: Text -> Text
-    fixEmpties s = if T.unpack s =~ ("^\\s*$" :: String) then "" else s
+    fixEmpties s = if T.unpack s =~ ("^[[:blank:]]*$" :: String) then "" else s
 
 addPars :: Text -> Text
 addPars = newlines . addPar . T.lines
