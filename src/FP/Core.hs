@@ -1550,4 +1550,3 @@ instance (Ord a, Neg a) => Neg (SumOfProd a) where neg = sumOfProdMap neg . SumO
 instance JoinLattice (SumOfProd a)
 
 -- }}}
-

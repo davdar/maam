@@ -994,7 +994,7 @@ bind : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
 bind(m)(f)(s) := doₘ
   (x,s') ←ₘ m(s)
   f(x)(s')
-return : ∀ α m, α → Sₜ[s](m)(α)
+return : ∀ α, α → Sₜ[s](m)(α)
 return(x)(s) := returnₘ(x,s)
 ``````````````````````````````````````````````````
 
@@ -1054,7 +1054,7 @@ The nondeterminism monad transformer can transport state effects from `m` to
 `````indent```````````````````````````````````````
 get : 𝒫ₜ(m)(s)
 get = mapₘ(λ(s).{s})(getₘ)
-put : s → 𝒫ₜ(m)(s)
+put : s → 𝒫ₜ(m)(1)
 put(s) = mapₘ(λ(1).{1})(putₘ(s))
 ``````````````````````````````````````````````````
 
@@ -1079,64 +1079,42 @@ m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 The proof is trivial as a consequence of the underlying monad being a
 join-semilattice functor.
 
+Path sensitivity arises naturally when a state transformer sits on top of a
+nondeterminism transformer. Flow insensitivity arises naturally when
+nondeterminism sits on top of state.
+
 ## Mapping to State Spaces
 
 Both our execution and correctness frameworks requires that monadic actions in
-`M` map to state space transitions in `Σ`. We extend the earlier statement of
+`m` map to state space transitions in `Σ`. We extend the earlier statement of
 Galois connection to the transformer setting, mapping monad _transformer_
 actions in `T` to state space _functor_ transitions in `Π`.
 `````indent```````````````````````````````````````
 T : (Type → Type) → (Type → Type)
 Π : (Type → Type) → (Type → Type)
-mstepᵗ : ∀ α β M, (α → T(M)(β)) α⇄γ (Π(Σₘ)(α) → Π(Σₘ)(β))
+mstep : ∀ α β m, (α → T(m)(β)) α⇄γ (Π(Σₘ)(α) → Π(Σₘ)(β))
 ``````````````````````````````````````````````````
-In the type of `mstepᵗ`, `M` is an arbitrary monad whose monadic actions map to
-state space `Σₘ`. The monad transformer `T` must induce a state space transformer `Π`
-
-Here `mstepᵗ` must map arbitrary monadic actions `α → T(M)(β)` to state space
-transitions for a state space _functor_ `Σ(_)` We only show the `γ` sides of
+In the type of `mstep`, `m` is an arbitrary monad whose monadic actions map to
+state space `Σₘ`. The monad transformer `T` must induce a state space
+transformer `Π` for which `mstep` can be defined. We only show the `γ` sides of
 the mappings in this section, which allow one to execute the analyses.
 
 For the state monad transformer `Sₜ[s]` mstep is defined:
 `````indent```````````````````````````````````````
-mstep-γ : ∀ α β m, 
+mstep-γ : ∀ α β, 
   (α → Sₜ[s](m)(β)) → (Σₘ(α × s) → Σₘ(β × s))
 mstep-γ(f) := mstepₘ-γ(λ(a,s). f(a)(s))
 ``````````````````````````````````````````````````
 
-For the nondeterminism transformer `𝒫ₜ`, mstep has two possible definitions.
-One where `Σ` is `Σₘ ∘ 𝒫`:
+For the nondeterminism transformer `𝒫ₜ` mstep is defined:
 `````indent```````````````````````````````````````
-mstep₁-γ : ∀ α β m, 
+mstep-γ : ∀ α β, 
   (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
-mstep₁-γ(f) := mstepₘ-γ(F)
+mstep-γ(f) := mstepₘ-γ(F)
   where F({x₁ .. xₙ}) = f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
 ``````````````````````````````````````````````````
-and one where `Σ` is `𝒫 ∘ Σₘ`:
-`````indent```````````````````````````````````````
-mstep₂-γ : ∀ α β m, 
-  (α → 𝒫ₜ(m)(β)) → (𝒫(Σₘ(α)) → 𝒫(Σₘ(β)))
-mstep₂-γ(f)({ς₁ .. ςₙ}) := commuteP-γ(aΣP₁ ⊔ .. ⊔ aΣPₙ)
-  where 
-    commuteP-γ : ∀ α, Σₘ(𝒫(α)) → Σₘ(𝒫(α)))
-    aΣPᵢ := mstepₘ-γ(f)(ςᵢ)
-``````````````````````````````````````````````````
-The operation `commuteP-γ` must be defined for the underlying `Σₘ`. In general,
-`commuteP` must form a Galois connection. However, this property exists for the
-identity monad, and is preserved by `Sₜ[s]`, the only monad we will compose
-`𝒫ₜ` with in this work.
-`````indent```````````````````````````````````````
-commuteP-γ : ∀ α, Σₘ(𝒫(α) × s) → 𝒫(Σₘ(α × s))
-commuteP-γ := commutePₘ ∘ map(F)
-  where
-    F({α₁ .. αₙ},s) = {(α₁,s) .. (αₙ,s)})
-``````````````````````````````````````````````````
-Of all the `γ` mappings defined, the `γ` side of `commuteP` is the only mapping
-that loses information in the `α` direction. Therefore, `mstep⸤Sₜ[s]⸥` and
-`mstep⸤𝒫ₜ1⸥` are really isomorphism transformers, and `mstep⸤𝒫ₜ2⸥` is the only
-Galois connection transformer. The Galois connections for `mstep` for both
-`Sₜ[s]` or `Pₜ` rely crucially on `mstepₘ-γ` and `mstepₘ-α` being homomorphic,
-i.e. that:
+The Galois connections for `mstep` for both `Sₜ[s]` or `Pₜ` rely crucially on
+`mstepₘ-γ` and `mstepₘ-α` being homomorphic, i.e. that:
 `````align````````````````````````````````````````
 α(id) ⊑ return
 α(f ∘ g) ⊑ α(f) ⟨∘⟩ α(g)
@@ -1144,43 +1122,103 @@ i.e. that:
 and likewise for `γ`, where `⟨∘⟩ ` is composition in the Kleisli category for
 the monad `M`.
 
-For convenience, we name the pairing of `𝒫ₜ` with `mstep₁` `FIₜ`, and with
-`mstep₂` `FSₜ` for flow-insensitive and flow-sensitive respectively.
-
-`\begin{proposition}`{.raw}
-`Σ⸤FSₜ⸥ α⇄γ Σ⸤FIₜ⸥`.
-`\end{proposition}`{.raw}
-The proof is by consequence of `commuteP`.
-
 `\begin{proposition}`{.raw}
 `Sₜ[s] ∘ 𝒫ₜ α⇄γ 𝒫ₜ ∘ Sₜ[s]`.
 `\end{proposition}`{.raw}
 The proof is by calculation after unfolding the definitions.
 
+## Flow Sensitivity Transformer
+
+The flow sensitivity transformer is a unique monad transformer that combines
+state and nondeterminism effects, and does not arise naturally from composing
+vanilla nondeterminism and state transformers. The flow sensitivity transformer
+is defined:
+`````indent```````````````````````````````````````
+FSₜ[_] : (Type → Type) → (Type → Type)
+FSₜ[s](m)(α) := s → m([α ↦ s])
+``````````````````````````````````````````````````
+where `[α ↦ s]` is notation for a finite map over a defined domain in `α`.
+
+`FSₜ[s]` is a monad when `s` is a join-semilattice and `m` is a
+join-semilattice functor:
+`````indent```````````````````````````````````````
+bind : ∀ α β, 
+  FSₜ[s](m)(α) → (α → FSₜ[s](m)(β)) → FSₜ[s](m)(β)
+bind(m)(f)(s) := doₘ
+  {x₁ ↦ s₁,..,xₙ ↦ sₙ} ←ₘ m(s)
+  f(x₁)(s₁) ⟨+⟩ .. ⟨+⟩ f(xₙ)(sₙ)
+return : ∀ α, α → FSₜ[s](m)(α)
+return(x)(s) := returnₘ {x ↦ s}
+``````````````````````````````````````````````````
+
+`FSₜ[s]` has monadic state effects:
+`````indent```````````````````````````````````````
+get : FSₜ[s](m)(s)
+get(s) := returnₘ {s ↦ s}
+put : s → FSₜ[s](m)(1)
+put(s')(s) := returnₘ {1 ↦ s'}
+``````````````````````````````````````````````````
+
+`FSₜ[s]` has nondeterminism effects when `s` is a join-semilattice and `m` is a
+join-semilattice functor:
+`````indent```````````````````````````````````````
+mzero : ∀ α, FSₜ[s](m)(α)
+mzero(s) := ⊥ₘ
+_[⟨+⟩]_ : ∀ α, FSₜ[s](m)(α) x FSₜ[s](m)(α) → FSₜ[s](m)(α)
+(m₁ ⟨+⟩ m₂)(s) := m₁(s) ⊔ₘ m₂(s)
+``````````````````````````````````````````````````
+
+The last property required for `FSₜ[s]` to fit into our framework is to map
+monadic actions in `FSₜ[s]` to transitions in some state space transformer `Π`.
+`````indent```````````````````````````````````````
+mstep-γ : ∀ α β, 
+  (α → FSₜ[s](m)(β)) → (Σₘ([α ↦ s]) → Σₘ([β × s]))
+mstep-γ(f) := mstepₘ-γ(F)
+  where F({x₁ ↦ s₁},..,{xₙ ↦ sₙ}) :=
+    f(x₁)(s₁) ⟨+⟩ .. ⟨+⟩ f(xₙ)(sₙ)
+``````````````````````````````````````````````````
+
+`\begin{proposition}`{.raw}
+`get` and `put` satisfy the state monad laws.
+`\end{proposition}`{.raw}
+
+`\begin{proposition}`{.raw}
+`mzero` and `⟨+⟩` satisfy the nondeterminism monad laws.
+`\end{proposition}`{.raw}
+
+`\begin{proposition}`{.raw}
+`Sₜ[s] ∘ 𝒫ₜ α₁⇄γ₁ FSₜ[s] α₂⇄γ₂ 𝒫ₜ ∘ Sₜ[s]`.
+`\end{proposition}`{.raw}
+
+These proofs are analagous to those for state and nondeterminism monad
+transformers.
+
 ## Galois Transformers
 
 The capstone of our compositional framework is the fact that monad transformers
-`Sₜ[s]` and `𝒫ₜ` are also _Galois transformers_. Whereas a monad transformer is
-a functor between functors, a Galois transformer is a functor between Galois
-functors.
+`Sₜ[s]`, `FSₜ[s]` and `𝒫ₜ` are also _Galois transformers_. Whereas a monad
+transformer is a functor between monads, a Galois transformer is a functor
+between Galois monads.
 
 `\begin{definition}`{.raw}
-A monad transformer `T` is a Galois transformer if for Galois functors `m₁` and
-`m₂`, `m₁ α⇄γ m₂ ⇒ T(m₁) α⇄γ T(m₂)`.
+A monad transformer `T` is a Galois transformer if:
+
+1. For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`
+2. For all monads `m` and functors `Σ` there exists `Π` s.t. 
+   `(α → m(β)) α⇄γ (Σ(α) → Σ(β)) ⇒ (α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`. 
+
 `\end{definition}`{.raw}
 
 `\begin{proposition}`{.raw}
-`Sₜ[s]` and `𝒫ₜ` are Galois transformers.
+`Sₜ[s]`, `FSₜ[s]` and `𝒫ₜ` are Galois transformers.
 `\end{proposition}`{.raw}
-The proofs are straightforward applications of the underlying `m₁ α⇄γ m₂`.
-
-Furthermore, the state monad transformer `Sₜ[s]` is Galois functorial in its
-state parameter `s`.
+The proofs were sketched earlier in Section
+\ref{a-compositional-monadic-framework}.
 
 ## Building Transformer Stacks
 
-We can now build monad transformer stacks from combinations of `Sₜ[s]`, `FIₜ`
-and `FSₜ` with the following properties:
+We can now build monad transformer stacks from combinations of `Sₜ[s]`,
+`FS[s]ₜ` and `𝒫ₜ` with the following properties:
 
 - The resulting monad has the combined effects of all pieces of the transformer
   stack.
@@ -1196,12 +1234,14 @@ order of precision:
 
 \vspace{1em}
 `\begin{tabular}{l | l | l}`{.raw}
-`Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
-`Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
-`Sₜ[AKStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
-`Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
-`Sₜ[AStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
-`FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
+`````rawmacro````````````````````````````````````
+Sₜ[AEnv]     & Sₜ[AEnv]      & Sₜ[AEnv]    \\
+Sₜ[AKAddr]   & Sₜ[AKAddr]    & Sₜ[AKAddr]  \\
+Sₜ[AKStore]  & Sₜ[AKStore]   & Sₜ[AKStore] \\
+Sₜ[ATime]    & Sₜ[ATime]     & Sₜ[ATime]   \\
+Sₜ[AStore]   &               & 𝒫ₜ          \\
+𝒫ₜ           & FSₜ[AStore]   & Sₜ[AStore]  \\
+``````````````````````````````````````````````````
 `\end{tabular}`{.raw}
 \vspace{1em}
 
@@ -1213,33 +1253,32 @@ analogues:
 
 \vspace{1em}
 `\begin{tabular}{l | l | l}`{.raw}
-`Sₜ[CEnv]`      `&`{.raw} `Sₜ[CEnv]`       `&`{.raw} `Sₜ[CEnv]`     `\\`{.raw}
-`Sₜ[CKAddr]`    `&`{.raw} `Sₜ[CKAddr]`     `&`{.raw} `Sₜ[CKAddr]`   `\\`{.raw}
-`Sₜ[CKStore]`   `&`{.raw} `Sₜ[CKStore]`    `&`{.raw} `Sₜ[CKStore]`  `\\`{.raw}
-`Sₜ[CTime]`    `&`{.raw} `Sₜ[CTime]`     `&`{.raw} `Sₜ[CTime]`   `\\`{.raw}
-`Sₜ[CStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
-`FSₜ`          `&`{.raw} `Sₜ[CStore]`    `&`{.raw} `Sₜ[CStore]`  `\\`{.raw}
+`````rawmacro``````````````````````````````````````
+Sₜ[CEnv]     & Sₜ[CEnv]      & Sₜ[CEnv]    \\
+Sₜ[CKAddr]   & Sₜ[CKAddr]    & Sₜ[CKAddr]  \\
+Sₜ[CKStore]  & Sₜ[CKStore]   & Sₜ[CKStore] \\
+Sₜ[CTime]    & Sₜ[CTime]     & Sₜ[CTime]   \\
+Sₜ[CStore]   &               & 𝒫ₜ          \\
+𝒫ₜ           & FSₜ[CStore]   & Sₜ[CStore]  \\
+`````````````````````````````````````````````````
 `\end{tabular}`{.raw}
 \vspace{1em}
 
 Another benefit of our approach is that we can selectively widen the value and
 continuation stores independent of each other. To do this we merely swap the
 order of transformers:
-
 \vspace{1em}
 `\begin{tabular}{l | l | l}`{.raw}
-`Sₜ[AEnv]`      `&`{.raw} `Sₜ[AEnv]`       `&`{.raw} `Sₜ[AEnv]`     `\\`{.raw}
-`Sₜ[AKAddr]`    `&`{.raw} `Sₜ[AKAddr]`     `&`{.raw} `Sₜ[AKAddr]`   `\\`{.raw}
-`Sₜ[ATime]`    `&`{.raw} `Sₜ[ATime]`     `&`{.raw} `Sₜ[ATime]`   `\\`{.raw}
-`Sₜ[AKStore]`   `&`{.raw} `FSₜ`           `&`{.raw} `FIₜ`         `\\`{.raw}
-`Sₜ[AStore]`   `&`{.raw} `Sₜ[AKStore]`    `&`{.raw} `Sₜ[AKStore]`  `\\`{.raw}
-`FSₜ`          `&`{.raw} `Sₜ[AStore]`    `&`{.raw} `Sₜ[AStore]`  `\\`{.raw}
+`````rawmacro``````````````````````````````````````
+Sₜ[CEnv]     & Sₜ[CEnv]      & Sₜ[CEnv]    \\
+Sₜ[CKAddr]   & Sₜ[CKAddr]    & Sₜ[CKAddr]  \\
+Sₜ[CTime]    & Sₜ[CTime]     & Sₜ[CTime]   \\
+Sₜ[CStore]   & FSₜ[CStore]   & 𝒫ₜ          \\
+𝒫ₜ           &               & Sₜ[CStore]  \\
+Sₜ[CKStore]  & Sₜ[CKStore]   & Sₜ[CKStore] \\
+`````````````````````````````````````````````````
 `\end{tabular}`{.raw}
 \vspace{1em}
-
-\noindent
-yielding analyses which are flow-sensitive and flow-insensitive for both the
-continuation and value stores.
 
 # Implementation
 
