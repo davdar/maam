@@ -1450,8 +1450,10 @@ This work is inspired by the combination of
 \citeauthor{dvanhorn:Cousot:1977:AI}'s theory of abstract interpretation based
 on Galois connections \citeyearpar{dvanhorn:Cousot:1977:AI,
 dvanhorn:Cousot1979Systematic, dvanhorn:Cousot98-5},
+\citeauthor{davdar:Moggi:1989:Monads}'s original monad transformers
+\citeyearpar{davdar:Moggi:1989:Monads} which were later popularized in
 \citeauthor{dvanhorn:Liang1995Monad}'s monad transformers for modular
-interpreters \citeyearpar{dvanhorn:Liang1995Monad} and
+interpreters \citeyearpar{dvanhorn:Liang1995Monad}, and
 \citeauthor{dvanhorn:Sergey2013Monadic}'s monadic abstract interpreters
 \citeyearpar{dvanhorn:Sergey2013Monadic}, and continues in the tradition of
 applying monads to programming language semantics pioneered by
