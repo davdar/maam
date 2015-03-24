@@ -26,7 +26,7 @@ _vice versa_.
 We propose an automated alternative approach to structuring and implementing
 program analysis.  Inspired by \citeauthor*{dvanhorn:Liang1995Monad}'s
 \emph{Monad transformers for modular interpreters}
-\citeyearpar{dvanhorn:Liang1995Monad}, we propose to start with concrete
+\cite{dvanhorn:Liang1995Monad}, we propose to start with concrete
 interpreters written in a specific monadic style. Changing the monad will
 change the interpreter from a concrete interpreter into an abstract
 interpreter. As we show, classical program abstractions can be embodied as
@@ -1447,18 +1447,20 @@ in monadic style, monad transformers are a useful way to organize and
 compose these various kinds of program abstractions in a modular and
 language-independent way.
 
-This work is inspired by the combination of
+This work is inspired by the trifecta combination of
 \citeauthor{dvanhorn:Cousot:1977:AI}'s theory of abstract interpretation based
-on Galois connections \citeyearpar{dvanhorn:Cousot:1977:AI,
+on Galois connections \cite{dvanhorn:Cousot:1977:AI,
 dvanhorn:Cousot1979Systematic, dvanhorn:Cousot98-5},
 \citeauthor{davdar:Moggi:1989:Monads}'s original monad transformers
-\citeyearpar{davdar:Moggi:1989:Monads} which were later popularized in
-\citeauthor{dvanhorn:Liang1995Monad}'s monad transformers for modular
-interpreters \citeyearpar{dvanhorn:Liang1995Monad}, and
-\citeauthor{dvanhorn:Sergey2013Monadic}'s monadic abstract interpreters
-\citeyearpar{dvanhorn:Sergey2013Monadic}, and continues in the tradition of
-applying monads to programming language semantics pioneered by
-\citet{davdar:Moggi:1989:Monads}.
+\cite{davdar:Moggi:1989:Monads} which were later popularized in
+\citeauthor{dvanhorn:Liang1995Monad}'s _Monad Transformers and Modular
+Interpreters_ \cite{dvanhorn:Liang1995Monad}, and
+\citeauthor{dvanhorn:Sergey2013Monadic}'s _Monadic Abstract Interpreters_
+\cite{dvanhorn:Sergey2013Monadic}.
+
+-- , and continues in the tradition of
+-- applying monads to programming language semantics pioneered by
+-- \citet{davdar:Moggi:1989:Monads}.
 
 \citet{dvanhorn:Liang1995Monad} first demonstrated how monad transformers could
 be used to define building blocks for constructing (concrete) interpreters.
@@ -1507,8 +1509,8 @@ Analyses in MAI are all fixed to be path-sensitive, and the methodology for
 incorporating other flow properties is to surgically instrument the execution
 of the analysis with a custom Galois connection (Section 6.5 in MAI). Lastly,
 the framework provides no reasoning principles or proofs of soundness for the
-denotation function interface. A user of MAI must inline the definitions of
-each analysis and prove their implementation correct from scratch each time.
+denotation function interface. _A user of MAI must inline the definitions of
+each analysis and prove their implementation correct from scratch each time._
 
 By contrast, our framework's interface is based on state and nondeterminism
 _monadic effects_ (Section \ref{the-analysis-monad}). This interface comes
@@ -1539,7 +1541,7 @@ essential and primary to our technique.
 
 \citeauthor{dvanhorn:Hardekopf2014Widening} also introduces a unifying account
 of flow properties in Widening for Control-Flow
-(WCF)\citeyearpar{dvanhorn:Hardekopf2014Widening} . WCF achieves this through
+(WCF)\cite{dvanhorn:Hardekopf2014Widening} . WCF achieves this through
 an instrumentation of the abstract machine's state space which is allowed to
 track arbitrary contextual information, up to the path-history of the entire
 execution. WCF also develops a modular proof framework, proving the bulk of
