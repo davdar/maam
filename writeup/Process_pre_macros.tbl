@@ -43,4 +43,6 @@ Cγ            \Concrete{\gamma}                  Anywhere
 else          \;\ttbfop{\litelse}\;              Word      
 then          \;\ttbfop{then}\;              Word      
 when          \;\;\text{when}\;\;                Word      
-where         \text{where}\;\;               Word      
+where         \;\;\text{where}\;\;               Word      
+and           \;\;\text{and}\;\;                 Word
+s.t.          \;\;\text{s.t.}\;\;                Word

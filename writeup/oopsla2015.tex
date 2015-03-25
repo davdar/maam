@@ -30,6 +30,7 @@
 \usepackage{balance}
 \usepackage{array}
 \usepackage{tikz}
+\usepackage{etoolbox}
 \usetikzlibrary{matrix}
 \floatstyle{boxed}
 \restylefloat{figure}
@@ -100,11 +101,17 @@
 
 % }-}
 
-% These are supposed to make align* not have breaks around it...
-\setlength{\abovedisplayskip}{0em}
-\setlength{\belowdisplayskip}{0em}
-\setlength{\abovedisplayshortskip}{0em}
-\setlength{\belowdisplayshortskip}{0em}
+% These make align* have smaller breaks around it. -DCD
+\newcommand{\zerodisplayskips}{%
+  \setlength{\abovedisplayskip}{4pt}
+  \setlength{\belowdisplayskip}{4pt}
+  \setlength{\abovedisplayshortskip}{0pt}
+  \setlength{\belowdisplayshortskip}{0pt}}
+% \appto{\normalsize}{\zerodisplayskips}
+\appto{\small}{\zerodisplayskips}
+
+% This makes floats have less space between them and text.
+\setlength{\textfloatsep}{8pt}
 
 \title{Galois Transformers and Modular Abstract Interpreters}
 \subtitle{Reusable Metatheory for Program Analysis}
@@ -154,6 +161,7 @@ synthesize sound analyzers over a number of parameters.
 
 \end{abstract}
 % }-}
+
 
 % \category{CR-number}{subcategory}{third-level}
 % \terms term1, term2
