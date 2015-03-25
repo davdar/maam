@@ -45,20 +45,22 @@ abstractions across languages and lays the foundation for a modular metatheory
 of program analysis.
 
 Using Galois transformers, we enable arbitrary composition of analysis
-parameters. Our implementation `{\tt maam}`{.raw} supports command-line flags
+parameters. Our implementation `{\small\tt maam}`{.raw} supports command-line flags
 for garbage collection, mCFA, call-site sensitivity, object sensitivity, and
 path and flow sensitivities.
+`{\small\tt`{.raw}
 ``````````````````````````````````````````````````
 ./maam --gc --mcfa --kcfa=1 --ocfa=2
 ``````````````````````````````````````````````````
-\vspace{-1em}
+\vspace{-2em}
 ``````````````````````````````````````````````````
   --data-store=flow-sen --stack-store=path-sen
 ``````````````````````````````````````````````````
-\vspace{-1em}
+\vspace{-2.5em}
 ``````````````````````````````````````````````````
   prog.lam
 ``````````````````````````````````````````````````
+`}`{.raw}
 These flags are implemented completely independently of one another and their
 systematic combination is applied to a single parameterized monadic
 interpreter. Furthermore, using Galois transformers allows us to prove each
@@ -104,8 +106,8 @@ To ease the construction of monads for building abstract interpreters and their
 proofs of correctness, we develop a framework of Galois transformers (Section
 \ref{a-compositional-monadic-framework}). Galois transformers are an extension
 of monad transformers which transport 1) Galois connections and 2) mappings to
-an executable transition system (Section \ref{galois-transformers}). Our Galois
-transformer framework allows us to both execute and reason about the
+an executable transition system (Section \ref{galois-transformers-1}). Our
+Galois transformer framework allows us to both execute and reason about the
 correctness of an abstract interpreter piecewise for each transformer in a
 stack. Galois transformers are language independent and they can be proven
 correct one and for all in isolation from a particular semantics.
@@ -134,8 +136,10 @@ We make the following contributions:
   using _Galois transformers_, an extension of monad transformers which
   transport 1) Galois connections and 2) mappings to an executable transition
   system.
-- Two new monad transformers for nondeterminism which give rise naturally to
-  path-sensitive, flow-sensitive and flow-insensitive analyses.
+- Two new general purpose monad transformers for nondeterminism which are not
+  present in any previous work on monad transformers. Although general purpose,
+  these two transformers give rise naturally to variations in path and flow
+  sensitivity in program analysis.
 - An isolated understanding of flow and path (in)sensitivity for static
   analysis as a property of the interpreter monad, which we develop
   independently of other analysis features.
@@ -1223,14 +1227,12 @@ transformers.
 ## Galois Transformers
 
 The capstone of our compositional framework is the fact that monad transformers
-`Sₜ[s]`, `FSₜ[s]` and `𝒫ₜ` are also _Galois transformers_. Whereas a monad
-transformer is a functor between monads, a Galois transformer is a functor
-between Galois monads.
+`Sₜ[s]`, `FSₜ[s]` and `𝒫ₜ` are also _Galois transformers_.
 
 `\begin{definition}`{.raw}
 A monad transformer `T` is a Galois transformer if:
 `\begin{enumerate}`{.raw}
-\item For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`:
+\item For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`.
 
 `````raw``````````````````````````````````````````
 \begin{center}
@@ -1253,7 +1255,7 @@ A monad transformer `T` is a Galois transformer if:
 ``````````````````````````````````````````````````
 
 \item For all monads `m` and functors `Σ` there exists `Π` s.t. `(α → m(β)) α⇄γ
-      (Σ(α) → Σ(β))` implies `(α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`:
+      (Σ(α) → Σ(β))` implies `(α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`.
 
 `````raw``````````````````````````````````````````
 \begin{center}
@@ -1366,17 +1368,19 @@ for each component of the state space.
 Our implementation `{\tt maam}`{.raw} supports command-line flags for garbage
 collection, mCFA, call-site sensitivity, object sensitivity, and path and flow
 sensitivities.
+`{\small\tt`{.raw}
 ``````````````````````````````````````````````````
 ./maam --gc --mcfa --kcfa=1 --ocfa=2
 ``````````````````````````````````````````````````
-\vspace{-1em}
+\vspace{-2em}
 ``````````````````````````````````````````````````
   --data-store=flow-sen --stack-store=path-sen
 ``````````````````````````````````````````````````
-\vspace{-1em}
+\vspace{-2.5em}
 ``````````````````````````````````````````````````
   prog.lam
 ``````````````````````````````````````````````````
+`}`{.raw}
 These flags are implemented completely independently of one another and their
 combination is applied to a single parameterized monadic interpreter.
 Furthermore, using Galois transformers allows us to prove each combination
@@ -1411,11 +1415,7 @@ complete (forms a Galois connection). The execution and correctness of the
 final analyzer is constructed for free given these two properties.
 
 Our implementation is publicly available and can be installed as a cabal
-package by executing:
-``````````````````````````````````````````````````
--- cabal install maam
-cabal install [redacted]
-``````````````````````````````````````````````````
+package by executing `{\small\tt`{.raw} cabal install maam `}`{.raw}.
 
 # Related Work
 
