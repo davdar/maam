@@ -1062,12 +1062,13 @@ Flow and path senstivity properties will arise from the _order of composition_
 of monad transformers. Placing state after nondeterminism (`Sₜ[s] ∘ 𝒫ₜ` or
 `Sₜ[s] ∘ FSₜ[s']`) will result in `s` being path-sensitive. Placing state
 before nondeterminism (`𝒫ₜ ∘ Sₜ[s]` or `FSₜ[s'] ∘ Sₜ[s]`) will result in `s`
-being flow-insensitive. Finally, when `FSₜ[s']` is used in place of `𝒫ₜ`, `s'`
-will be flow-sensitive. The combination of all three sensitivities looks like
-(`M := Sₜ[s₁] ∘ FSₜ[s₂] ∘ Sₜ[s₃]`), which will induce state space transition
-system `Σ(Exp) := [(Exp × s₁) ↦ s₂] × s₃`. Using `Sₜ[s]`, `𝒫ₜ` and `FSₜ[s]`,
-one can easily choose which components of the anlysis are path-sensitive,
-flow-sensitive or flow-insensitive.
+being flow-insensitive. Finally, when `FSₜ[s]` is used in place of `Sₜ[s] ∘ 𝒫ₜ`
+or `𝒫ₜ ∘ Sₜ[s]`, `s` will be flow-sensitive. The combination of all three
+sensitivities looks like (`M := Sₜ[s₁] ∘ FSₜ[s₂] ∘ Sₜ[s₃]`), which will induce
+state space transition system `Σ(Exp) := [(Exp × s₁) ↦ s₂] × s₃`, which is
+path-sensitive in `s₁`, flow-sensitive in `s₂` and flow-insensitive in `s₃`.
+Using `Sₜ[s]`, `𝒫ₜ` and `FSₜ[s]`, one can easily choose which components of the
+anlysis are path-sensitive, flow-sensitive or flow-insensitive.
 
 In the following definitions we must necessarily use `bind`, `return` and other
 operations from the underlying monad, and we notate these `bindₘ`, `returnₘ`,
@@ -1125,7 +1126,8 @@ embedding `𝒫` inside `m`:
 ``````````````````````````````````````````````````
 
 The nondeterminism monad transformer can transport monadic operations from `m`
-to `𝒫ₜ` _provided that `m` is also a join-semilattice functor_:
+to `𝒫ₜ` _provided that `m` is also a join-semilattice functor_. The
+join-lattice functorality of `m` will be instantiated with `𝒫(β)`.
 `````indent```````````````````````````````````````
 bind : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
 bind(m)(f) := doₘ
@@ -1139,7 +1141,7 @@ return(x) := returnₘ({x})
 `\end{proposition}`{.raw}
 The key lemma in this proof is the functorality of `m`, namely that:
 `````align````````````````````````````````````````
-returnₘ(x ⊔ y) = returnₘ(x) ⊔ returnₘ(y)
+returnₘ(x ⊔ y) = returnₘ(x) ⊔ₘ returnₘ(y)
 ``````````````````````````````````````````````````
 
 The nondeterminism monad transformer can transport state effects from `m` to
@@ -1183,13 +1185,14 @@ FSₜ[s](m)(α) := s → m([α ↦ s])
 where `[α ↦ s]` is notation for a finite map from `α` to `s`.
 
 `FSₜ[s]` is a monad when `s` is a join-semilattice and `m` is a
-join-semilattice functor:
+join-semilattice functor. The functorality of `m` will be instantiated with `[β
+→ s]`, which forms a lattice when `s` does likewise.
 `````indent```````````````````````````````````````
 bind : ∀ α β, 
   FSₜ[s](m)(α) → (α → FSₜ[s](m)(β)) → FSₜ[s](m)(β)
 bind(m)(f)(s) := doₘ
   {x₁ ↦ s₁,..,xₙ ↦ sₙ} ←ₘ m(s)
-  f(x₁)(s₁) ⟨+⟩ .. ⟨+⟩ f(xₙ)(sₙ)
+  f(x₁)(s₁) ⊔ₘ .. ⊔ₘ f(xₙ)(sₙ)
 return : ∀ α, α → FSₜ[s](m)(α)
 return(x)(s) := returnₘ {x ↦ s}
 ``````````````````````````````````````````````````
@@ -1247,7 +1250,7 @@ For the nondeterminism transformer `𝒫ₜ` mstep is defined:
 mstep-γ : ∀ α β, 
   (α → 𝒫ₜ(m)(β)) → (Σₘ(𝒫(α)) → Σₘ(𝒫(β)))
 mstep-γ(f) := mstepₘ-γ(F)
-  where F({x₁ .. xₙ}) = f(x₁) ⟨+⟩ .. ⟨+⟩ f(xₙ))
+  where F({x₁ .. xₙ}) = f(x₁) ⊔ₘ .. ⊔ₘ f(xₙ))
 ``````````````````````````````````````````````````
 
 For the flow sensitivity monad transformer `FSₜ[s]` mstep is defined:
@@ -1256,7 +1259,7 @@ mstep-γ : ∀ α β,
   (α → FSₜ[s](m)(β)) → (Σₘ([α ↦ s]) → Σₘ([β × s]))
 mstep-γ(f) := mstepₘ-γ(F)
   where F({x₁ ↦ s₁},..,{xₙ ↦ sₙ}) :=
-    f(x₁)(s₁) ⟨+⟩ .. ⟨+⟩ f(xₙ)(sₙ)
+    f(x₁)(s₁) ⊔ₘ .. ⊔ₘ f(xₙ)(sₙ)
 ``````````````````````````````````````````````````
 
 The Galois connections for `mstep` for `Sₜ[s]`, `Pₜ` and `FSₜ[s]` rely
