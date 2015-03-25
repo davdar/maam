@@ -5,8 +5,7 @@ a language (as a concrete semantics) and an abstraction (as an abstraction map,
 concretization map or Galois connection) before constructing a static analyzer
 that it sound with respect to both the abstraction and the concrete semantics.
 Thus, each pairing of abstraction and semantics requires a one-off manual
-derivation of the abstract semantics and a construction of a proof of
-soundness.
+derivation of the abstract semantics and construction of a proof of soundness.
 
 Work has focused on endowing abstractions with knobs, levers, and dials to tune
 precision and compute efficiently.  These parameters come with overloaded
@@ -23,27 +22,25 @@ soundness.  And, it prevents fruitful insights and results developed in one
 paradigm from being applied to others, e.g., functional to object-oriented and
 _vice versa_.
 
-We propose an automated alternative approach to structuring and implementing
-program analysis.  Inspired by \citeauthor*{dvanhorn:Liang1995Monad}'s
-\emph{Monad transformers for modular interpreters}
-\cite{dvanhorn:Liang1995Monad}, we propose to start with concrete
-interpreters written in a specific monadic style. Changing the monad will
-change the interpreter from a concrete interpreter into an abstract
-interpreter. As we show, classical program abstractions can be embodied as
-language-independent monads.  Moreover, these abstractions can be written as
-monad _transformers_, thereby allowing their composition to achieve new forms
-of analysis.  We show that these monad transformers obey the properties of
-\emph{Galois connections} \cite{dvanhorn:Cousot1979Systematic} and introduce
-the concept of a \emph{Galois transformer}, a monad transformer which
-transports 1) Galois connections and 2) mappings to an executable transition
-system.
+We propose an automated alternative to structuring and implementing program
+analysis.  Inspired by \citeauthor*{dvanhorn:Liang1995Monad}'s \emph{Monad
+transformers for modular interpreters} \cite{dvanhorn:Liang1995Monad}, we
+propose to start with concrete interpreters written in a specific monadic
+style. Changing the monad will change the interpreter from a concrete
+interpreter into an abstract interpreter. As we show, classical program
+abstractions can be embodied as language-independent monads.  Moreover, these
+abstractions can be written as monad _transformers_, thereby allowing their
+composition to achieve new forms of analysis.  We show that these monad
+transformers obey the properties of \emph{Galois connections}
+\cite{dvanhorn:Cousot1979Systematic} and introduce the concept of a
+\emph{Galois transformer}, a monad transformer which transports 1) Galois
+connections and 2) mappings to an executable transition system.
 
 Most significantly, Galois transformers can be proved sound once and used
 everywhere.  Abstract interpreters, which take the form of monad transformer
-stacks coupled together with a monadic interpreter, inherit the soundness
-properties of each element in the stack.  This approach enables reuse of
-abstractions across languages and lays the foundation for a modular metatheory
-of program analysis.
+stacks coupled with a monadic interpreter, inherit the soundness properties of
+each element in the stack.  This approach enables reuse of abstractions across
+languages and lays the foundation for a modular metatheory of program analysis.
 
 \paragraph{Setup}
 We describe a simple language and a garbage-collecting allocating semantics as
