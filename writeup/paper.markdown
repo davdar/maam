@@ -35,7 +35,8 @@ monad _transformers_, thereby allowing their composition to achieve new forms
 of analysis.  We show that these monad transformers obey the properties of
 \emph{Galois connections} \cite{dvanhorn:Cousot1979Systematic} and introduce
 the concept of a \emph{Galois transformer}, a monad transformer which
-transports Galois connections.
+transports 1) Galois connections and 2) mappings to an executable transition
+system.
 
 Most significantly, Galois transformers can be proved sound once and used
 everywhere.  Abstract interpreters, which take the form of monad transformer
@@ -1232,7 +1233,8 @@ The capstone of our compositional framework is the fact that monad transformers
 `\begin{definition}`{.raw}
 A monad transformer `T` is a Galois transformer if:
 `\begin{enumerate}`{.raw}
-\item For all monads `m₁` and `m₂`, `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`.
+\item It transport Galois connections, that is for all monads `m₁` and `m₂`,
+      `m₁ α⇄γ m₂` implies `T(m₁) α⇄γ T(m₂)`.
 
 `````raw``````````````````````````````````````````
 \begin{center}
@@ -1254,8 +1256,9 @@ A monad transformer `T` is a Galois transformer if:
 \end{center}
 ``````````````````````````````````````````````````
 
-\item For all monads `m` and functors `Σ` there exists `Π` s.t. `(α → m(β)) α⇄γ
-      (Σ(α) → Σ(β))` implies `(α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`.
+\item It transports mappings to an executable transition system, that is for
+      all monads `m` and functors `Σ` there exists `Π` s.t. `(α → m(β)) α⇄γ (Σ(α) →
+      Σ(β))` implies `(α → T(m)(β)) α⇄γ (Π(Σ)(α) → Π(Σ)(β))`.
 
 `````raw``````````````````````````````````````````
 \begin{center}
@@ -1568,10 +1571,10 @@ path-sensitive stack-store, for example.
 # Conclusion
 
 We have shown that \emph{Galois transfomers}, monad transfomers that transport
-1) Galois connections and 2) mappings to transition systems, are effective,
-language-independent building blocks for constructing program analyzers and
-form the basis of a modular, reusable, and composable metatheory for program
-analysis.
+1) Galois connections and 2) mappings to an executable transition system, are
+effective, language-independent building blocks for constructing program
+analyzers and form the basis of a modular, reusable, and composable metatheory
+for program analysis.
 
 In the end, we hope language independent characterizations of analysis
 ingredients will both facilate the systematic construction of program analyses
