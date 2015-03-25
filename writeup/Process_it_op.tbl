@@ -5,10 +5,10 @@ Search For    Replace With       Match Mode
 +-dist        _                  Anywhere  
 commuteP-γ    commuteP-\gamma    Anywhere  
 mstep-γ       mstep-\gamma       Anywhere  
-mstep₁-γ      mstep_1\gamma      Anywhere  
-mstep₂-γ      mstep_2\gamma      Anywhere  
-mstepₘ-γ      mstep_m\gamma      Anywhere  
-mstepₘ-α      mstep_m\alpha      Anywhere  
+mstep₁-γ      mstep_1-\gamma      Anywhere  
+mstep₂-γ      mstep_2-\gamma      Anywhere  
+mstepₘ-γ      mstep_m-\gamma      Anywhere  
+mstepₘ-α      mstep_m-\alpha      Anywhere  
 ⊥-unit        \bot-unit          Anywhere  
 ⊥-zero        \bot-zero          Anywhere  
 ↑ₚ            \uparrow_p         Anywhere  
