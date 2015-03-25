@@ -362,9 +362,10 @@ between them for free.
 # Analysis Parameters
 
 Before writing an abstract interpreter we first design its parameters. The
-interpreter will be designed such that variations in these parameters will
-recover both concrete and a family of abstract interpreters, which we show in
-Section \ref{recovering-analyses}. To do this we extend the ideas developed in
+interpreter, which we develop in Section \ref{the-interpreter}, will be
+designed such that variations in these parameters will recover both concrete
+and a family of abstract interpreters, which we show in Section
+\ref{recovering-analyses}. To do this we extend the ideas developed in
 \citet{davdar:van-horn:2010:aam} with a new parameter for path and flow
 sensitivity. 
 
@@ -551,7 +552,9 @@ and performance of the abstract interpreter.
 # The Interpreter
 
 We now present a generic monadic interpreter for `λIF` parameterized over `M`,
-`Val` and `Time`, as described in Section \ref{analysis-parameters}. 
+`Val` and `Time`, as described in Section \ref{analysis-parameters}. We will
+instantiate these parameters to obtain an analysis in Section
+\ref{recovering-analyses}.
 
 First we implement `A⟦_⟧` as a _monadic_ denotation for atomic expressions. The
 monadic `A⟦_⟧` is a straightforward translation of the `A⟦_⟧` shown in Figure
@@ -707,12 +710,13 @@ type `(Exp → M(Exp)) → (Σ → Σ)`.
 
 # Recovering Analyses
 
-In Section \ref{the-interpreter} we define a generic monadic interpreter with
-several uninstantiated parameters: `M`, `Val` and `Time`. To recover a concrete
-interpreter we instantiate these parameters to concrete components `CM`, `CVal`
-and `CTime`, and to recover an abstract interpreter we instantiate them to
-abstract components `AM`, `AVal` and `ATime`. The soundness of the final
-implementation is thus factored into two steps:
+In Section \ref{the-interpreter} we defined a generic monadic interpreter with
+the uninstantiated parameters described in Section \ref{analysis-parameters}:
+`M`, `Val` and `Time`. To recover a concrete interpreter we instantiate these
+parameters to concrete components `CM`, `CVal` and `CTime`, and to recover an
+abstract interpreter we instantiate them to abstract components `AM`, `AVal`
+and `ATime`. The soundness of the final implementation is thus factored into
+two steps:
 
 1. Proving the parameterized monadic interpreter correct for any instantiation
    of `M`, `Val` and `Time`.
