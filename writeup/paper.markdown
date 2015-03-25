@@ -920,13 +920,14 @@ where `Ψ := AEnv × AKAddr × AKStore × ATime`. This is path-sensitive because
 `AΣ(Exp)` can represent arbirary _relations_ between `(Exp × Ψ)` and `AStore`.
 
 As discussed in Section \ref{flow-properties-in-analysis}, a flow-sensitive
-analysis will give a single set of facts per program point. This results the
-following monad `AM⸢fs⸣` and state space `AΣ⸢fs⸣` which encode _finite maps_
-to `AStore` rather than relations:
+analysis will give a single set of facts per program point. This results in the
+following monad `AM⸢fs⸣` and state space `AΣ⸢fs⸣` which encode _finite maps_ to
+`AStore` rather than relations:
 `````indent```````````````````````````````````````
 AM⸢fs⸣(Exp) := Ψ × AStore → [(Exp × Ψ) ↦ AStore]
 AΣ⸢fs⸣(Exp) := [(Exp × Ψ) ↦ AStore]
 ``````````````````````````````````````````````````
+where `[α ↦ s]` is notation for a finite map from `α` to `s`.
 
 Finally, a flow-insensitive analysis contains a single global set of facts,
 which is represented by pulling `AStore` out of the powerset:
@@ -938,8 +939,11 @@ AΣ⸢fi⸣(Exp) := 𝒫(Exp × Ψ) × AStore
 These three resulting structures, `AΣ`, `AΣ⸢fs⸣` and `AΣ⸢fi⸣`, capture the
 essence of path-sensitive, flow-sensitive and flow-insensitive iteration, and
 arise naturally from `AM`, `AM⸢fs⸣` and `AM⸢fi⸣`, which each have monadic
-structure. We only describe `AM⸢fi⸣` directly in this section; `AM⸢fs⸣` will be
-recovered in Section \ref{a-compositional-monadic-framework}.
+structure. We only describe `AM⸢fi⸣` directly in this section; a more
+compositional variant of `AM⸢fs⸣` will be recovered in Section
+\ref{a-compositional-monadic-framework}.
+
+## Flow Insensitive Monad
 
 For `AM⸢fi⸣` the monad operator `bind` performs the store merging needed to
 capture a flow-insensitive analysis.
@@ -972,8 +976,8 @@ Nondeterminism operations will union the powerset and join the store pairwise:
 mzero : ∀ α, M(α)
 mzero(ψ,σ) := ({}, ⊥)
 _[⟨+⟩]_ : ∀ α, M(α) × M(α) → M α 
-(m₁ ⟨+⟩ m₂)(ψ,σ) := (aψ*₁ ∪ aψ*₂,σ₁ ⊔ σ₂)
-  where (aψ*ᵢ,σᵢ) := mᵢ(ψ,σ)
+(m₁ ⟨+⟩ m₂)(ψ,σ) := (aψ⸢*⸣₁ ∪ aψ⸢*⸣₂,σ₁ ⊔ σ₂)
+  where (aψ⸢*⸣ᵢ,σᵢ) := mᵢ(ψ,σ)
 ``````````````````````````````````````````````````
 
 Finally, the Galois connection relating `AM⸢fi⸣` to a state space transition over
@@ -981,9 +985,9 @@ Finally, the Galois connection relating `AM⸢fi⸣` to a state space transition
 `````indent```````````````````````````````````````
 AΣ⸢fi⸣ := 𝒫(Exp × Ψ) × AStore
 γ : (Exp → AM⸢fi⸣(Exp)) → (AΣ⸢fi⸣ → AΣ⸢fi⸣)
-γ(f)(eψ*,σ) := ({eψ⸤11⸥ .. eψ⸤n1⸥ .. eψ⸤nmₙ⸥}, σ₁ ⊔ .. ⊔ σₙ)
+γ(f)(eψ⸢*⸣,σ) := ({eψ⸤11⸥ .. eψ⸤n1⸥ .. eψ⸤nmₙ⸥}, σ₁ ⊔ .. ⊔ σₙ)
   where 
-    {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ*
+    {(e₁,ψ₁) .. (eₙ,ψₙ)} := eψ⸢*⸣
     ({eψ⸤i1⸥ .. eψ⸤imᵢ⸥},σᵢ) := f(eᵢ)(ψᵢ,σ)
 α  : (AΣ⸢fi⸣ → AΣ⸢fi⸣) → (Exp → AM⸢fi⸣(Exp))
 α(f)(e)(ψ,σ) := f({(e,ψ)},σ)
@@ -1020,16 +1024,13 @@ The following orderings hold between the three induced transition relations:
 ``````````````````````````````````````````````````
 `\end{proposition}`{.raw}
 This is a direct consequence of the monotonicity of step and the Galois
-connections between monads.
+connections between monads `m`, transported through each Galois connection to
+their corrosponding state spaces `Σ`.
 
 We note that the implementation for our interpreter and abstract garbage
 collector remain the same for each instantiation. They scale seamlessly to
 path-sensitive and flow-insensitive variants when instantiated with the
 appropriate monad. 
-
-Recovering flow sensitivity is done through another analysis monad, which we
-develop in Section \ref{a-compositional-monadic-framework} in a more general
-setting.
 
 # A Compositional Monadic Framework
 
@@ -1179,7 +1180,7 @@ is defined:
 FSₜ[_] : (Type → Type) → (Type → Type)
 FSₜ[s](m)(α) := s → m([α ↦ s])
 ``````````````````````````````````````````````````
-where `[α ↦ s]` is notation for a finite map over a defined domain in `α`.
+where `[α ↦ s]` is notation for a finite map from `α` to `s`.
 
 `FSₜ[s]` is a monad when `s` is a join-semilattice and `m` is a
 join-semilattice functor:
