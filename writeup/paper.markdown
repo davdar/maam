@@ -1054,9 +1054,9 @@ To create a monad with various state and nondeterminism effects, one must
 merely summon some composition of these three monads. _Implementations and
 proofs for monadic sequencing, state effects, nondeterminism effects, and
 mappings to an executable transition system will come entirely for free._
-This means that if your language has a different state space than the example
-in this paper, no added effort is required to construct a monad stack for that
-language.
+This means that for a language which has a different state space than the
+example in this paper, no added effort is required to construct a monad stack
+for that language.
 
 Flow and path senstivity properties will arise from the _order of composition_
 of monad transformers. Placing state after nondeterminism (`Sₜ[s] ∘ 𝒫ₜ` or
