@@ -1,6 +1,8 @@
 Search For    Replace With        Match Mode
 ============================================
+⸤⸤            _{\substack{        Anywhere
 ⸤             _{                  Anywhere  
+⸥⸥            }}                  Anywhere
 ⸥             }                   Anywhere  
 ₀             _0                  Anywhere  
 ₁             _1                  Anywhere  
@@ -42,7 +44,7 @@ Search For    Replace With        Match Mode
 ↦             \mapsto             Anywhere  
 ::=           \Coloneqq           Anywhere  
 :=            \coloneqq           Anywhere  
-:             \colon              Anywhere  
+:             \mathbin{\colon}    Anywhere  
 ∷             \mathbin{::}        Anywhere  
 ≠             \neq                Anywhere  
 ≟             \stackrel{?}{=}     Anywhere  
@@ -70,6 +72,7 @@ Search For    Replace With        Match Mode
 ⟧             \rrbracket          Anywhere  
 ∈             \in                 Anywhere  
 ∘             \circ               Anywhere  
+||            \\\\                Anywhere
 |             \;|\;               Anywhere  
 ⌊             \lfloor             Anywhere  
 ⌋             \rfloor             Anywhere  

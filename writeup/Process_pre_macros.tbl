@@ -40,7 +40,7 @@ CVal          \Concrete{\litVal}                 Word
 CClo          \Concrete{\litClo}                 Word      
 CΣ            \Concrete{\Sigma}                  Anywhere  
 Cγ            \Concrete{\gamma}                  Anywhere  
-else          \;\;\ttbfop{\litelse}\;\;              Word      
-then          \;\;\ttbfop{then}\;\;              Word      
+else          \;\ttbfop{\litelse}\;              Word      
+then          \;\ttbfop{then}\;              Word      
 when          \;\;\text{when}\;\;                Word      
-where         \;\;\text{where}\;\;               Word      
+where         \text{where}\;\;               Word      

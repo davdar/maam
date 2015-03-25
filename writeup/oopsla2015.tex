@@ -35,6 +35,7 @@
 \restylefloat{figure}
 \usepackage[font=small,skip=0pt]{caption}
 
+\newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
 \newtheorem{corollary}{Corollary}
 \newtheorem{definition}{Definition}
@@ -131,8 +132,8 @@ We solve the problem of systematically constructing static analyzers by
 introducing \emph{Galois transformers}: monad transformers that
 transports Galois connection properties.  In concert with a monadic
 interpreter, we define a library of monad transformers that
-implement building blocks for classic analysis parameters like context-, path-,
-and heap-(in-)sensitivity. Moreover, these can be composed together 
+implement building blocks for classic analysis parameters like context, path,
+and heap (in)sensitivity. Moreover, these can be composed together 
 % to realize a program analysis monad, 
 \emph{independent of the language being analyzed}.
 
