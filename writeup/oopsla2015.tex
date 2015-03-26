@@ -126,25 +126,21 @@
 % Abstract {-{
 \begin{abstract}
 
-The design and implementation of static analyzers have becoming
-increasingly systematic.  Yet for a given language or analysis
-feature, it often requires tedious and error prone work to implement
-an analyzer and prove it sound.
-%
-In short, static analysis features and their proofs of soundness do
-not compose well, causing a dearth of reuse in both implementation and
-metatheory.
+The design and implementation of static analyzers has become increasingly
+systematic.  Yet for a given language or analysis feature, it often requires
+tedious and error prone work to implement an analyzer and prove it sound. In
+short, static analysis features and their proofs of soundness do not compose
+well, causing a dearth of reuse in both implementation and metatheory.
 
 \par 
 
 We solve the problem of systematically constructing static analyzers by
-introducing \emph{Galois transformers}: monad transformers that
-transport Galois connection properties.  In concert with a monadic
-interpreter, we define a library of monad transformers that
-implement building blocks for classic analysis parameters like context, path,
-and heap (in)sensitivity. Moreover, these can be composed together 
-% to realize a program analysis monad, 
-\emph{independent of the language being analyzed}.
+introducing \emph{Galois transformers}: monad transformers that transport
+Galois connection properties.  In concert with a monadic interpreter, we define
+a library of monad transformers that implement building blocks for classic
+analysis parameters like context, path, and heap (in)sensitivity. Moreover,
+these can be composed together \emph{independent of the language being
+analyzed}.
 
 \par 
 

@@ -65,6 +65,7 @@ Search For    Replace With        Match Mode
 @             \mathbin{\bm{@}}    Anywhere  
 ⊕             \oplus              Anywhere  
 ⊙             \odot               Anywhere  
+∙             \bullet             Anywhere
 ⟨             \langle             Anywhere  
 ⟩             \rangle             Anywhere  
 [             \lbrack             Anywhere  

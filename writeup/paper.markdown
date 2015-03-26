@@ -3,7 +3,7 @@
 Traditional practice in program analysis via abstract interpretation is to fix
 a language (as a concrete semantics) and an abstraction (as an abstraction map,
 concretization map or Galois connection) before constructing a static analyzer
-that it sound with respect to both the abstraction and the concrete semantics.
+that is sound with respect to both the abstraction and the concrete semantics.
 Thus, each pairing of abstraction and semantics requires a one-off manual
 derivation of the abstract semantics and construction of a proof of soundness.
 
@@ -15,7 +15,7 @@ specific language_ and prove the framework sound.
 
 But this framework approach suffers from many of the same drawbacks as the
 one-off analyzers.  They are language-specific, preventing reuse of concepts
-across languages and require similar re-implementations and soundness proofs.
+across languages, and require similar re-implementations and soundness proofs.
 This process is still manual, tedious, difficult and error-prone. And, changes
 to the structure of the parameter-space require a completely new proof of
 soundness.  And, it prevents fruitful insights and results developed in one
@@ -54,8 +54,8 @@ We develop an abstract interpreter for our example language as a monadic
 function with parameters (Section \ref{analysis-parameters}), one of which is a
 monadic effect interface combining state and nondeterminism effects (Section
 \ref{the-analysis-monad}). These monadic effects, state and nondeterminism,
-support arbitrary relational small-step state-machine semantics and correspond
-to the state-machine components and relational nondeterminism respectively.
+encode arbitrary relational small-step state-machine semantics and correspond
+to state-machine components and relational nondeterminism respectively.
 
 Interpreters written in this style can be reasoned about using various laws,
 including monadic effect laws, and therefore verified correct independent of
@@ -405,8 +405,8 @@ We use the state monad laws (get-get, get-put, put-get, put-put) to reason
 about state effects.
 
 \paragraph{Nondeterminism Effect}
-A type operator `M` support the monadic nondeterminism effect if it supports an
-alternation operator `⟨+⟩` and its unit `mzero`.
+A type operator `M` supports the monadic nondeterminism effect if it supports
+an alternation operator `⟨+⟩` and its unit `mzero`.
 `````align```````````````````````````````````````` 
 M        : Type → Type
 _[⟨+⟩]_  : ∀ α, M(α) × M(α) → M(α)
@@ -416,15 +416,14 @@ Nondeterminism laws state that `M(α)` must have a join-semilattice structure,
 that `mzero` be a zero for `bind`, and that `bind` distributes through `⟨+⟩`.
 
 \paragraph{Monad Examples}
-The state monad `Stateₛ(α)` is defined as `s → (α × s)` and supports monadic
+The state monad over `s` is defined with `s → (α × s)` and supports monadic
 sequencing (`bind` and `return`) and state effects (`get` and `put`). The
-nondeterminism monad `Nondet(α)` is defined as `𝒫(α)` and supports monadic
-sequencing (`bind` and `return`) and nondeterminism effects (`_[⟨+⟩]_` and
-`mzero`).
+nondeterminism monad is defined with `𝒫(α)` and supports monadic sequencing
+(`bind` and `return`) and nondeterminism effects (`_[⟨+⟩]_` and `mzero`).
 
-Our interpreter will be defined up to this effect interface and avoid
-referencing an explicit configuration `ς` or explicit collections of results.
-This level of indirection will then be exploited in Section
+Our interpreter will be defined up to this effect interface and will avoid
+referencing an explicit configuration `ς` or collections of results. This level
+of indirection will then be exploited in Section
 \ref{varying-path-and-flow-sensitivity}, where different monads will meet the
 same effect interface but yield different analysis properties.
 
@@ -699,8 +698,8 @@ and a straightforward concrete `δ`:
 \ref{the-abstract-domain}.
 `\end{proposition}`{.raw}
 
-Concrete time `CTime` captures program contours as a product of `Exp` and
-`CKAddr`:
+Concrete time `CTime` captures program contours as a sequence of products of
+`Exp` and `CKAddr`:
 `````indent```````````````````````````````````````
 τ ∈ CTime := (Exp × KAddr)⸢*⸣
 ``````````````````````````````````````````````````
@@ -758,7 +757,7 @@ The Galois connection between `CM` and `CΣ` is similar to the definition of
 α : (CΣ → CΣ) → (Exp → CM(Exp))
 α(f)(e)(ψ) := f({(e,ψ)})
 ``````````````````````````````````````````````````
-The injection `ς₀` for a program `e₀` is `ς₀ := {⟨e,⊥,⊥,∙,⊥,∙⟩}`.
+The injection `ς₀` for a program `e₀` is `{⟨e₀,⊥,⊥,∙,⊥,∙⟩}`.
 `\begin{proposition}`{.raw}
 `γ` and `α` form a Galois connection.
 `\end{proposition}`{.raw}
@@ -785,10 +784,10 @@ The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
 δ : IOp → AVal × AVal → AVal 
 δ⟦[+]⟧(v₁,v₂) := 
-   { i | 0 ∈ v₁ ∧ i ∈ v₂ }
-  ∪ { i | i ∈ v₁ ∧ 0 ∈ v₂ }
+   { i | 0 ∈ v₁ ∧ i ∈ v₂ } ∪ { i | i ∈ v₁ ∧ 0 ∈ v₂ }
   ∪ { [+] | [+] ∈ v₁ ∧ [+] ∈ v₂ } ∪ { [-] | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
-  ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ } ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
+  ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ } 
+  ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
 The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
 `\begin{proposition}`{.raw}
@@ -796,14 +795,14 @@ The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
 Section`~\ref{the-abstract-domain}`{.raw}.
 `\end{proposition}`{.raw}
 `\begin{proposition}`{.raw}
-`CVal α⇄γ AVal` and both concrete and abstract definitions for `int-I`,
+`CVal α⇄γ AVal`, and both concrete and abstract definitions for `int-I`,
 `int-if0-E` and `δ` are ordered `⊑` respectively through the Galois connection.
 `\end{proposition}`{.raw}
 
 Next we abstract `Time` to `ATime` as the finite domain of k-truncated lists of
 execution contexts:
 `````indent```````````````````````````````````````
-ATime := (Exp × AKAddr)⋆ₖ
+ATime := (Exp × AKAddr)⸢*ₖ⸣
 ``````````````````````````````````````````````````
 The `tick` operator becomes cons followed by k-truncation, which restricts the
 list to the first-k elements:
@@ -941,6 +940,9 @@ CΣ α₁⇄γ₁ AΣ α₂⇄γ₂ AΣ⸢fi⸣
 `\end{corollary}`{.raw}
 This property is derived by transporting each Galois connection between monads
 through their respective Galois connections to `Σ`.
+This is also a direct corollary of Theorem \ref{galois-theorem} in Section
+\ref{galois-transformers-1} when cast in the compositional framework of Galois
+transformers.
 `\begin{proposition}`{.raw}
 The following orderings hold between the three induced transition relations:
 `````align````````````````````````````````````````
@@ -949,9 +951,7 @@ The following orderings hold between the three induced transition relations:
 `\end{proposition}`{.raw}
 This is an application of the monotonicity of `step` and the Galois connections
 between monads, each transported through the Galois connection to their
-corrosponding transition systems. This is also a direct corollary of Theorem
-\ref{galois-theorem} in Section \ref{galois-transformers-1} when cast in the
-compositional framework of Galois transformers.
+corrosponding transition systems. 
 
 We note that the implementation for our interpreter and abstract garbage
 collector remain the same for each instantiation; they scale seamlessly to
@@ -966,7 +966,7 @@ We want to avoid reconstructing complicated monads for our interpreters,
 especially as languages and analyses grow and change. Even more, we want to
 avoid reconstructing complicated _proofs_ that such changes require. Toward
 this goal we introduce a compositional framework for constructing monads which
-are correct-by-construction--we extend the well-known structure of monad
+are correct-by-construction by extending the well-known structure of monad
 transformer to that of _Galois transformer_.
 
 There are two monadic effects used in our monadic interpreter: state and
@@ -1036,7 +1036,7 @@ _[⟨+⟩]_ : ∀ α, Sₜ[s](m)(α) × Sₜ[s](m)(α) → Sₜ[s](m)(α)
 We have developed a new monad transformer for nondeterminism which composes
 with state in both directions. Previous attempts to define a monad transformer
 for nondeterminism have resulted in monad operations which do not respect
-either monad laws or nondeterminism effect laws--ours does.
+either monad laws or nondeterminism effect laws--ours respects both.
 
 The nondeterminism monad transformer is defined with the expected type,
 embedding `𝒫` inside `m`:
@@ -1100,7 +1100,7 @@ where `[α ↦ s]` is notation for a finite map from `α` to `s`.
 
 `FSₜ[s]` transports monad operations provided that `s` is a join-semilattice
 and `m` is a join-semilattice functor. The functorality of `m` will be
-instantiated with `[β → s]`, which forms a lattice when `s` also does.
+instantiated with `[β → s]`, which forms a lattice when `s` does also.
 `````indent```````````````````````````````````````
 bind : ∀ α β, 
  FSₜ[s](m)(α) → (α → FSₜ[s](m)(β)) → FSₜ[s](m)(β)
@@ -1137,7 +1137,7 @@ transformers.
 
 ## Mapping to State Spaces
 
-Both our execution and correctness frameworks requires that monadic actions in
+Both our execution and correctness frameworks require that monadic actions in
 `m` map to state space transitions in `Σ`. We extend the earlier statement of
 Galois connection to the transformer setting, mapping monad _transformer_
 actions in `T` to state space _functor_ transitions in `Π`.
@@ -1363,7 +1363,7 @@ path and flow sensitivities, they need not understand the execution machinery
 or soundness proofs for them either. They need only verify that their monadic
 semantics is monotonic w.r.t. the analysis parameters, and that their abstract
 value domain forms a Galois connection. The execution and correctness of the
-final analyzer is constructed for free given these two properties.
+final analyzer is constructed automatically given these two properties.
 
 Our implementation is publicly available and can be installed as a cabal
 package: `{\small\tt`{.raw} cabal install maam`}`{.raw}.
@@ -1486,12 +1486,12 @@ construct execution engines and proofs of soundness for free.
 
 We do not achieve correctness and compositionality _in addition_ to our
 transition from denotation functions to monadic effects; rather we achieve
-correctness and compositionality _through it_; such a transition essential,
+correctness and compositionality _through it_; such a transition is essential,
 primary and novel to our work. 
 
 \paragraph{Widening for Control-Flow}
 
-\citeauthor{dvanhorn:Hardekopf2014Widening} also introduces a unifying account
+\citeauthor{dvanhorn:Hardekopf2014Widening} also introduce a unifying account
 of control flow properties in _Widening for Control-Flow_
 (WCF)\cite{dvanhorn:Hardekopf2014Widening}, accounting for path, flow and
 call-site sensitivities . WCF achieves this through an instrumentation of the
@@ -1502,9 +1502,9 @@ instantiation of the instrumentation at once.
 
 Our work achieves similar goals, although isolating path and flow sensitivity
 is not our primary objective. While WCF is based on a language-dependent
-instrumentation of the semantics, we achieve variations in flow sensitivity by
-modifying language-independent control properties of the interpreter--through a
-monad.
+instrumentation of the semantics, we achieve variations in path and flow
+sensitivity by modifying language-independent control properties of the
+interpreter through a monad.
 
 Particular strengths of WCF are the wide range of choices for control-flow
 sensitivity which are shown to be implementable within the design, and the
@@ -1524,7 +1524,7 @@ flow-sensitive data-store and path-sensitive stack-store, for example.
 We have shown that \emph{Galois transfomers}, monad transfomers that transport
 (1) Galois connections and (2) mappings to an executable transition system, are
 effective, language-independent building blocks for constructing program
-analyzers and form the basis of a modular, reusable, and composable metatheory
+analyzers, and form the basis of a modular, reusable and composable metatheory
 for program analysis.
 
 In the end, we hope language independent characterizations of analysis
