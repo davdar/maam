@@ -66,3 +66,4 @@ step          _                  Word
 push          _                  Word      
 pop           _                  Word      
 gc            _                  Word      
+Analysis      _                  Word

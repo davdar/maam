@@ -243,10 +243,13 @@ _[~~>⸢gc⸣]_ ∈ 𝒫(Σ × Σ)
 An execution of the semantics is the least-fixed-point of a collecting
 semantics:
 `````indent```````````````````````````````````````
-μ(X).X ∪ {ς₀} ∪ { ς' | ς ~~>⸢gc⸣ ς' ; ς ∈ X }`
+Analysis := μ(X).X ∪ {ς₀} ∪ { ς' | ς ~~>⸢gc⸣ ς' ; ς ∈ X }
 ``````````````````````````````````````````````````
-where `ς₀` is the injection of the initial program: `⟨e₀,⊥,⊥,0,⊥,1⟩`. The
-analyses we present in this paper will be proven correct in Section
+where `ς₀` is the injection of the initial program `e₀`:
+`````indent```````````````````````````````````````
+ς₀ := ⟨e₀,⊥,⊥,0,⊥,1⟩
+``````````````````````````````````````````````````
+The analyses we present in this paper will be proven correct in Section
 \ref{recovering-analyses} by establishing a Galois connection with this
 concrete collecting semantics.
 
@@ -398,8 +401,8 @@ A type operator `M` supports the monadic state effect for a type `s` if it
 supports `get` and `put` actions over `s`.
 `\small\begin{alignat*}{4}`{.raw}
 `````rawmacro``````````````````````````````````````
-  M & : Type → Type &   ␣␣s & : Type       \\
-get & : M(s)        & ␣␣put & : s → M(1)
+  M & : Type → Type & ␣␣get & : M(s)       \\
+  s & : Type        & ␣␣put & : s → M(1)
 `````````````````````````````````````````````````
 `\end{alignat*}\normalsize`{.raw}
 We use the state monad laws (get-get, get-put, put-get, put-put) to reason
@@ -455,25 +458,25 @@ clo-I  : Clo → Val      ␣␣clo-E  : Val → 𝒫(Clo)
 
 The laws for the introduction and elmination rules induce a Galois connection
 between `𝒫(ℤ)` and `Val`:
-`````indent```````````````````````````````````````
-{true}  ⊑ int-if0-E(int-I(i))     if i = 0
-{false} ⊑ int-if0-E(int-I(i))     if i ≠ 0
-⨆⸤⸤b ∈ int-if0-E(v) || i ∈ θ(b)⸥⸥ int-I(i) ⊑ v where 
-  ALIGNED< & θ(true) := {0} || & θ(false) := {i | i ∈ ℤ ; i ≠ 0} ALIGNED>
+`````align````````````````````````````````````````
+                                    {true}   ⊑ int-if0-E(int-I(i)) if i = 0
+                                    {false}  ⊑ int-if0-E(int-I(i)) if i ≠ 0
+ ⨆⸤⸤b ∈ int-if0-E(v) || i ∈ θ(b)⸥⸥ int-I(i)  ⊑ v
+where ALIGNED< θ(true) || θ(false) ALIGNED>  ALIGNED< & := {0} || & := {i | i ∈ ℤ ; i ≠ 0} ALIGNED>
 ``````````````````````````````````````````````````
 Closures must follow similar laws, inducing a Galois connection between
 `𝒫(Clo)` and `Val`:
-`````indent```````````````````````````````````````
-{c} ⊑ clo-E(cloI(c))
-⨆⸤⸤c ∈ clo-E(v)⸥⸥ clo-I(c) ⊑ v
+`````align````````````````````````````````````````
+                       {c}  ⊑ clo-E(cloI(c))
+⨆⸤⸤c ∈ clo-E(v)⸥⸥ clo-I(c)  ⊑ v
 ``````````````````````````````````````````````````
 Finally, `δ` must be sound and complete w.r.t. the Galois connection between
 concrete values and `Val`:
-`````indent```````````````````````````````````````
-int-I(i₁ + i₂) ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
-int-I(i₁ - i₂) ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
-⨆⸤⸤b₁ ∈ int-if0-E(v₁) || b₂ ∈ int-if0-E(v₂) || i ∈ θ(b₁,b₂)⸥⸥ int-I(i) ⊑ δ⟦⊙⟧(v₁,v₂) where
-  ALIGNED< & θ( true , true ) = {0} || & θ( true , false ) = {i | i ∈ ℤ ; i ≠ 0} || & θ( false , true ) = {i | i ∈ ℤ ; i ≠ 0} || & θ( false , false ) = ℤ ALIGNED>
+`````align````````````````````````````````````````
+                                                        int-I(i₁ + i₂)  ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
+                                                        int-I(i₁ - i₂)  ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
+⨆⸤⸤b₁ ∈ int-if0-E(v₁) || b₂ ∈ int-if0-E(v₂) || i ∈ θ(b₁,b₂)⸥⸥ int-I(i)  ⊑ δ⟦⊙⟧(v₁,v₂) 
+where ALIGNED< θ( true , true ) || θ( true , false ) || θ( false , true ) || θ( false , false ) ALIGNED>  ALIGNED< & := {0} || & := {i | i ∈ ℤ ; i ≠ 0 } || & := {i | i ∈ ℤ ; i ≠ 0} || & := ℤ ALIGNED>
 ``````````````````````````````````````````````````
 
 Supporting additional primitive types like booleans, lists, or arbitrary
@@ -648,9 +651,10 @@ between monads `m₁ α⇄γ m₂` and derive Galois connections between transit
 systems `Σ₁ α⇄γ Σ₂` for free.
 
 A collecting-semantics execution of our interpreter is then defined as the
-least-fixed-point iteration of `step` transported through the Galois connection:
+least-fixed-point iteration of `step` transported through the Galois
+connection:
 `````indent```````````````````````````````````````
-μ(X). X ⊔ ς₀ ⊔ γ(step)(X)
+Analysis := μ(X). X ⊔ ς₀ ⊔ γ(step)(X)
 ``````````````````````````````````````````````````
 where `ς₀` is the injection of the initial program `e₀` into `Σ` and `γ` has
 type `(Exp → M(Exp)) → (Σ → Σ)`.
@@ -683,16 +687,15 @@ v ∈ CVal := 𝒫(CClo + ℤ)
 ``````````````````````````````````````````````````
 The concrete value space `CVal` has straightforward introduction and
 elimination rules:
-`````align````````````````````````````````````````
+`````indent```````````````````````````````````````
 int-I : ℤ → CVal
 int-I(i) := {i}
 int-if0-E : CVal → 𝒫(Bool)
-int-if0-E(v) := { true | 0 ∈ v } 
-              ∪ { false | ∃ i ∈ v s.t. i ≠ 0 }
+int-if0-E(v) := { true | 0 ∈ v } ∪ { false | ∃ i ∈ v s.t. i ≠ 0 }
 ``````````````````````````````````````````````````
 and a straightforward concrete `δ`:
 `````indent```````````````````````````````````````
-δ⟦_⟧(_,_) : IOp → CVal × CVal → CVal
+δ⟦_⟧ : IOp → CVal × CVal → CVal
 δ⟦[+]⟧(v₁,v₂) := { i₁ + i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
 δ⟦[-]⟧(v₁,v₂) := { i₁ - i₂ | i₁ ∈ v₁ ; i₂ ∈ v₂ }
 ``````````````````````````````````````````````````
@@ -1015,20 +1018,19 @@ Sₜ[s](m)(α) := s → m(α × s)
 ``````````````````````````````````````````````````
 `Sₜ[s]` transports monad operations from `m` to `Sₜ[s](m)`:
 `````indent```````````````````````````````````````
-bind : ∀ α β, Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
-bind(m)(f)(s) := doₘ
-  (x,s') ←ₘ m(s)
-  f(x)(s')
+bind : ∀ α β, 
+  Sₜ[s](m)(α) → (α → Sₜ[s](m)(β)) → Sₜ[s](m)(β)
+bind(m)(f)(s) := (x,s') ←ₘ m(s) ; f(x)(s')
 return : ∀ α, α → Sₜ[s](m)(α)
 return(x)(s) := returnₘ(x,s)
 ``````````````````````````````````````````````````
 `Sₜ[s]` supports state effects:
-`````indent```````````````````````````````````````
-get : Sₜ[s](m)(s)
-get(s) := returnₘ(s,s)
-put : s → Sₜ[s](m)(1)
-put(s')(s) := returnₘ(1,s')
-``````````````````````````````````````````````````
+`\small\begin{alignat*}{4}`{.raw}
+`````rawmacro``````````````````````````````````````
+get & : Sₜ[s](m)(s)     & ␣␣get(s)     & := returnₘ(s,s)  \\
+put & : s → Sₜ[s](m)(1) & ␣␣put(s')(s) & := returnₘ(1,s')
+`````````````````````````````````````````````````
+`\end{alignat*}\normalsize`{.raw}
 Finally, `Sₜ[s]` transports nondeterminism effects from `m`
 to `Sₜ[s](m)`:
 `````indent```````````````````````````````````````
@@ -1051,7 +1053,6 @@ embedding `𝒫` inside `m`:
 𝒫ₜ : (Type → Type) → (Type → Type)
 𝒫ₜ(m)(α) := m(𝒫(α))
 ``````````````````````````````````````````````````
-
 `𝒫ₜ` transports monad operations from `m` to `𝒫ₜ(m)` _provided that `m` is a
 join-semilattice functor_. The join-lattice functorality of `m` will be
 instantiated with `𝒫(β)`.
@@ -1063,14 +1064,6 @@ bind(m)(f) := doₘ
 return : ∀ α, α → 𝒫ₜ(m)(α)
 return(x) := returnₘ({x})
 ``````````````````````````````````````````````````
-`\begin{proposition}`{.raw}
-`bind` and `return` satisfy the monad laws.
-`\end{proposition}`{.raw}
-The key lemma in this proof is the functorality of `m`, namely that:
-`````align````````````````````````````````````````
-returnₘ(x ⊔ y) = returnₘ(x) ⊔ₘ returnₘ(y)
-``````````````````````````````````````````````````
-
 `𝒫ₜ` transports state effects from `m` to `𝒫ₜ(m)`:
 `````indent```````````````````````````````````````
 get : 𝒫ₜ(m)(s)
@@ -1078,11 +1071,6 @@ get = mapₘ(λ(s).{s})(getₘ)
 put : s → 𝒫ₜ(m)(1)
 put(s) = mapₘ(λ(1).{1})(putₘ(s))
 ``````````````````````````````````````````````````
-`\begin{proposition}`{.raw}
-`get` and `put` satisfy the state monad laws.
-`\end{proposition}`{.raw}
-The proof is by simple calculation.
-
 Finally, `𝒫ₜ` supports nondeterminism effects through a straightforward
 application of the underlying monad's join-semilattice functorality:
 `````indent```````````````````````````````````````
@@ -1091,11 +1079,18 @@ mzero := ⊥ₘ
 _[⟨+⟩]_ : ∀ α, 𝒫ₜ(m)(α) x 𝒫ₜ(m)(α) → 𝒫ₜ(m)(α)
 m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
+
 `\begin{proposition}`{.raw}
-`mzero` and `⟨+⟩` satisfy the nondeterminism monad laws.
+1. `bind` and `return` satisfy monad laws.
+2. `get` and `put` satisfy the state monad laws.
+3. `mzero` and `⟨+⟩` satisfy the nondeterminism monad laws.
 `\end{proposition}`{.raw}
-The proof is trivial as a consequence of the underlying monad being a
-join-semilattice functor.
+The key lemma in (1) is the functorality of `m`, namely that:
+`````align````````````````````````````````````````
+returnₘ(x ⊔ y) = returnₘ(x) ⊔ₘ returnₘ(y)
+``````````````````````````````````````````````````
+(2) is by simple calculation and (3) is trivial as a consequence of the
+underlying monad being a join-semilattice functor.
 
 ## Flow Sensitivity Monad Transformer
 
@@ -1114,14 +1109,13 @@ and `m` is a join-semilattice functor. The functorality of `m` will be
 instantiated with `[β → s]`, which forms a lattice when `s` also does.
 `````indent```````````````````````````````````````
 bind : ∀ α β, 
-  FSₜ[s](m)(α) → (α → FSₜ[s](m)(β)) → FSₜ[s](m)(β)
+ FSₜ[s](m)(α) → (α → FSₜ[s](m)(β)) → FSₜ[s](m)(β)
 bind(m)(f)(s) := doₘ
   {x₁ ↦ s₁,..,xₙ ↦ sₙ} ←ₘ m(s)
   f(x₁)(s₁) ⊔ₘ .. ⊔ₘ f(xₙ)(sₙ)
 return : ∀ α, α → FSₜ[s](m)(α)
 return(x)(s) := returnₘ {x ↦ s}
 ``````````````````````````````````````````````````
-
 `FSₜ[s]` transports state effects from `m` to `FSₜ[s](m)`:
 `````indent```````````````````````````````````````
 get : FSₜ[s](m)(s)
@@ -1129,7 +1123,6 @@ get(s) := returnₘ {s ↦ s}
 put : s → FSₜ[s](m)(1)
 put(s')(s) := returnₘ {1 ↦ s'}
 ``````````````````````````````````````````````````
-
 Finally, `FSₜ[s]` supports nondeterminism effects provided `s` is a
 join-semilattice and `m` is a join-semilattice functor:
 `````indent```````````````````````````````````````
@@ -1154,7 +1147,8 @@ actions in `T` to state space _functor_ transitions in `Π`.
 `````indent```````````````````````````````````````
 T : (Type → Type) → (Type → Type)
 Π : (Type → Type) → (Type → Type)
-mstep : ∀ α β, (α → T(m)(β)) α⇄γ (Π(Σₘ)(α) → Π(Σₘ)(β))
+mstep : ∀ α β, 
+  (α → T(m)(β)) α⇄γ (Π(Σₘ)(α) → Π(Σₘ)(β))
 ``````````````````````````````````````````````````
 In the type of `mstep`, `m` is an arbitrary monad whose monadic actions map to
 state space `Σₘ`. The monad transformer `T` must induce a state space
@@ -1179,13 +1173,13 @@ For the flow sensitivity monad transformer `FSₜ[s]` mstep is defined:
 mstep-γ : ∀ α β, 
   (α → FSₜ[s](m)(β)) → (Σₘ([α ↦ s]) → Σₘ([β × s]))
 mstep-γ(f) := mstepₘ-γ(F) where 
-  F({x₁ ↦ s₁},..,{xₙ ↦ sₙ}) := f(x₁)(s₁) ⊔ₘ .. ⊔ₘ f(xₙ)(sₙ)
+  F({x₁ ↦ s₁},..,{xₙ ↦ sₙ}) := 
+    f(x₁)(s₁) ⊔ₘ .. ⊔ₘ f(xₙ)(sₙ)
 ``````````````````````````````````````````````````
 The Galois connections for `mstep` for `Sₜ[s]`, `Pₜ` and `FSₜ[s]` crucially
 require that `mstepₘ-γ` and `mstepₘ-α` be homomorphic, i.e. that:
-`````align````````````````````````````````````````
-   α(id)  ⊑ return
-α(f ∘ g)  ⊑ α(f) ⟨∘⟩ α(g)
+`````indent```````````````````````````````````````
+α(id) ⊑ return and α(f ∘ g) ⊑ α(f) ⟨∘⟩ α(g)
 ``````````````````````````````````````````````````
 and likewise for `γ`, where `⟨∘⟩ ` is composition in the Kleisli category for
 the monad `M`.
