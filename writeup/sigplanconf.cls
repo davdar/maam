@@ -1048,7 +1048,8 @@
   \noindent \Large \@subtitletext \par
   \vskip 12pt
   \ifcase \@authorcount
-    \@latex@error{No authors were specified for this paper}{}\or
+    \or
+    % \@latex@error{No authors were specified for this paper}{}\or
     \@titleauthors{i}{}{}\or
     \@titleauthors{i}{ii}{}\or
     \@titleauthors{i}{ii}{iii}\or

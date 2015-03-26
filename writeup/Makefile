@@ -2,7 +2,7 @@
 
 GHC_FLAGS = -package-db=$(wildcard .cabal-sandbox/*-packages.conf.d)
 
-oopsla2015.pdf: oopsla2015.tex tmp/autogen/paper.markdown.tex tmp/dvanhorn.bib tmp/davdar.bib
+oopsla2015.pdf: oopsla2015.tex tmp/autogen/paper.markdown.tex tmp/dvanhorn.bib tmp/davdar.bib sigplanconf.cls
 	mkdir -p tmp/latex-out/include
 	xelatex --output-directory=tmp/latex-out oopsla2015.tex 
 	cp tmp/davdar.bib tmp/latex-out/

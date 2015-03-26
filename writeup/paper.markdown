@@ -88,7 +88,7 @@ correct one and for all in isolation from a particular semantics.
 
 \paragraph{Implementation}
 We have implemented our technique as a Haskell library and example client
-analysis (Section \ref{implementation}). Developers are able to reuse our
+analysis (Section \ref{implementation-1}). Developers are able to reuse our
 language-independent framework for prototyping the design space of analysis
 features for their language of choice. Our implementation is publicly available
 on Hackage\footnote{
@@ -138,7 +138,6 @@ developed in sections \ref{varying-path-and-flow-sensitivity} and
 semantics.
 
 `\begin{figure}`{.raw}
--- \vspace{-1em}
 `````align````````````````````````````````````````
  i ∈  ℤ
  x ∈  Var
@@ -160,7 +159,6 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
 ``````````````````````````````````````````````````
 `\caption{`{.raw} `λIF` Syntax and Concrete State Space `}`{.raw}
 \label{SS} 
--- \vspace{-1em}
 `\end{figure}`{.raw}
 
 We give semantics to atomic expressions and primitive operators denotationally
@@ -170,7 +168,6 @@ semantics from a concrete instantiation of our generic abstract interpreter in
 Section \ref{recovering-analyses}.
 
 `\begin{figure}`{.raw}
--- \vspace{-1em}
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → (Env × Store ⇀ Val)
 A⟦i⟧(ρ,σ) := i
@@ -194,7 +191,6 @@ _[~~>]_ ∈ 𝒫(Σ × Σ)
 ``````````````````````````````````````````````````
 \caption{Concrete Semantics}
 \label{ConcreteSemantics} 
--- \vspace{-1em}
 `\end{figure}`{.raw}
 
 Our abstract interpreter will support abstract garbage
@@ -475,6 +471,9 @@ concrete values and `Val`:
 `````align````````````````````````````````````````
                                                         int-I(i₁ + i₂)  ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
                                                         int-I(i₁ - i₂)  ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
+-- ``````````````````````````````````````````````````
+-- layout hack 1.0
+-- `````align````````````````````````````````````````
 ⨆⸤⸤b₁ ∈ int-if0-E(v₁) || b₂ ∈ int-if0-E(v₂) || i ∈ θ(b₁,b₂)⸥⸥ int-I(i)  ⊑ δ⟦⊙⟧(v₁,v₂) 
 where ALIGNED< θ( true , true ) || θ( true , false ) || θ( false , true ) || θ( false , false ) ALIGNED>  ALIGNED< & := {0} || & := {i | i ∈ ℤ ; i ≠ 0 } || & := {i | i ∈ ℤ ; i ≠ 0} || & := ℤ ALIGNED>
 ``````````````````````````````````````````````````
@@ -510,10 +509,20 @@ We now present a monadic interpreter for `λIF` parameterized over `M`, `Val`
 and `Time` from Section \ref{analysis-parameters}. We instantiate these
 parameters to obtain an analysis in Section \ref{recovering-analyses}.
 
-First we implement `A⟦_⟧` as a _monadic_ denotation for atomic expressions. The
-monadic `A⟦_⟧` is a straightforward translation of the `A⟦_⟧` shown in Figure
-\ref{ConcreteSemantics} from a pure function to a monadic function with state
-effects.
+First we implement `A⟦_⟧` as a _monadic_ denotation for atomic expressions,
+shown in Figure \ref{InterpreterStep}. The monadic `A⟦_⟧` is a straightforward
+translation of the `A⟦_⟧` shown in Figure \ref{ConcreteSemantics} from a pure
+function to a monadic function with state effects. `get-Env` and `get-Store`
+are primitive operations for monadic state. `clo-I` comes from the interface
+for `Val`.
+
+Next we implement `step`, a _monadic_ small-step _function_ for compound
+expressions, also shown in Figure \ref{InterpreterStep}. The monadic `step` is
+a straightforward translation of the `step` shown in Figure
+\ref{ConcreteSemantics} from a relation to a monadic function with state and
+nondeterminism effects.
+
+`\begin{figure}`{.raw}
 `````indent```````````````````````````````````````
 A⟦_⟧ ∈ Atom → M(Val)
 A⟦i⟧ := return(int-I(i))
@@ -524,59 +533,34 @@ A⟦x⟧ := do
 A⟦[λ](x).e⟧ := do
   ρ ← get-Env
   return(clo-I(⟨[λ](x).e,ρ⟩))
-``````````````````````````````````````````````````
-`get-Env` and `get-Store` are primitive operations for monadic state. `clo-I`
-comes from the interface for `Val`.
-
-Next we implement `step`, a _monadic_ small-step _function_ for compound
-expressions, shown in Figure \ref{InterpreterStep}. The monadic `step` is a
-straightforward translation of the `step` shown in Figure
-\ref{ConcreteSemantics} from a relation to a monadic function with state and
-nondeterminism effects.
-
-`\begin{figure}`{.raw}
--- \vspace{-1em}
-`````indent```````````````````````````````````````
 step : Exp → M(Exp)
-step(e₁ ⊙ e₂) := do
-  tickM(e₁ ⊙ e₂)
-  push(⟨□ ⊙ e₂⟩)
-  return(e₁)
-step(a) := do
-  tickM(a)
-  fr ← pop
-  v ← A⟦a⟧
-  case fr of
-    ⟨□ ⊙ e⟩ → do
+step(e) := do
+  tickM(e)
+  e' ← case e of
+   e₁ ⊙ e₂ → do
+    push(⟨□ ⊙ e₂⟩)
+    return(e₁)
+   a → do
+    fr ← pop
+    v ← A⟦a⟧
+    e ← case fr of
+     ⟨□ ⊙ e⟩ → do
       push(⟨v ⊙ □⟩)
       return(e)
-    ⟨v' [@] □⟩ → do
+     ⟨v' [@] □⟩ → do
       ⟨[λ](x).e,ρ'⟩ ← ↑ₚ(clo-E(v'))
       τ ← get-Time
       σ ← get-Store
       put-Env(ρ'[x ↦ (x,τ)])
       put-Store(σ ⊔ [(x,τ) ↦ {v}])
       return(e)
-    ⟨v' ⊕ □⟩ → do
+     ⟨v' ⊕ □⟩ → do
       return(δ⟦⊕⟧(v',v))
-    ⟨[if0](□){e₁}{e₂}⟩ → do
+     ⟨[if0](□){e₁}{e₂}⟩ → do
       b ← ↑ₚ(int-if0-E(v))
       if(b) then return(e₁) else return(e₂)
-``````````````````````````````````````````````````
-\caption{Monadic step function and garbage collection}
-\label{InterpreterStep} 
--- \vspace{-1em}
-`\end{figure}`{.raw}
-
-`step` uses helper functions `push` and `pop` for manipulating stack frames,
-`↑ₚ` for lifting values from `𝒫` into `M`, and a monadic version of `tick`
-called `tickM`, each of which are shown in Figure \ref{InterpreterHelpers}. The
-interpreter looks deterministic, however the nondeterminism is abstracted away
-behind `↑ₚ` and monadic bind `x ← e₁ ; e₂`.
-
-We also implement abstract garbage collection in a general away using the
-monadic effect interface:
-`````indent```````````````````````````````````````
+  gc(e')
+  return(e')
 gc : Exp → M(1)
 gc(e) := do
   ρ ← get-Env
@@ -585,9 +569,20 @@ gc(e) := do
   put-Store({l ↦ σ(l) | l ∈ R(σ,ρ,e))
   put-KStore({κl ↦ κσ(κl) | κl ∈ KR(κσ,κl)})
 ``````````````````````````````````````````````````
-where `R` and `KR` are as defined in Section \ref{semantics}. Again, this is a
-straightforward translation from a pure function to a monadic function with
-state effects.
+\caption{Monadic Semantics}
+\label{InterpreterStep} 
+`\end{figure}`{.raw}
+
+`step` uses helper functions `push` and `pop` for manipulating stack frames,
+`↑ₚ` for lifting values from `𝒫` into `M`, and a monadic version of `tick`
+called `tickM`, each of which are shown in Figure \ref{InterpreterHelpers}. The
+interpreter looks deterministic, however the nondeterminism is abstracted away
+behind `↑ₚ` and monadic bind `x ← e₁ ; e₂`.
+
+We implement abstract garbage collection in a general away using the monadic
+effect interface, also shown in Figure \ref{InterpreterStep}. `R` and `KR` are
+as defined in Section \ref{semantics}. Again, this is a straightforward
+translation from a pure function to a monadic function with state effects.
 
 \paragraph{Preserving Soundness}
 In generalizing the semantics to account for nondeterminism, updates to both
@@ -604,7 +599,6 @@ definitions of `Store` and `KStore`.
 ``````````````````````````````````````````````````
 
 `\begin{figure}`{.raw}
--- \vspace{-1em}
 `````indent```````````````````````````````````````
 ↑ₚ : ∀ α, 𝒫(α) → M(α)
 ↑ₚ({a₁ .. aₙ}) := return(a₁) ⟨+⟩ .. ⟨+⟩ return(aₙ)
@@ -628,9 +622,8 @@ tickM(e) = do
   κl ← get-KAddr
   put-Time(tick(e,κl,τ))
 ``````````````````````````````````````````````````
-\caption{Monadic step function and garbage collection}
+\caption{Monadic helper functions}
 \label{InterpreterHelpers} 
--- \vspace{-1em}
 `\end{figure}`{.raw}
 
 \paragraph{Execution}
@@ -668,12 +661,14 @@ to concrete components `CM`, `CVal` and `CTime`, and to recover an abstract
 interpreter we instantiate them to abstract components `AM`, `AVal` and
 `ATime`. The soundness of the final implementation is thus factored into two
 steps:
+`\vbox{`{.raw}
 
 1. Proving the parameterized monadic interpreter correct for any instantiation
    of `M`, `Val` and `Time`.
 2. Constructing Galois connections `CM α⇄γ AM`, `CVal α⇄γ AVal` and `CTime α⇄γ
    ATime` piecewise.
 
+`}`{.raw}
 The key benefit of our approach is that (1) can be proved once against _all_
 instantiations of `M`, `Val` and `Time` using the reasoning principles
 established in Section \ref{analysis-parameters}, greatly simplifying the proof
@@ -790,12 +785,10 @@ The abstract `δ` operator is defined:
 `````indent```````````````````````````````````````
 δ : IOp → AVal × AVal → AVal 
 δ⟦[+]⟧(v₁,v₂) := 
-   { i         | 0 ∈ v₁ ∧ i ∈ v₂ }
-  ∪ { i         | i ∈ v₁ ∧ 0 ∈ v₂ }
-  ∪ { [+]       | [+] ∈ v₁ ∧ [+] ∈ v₂ } 
-  ∪ { [-]       | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
-  ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ }
-  ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
+   { i | 0 ∈ v₁ ∧ i ∈ v₂ }
+  ∪ { i | i ∈ v₁ ∧ 0 ∈ v₂ }
+  ∪ { [+] | [+] ∈ v₁ ∧ [+] ∈ v₂ } ∪ { [-] | [-] ∈ v₁ ∧ [-] ∈ v₂ } 
+  ∪ { [-],0,[+] | [+] ∈ v₁ ∧ [-] ∈ v₂ } ∪ { [-],0,[+] | [-] ∈ v₁ ∧ [+] ∈ v₂ }
 ``````````````````````````````````````````````````
 The definition for `δ⟦[-]⟧(v₁,v₂)` is analogous.
 `\begin{proposition}`{.raw}
@@ -892,6 +885,7 @@ bind(m)(f)(ψ,σ) :=
 ``````````````````````````````````````````````````
 The unit for `bind` returns one nondeterminism branch and a single global
 store:
+-- layout hack 1.0
 `````indent```````````````````````````````````````
 return : ∀ α, α → AM⸢fi⸣(α)
 return(a)(ψ,σ) := ({a,ψ},σ)
@@ -930,10 +924,7 @@ AΣ⸢fi⸣ := 𝒫(Exp × Ψ) × AStore
 α(f)(e)(ψ,σ) := f({(e,ψ)},σ)
 ``````````````````````````````````````````````````
 `\begin{proposition}`{.raw}
-`γ` and `α` form a Galois connection.
-`\end{proposition}`{.raw}
-`\begin{proposition}`{.raw}
-There exists Galois connections:
+`γ` and `α` form a Galois connection and there exists Galois connections:
 `````align````````````````````````````````````````
 CM α₁⇄γ₁ AM α₂⇄γ₂ AM⸢fi⸣
 ``````````````````````````````````````````````````
@@ -1061,6 +1052,9 @@ bind : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
 bind(m)(f) := doₘ
   {x₁ .. xₙ} ←ₘ m
   f(x₁) ⊔ₘ .. ⊔ₘ f(xₙ)
+``````````````````````````````````````````````````
+-- layout hack 2.0
+`````indent```````````````````````````````````````
 return : ∀ α, α → 𝒫ₜ(m)(α)
 return(x) := returnₘ({x})
 ``````````````````````````````````````````````````
@@ -1081,9 +1075,9 @@ m₁ ⟨+⟩ m₂ := m₁ ⊔ₘ m₂
 ``````````````````````````````````````````````````
 
 `\begin{proposition}`{.raw}
-1. `bind` and `return` satisfy monad laws.
-2. `get` and `put` satisfy the state monad laws.
-3. `mzero` and `⟨+⟩` satisfy the nondeterminism monad laws.
+(1) `bind` and `return` satisfy monad laws, (2) `get` and `put` satisfy the
+state monad laws, and (3) `mzero` and `⟨+⟩` satisfy the nondeterminism monad
+laws.
 `\end{proposition}`{.raw}
 The key lemma in (1) is the functorality of `m`, namely that:
 `````align````````````````````````````````````````
@@ -1120,6 +1114,9 @@ return(x)(s) := returnₘ {x ↦ s}
 `````indent```````````````````````````````````````
 get : FSₜ[s](m)(s)
 get(s) := returnₘ {s ↦ s}
+``````````````````````````````````````````````````
+-- layout hack 2.0
+`````indent```````````````````````````````````````
 put : s → FSₜ[s](m)(1)
 put(s')(s) := returnₘ {1 ↦ s'}
 ``````````````````````````````````````````````````
@@ -1329,12 +1326,10 @@ Our implementation `{\tt maam}`{.raw} supports command-line flags for garbage
 collection, mCFA, call-site sensitivity, object sensitivity, and path and flow
 sensitivity.
 `````raw``````````````````````````````````````````
--- \vspace{1em}
 {\small\tt
 \par \noindent ./maam prog.lam --gc --mcfa --kcfa=1 --ocfa=2
 \par \noindent \hspace{2em} --data-store=flow-sen --stack-store=path-sen
 }
--- \vspace{1em}
 \par \noindent
 `````````````````````````````````````````````````
 These flags are implemented completely independently of one another and their
@@ -1451,7 +1446,7 @@ instrumented semantics simulate the original concrete semantics.
 
 \citeauthor{dvanhorn:Sergey2013Monadic} first introduced the concept of writing
 abstract interpreters in monadic style in _Monadic Abstract Interpreters_
-(MAI)\cite{dvanhornn:Sergey2013Monadic}, in which variations in analysis are
+(MAI)\cite{dvanhorn:Sergey2013Monadic}, in which variations in analysis are
 also recovered through new monad implementations. However, our approach is
 considerably different from MAI.
 
