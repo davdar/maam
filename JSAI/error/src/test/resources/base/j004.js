@@ -1,2 +1,0 @@
-decodeURI = "q";
-print("done");

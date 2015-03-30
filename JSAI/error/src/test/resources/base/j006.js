@@ -1,2 +1,0 @@
-//Math = "math"
-print("done");

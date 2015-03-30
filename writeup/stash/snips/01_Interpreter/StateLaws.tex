@@ -1,6 +1,0 @@
-\begin{align*}
-  put-put : put(𝓈_1) ; put(𝓈_2) &= put (𝓈_2)                        \\
-  put-get : put(𝓈) ; get &= return(𝓈)                               \\
-  get-put : 𝓈 ← get ; put(𝓈) &= return(∙)                           \\
-  get-get : 𝓈_1 ← get ; 𝓈_2 ← get ; k(𝓈_1,𝓈_2) &= 𝓈 ← get ; k(𝓈,𝓈)
-\end{align*}
