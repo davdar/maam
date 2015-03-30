@@ -1,256 +1,116 @@
-## Building
+## Building and Running
 
-    make build
+I recommend building with a cabal sandbox. To initialize a cabal sandbox and
+install needed dependencies, run:
+
+    make sandbox
+
+I have not included dependency bounds in my cabal file. Should you have trouble
+finding appropriate bounds, here are the versions of ghc and cabal packages
+that I am using.
+
+    base=4.7.0.2
+    Cabal=1.18.1.5
+    containers=0.5.5.1
+    directory=1.2.1.0
+    ghc=7.8.4
+    template-haskell=2.9.0.0
+    text=1.2.0.4
 
 ## Running
 
+To run the project, displaying an analysis of various lambda-if examples, run:
+
     make run
 
-## Code organization
+Example output is included at the end of this readme.
 
-All code is in src/.
+## Interactive (GHCI)
 
-FP is a core functional programming library which replaces the standard
-Prelude. FP fixes some oddities of the Prelude which must remain for backward
-compatability, includes more batteries for things like functors, monads, pretty
-printing, parsing, deriving, and more. On the downside, it is non-idiomatic at
-parts and isn't as mature (i.e. debugged and stable).
+To support my custom (well-formatted and colored) pretty printing in ghci, you
+need to first initialize some ghc flag files:
 
-MAAM is a semantics-independent package for monadic AAM. AAM-style time (see
-Time.hs) and Galois Transformers (see MonadStep.hs) are defined.
+    make init-flags
 
-Lang.Lam is a simple applied lambda calculus with a parser.
+Then just run:
 
-Lang.CPS is a core CPS representation of Lang.Lam with a desugarer and pretty printer.
+    ./ghci.sh
 
-The demonstration analysis is for Lang.CPS, and is found in:
+to run Main, or:
 
-- Lang.CPS.Val
-    - The abstract domain interface and instances for CPS
-- Lang.CPS.StateSpace
-    - The AAM style state space for CPS
-- Lang.CPS.Semantics
-    - The monadic semantics for CPS
-- Lang.CPS.Monads
-    - Instantiations of the semantics-independent monads to analyze CPS
-- Lang.CPS.Analyses
-    - Choices for each independent axis of analysis
+    ./ghci.sh Lang.LamIf.Examples
 
-## Coming soon
+to run another module, like `LamIf.Examples`.
 
-- More examples and demonstrations of the framework
-- More documentation in the README and framework code
+
+## Source Code
+
+All code is in `/src`.
+
+### FP
+
+`FP` is a core functional programming library which replaces the standard
+Prelude. `FP` fixes some oddities of the Prelude which exist only for backward
+compatability. `FP` includes more batteries for things like functors, monads,
+monad transformers, lenses, pretty printing, parsing, deriving, and more. On
+the downside, it is non-idiomatic at parts and isn't as mature (i.e. debugged
+and stable).
+
+### MAAM
+
+`MAAM` is a semantics-independent package for implement path, flow, context and object
+sensitivity in program analysis. `MAAM` only contains types and definitions
+which are _analysis specific_. Because the monad transformers that capture path
+and flow sensitivity are fully general purpose, they are defined in
+`FP.Monads`, not here. The same goes for lattice structures, which are mostly
+all defined in `FP.Core`.
+
+The only parts that are specific to analysis are:
+
+- Mapping monadic actions to state space transition systems, which is defined
+  in `MAAM.MonadStep`.
+- Implementations for abstract time to infinite-k (concrete), finite-k, and
+  zero-k, which are defined in `MAAM.Time`.
+
+### LamIf
+
+`Lang.LamIf` implements the following for a small applied lambda calculus with
+booleans and if-statements:
+
+- Direct-style syntax (`Lang.LamIf.Syntax`)
+- Continuation passing style (CPS) syntax (`Lang.LamIf.CPS`)
+- Parsing (`Lang.LamIf.Parser`) and pretty printing (`Lang.LamIf.Pretty`)
+- CPS conversion (`Lang.LamIf.Passes`)
+- Semantics state-space (`Lang.LamIf.StateSpace`)
+- Monadic semantics (`Lang.LamIf.Semantics`)
+- Concrete and abstract value domains (`Lang.LamIf.Val`)
+- Instantiations of language-independent monads from `MAAM` (`Lang.LamIf.Monads`)
+- Orthogonal analysis parameters (`Lang.LamIf.Analyses`)
+- Example analyses (`Lang.LamIf.Examples`)
+
+### Hask
+
+A semantics for GHC core is implemented in `Lang.Hask`:
+
+- CPS syntax and conversion (`Lang.Hask.CPS`)
+- Pretty printing (`Lang.Hask.Pretty`)
+- Monadic semantics (`Lang.Hask.Semantics`)
+- Execution semantics (`Lang.Hask.Execution`)
+- Instantiations of language-independent monads from `MAAM` (`Lang.Hask.Monads`)
+- Concrete value domain (`Lang.Hask.ValConcrete`)
+- Lifting of an arbitrary value domain to a sum-of-products lattice (`Lang.Hask.SumOfProdVal`)
+
+While the core semantics for core GHC is implemented, we haven't implemented
+any GHC primitives yet, but you should be able to get a feel for the semantics
+without the primitives. (More coming soon.)
 
 ## Example Output
 
-If you execute the project it will compute a concrete and abstract
-interpretation of a very small simple program.
+If you execute the project it will compute an abstract interpretation of some
+very small LamIf programs.
 
-The output is verbose and contains the entire state space.
+The output includes results for the heap when it reaches any `HALT` state:
 
-The output of `make run` is:
+The current output of `make run` is:
 
-    Source
-    let b := -1 0 in
-    let id := λ x . x in if >=0? b then id 1 else id 2
-    Stamped
-    let b := -1 0 in
-    let id := λ x . x in if >=0? b then id 1 else id 2
-    CPS
-    b := -1 0
-    id := λ x k##0 . k##0 x
-    a##1 := >=0? b
-    k##3 := λ x##2 . HALT x##2
-    if a##1 then id 1 k##3 else id 2 k##3
-    LT=* DT=* V=concrete M=ps G=no C=link LF=* DF=*
-    { ( k##3 := λ x##2 . HALT x##2
-        if a##1 then id 1 k##3 else id 2 k##3
-      , ( []
-        , [16,3,0]
-        , { b => <x=b,lτ=[],dτ=[0]>
-          , id => <x=id,lτ=[],dτ=[3,0]>
-          , a##1 => <x=a##1,lτ=[],dτ=[16,3,0]>
-          }
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          , <x=a##1,lτ=[],dτ=[16,3,0]> => {False}
-          }
-        )
-      )
-    , ( HALT x##2
-      , ( [18]
-        , [15,12,6,19,16,3,0]
-        , { b => <x=b,lτ=[],dτ=[0]>
-          , id => <x=id,lτ=[],dτ=[3,0]>
-          , a##1 => <x=a##1,lτ=[],dτ=[16,3,0]>
-          , x##2 => <x=x##2,lτ=[4],dτ=[15,12,6,19,16,3,0]>
-          }
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=x,lτ=[],dτ=[12,6,19,16,3,0]> => {2}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          , <x=k##0,lτ=[],dτ=[12,6,19,16,3,0]> => {<λ=18,lτ=[]>}
-          , <x=a##1,lτ=[],dτ=[16,3,0]> => {False}
-          , <x=x##2,lτ=[4],dτ=[15,12,6,19,16,3,0]> => {2}
-          , <x=k##3,lτ=[],dτ=[19,16,3,0]> => {<λ=18,lτ=[]>}
-          }
-        )
-      )
-    , ( a##1 := >=0? b
-        k##3 := λ x##2 . HALT x##2
-        if a##1 then id 1 k##3 else id 2 k##3
-      , ( []
-        , [3,0]
-        , {b => <x=b,lτ=[],dτ=[0]>,id => <x=id,lτ=[],dτ=[3,0]>}
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          }
-        )
-      )
-    , ( k##0 x
-      , ( [4]
-        , [12,6,19,16,3,0]
-        , { b => <x=b,lτ=[],dτ=[0]>
-          , x => <x=x,lτ=[],dτ=[12,6,19,16,3,0]>
-          , k##0 => <x=k##0,lτ=[],dτ=[12,6,19,16,3,0]>
-          }
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=x,lτ=[],dτ=[12,6,19,16,3,0]> => {2}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          , <x=k##0,lτ=[],dτ=[12,6,19,16,3,0]> => {<λ=18,lτ=[]>}
-          , <x=a##1,lτ=[],dτ=[16,3,0]> => {False}
-          , <x=k##3,lτ=[],dτ=[19,16,3,0]> => {<λ=18,lτ=[]>}
-          }
-        )
-      )
-    , ( id 2 k##3
-      , ( []
-        , [6,19,16,3,0]
-        , { b => <x=b,lτ=[],dτ=[0]>
-          , id => <x=id,lτ=[],dτ=[3,0]>
-          , a##1 => <x=a##1,lτ=[],dτ=[16,3,0]>
-          , k##3 => <x=k##3,lτ=[],dτ=[19,16,3,0]>
-          }
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          , <x=a##1,lτ=[],dτ=[16,3,0]> => {False}
-          , <x=k##3,lτ=[],dτ=[19,16,3,0]> => {<λ=18,lτ=[]>}
-          }
-        )
-      )
-    , ( if a##1 then id 1 k##3 else id 2 k##3
-      , ( []
-        , [19,16,3,0]
-        , { b => <x=b,lτ=[],dτ=[0]>
-          , id => <x=id,lτ=[],dτ=[3,0]>
-          , a##1 => <x=a##1,lτ=[],dτ=[16,3,0]>
-          , k##3 => <x=k##3,lτ=[],dτ=[19,16,3,0]>
-          }
-        , { <x=b,lτ=[],dτ=[0]> => {-1}
-          , <x=id,lτ=[],dτ=[3,0]> => {<λ=4,lτ=[]>}
-          , <x=a##1,lτ=[],dτ=[16,3,0]> => {False}
-          , <x=k##3,lτ=[],dτ=[19,16,3,0]> => {<λ=18,lτ=[]>}
-          }
-        )
-      )
-    , ( id := λ x k##0 . k##0 x
-        a##1 := >=0? b
-        k##3 := λ x##2 . HALT x##2
-        if a##1 then id 1 k##3 else id 2 k##3
-      , ([],[0],{b => <x=b,lτ=[],dτ=[0]>},{<x=b,lτ=[],dτ=[0]> => {-1}})
-      )
-    , ( b := -1 0
-        id := λ x k##0 . k##0 x
-        a##1 := >=0? b
-        k##3 := λ x##2 . HALT x##2
-        if a##1 then id 1 k##3 else id 2 k##3
-      , ([],[],{},{})
-      )
-    }
-    LT=0 DT=0 V=abstract M=fi G=no C=link LF=* DF=*
-    ( { ( k##3 := λ x##2 . HALT x##2
-          if a##1 then id 1 k##3 else id 2 k##3
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , id => <x=id,lτ=∙,dτ=∙>
-            , a##1 => <x=a##1,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( HALT x##2
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , id => <x=id,lτ=∙,dτ=∙>
-            , a##1 => <x=a##1,lτ=∙,dτ=∙>
-            , x##2 => <x=x##2,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( a##1 := >=0? b
-          k##3 := λ x##2 . HALT x##2
-          if a##1 then id 1 k##3 else id 2 k##3
-        , (∙,∙,{b => <x=b,lτ=∙,dτ=∙>,id => <x=id,lτ=∙,dτ=∙>})
-        )
-      , ( k##0 x
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , x => <x=x,lτ=∙,dτ=∙>
-            , k##0 => <x=k##0,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( id 2 k##3
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , id => <x=id,lτ=∙,dτ=∙>
-            , a##1 => <x=a##1,lτ=∙,dτ=∙>
-            , k##3 => <x=k##3,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( id 1 k##3
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , id => <x=id,lτ=∙,dτ=∙>
-            , a##1 => <x=a##1,lτ=∙,dτ=∙>
-            , k##3 => <x=k##3,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( if a##1 then id 1 k##3 else id 2 k##3
-        , ( ∙
-          , ∙
-          , { b => <x=b,lτ=∙,dτ=∙>
-            , id => <x=id,lτ=∙,dτ=∙>
-            , a##1 => <x=a##1,lτ=∙,dτ=∙>
-            , k##3 => <x=k##3,lτ=∙,dτ=∙>
-            }
-          )
-        )
-      , ( id := λ x k##0 . k##0 x
-          a##1 := >=0? b
-          k##3 := λ x##2 . HALT x##2
-          if a##1 then id 1 k##3 else id 2 k##3
-        , (∙,∙,{b => <x=b,lτ=∙,dτ=∙>})
-        )
-      , ( b := -1 0
-          id := λ x k##0 . k##0 x
-          a##1 := >=0? b
-          k##3 := λ x##2 . HALT x##2
-          if a##1 then id 1 k##3 else id 2 k##3
-        , (∙,∙,{})
-        )
-      }
-    , { <x=b,lτ=∙,dτ=∙> => {INT}
-      , <x=x,lτ=∙,dτ=∙> => {2,1}
-      , <x=id,lτ=∙,dτ=∙> => {<λ=4,lτ=∙>}
-      , <x=k##0,lτ=∙,dτ=∙> => {<λ=18,lτ=∙>}
-      , <x=a##1,lτ=∙,dτ=∙> => {BOOL}
-      , <x=x##2,lτ=∙,dτ=∙> => {2,1}
-      , <x=k##3,lτ=∙,dτ=∙> => {<λ=18,lτ=∙>}
-      }
-    )
+    ...
