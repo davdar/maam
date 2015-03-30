@@ -92,8 +92,8 @@ analysis (Section \ref{implementation-1}). Developers are able to reuse our
 language-independent framework for prototyping the design space of analysis
 features for their language of choice. Our implementation is publicly available
 on Hackage\footnote{
--- http://hackage.haskell.org/package/maam
-http://...[redacted]...
+http://hackage.haskell.org/package/maam
+-- http://...[redacted]...
 }, Haskell's package manager.
 
 \paragraph{Contributions}
@@ -128,15 +128,6 @@ conditionals. We write `[@]` as explicit abstract syntax for function
 application. The state-space `Σ` for `λIF` makes allocation explicit using two
 separate stores for values (`Store`) and for the stack (`KStore`).
 
-Guided by the syntax and semantics of `λIF` defined in this section we develop
-interpretation parameters in Section \ref{analysis-parameters}, a monadic
-interpreter in Section \ref{the-interpreter}, and both concrete and abstract
-instantiations for the interpretation parameters in Section
-\ref{recovering-analyses}. The variations in path and flow sensitivity
-developed in sections \ref{varying-path-and-flow-sensitivity} and
-\ref{a-compositional-monadic-framework} are independent of this (or any other)
-semantics.
-
 `\begin{figure}`{.raw}
 `````align````````````````````````````````````````
  i ∈  ℤ
@@ -161,6 +152,15 @@ fr ∈  Frame   ::= ⟨□ ⊙ e⟩ | ⟨v ⊙ □⟩ | ⟨[if0](□){e}{e}⟩
 \label{SS} 
 `\end{figure}`{.raw}
 
+Guided by the syntax and semantics of `λIF` defined in this section we develop
+interpretation parameters in Section \ref{analysis-parameters}, a monadic
+interpreter in Section \ref{the-interpreter}, and both concrete and abstract
+instantiations for the interpretation parameters in Section
+\ref{recovering-analyses}. The variations in path and flow sensitivity
+developed in sections \ref{varying-path-and-flow-sensitivity} and
+\ref{a-compositional-monadic-framework} are independent of this (or any other)
+semantics.
+
 We give semantics to atomic expressions and primitive operators denotationally
 through `A⟦_⟧` and `δ⟦_⟧`, and to compound expressions relationally through
 `~~>`, as shown in Figure \ref{ConcreteSemantics}. We will recover these
@@ -176,7 +176,6 @@ A⟦[λ](x).e⟧(ρ,σ) := ⟨[λ](x).e,ρ⟩
 δ⟦_⟧ ∈ IOp → (ℤ × ℤ → ℤ)
 δ⟦[+]⟧(i₁,i₂) := i₁ + i₂
 δ⟦[-]⟧(i₁,i₂) := i₁ - i₂
-<>
 _[~~>]_ ∈ 𝒫(Σ × Σ)
 ⟨e₁ ⊙ e₂,ρ,σ,κl,κσ,τ⟩ ~~> ⟨e₁,ρ,σ,τ,κσ',τ+1⟩ where 
   κσ' := κσ[τ ↦ (⟨□ ⊙ e₂⟩,κl)]
@@ -267,8 +266,7 @@ with let-bindings) where an analysis cannot determine the value of `N`:
 & ␣␣2: [if0](N){          && ␣␣5: [let] y :=        \\
 & ␣␣␣␣3: [if0](N){1}{2}   && ␣␣␣␣6: [if0](N){5}{6}  \\
 & ␣␣} [else] {            && ␣␣[in]                 \\
-& ␣␣␣␣4: [if0](N){3}{4}   && ␣␣7: [exit](x, y)      \\
-& ␣␣}                     && \\
+& ␣␣␣␣4: [if0](N){3}{4} } && ␣␣7: [exit](x, y)
 ``````````````````````````````````````````````````
 `\end{alignat*}\normalsize`{.raw}
 \paragraph{Path-Sensitive}
@@ -282,7 +280,7 @@ worlds:
 `````align````````````````````````````````````````
 5,6: {N=0,, x=1} {N≠0,, x=4}
 ``````````````````````````````````````````````````
-At program point 7 the analysis correctly corrolates the values for `x` and
+At program point 7 the analysis correctly correlates the values for `x` and
 `y`:
 `````align````````````````````````````````````````
 7: {N=0,, x=1,, y=5} {N≠0,, x=4,, y=6}
@@ -303,7 +301,7 @@ take:
 5,6: {N∈ℤ,, x∈{1,4}}
 ``````````````````````````````````````````````````
 The analysis then explores both branches at program point 6 resulting in no
-corrolation between values for `x` and `y`:
+correlation between values for `x` and `y`:
 `````align````````````````````````````````````````
 7: {N∈ℤ,, x∈{1,4},, y∈{5,6}}
 ``````````````````````````````````````````````````
@@ -451,7 +449,7 @@ int-I  : ℤ → Val    ␣␣int-if0-E  : Val → 𝒫(Bool)
 clo-I  : Clo → Val      ␣␣clo-E  : Val → 𝒫(Clo)
 ``````````````````````````````````````````````````
 
-The laws for the introduction and elmination rules induce a Galois connection
+The laws for the introduction and elimination rules induce a Galois connection
 between `𝒫(ℤ)` and `Val`:
 `````align````````````````````````````````````````
                                     {true}   ⊑ int-if0-E(int-I(i)) if i = 0
@@ -470,9 +468,6 @@ concrete values and `Val`:
 `````align````````````````````````````````````````
                                                         int-I(i₁ + i₂)  ⊑ δ⟦[+]⟧(int-I(i₁),int-I(i₂))
                                                         int-I(i₁ - i₂)  ⊑ δ⟦[-]⟧(int-I(i₁),int-I(i₂))
--- ``````````````````````````````````````````````````
--- layout hack 1.0
--- `````align````````````````````````````````````````
 ⨆⸤⸤b₁ ∈ int-if0-E(v₁) || b₂ ∈ int-if0-E(v₂) || i ∈ θ(b₁,b₂)⸥⸥ int-I(i)  ⊑ δ⟦⊙⟧(v₁,v₂) 
 where ALIGNED< θ( true , true ) || θ( true , false ) || θ( false , true ) || θ( false , false ) ALIGNED>  ALIGNED< & := {0} || & := {i | i ∈ ℤ ; i ≠ 0 } || & := {i | i ∈ ℤ ; i ≠ 0} || & := ℤ ALIGNED>
 ``````````````````````````````````````````````````
@@ -499,8 +494,8 @@ Time : Type ␣␣ tick : Exp × KAddr × Time → Time
 Remarkably, we need not state laws for `tick`. The interpreter will merge
 values which reside at the same address to preserve soundness. Therefore, any
 supplied implementations of `tick` is valid from a soundness perspective.
-However, different choices in `tick` will yield different tradoffs in precision
-and performance of the abstract interpreter.
+However, different choices in `tick` will yield different trade-offs in
+precision and performance of the abstract interpreter.
 
 # The Interpreter
 
@@ -844,7 +839,7 @@ AM(Exp) := Ψ × AStore → 𝒫(Exp × Ψ × AStore)
 AΣ(Exp) := 𝒫(Exp × Ψ × AStore)
 ``````````````````````````````````````````````````
 where `Ψ := AEnv × AKAddr × AKStore × ATime`. This is path-sensitive because
-`AΣ(Exp)` can represent arbirary _relations_ between `(Exp × Ψ)` and `AStore`.
+`AΣ(Exp)` can represent arbitrary _relations_ between `(Exp × Ψ)` and `AStore`.
 
 As discussed in Section \ref{path-and-flow-sensitivity-in-analysis}, a flow-sensitive
 analysis will give a single set of facts per program point. This results in the
@@ -884,7 +879,6 @@ bind(m)(f)(ψ,σ) :=
 ``````````````````````````````````````````````````
 The unit for `bind` returns one nondeterminism branch and a single global
 store:
--- layout hack 1.0
 `````indent```````````````````````````````````````
 return : ∀ α, α → AM⸢fi⸣(α)
 return(a)(ψ,σ) := ({a,ψ},σ)
@@ -951,11 +945,11 @@ The following orderings hold between the three induced transition relations:
 `\end{proposition}`{.raw}
 This is an application of the monotonicity of `step` and the Galois connections
 between monads, each transported through the Galois connection to their
-corrosponding transition systems. 
+corresponding transition systems. 
 
 We note that the implementation for our interpreter and abstract garbage
 collector remain the same for each instantiation; they scale seamlessly to
-variatiosn in path and flow sensitivity when instantiated with the appropriate
+variations in path and flow sensitivity when instantiated with the appropriate
 monad. 
 
 # A Compositional Monadic Framework
@@ -984,7 +978,7 @@ This means that for a language which has a different state space than the
 example in this paper, no added effort is required to construct a monad stack
 for that language.
 
-Path and flow senstivity properties arise from the _order of composition_ of
+Path and flow sensitivity properties arise from the _order of composition_ of
 monad transformers. Placing state after nondeterminism (`Sₜ[s] ∘ 𝒫ₜ` or `Sₜ[s]
 ∘ FSₜ[s']`) will result in `s` being path-sensitive. Placing state before
 nondeterminism (`𝒫ₜ ∘ Sₜ[s]` or `FSₜ[s'] ∘ Sₜ[s]`) will result in `s` being
@@ -994,7 +988,7 @@ sensitivities looks like (`M := Sₜ[s₁] ∘ FSₜ[s₂] ∘ Sₜ[s₃]`), whi
 state space transition system `Σ(Exp) := [(Exp × s₁) ↦ s₂] × s₃`, which is
 path-sensitive in `s₁`, flow-sensitive in `s₂` and flow-insensitive in `s₃`.
 Using `Sₜ[s]`, `𝒫ₜ` and `FSₜ[s]`, one can easily choose which components of the
-anlysis are path-sensitive, flow-sensitive or flow-insensitive.
+analysis are path-sensitive, flow-sensitive or flow-insensitive.
 
 In the following definitions we must necessarily use `bind`, `return` and other
 operations from the underlying monad, and we notate these `bindₘ`, `returnₘ`,
@@ -1035,8 +1029,8 @@ _[⟨+⟩]_ : ∀ α, Sₜ[s](m)(α) × Sₜ[s](m)(α) → Sₜ[s](m)(α)
 
 We have developed a new monad transformer for nondeterminism which composes
 with state in both directions. Previous attempts to define a monad transformer
-for nondeterminism have resulted in monad operations which do not respect
-either monad laws or nondeterminism effect laws--ours respects both.
+for nondeterminism resulted in operations which do not respect monad laws or
+nondeterminism effect laws--ours respects both.
 
 The nondeterminism monad transformer is defined with the expected type,
 embedding `𝒫` inside `m`:
@@ -1049,11 +1043,10 @@ join-semilattice functor_. The join-lattice functorality of `m` will be
 instantiated with `𝒫(β)`.
 `````indent```````````````````````````````````````
 bind : ∀ α β, 𝒫ₜ(m)(α) → (α → 𝒫ₜ(m)(β)) → 𝒫ₜ(m)(β)
-bind(m)(f) := doₘ
-  {x₁ .. xₙ} ←ₘ m
-  f(x₁) ⊔ₘ .. ⊔ₘ f(xₙ)
+bind(m)(f) := 
+  {x₁ .. xₙ} ←ₘ m ; f(x₁) ⊔ₘ .. ⊔ₘ f(xₙ)
 ``````````````````````````````````````````````````
--- layout hack 2.0
+-- layout hack
 `````indent```````````````````````````````````````
 return : ∀ α, α → 𝒫ₜ(m)(α)
 return(x) := returnₘ({x})
@@ -1115,7 +1108,7 @@ return(x)(s) := returnₘ {x ↦ s}
 get : FSₜ[s](m)(s)
 get(s) := returnₘ {s ↦ s}
 ``````````````````````````````````````````````````
--- layout hack 2.0
+-- layout hack
 `````indent```````````````````````````````````````
 put : s → FSₜ[s](m)(1)
 put(s')(s) := returnₘ {1 ↦ s'}
@@ -1132,7 +1125,7 @@ _[⟨+⟩]_ : ∀ α, FSₜ[s](m)(α) x FSₜ[s](m)(α) → FSₜ[s](m)(α)
 `get` and `put` satisfy the state monad laws, `mzero` and `⟨+⟩` satisfy the
 nondeterminism monad laws, and `Sₜ[s] ∘ 𝒫ₜ α₁⇄γ₁ FSₜ[s] α₂⇄γ₂ 𝒫ₜ ∘ Sₜ[s]`.
 `\end{proposition}`{.raw}
-These proofs are analagous to those for state and nondeterminism monad
+These proofs are analogous to those for state and nondeterminism monad
 transformers.
 
 ## Mapping to State Spaces
@@ -1418,7 +1411,7 @@ be used to define building blocks for constructing (concrete) interpreters.
 Their interpreter monad \mbox{\(\mathit{InterpM}\)} bears a strong resemblance
 to ours.  We show this "building blocks" approach to interpreter construction
 also extends to \emph{abstract} interpreter construction using Galois
-transfomers.  Moreover, we show that these monad transformers can be proved
+transformers.  Moreover, we show that these monad transformers can be proved
 sound via a Galois connection to their concrete counterparts, ensuring the
 soundness of any stack built from sound blocks of Galois transformers.
 Soundness proofs of various forms of analysis are notoriously brittle with
@@ -1471,7 +1464,7 @@ equipped with reasoning principles, allowing one to verify the correctness of
 a monadic interpreter _independent of a particular monad_, which is not
 possible in MAI. State and nondeterminism monadic effects capture the essence
 of _small-step relational semantics_, and are therefore truly language
-independent. Our tools are reusable for any semanatics described as a
+independent. Our tools are reusable for any semantics described as a
 small-step state machine relation. Because we place the monadic interpreter
 behind an interface of effects rather than denotation functions, we are able to
 introduce language-independent monads which capture flow-sensitivity and
@@ -1521,12 +1514,12 @@ flow-sensitive data-store and path-sensitive stack-store, for example.
 
 # Conclusion
 
-We have shown that \emph{Galois transfomers}, monad transfomers that transport
+We have shown that \emph{Galois transformers}, monad transformers that transport
 (1) Galois connections and (2) mappings to an executable transition system, are
 effective, language-independent building blocks for constructing program
 analyzers, and form the basis of a modular, reusable and composable metatheory
 for program analysis.
 
 In the end, we hope language independent characterizations of analysis
-ingredients will both facilate the systematic construction of program analyses
+ingredients will both facilitate the systematic construction of program analyses
 and bridge the gap between various communities which often work in isolation.
