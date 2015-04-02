@@ -5,7 +5,7 @@ import Lang.LamIf.StateSpace
 import Lang.LamIf.Syntax
 
 -- Concrete
-data CVal lτ dτ = LitC Lit | CloC (Clo lτ dτ) | BotC
+data CVal lτ dτ = LitC Lit | CloC (Clo lτ dτ) | TupC (PicoVal lτ dτ, PicoVal lτ dτ) | BotC
   deriving (Eq, Ord)
 makePrisms ''CVal
 
@@ -25,15 +25,20 @@ instance (Ord lτ, Ord dτ) => Val lτ dτ (CVal lτ dτ) where
   binop Sub (LitC (I n1)) (LitC (I n2)) = LitC $ I $ n1 - n2
   binop GTE (LitC (I n1)) (LitC (I n2)) = LitC $ B $ n1 >= n2
   binop _ _ _ = BotC
+  tup :: (PicoVal lτ dτ, PicoVal lτ dτ) -> CVal lτ dτ
+  tup = TupC
   elimBool :: CVal lτ dτ -> Set Bool
   elimBool (LitC (B b)) = single b
   elimBool _ = empty
   elimClo :: CVal lτ dτ -> Set (Clo lτ dτ)
   elimClo (CloC c) = single c
   elimClo _ = empty
+  elimTup :: CVal lτ dτ -> Set (PicoVal lτ dτ, PicoVal lτ dτ)
+  elimTup (TupC t) = single t
+  elimTup _ = empty
 
 -- Abstract
-data AVal lτ dτ = LitA Lit | IA | BA | CloA (Clo lτ dτ) | BotA
+data AVal lτ dτ = LitA Lit | IA | BA | CloA (Clo lτ dτ) | TupA (PicoVal lτ dτ, PicoVal lτ dτ) | BotA
   deriving (Eq, Ord)
 makePrisms ''AVal
 
@@ -57,6 +62,8 @@ instance (Ord lτ, Ord dτ) =>  Val lτ dτ (AVal lτ dτ) where
   binop Sub v1 v2 | v1 ⊑ IA && v2 ⊑ IA = IA
   binop GTE v1 v2 | v1 ⊑ IA && v2 ⊑ IA = BA
   binop _ _ _ = BotA
+  tup :: (PicoVal lτ dτ, PicoVal lτ dτ) -> AVal lτ dτ
+  tup = TupA
   elimBool :: AVal lτ dτ -> Set Bool
   elimBool (LitA (B b)) = single b
   elimBool BA = fromList [True, False]
@@ -64,6 +71,9 @@ instance (Ord lτ, Ord dτ) =>  Val lτ dτ (AVal lτ dτ) where
   elimClo :: AVal lτ dτ -> Set (Clo lτ dτ)
   elimClo (CloA c) = single c
   elimClo _ = empty
+  elimTup :: AVal lτ dτ -> Set (PicoVal lτ dτ, PicoVal lτ dτ)
+  elimTup (TupA t) = single t
+  elimTup _ = empty
 
 -- Lifting to Powerset
 newtype Power val lτ dτ = Power { runPower :: Set (val lτ dτ) }
@@ -79,8 +89,10 @@ instance (Ord lτ, Ord dτ) => Val lτ dτ (Power CVal lτ dτ) where
     v1 <- runPower vP1
     v2 <- runPower vP2
     single $ binop o v1 v2
+  tup = Power . single . tup
   elimBool = extend elimBool . runPower
   elimClo = extend elimClo . runPower
+  elimTup = extend elimTup . runPower
 
 instance (Ord lτ, Ord dτ) => Val lτ dτ (Power AVal lτ dτ) where
   lit = Power . single . lit
@@ -89,5 +101,7 @@ instance (Ord lτ, Ord dτ) => Val lτ dτ (Power AVal lτ dτ) where
     v1 <- runPower vP1
     v2 <- runPower vP2
     single $ binop o v1 v2
+  tup = Power . single . tup
   elimBool = extend elimBool . runPower
   elimClo = extend elimClo . runPower
+  elimTup = extend elimTup . runPower

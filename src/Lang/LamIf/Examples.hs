@@ -4,6 +4,9 @@ import Lang.LamIf
 import FP
 import qualified FP.Pretty as P
 
+examplesMain :: IO ()
+examplesMain = flowSensitivityMain
+
 makeOptions :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(Doc, Options)]
 makeOptions ltime dtime val monad gc closure lfilter dfilter = do
   lt <- ltime
@@ -35,8 +38,8 @@ makeOptions ltime dtime val monad gc closure lfilter dfilter = do
   return (d, o)
 
 
-withOptions :: [(Doc, Options)] -> RawExp -> Doc
-withOptions os e =
+runOptions :: [(Doc, Options)] -> RawExp -> Doc
+runOptions os e =
   let (se, c) = stampCPS e
   in P.vsep
     [ P.heading "Source"
@@ -45,25 +48,28 @@ withOptions os e =
     , localSetL P.maxRibbonWidthL 40 $ pretty se
     , P.heading "CPS"
     , localSetL P.maxRibbonWidthL 40 $ pretty c
-    , P.vsep $ mapOn os $ \ (info, o) -> 
-        case runWithOptions o c of
-          ExSigma pty ς -> P.vsep
+    , P.vsep $ mapOn os $ \ (info, o) -> withOptions o $ \ gc cc ltf dtf ->
+        let ς = execOnlyStuck gc cc ltf dtf c
+        in P.vsep
             [ pretty info
-            , pty ς
+            , pretty ς
             ]
     ]
 
-examplesMain :: IO ()
-examplesMain = do
-  e <- parseFile "data/lam-src/flow-example.lam"
-  let os =
-         makeOptions
-         ["0"]
-         ["0"]
-         ["abstract"]
-         ["fi", "fs", "ps"]
-         ["yes"]
-         ["link"]
-         ["app"]
-         ["app"]
-  pprint $ withOptions os e
+flowSensitivityMain :: IO ()
+flowSensitivityMain = do
+  e <- parseFile "data/lamif-src/flow-sensitivity.lam"
+  let os = makeOptions ["0"] ["0"] ["abstract"] ["fi", "fs", "ps"] ["yes"] ["link"] ["app"] ["app"]
+  pprint $ runOptions os e
+
+callSiteSensitivityMain :: IO ()
+callSiteSensitivityMain = do
+  e <- parseFile "data/lamif-src/call-site-sensitivity.lam"
+  let os = makeOptions ["0"] ["0", "1"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
+  pprint $ runOptions os e
+
+objectSensitivityMain :: IO ()
+objectSensitivityMain = do
+  e <- parseFile "data/lamif-src/object-sensitivity.lam"
+  let os = makeOptions ["0", "1"] ["0"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
+  pprint $ runOptions os e

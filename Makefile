@@ -21,3 +21,7 @@ all:
 
 run:
 	cabal run maam
+
+html:
+	pandoc -f markdown -t html --self-contained -o README.html README.md
+

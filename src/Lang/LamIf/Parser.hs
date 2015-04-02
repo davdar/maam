@@ -60,6 +60,11 @@ token = mconcat
       , "+"
       , "-"
       , ">="
+      , "<"
+      , ">"
+      , ","
+      , "fst"
+      , "snd"
       ]
   , Token Num ^$ numLit
   , Token Id ^$ ident
@@ -108,6 +113,21 @@ ifExp = pre (\ (e1, e2) e3 -> Fix $ If e1 e2 e3) $ do
 appExp :: Mix (Parser Token) RawExp
 appExp = infl (\ e1 () e2 -> Fix $ App e1 e2) (return ())
 
+tupExp :: Parser Token (RawExp, RawExp)
+tupExp = do
+  key "<"
+  e1 <- exp
+  key ","
+  e2 <- exp
+  key ">"
+  return (e1, e2)
+
+fstExp :: Mix (Parser Token) RawExp
+fstExp = pre (\ () e -> Fix $ Pi1 e) $ void $ key "fst"
+
+sndExp :: Mix (Parser Token) RawExp
+sndExp = pre (\ () e -> Fix $ Pi2 e) $ void $ key "snd"
+
 exp :: Parser Token RawExp
 exp = buildMix lits $ fromList mixes
   where
@@ -115,6 +135,7 @@ exp = buildMix lits $ fromList mixes
       [ Fix . Lit ^$ litExp
       , Fix . Var ^$ nameExp
       , between (key "(") (key ")") exp
+      , Fix . uncurry Tup ^$ tupExp
       ]
     mixes =
       [ ( 0   , [ letExp 
@@ -125,7 +146,7 @@ exp = buildMix lits $ fromList mixes
       , ( 50  , [ infr (Fix ..: flip Prim) $ key "+"  >> return (LBinOp Add 50) 
                 , infr (Fix ..: flip Prim) $ key "-"  >> return (LBinOp Sub 50) 
                 ] )
-      , ( 100 , [ appExp ] )
+      , ( 100 , [ fstExp, sndExp, appExp ] )
       ]
 
 testp0 :: String

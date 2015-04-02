@@ -5,4 +5,4 @@ let v :=
   else if b then 3 else 4
 in 
 let w := if b then 5 else 6 in
-K v w
+< v , w >

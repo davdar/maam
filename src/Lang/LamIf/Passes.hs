@@ -43,6 +43,9 @@ stampM pe = do
       return $ L.Let (Stamped i x) se sb
     App fe e -> App ^@ stampM fe <@> stampM e
     L.If e te fe -> L.If ^@ stampM e <@> stampM te <@> stampM fe
+    L.Tup e1 e2 -> L.Tup ^@ stampM e1 <@> stampM e2
+    L.Pi1 e -> L.Pi1 ^@ stampM e
+    L.Pi2 e -> L.Pi2 ^@ stampM e
 
 stamp :: Fix (PreExp RawName) -> StampedFix LocNum (PreExp SRawName)
 stamp = evalState stampSt0 . runReaderT stampEnv0 . stampM
@@ -144,6 +147,16 @@ cpsM (StampedFix i e0) = case e0 of
       tc <- opaqueWithC ko' $ cpsM te
       fc <- opaqueWithC ko' $ cpsM fe
       return $ StampedFix i $ C.If cx tc fc
+  L.Tup e1 e2 -> do
+    a1 <- cpsM e1
+    a2 <- cpsM e2
+    letAtom "a" $ Stamped i $ C.Tup a1 a2
+  L.Pi1 e -> do
+    a <- cpsM e
+    letAtom "a" $ Stamped i $ C.Pi1 a
+  L.Pi2 e -> do
+    a <- cpsM e
+    letAtom "a" $ Stamped i $ C.Pi2 a
 
 cpsAtomM :: (CPSM m) => Exp -> m Atom
 cpsAtomM se@(StampedFix i e0) = Stamped i ^$ case e0 of

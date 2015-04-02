@@ -45,9 +45,16 @@ data Clo lτ dτ = Clo
   , cloTime :: lτ
   } deriving (Eq, Ord)
 
+data PicoVal lτ dτ =
+    LitPicoVal Lit
+  | AddrPicoVal (Addr lτ dτ)
+  deriving (Eq, Ord)
+
 class Val lτ dτ val | val -> lτ, val -> dτ where
   lit :: Lit -> val 
   clo :: Clo lτ dτ -> val 
   binop :: BinOp -> val -> val -> val
+  tup :: (PicoVal lτ dτ, PicoVal lτ dτ) -> val
   elimBool :: val -> Set Bool
   elimClo :: val -> Set (Clo lτ dτ)
+  elimTup :: val -> Set (PicoVal lτ dτ, PicoVal lτ dτ)

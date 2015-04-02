@@ -1240,24 +1240,6 @@ instance JoinLattice (Set a)
 
 -- }}}
 
--- ListSet {{{
-
-newtype ListSet a = ListSet { unListSet :: [a] }
-  deriving (Container a, Iterable a, Buildable a , Monoid , Unit, Functor, Applicative, Product, Bind, Monad)
-instance FunctorM ListSet where mapM f = map ListSet . mapM f . unListSet
-
-listSetTranspose :: forall a. ListSet (ListSet a) -> ListSet (ListSet a)
-listSetTranspose = coerce (transpose :: [[a]] -> [[a]])
-
-instance (Ord a) => PartialOrder (ListSet a) where pcompare = pcompare `on` toSet
-instance Bot (ListSet a) where bot = null
-instance Join (ListSet a) where (\/) = (++)
-instance MonadBot ListSet where mbot = bot
-instance MonadPlus ListSet where (<+>) = (\/)
-instance JoinLattice (ListSet a)
-
--- }}}
-
 -- Map {{{
 
 data Map k v where
@@ -1335,6 +1317,24 @@ instance (Difference v) => Difference (Map k v) where
   (\\) = mapPrimElim2 EmptyMap (const EmptyMap) Map $ Map .: Map.differenceWith (Just .: (\\))
 instance (JoinLattice v) => JoinLattice (Map k v)
 instance Functor (Map k) where map f = mapPrimElim EmptyMap $ Map . Map.map f
+
+-- }}}
+
+-- ListSet {{{
+
+newtype ListSet a = ListSet { unListSet :: [a] }
+  deriving (Container a, Iterable a, Buildable a , Monoid , Unit, Functor, Applicative, Product, Bind, Monad)
+instance FunctorM ListSet where mapM f = map ListSet . mapM f . unListSet
+
+listSetTranspose :: forall a. ListSet (ListSet a) -> ListSet (ListSet a)
+listSetTranspose = coerce (transpose :: [[a]] -> [[a]])
+
+instance (Ord a) => PartialOrder (ListSet a) where pcompare = pcompare `on` toSet
+instance Bot (ListSet a) where bot = null
+instance Join (ListSet a) where (\/) = (++)
+instance MonadBot ListSet where mbot = bot
+instance MonadPlus ListSet where (<+>) = (\/)
+instance JoinLattice (ListSet a)
 
 -- }}}
 

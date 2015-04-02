@@ -7,9 +7,10 @@ license:             BSD3
 maintainer:          david.darais@gmail.com
 name:                maam
 synopsis:            An application of the Galois Transformers framework to two example semantics.
-version:             0.1.0.0
+version:             0.2.0.0
 description:         An application of the Galois Transformers framework to two example semantics.
-data-files:          data/lamif-src/*.lam data/hask-src/*.lam
+data-files:          data/lamif-src/*.lam data/hask-src/*.hs
+extra-source-files:  EnvSetup.hs ghci.sh Makefile README.md
 
 source-repository head
   type: git
@@ -17,43 +18,7 @@ source-repository head
 
 library
   hs-source-dirs: src
-  exposed-modules:     
-    FP
-    FP.Console
-    FP.Core
-    FP.DerivingJoinLattice
-    FP.DerivingLens
-    FP.DerivingMonoid
-    FP.DerivingPretty
-    FP.DerivingPrism
-    FP.Free
-    FP.GHCI
-    FP.IO
-    FP.Monads
-    FP.Parser
-    FP.Pretty
-    FP.TH
-    FP.Compat
-    Lang.Hask
-    Lang.Hask.CPS
-    Lang.Hask.Semantics
-    Lang.Hask.ValConcrete
-    Lang.LamIf
-    Lang.LamIf.Analyses
-    Lang.LamIf.CPS
-    Lang.LamIf.Examples
-    Lang.LamIf.Monads
-    Lang.LamIf.Parser
-    Lang.LamIf.Passes
-    Lang.LamIf.Pretty
-    Lang.LamIf.Semantics
-    Lang.LamIf.StateSpace
-    Lang.LamIf.Syntax
-    Lang.LamIf.Val
-    MAAM
-    MAAM.Inject
-    MAAM.MonadStep
-    MAAM.Time
+  default-language: Haskell2010
   build-depends:
       base == 4.7.*
     , ghc == 7.8.*
@@ -62,7 +27,6 @@ library
     , template-haskell 
     , directory 
     , Cabal 
-  default-language: Haskell2010
   ghc-options: 
     -isrc
     -Wall 
@@ -96,4 +60,54 @@ library
     ViewPatterns
     DataKinds
     TemplateHaskell
+  exposed-modules:     
+    FP
+    FP.Console
+    FP.Core
+    FP.DerivingJoinLattice
+    FP.DerivingLens
+    FP.DerivingMonoid
+    FP.DerivingPretty
+    FP.DerivingPrism
+    FP.Free
+    FP.GHCI
+    FP.IO
+    FP.Monads
+    FP.Parser
+    FP.Pretty
+    FP.TH
+    FP.Compat
+    Lang.Hask
+    Lang.Hask.Compat
+    Lang.Hask.CPS
+    Lang.Hask.Execution
+    Lang.Hask.GHCPlugin
+    Lang.Hask.Monads
+    Lang.Hask.Pretty
+    Lang.Hask.Semantics
+    Lang.Hask.SumOfProdVal
+    Lang.Hask.Time
+    Lang.Hask.ValConcrete
+    Lang.LamIf
+    Lang.LamIf.Analyses
+    Lang.LamIf.CPS
+    Lang.LamIf.Examples
+    Lang.LamIf.Monads
+    Lang.LamIf.Parser
+    Lang.LamIf.Passes
+    Lang.LamIf.Pretty
+    Lang.LamIf.Semantics
+    Lang.LamIf.StateSpace
+    Lang.LamIf.Syntax
+    Lang.LamIf.Val
+    MAAM
+    MAAM.Inject
+    MAAM.MonadStep
+    MAAM.Time
 
+executable maam
+  default-language: Haskell2010
+  build-depends: maam
+  main-is: src/Lang/LamIf/Main.hs
+  default-extensions:  
+    NoImplicitPrelude

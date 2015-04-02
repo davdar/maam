@@ -37,6 +37,9 @@ data PreExp n e =
   | Let n e e
   | App e e
   | If e e e
+  | Tup e e
+  | Pi1 e
+  | Pi2 e
   deriving (Eq, Ord)
 type RawExp = Fix (PreExp RawName)
 type Exp = StampedFix LocNum (PreExp SRawName)

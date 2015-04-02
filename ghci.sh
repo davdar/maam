@@ -3,7 +3,7 @@
 MODULE=$1
 if [ $# == 0 ]
 then 
-  MODULE=Main
+  MODULE=src/Lang/LamIf/Main.hs
 else 
   shift 
 fi

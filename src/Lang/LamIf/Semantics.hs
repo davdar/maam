@@ -82,21 +82,37 @@ rebindPico :: (Analysis val lτ dτ m) => PrePico Name -> val -> m ()
 rebindPico (Lit _) _ = return ()
 rebindPico (Var x) vD = rebind x vD
 
+-- the denotation for addresses
+addr :: (Analysis val lτ dτ m) => Addr lτ dτ -> m val
+addr 𝓁 = do
+  σ <- getL 𝓈σL
+  maybeZero $ σ # 𝓁
+
 -- the denotation for variables
 var :: (Analysis val lτ dτ m) => Name -> m val
 var x = do
   ρ <- getL 𝓈ρL
-  σ <- getL 𝓈σL
-  maybeZero $ index σ *$ index ρ $ x
+  𝓁 <- maybeZero $ ρ # x
+  addr 𝓁
 
 -- the denotation for lambdas
 lam :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> LocNum -> [Name] -> Call -> m val
 lam createClo = clo ^..: createClo
 
+-- the partial denotation for pico (for storing in values)
+picoRef :: (Analysis val lτ dτ m) => Pico -> m (PicoVal lτ dτ)
+picoRef (Lit l) = return $ LitPicoVal l
+picoRef (Var x) = do
+  ρ <- getL 𝓈ρL
+  AddrPicoVal ^$ maybeZero $ ρ # x
+
+picoVal :: (Analysis val lτ dτ m) => PicoVal lτ dτ -> m val
+picoVal (LitPicoVal l) = return $ lit l
+picoVal (AddrPicoVal 𝓁) = addr 𝓁
+
 -- the denotation for the pico syntactic category
 pico :: (Analysis val lτ dτ m) => Pico -> m val
-pico (Lit l) = return $ lit l
-pico (Var x) = var x
+pico = picoVal *. picoRef
 
 -- the denotation for the atom syntactic category
 atom :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> Atom -> m val
@@ -105,6 +121,9 @@ atom createClo a = case stamped a of
   Prim o a1 a2 -> return (binop $ lbinOpOp o) <@> pico a1 <@> pico a2
   LamF x kx c -> lam createClo (stampedID a) [x, kx] c
   LamK x c -> lam createClo (stampedID a) [x] c
+  Tup p1 p2 -> pure (curry tup) <@> picoRef p1 <@> picoRef p2
+  Pi1 p -> picoVal *. fst ^. mset . elimTup *$ pico p
+  Pi2 p -> picoVal *. snd ^. mset . elimTup *$ pico p
 
 apply :: (Analysis val lτ dτ m) => TimeFilter -> Call -> PrePico Name -> val -> [val] -> m Call
 apply timeFilter c fx fv avs = do
@@ -144,6 +163,51 @@ call gc createClo ltimeFilter dtimeFilter c = do
   gc c'
   return c'
 
+onlyStuck :: (MonadStep ς m,  Analysis val lτ dτ m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> m Call
+onlyStuck gc createClo ltimeFilter dtimeFilter e = do
+  e' <- call gc createClo ltimeFilter dtimeFilter e
+  if e == e' then return e else mbot
+
+-- Execution {{{
+
+type StateSpaceC ς' =
+  ( PartialOrder (ς' Call)
+  , JoinLattice (ς' Call)
+  , Difference (ς' Call)
+  , Pretty (ς' Call)
+  )
+
+class (MonadStep ς m, Inject ς, Isomorphism (ς Call) (ς' Call), StateSpaceC ς') => Execution ς ς' m | m -> ς, m -> ς'
+
+liftς :: (Execution ς ς' m) => (Call -> m Call) -> (ς' Call -> ς' Call)
+liftς f = isoto . mstepγ f . isofrom
+
+injectς :: forall ς ς' a. (Inject ς, Isomorphism (ς a) (ς' a)) => P ς -> a -> ς' a
+injectς P = isoto . (inj :: a -> ς a)
+
+execς :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
+  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
+execς gc createClo ltimeFilter dtimeFilter = poiter (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
+
+execCollect :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
+  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
+execCollect gc createClo ltimeFilter dtimeFilter = collect (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
+
+execCollectHistory :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
+  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
+execCollectHistory gc createClo ltimeFilter dtimeFilter = collectHistory (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
+
+execCollectDiffs :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) =>
+  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
+execCollectDiffs gc createClo ltimeFilter dtimeFilter = collectDiffs (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
+
+execOnlyStuck :: (Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
+execOnlyStuck gc createClo ltimeFilter dtimeFilter = 
+    liftς (onlyStuck gc createClo ltimeFilter dtimeFilter) 
+  . execCollect gc createClo ltimeFilter dtimeFilter
+
+-- }}}
+
 -- GC {{{
 
 nogc :: (Monad m) => Call -> m ()
@@ -163,8 +227,20 @@ callTouched ρ xs = maybeSet . index ρ *$ xs
 closureTouched :: (TimeC lτ, TimeC dτ) => Clo lτ dτ -> Set (Addr lτ dτ)
 closureTouched (Clo _ xs c ρ _) = callTouched ρ $ freeVarsLam empty xs c
 
+picoValTouched :: (TimeC lτ, TimeC dτ) => PicoVal lτ dτ -> Set (Addr lτ dτ)
+picoValTouched (LitPicoVal _) = empty
+picoValTouched (AddrPicoVal 𝓁) = single 𝓁
+
+tupleTouched :: (TimeC lτ, TimeC dτ) => (PicoVal lτ dτ, PicoVal lτ dτ) -> Set (Addr lτ dτ)
+tupleTouched (pv1, pv2) = picoValTouched pv1 \/ picoValTouched pv2
+
 addrTouched :: (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Map (Addr lτ dτ) val -> Addr lτ dτ -> Set (Addr lτ dτ)
-addrTouched σ = closureTouched *. elimClo *. maybeSet . index σ
+addrTouched σ 𝓁 = do
+  v <- maybeSet $ σ # 𝓁
+  msum
+    [ closureTouched *$ elimClo v 
+    , tupleTouched *$ elimTup v
+    ]
 
 -- }}}
 
@@ -188,64 +264,6 @@ copyClo cid xs c = do
 
 -- }}}
 
--- Execution {{{
-
--- type StateSpaceC ς =
---   ( PartialOrder (ς Call)
---   , JoinLattice (ς Call)
---   , Pretty (ς Call)
---   , Inject ς
---   , MonadStep ς m
---   )
-
-  -- , Isomorphism (ς Call) (ς' Call)
-  -- , StateSpaceC ς'
-
-type MonadStateSpaceC ς ς' m =
-  ( MonadStep ς m
-  , Inject ς
-  , Isomorphism (ς Call) (ς' Call)
-  )
-type StateSpaceC ς' =
-  ( PartialOrder (ς' Call)
-  , JoinLattice (ς' Call)
-  , Difference (ς' Call)
-  , Pretty (ς' Call)
-  )
-
-class (MonadStateSpaceC ς ς' m, StateSpaceC ς') => Execution ς ς' m | m -> ς, m -> ς'
-
-exec :: 
-  forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) 
-  => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
-exec gc createClo ltimeFilter dtimeFilter = 
-  poiter (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom) 
-  . isoto 
-  . (inj :: Call -> ς Call)
-
-execCollect :: forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) => 
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
-execCollect gc createClo ltimeFilter dtimeFilter = 
-  collect (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom) 
-  . isoto 
-  . (inj :: Call -> ς Call)
-
-execCollectHistory :: forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) =>
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
-execCollectHistory gc createClo ltimeFilter dtimeFilter =
-  collectHistory (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom)
-  . isoto
-  . (inj :: Call -> ς Call)
-
-execCollectDiffs :: forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) =>
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
-execCollectDiffs gc createClo ltimeFilter dtimeFilter =
-  collectDiffs (isoto . mstepγ (call gc createClo ltimeFilter dtimeFilter) . isofrom)
-  . isoto
-  . (inj :: Call -> ς Call)
-
--- }}}
-
 -- Parametric Execution {{{
 
 type UniTime τ = W (TimeC τ)
@@ -260,7 +278,6 @@ type UniMonad ς ς' m =
 data ExMonad where 
   ExMonad :: forall ς ς' m. 
        UniMonad ς ς' m 
-    -> (forall val lτ dτ. (TimeC lτ, TimeC dτ, ValC lτ dτ val) => [ς' val lτ dτ Call] -> Doc) 
     -> ExMonad
 
 newtype AllGC = AllGC { runAllGC :: forall val lτ dτ m. (Analysis val lτ dτ m) => GC m }
@@ -277,21 +294,16 @@ data Options = Options
   , dtimeFilterOp :: TimeFilter
   }
 
-data ExSigma where
-  ExSigma :: (StateSpaceC ς) => ([ς Call] -> Doc) -> [ς Call] -> ExSigma
-
-runWithOptions :: Options -> Call -> ExSigma
-runWithOptions o e = case o of
+withOptions :: forall a. Options -> ((Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> a) -> a
+withOptions o f = case o of
   Options (ExTime (W :: UniTime lτ)) 
           (ExTime (W :: UniTime dτ))
           (ExVal (W :: W (ValC lτ dτ (val lτ dτ))))
           (ExMonad (W :: W ( Analysis (val lτ dτ) lτ dτ (m (val lτ dτ) lτ dτ)
-                           , Execution (ς (val lτ dτ) lτ dτ) (ς' (val lτ dτ) lτ dτ) (m (val lτ dτ) lτ dτ))) 
-                   pty)
+                           , Execution (ς (val lτ dτ) lτ dτ) (ς' (val lτ dτ) lτ dτ) (m (val lτ dτ) lτ dτ))))
           (AllGC (gc :: GC (m (val lτ dτ) lτ dτ)))
-          (AllCreateClo (createClo  :: CreateClo lτ dτ (m (val lτ dτ) lτ dτ)))
+          (AllCreateClo (createClo :: CreateClo lτ dτ (m (val lτ dτ) lτ dτ)))
           (ltimeFilter :: TimeFilter)
-          (dtimeFilter :: TimeFilter) -> 
-    ExSigma pty $ execCollectDiffs gc createClo ltimeFilter dtimeFilter e
+          (dtimeFilter :: TimeFilter) -> f gc createClo ltimeFilter dtimeFilter
 
 -- }}}

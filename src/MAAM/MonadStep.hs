@@ -19,7 +19,7 @@ instance (MonadStep ς m, Functor m) => MonadStep (ς :.: (,) 𝓈) (StateT 𝓈
   mstepγ f = onComposeIso $ mstepγ $ \ (s, a) -> unStateT (f a) s
 deriving instance (MonadStep ς m, Functor m) => MonadStep (ς :.: (,) 𝓈1) (AddStateT 𝓈12 𝓈1 m)
 
--- Flow Insensitive
+-- Nondeterminism
 instance (MonadStep ς m, Functorial JoinLattice m) => MonadStep (ς :.: ListSet) (ListSetT m) where
   mstepγ :: forall a b. (a -> ListSetT m b) -> (ς :.: ListSet) a -> (ς :.: ListSet) b
   mstepγ f = onComposeIso $ mstepγ_m ff
@@ -30,7 +30,7 @@ instance (MonadStep ς m, Functorial JoinLattice m) => MonadStep (ς :.: ListSet
       ff = with (functorial :: W (JoinLattice (m (ListSet b)))) $
         joins . map (unListSetT . f)
 
--- Flow Insensitive with top
+-- Nondeterminism with top
 instance (MonadStep ς m, Functorial JoinLattice m, Functorial Top m) => MonadStep (ς :.: ListSetWithTop) (ListSetWithTopT m) where
   mstepγ :: forall a b. (a -> ListSetWithTopT m b) -> (ς :.: ListSetWithTop) a -> (ς :.: ListSetWithTop) b
   mstepγ f = onComposeIso $ mstepγ_m ff
@@ -42,23 +42,6 @@ instance (MonadStep ς m, Functorial JoinLattice m, Functorial Top m) => MonadSt
         with (functorial :: W (JoinLattice (m (ListSetWithTop b)))) $
         with (functorial :: W (Top (m (ListSetWithTop b)))) $
         listSetWithTopElim top joins . map (unListSetWithTopT . f)
-
--- -- Flow Sensitive
--- instance (MonadStep ς m, Commute ς ListSet) => MonadStep (ListSet :.: ς) (ListSetT m) where
---   mstepγ :: forall a b. (a -> ListSetT m b) -> (ListSet :.: ς) a -> (ListSet :.: ς) b
---   mstepγ f = onComposeIso $ joins . map (commute . mstepγ_m (unListSetT . f))
---     where
---       mstepγ_m :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')
---       mstepγ_m = mstepγ
--- 
--- -- Flow Sensitive with top
--- instance (MonadStep ς m, Commute ς ListSetWithTop) => 
---     MonadStep (ListSetWithTop :.: ς) (ListSetWithTopT m) where
---   mstepγ :: forall a b. (a -> ListSetWithTopT m b) -> (ListSetWithTop :.: ς) a -> (ListSetWithTop :.: ς) b
---   mstepγ f = onComposeIso $ listSetWithTopElim top joins . map (commute . mstepγ_m (unListSetWithTopT . f))
---     where
---       mstepγ_m :: forall a' b'. (a' -> m b') -> (ς a' -> ς b')
---       mstepγ_m = mstepγ
 
 instance Commute ID ListSet where
   commute :: ID (ListSet a) -> ListSet (ID a)

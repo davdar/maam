@@ -54,6 +54,9 @@ instance (Pretty n, Pretty e) => Pretty (PreExp n e) where
     , P.botLevel $ P.hvsep [P.key "then", P.align $ pretty te]
     , P.hvsep [P.key "else", P.align $ pretty fe]
     ]
+  pretty (L.Tup e1 e2) = P.collection "<" ">" "," [pretty e1, pretty e2]
+  pretty (L.Pi1 e) = P.pre 100 (P.key "fst") (pretty e)
+  pretty (L.Pi2 e) = P.pre 100 (P.key "snd") (pretty e)
 instance (Pretty n) => Functorial Pretty (PreExp n) where
   functorial = W
 
@@ -66,6 +69,9 @@ instance (Pretty n, Pretty c) => Pretty (PreAtom n c) where
   pretty (C.Prim o a1 a2) = P.infr (lbinOpLevel o) (pretty $ lbinOpOp o) (pretty a1) (pretty a2)
   pretty (C.LamF x kx c) = pretty $ VarLam [x, kx] c
   pretty (C.LamK x c) = pretty $ VarLam [x] c
+  pretty (C.Tup a1 a2) = P.collection "<" ">" "," [pretty a1, pretty a2]
+  pretty (C.Pi1 a) = P.hsep [P.key "fst", pretty a]
+  pretty (C.Pi2 a) = P.hsep [P.key "snd", pretty a]
 
 instance (Pretty n, Pretty c) => Pretty (PreCall n c) where
   pretty (C.Let x aa c) = P.atLevel 0 $ P.mustBreak $ P.vsep
@@ -98,11 +104,13 @@ instance (Pretty lτ, Pretty dτ) => Pretty (Clo lτ dτ) where
 
 makePrettyUnion ''𝒮Cxt
 makePrettyUnion ''𝒮
+makePrettyUnion ''PicoVal
 
 instance (Pretty lτ, Pretty dτ) => Pretty (CVal lτ dτ) where
   pretty (LitC l) = pretty l
   pretty (CloC c) = pretty c
   pretty BotC = P.lit "⊥"
+  pretty (TupC (pv1, pv2)) = P.collection "<" ">" "," [pretty pv1, pretty pv2]
 
 instance (Pretty lτ, Pretty dτ) => Pretty (AVal lτ dτ) where
   pretty (LitA l) = pretty l
@@ -110,5 +118,6 @@ instance (Pretty lτ, Pretty dτ) => Pretty (AVal lτ dτ) where
   pretty BA = P.lit "BOOL"
   pretty (CloA c) = pretty c
   pretty BotA = P.lit "⊥"
+  pretty (TupA (pv1, pv2)) = P.collection "<" ">" "," [pretty pv1, pretty pv2]
 
 deriving instance (Pretty (val lτ dτ)) => Pretty (Power val lτ dτ)

@@ -29,6 +29,7 @@ type Store ν lτ dτ = Map (Addr lτ dτ) (ν lτ dτ)
 data ArgVal lτ dτ =
     AddrVal (Addr lτ dτ)
   | LitVal Literal
+  | TypeVal
   deriving (Eq, Ord)
 
 data Data lτ dτ = Data
@@ -145,6 +146,7 @@ updateRef 𝓁 vOld vNew = modifyL 𝓈StoreL $ \ σ ->
 refine :: (Analysis ν lτ dτ m) => ArgVal lτ dτ -> ν lτ dτ -> m ()
 refine (AddrVal 𝓁) v = modifyL 𝓈StoreL $ mapInsertWith (/\) 𝓁 v
 refine (LitVal _) _ = return ()
+refine TypeVal _ = return ()
 
 extract :: (Analysis ν lτ dτ m) => (a -> ν lτ dτ) -> (ν lτ dτ -> SetWithTop a) -> ArgVal lτ dτ -> m a
 extract intro elim av = do
@@ -170,6 +172,7 @@ addr 𝓁 = do
 argVal :: (Analysis ν lτ dτ m) => ArgVal lτ dτ -> m (ν lτ dτ)
 argVal (AddrVal 𝓁) = addr 𝓁
 argVal (LitVal l) = return $ litI l
+argVal TypeVal = return botI
 
 varAddr :: (Analysis ν lτ dτ m) => Name -> m (Addr lτ dτ)
 varAddr x = do
@@ -183,10 +186,12 @@ pico :: (Analysis ν lτ dτ m) => Pico -> m (ν lτ dτ)
 pico = \ case
   Var n -> var n
   Lit l -> return $ litI l
+  Type -> return botI
 
 picoArg :: (Analysis ν lτ dτ m) => Pico -> m (ArgVal lτ dτ)
 picoArg (Var x) = AddrVal ^$ varAddr x
 picoArg (Lit l) = return $ LitVal l
+picoArg Type = return TypeVal
 
 atom :: (Analysis ν lτ dτ m) => Atom -> m (ν lτ dτ)
 atom = \ case
