@@ -138,15 +138,15 @@ exp = buildMix lits $ fromList mixes
       , Fix . uncurry Tup ^$ tupExp
       ]
     mixes =
-      [ ( 0   , [ letExp 
+      [ ( toi $ 0   , [ letExp 
                 , lamExp 
                 , ifExp 
                 ] )
-      , ( 40  , [ inf (Fix ..: flip Prim) $ key ">=" >> return (LBinOp GTE 40) ] )
-      , ( 50  , [ infr (Fix ..: flip Prim) $ key "+"  >> return (LBinOp Add 50) 
-                , infr (Fix ..: flip Prim) $ key "-"  >> return (LBinOp Sub 50) 
+      , ( toi $ 40  , [ inf (Fix ..: flip Prim) $ key ">=" >> return (LBinOp GTE $ toi 40) ] )
+      , ( toi $ 50  , [ infr (Fix ..: flip Prim) $ key "+"  >> return (LBinOp Add $ toi 50) 
+                , infr (Fix ..: flip Prim) $ key "-"  >> return (LBinOp Sub $ toi 50) 
                 ] )
-      , ( 100 , [ fstExp, sndExp, appExp ] )
+      , ( toi $ 100 , [ fstExp, sndExp, appExp ] )
       ]
 
 testp0 :: String
@@ -163,7 +163,7 @@ par = lexParseFinal token whitespaceFilter p . toChars
       e <- pe
       ies <- oneOrMoreList $ key "+" <*> pe
       return $ foldlOn ies e $ \ e1 ((), e2) ->
-        Fix $ Prim (LBinOp Add 50) e1 e2
+        Fix $ Prim (LBinOp Add $ toi 50) e1 e2
     pe :: Parser Token RawExp
     pe = Fix . Lit ^$ litExp
 

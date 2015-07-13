@@ -17,3 +17,5 @@
 .extensions*
 README.html
 *.agdai
+.cabal-sandbox
+cabal.sandbox.config

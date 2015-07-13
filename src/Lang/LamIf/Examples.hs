@@ -43,11 +43,11 @@ runOptions os e =
   let (se, c) = stampCPS e
   in P.vsep
     [ P.heading "Source"
-    , localSetL P.maxRibbonWidthL 40 $ pretty e 
+    , localSetL P.maxRibbonWidthL (toi 40) $ pretty e 
     , P.heading "Stamped"
-    , localSetL P.maxRibbonWidthL 40 $ pretty se
+    , localSetL P.maxRibbonWidthL (toi 40) $ pretty se
     , P.heading "CPS"
-    , localSetL P.maxRibbonWidthL 40 $ pretty c
+    , localSetL P.maxRibbonWidthL (toi 40) $ pretty c
     , P.vsep $ mapOn os $ \ (info, o) -> withOptions o $ \ gc cc ltf dtf ->
         let ς = execOnlyStuck gc cc ltf dtf c
         in P.vsep
@@ -71,5 +71,11 @@ callSiteSensitivityMain = do
 objectSensitivityMain :: IO ()
 objectSensitivityMain = do
   e <- parseFile "data/lamif-src/object-sensitivity.lam"
+  let os = makeOptions ["0", "1"] ["0"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
+  pprint $ runOptions os e
+
+otherMain :: IO ()
+otherMain = do
+  e <- parseFile "data/lamif-src/kcfa.lam"
   let os = makeOptions ["0", "1"] ["0"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
   pprint $ runOptions os e

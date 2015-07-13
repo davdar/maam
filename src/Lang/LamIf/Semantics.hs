@@ -294,7 +294,7 @@ data Options = Options
   , dtimeFilterOp :: TimeFilter
   }
 
-withOptions :: forall a. Options -> ((Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> a) -> a
+withOptions :: forall a. Options -> (forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> a) -> a
 withOptions o f = case o of
   Options (ExTime (W :: UniTime lτ)) 
           (ExTime (W :: UniTime dτ))

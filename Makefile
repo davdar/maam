@@ -1,27 +1,29 @@
-.PHONY: default sandbox clean init-flags all run
+.PHONY: default sandbox-init sandbox-clean ghci-init ghc-clean setup-init setup-clean build clean html
 
-default: all
+default: build
 
-sandbox:
+sandbox-init:
 	cabal sandbox init
 	cabal install --dependencies-only
 
-clean:
+sandbox-clean:
+	rm -rf .cabal-sandbox cabal.sandbox.config
+
+ghci-init:
+	runhaskell env-setup/EnvSetup.hs
+
+ghci-clean:
 	rm -f .extensions*
 	rm -f .ghc_options*
-	cabal clean
 
-init-flags:
-	rm -f .extension*
-	rm -f .ghc_options*
-	runhaskell EnvSetup.hs
+setup-init: sandbox-init ghci-init
+setup-clean: sandbox-clean ghci-clean
 
-all:
+build:
 	cabal build
 
-run:
-	cabal run maam
+clean:
+	cabal clean
 
 html:
 	pandoc -f markdown -t html --self-contained -o README.html README.md
-

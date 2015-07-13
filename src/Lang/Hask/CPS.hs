@@ -180,4 +180,4 @@ cpsM e = case e of
 cps :: (Monad m, MonadReader UniqSupply m) =>  H.Expr Var -> m Call
 cps c = do
   uniqueSupply <- ask
-  return $ evalState (CPS𝒮 uniqueSupply 0) $ runMetaKonT (cpsM c) $ stamp . Halt
+  return $ evalState (CPS𝒮 uniqueSupply $ toi 0) $ runMetaKonT (cpsM c) $ stamp . Halt
