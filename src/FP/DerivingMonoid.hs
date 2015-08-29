@@ -15,10 +15,10 @@ makeMonoidLogic cx ty tyargs con fieldtys = do
   let xs = map fst xys
       ys = map snd xys
   return $ single $
-    InstanceD 
-      (uniques $ concat [cx , map (ClassP ''Monoid . single) fieldtys])
+    InstanceD
+      (uniques $ concat [cx , map (classConstraint ''Monoid) fieldtys])
       (ConT ''Monoid #@ (ConT ty #@| map (VarT . tyVarBndrName) tyargs))
-      [ FunD 'null $ single $ sclause [] $ 
+      [ FunD 'null $ single $ sclause [] $
           ConE con #@| (mapOn fieldtys $ const $ VarE 'null)
       , FunD '(++) $ single $ sclause [ConP con $ map VarP xs, ConP con $ map VarP ys] $
           ConE con #@| mapOn xys (uncurry $ \ x y -> VarE '(++) #@ VarE x #@ VarE y)

@@ -17,3 +17,4 @@
 .extensions*
 README.html
 *.agdai
+.stack-work/

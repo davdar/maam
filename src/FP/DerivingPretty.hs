@@ -17,13 +17,13 @@ makePrettySumLogic cx ty tyargs confieldtyss = do
     xs <- mapOnM fieldtys $ const $ newName $ toChars "x"
     return (con, xs)
   return $ single $
-    InstanceD 
-      (uniques $ concat [ cx , map (ClassP ''Pretty . single) $ concat $ map snd confieldtyss ])
+    InstanceD
+      (uniques $ concat [ cx , map (classConstraint ''Pretty) $ concat $ map snd confieldtyss ])
       (ConT ''Pretty #@ (ConT ty #@| map (VarT . tyVarBndrName) tyargs)) $
       single $ FunD 'pretty $ mapOn conxss $ \ (con, xs) ->
         let prettyCon = VarE 'P.con #@ makeString (fromChars $ nameBase con)
             prettyXs = mapOn xs $ \ x -> VarE 'pretty #@ VarE x
-        in 
+        in
         sclause [ConP con $ map VarP xs] $
           VarE 'P.app #@ prettyCon #@ makeList prettyXs
 
@@ -39,7 +39,7 @@ makePrettyUnionLogic cx ty tyargs confieldtyss = do
     return (con, xs)
   return $ single $
     InstanceD
-      (uniques $ concat [ cx , map (ClassP ''Pretty . single) $ concat $ map snd confieldtyss ])
+      (uniques $ concat [ cx , map (classConstraint ''Pretty) $ concat $ map snd confieldtyss ])
       (ConT ''Pretty #@ (ConT ty #@| map (VarT . tyVarBndrName) tyargs)) $
       single $ FunD 'pretty $ mapOn conxss $ \ (con, xs) ->
         sclause [ConP con $ map VarP xs] $

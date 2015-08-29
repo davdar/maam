@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module FP.TH where
 
 import FP.Core
@@ -32,7 +34,7 @@ makeList = foldrFrom (ConE '[]) $ \ e es -> ConE '(:) #@ e #@ es
 
 makeString :: String -> Exp
 makeString = LitE . StringL . toChars
-      
+
 conName :: Con -> Name
 conName (NormalC n _) = n
 conName (RecC n _) = n
@@ -101,3 +103,11 @@ recCL = Prism
       _ -> Nothing
   , inject = \ (n, fs) -> RecC n fs
   }
+
+#if MIN_VERSION_template_haskell(2,10,0)
+classConstraint :: Name -> Type -> Type
+classConstraint = AppT . ConT
+#else
+classConstraint :: Name -> Type -> Pred
+classConstraint n = ClassP n . single
+#endif
