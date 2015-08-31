@@ -14,10 +14,10 @@ makeJoinLatticeLogic cx ty tyargs con fieldtys = do
   xs <- liftQ $ mapOnM fieldtys $ const $ newName $ toChars "x"
   ys <- liftQ $ mapOnM fieldtys $ const $ newName $ toChars "y"
   return $ single $
-    InstanceD 
-      (uniques $ concat [cx , map (ClassP ''JoinLattice . single) fieldtys])
+    InstanceD
+      (uniques $ concat [cx , map (classConstraint ''JoinLattice) fieldtys])
       (ConT ''JoinLattice #@ (ConT ty #@| map (VarT . tyVarBndrName) tyargs))
-      [ FunD 'bot $ single $ sclause [] $ 
+      [ FunD 'bot $ single $ sclause [] $
           ConE con #@| (mapOn fieldtys $ const $ VarE 'bot)
       , FunD '(\/) $ single $ sclause [ConP con $ map VarP xs, ConP con $ map VarP ys] $
           ConE con #@| mapOn (unsafe_coerce justL $ zip xs ys) (uncurry $ \ x y -> VarE '(\/) #@ VarE x #@ VarE y)
@@ -28,4 +28,3 @@ makeJoinLattice name = do
   (cx, ty, tyargs, c, _) <- maybeZero . (coerceSingleConADT *. view tyConIL) *$ liftQ $ reify name
   (con, fieldtys) <- maybeZero $ coerceSimpleCon c
   makeJoinLatticeLogic cx ty tyargs con fieldtys
-

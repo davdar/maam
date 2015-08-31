@@ -1,4 +1,4 @@
-module FP.Core 
+module FP.Core
 
 -- Exports  {{{
 
@@ -15,7 +15,7 @@ module FP.Core
 -- Imports {{{
 
 import qualified Prelude
-import Prelude 
+import Prelude
   ( Eq(..), Ord(..), Ordering(..)
   , id, (.), ($), const, flip, curry, uncurry
   , fst, snd
@@ -142,7 +142,7 @@ piter f i0 x = loop i0 zer
   where
     loop i j
       | j == x = i
-      | otherwise = 
+      | otherwise =
         let i' = f i
         in i' `seq` loop i' $ suc j
 
@@ -216,7 +216,7 @@ poiter f = loop
 poiterHistory :: (PartialOrder a) => (a -> a) -> a -> [a]
 poiterHistory f = loop
   where
-    loop x = 
+    loop x =
       let x' = f x
       in if x' ⊑ x
         then [x]
@@ -276,7 +276,7 @@ class (Bot a, Join a) => JoinLattice a
 class (Top a, Meet a) => MeetLattice a
 class (JoinLattice a, MeetLattice a) => Lattice a
 class (Lattice a, Neg a) => NegLattice a
-  
+
 joins :: (Iterable a t, JoinLattice a) => t -> a ; joins = iter (\/) bot
 meets :: (Iterable a t, MeetLattice a) => t -> a ; meets = iter (/\) top
 
@@ -303,7 +303,7 @@ collectDiffs f = diffs . collectHistory f
 
 -- Functors {{{
 
-class Commute t u where 
+class Commute t u where
   commute :: t (u a)  -> u (t a)
 class Unit (t :: * -> *) where unit :: a -> t a
 class Functor (t :: * -> *) where map :: (a -> b) -> (t a -> t b)
@@ -854,7 +854,7 @@ type Chars = [Char]
 fromChars  :: Chars -> String                 ; fromChars  = Text.pack
 fromString :: Chars -> String                 ; fromString = fromChars
 toChars    :: String -> Chars                 ; toChars    = Text.unpack
-error      :: String -> a                     ; error      = Prelude.error . toChars 
+error      :: String -> a                     ; error      = Prelude.error . toChars
 show       :: (Prelude.Show a) => a -> String ; show       = fromChars . Prelude.show
 read       :: (Prelude.Read a) => String -> a ; read       = Prelude.read . toChars
 
@@ -887,7 +887,7 @@ set     :: Lens a b -> b -> a -> a                         ; set l              
 
 instance Category Lens where
   catid = isoLens id id
-  g <.> f = Lens $ \ a -> 
+  g <.> f = Lens $ \ a ->
     let Cursor b ba = unLens f a
         Cursor c cb = unLens g b
     in Cursor c $ ba . cb
@@ -948,17 +948,17 @@ instance (PartialOrder a, PartialOrder b, PartialOrder c, PartialOrder d, Partia
 instance (Monoid a, Monoid b) => Monoid (a, b) where
   null = (null, null)
   (a1, b1) ++ (a2, b2) = (a1 ++ a2, b1 ++ b2)
-instance (Bot a, Bot b) => Bot (a, b) where 
+instance (Bot a, Bot b) => Bot (a, b) where
   bot = (bot, bot)
-instance (Join a, Join b) => Join (a, b) where 
+instance (Join a, Join b) => Join (a, b) where
   (a1, b1) \/ (a2, b2) = (a1 \/ a2, b1 \/ b2)
 instance (JoinLattice a, JoinLattice b) => JoinLattice (a, b)
-instance (Bot a, Bot b, Bot c) => Bot (a, b, c) where 
+instance (Bot a, Bot b, Bot c) => Bot (a, b, c) where
   bot = (bot, bot, bot)
-instance (Join a, Join b, Join c) => Join (a, b, c) where 
+instance (Join a, Join b, Join c) => Join (a, b, c) where
   (a1, b1, c1) \/ (a2, b2, c2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2)
 instance (JoinLattice a, JoinLattice b, JoinLattice c) => JoinLattice (a, b, c)
-instance (Bot a, Bot b, Bot c, Bot d, Bot e) => Bot (a, b, c, d, e) where 
+instance (Bot a, Bot b, Bot c, Bot d, Bot e) => Bot (a, b, c, d, e) where
   bot = (bot, bot, bot, bot, bot)
 instance (Join a, Join b, Join c, Join d, Join e) => Join (a, b, c, d, e) where
   (a1, b1, c1, d1, e1) \/ (a2, b2, c2, d2, e2) = (a1 \/ a2, b1 \/ b2, c1 \/ c2, d1 \/ d2, e1 \/ e2)
@@ -1154,17 +1154,18 @@ data Set a where
 setPrimElim :: b -> ((Ord a) => Set.Set a -> b) -> Set a -> b
 setPrimElim i f = \case { EmptySet -> i ; Set x -> f x }
 
-setPrimElimOn :: Set a -> b -> ((Ord a) => Set.Set a -> b) -> b
+-- Bug in GHC 7.10.2
+--setPrimElimOn :: Set a -> b -> ((Ord a) => Set.Set a -> b) -> b
 setPrimElimOn = rotateR setPrimElim
 
-setPrimElim2 :: b 
-  -> ((Ord a) => Set.Set a -> b) 
-  -> ((Ord a) => Set.Set a -> b) 
-  -> ((Ord a) => Set.Set a -> Set.Set a -> b) 
+setPrimElim2 :: b
+  -> ((Ord a) => Set.Set a -> b)
+  -> ((Ord a) => Set.Set a -> b)
+  -> ((Ord a) => Set.Set a -> Set.Set a -> b)
   -> Set a -> Set a -> b
-setPrimElim2 i f1 f2 ff s1 s2 = 
-  setPrimElimOn s1 (setPrimElimOn s2 i f1) $ \ p1 -> 
-    setPrimElimOn s2 (f2 p1) $ \ p2 -> 
+setPrimElim2 i f1 f2 ff s1 s2 =
+  setPrimElimOn s1 (setPrimElimOn s2 i f1) $ \ p1 ->
+    setPrimElimOn s2 (f2 p1) $ \ p2 ->
       ff p1 p2
 
 setPrimElim2' :: b -> ((Ord a) => Set.Set a -> b) -> ((Ord a) => Set.Set a -> Set.Set a -> b) -> Set a -> Set a -> b
@@ -1173,7 +1174,7 @@ setPrimElim2' i f = setPrimElim2 i f f
 toPrimSet :: Set a -> Set.Set a
 toPrimSet = setPrimElim Set.empty id
 
-learnSet :: Set a -> b -> ((Ord a) => b) -> b 
+learnSet :: Set a -> b -> ((Ord a) => b) -> b
 learnSet s i f = setPrimElimOn s i $ const f
 
 empty   :: Set a         ; empty   = EmptySet
@@ -1208,7 +1209,7 @@ setTranspose aMM = loop $ toList aMM
   where
     loop :: [(Set a)] -> Set (Set a)
     loop [] = EmptySet
-    loop (s:ss) = 
+    loop (s:ss) =
       learnSet s (loop ss) $
       toSet $ map toSet $ transpose $ map toList $ s:ss
 
@@ -1251,17 +1252,18 @@ type New v = v
 mapPrimElim :: b -> ((Ord k) => Map.Map k v -> b) -> Map k v -> b
 mapPrimElim i f = \case { EmptyMap -> i ; Map p -> f p }
 
-mapPrimElimOn :: Map k v -> b -> ((Ord k) => Map.Map k v -> b) -> b
+-- Bug in GHC 7.10.2
+--mapPrimElimOn :: Map k v -> b -> ((Ord k) => Map.Map k v -> b) -> b
 mapPrimElimOn = rotateR mapPrimElim
 
-mapPrimElim2 :: b 
-  -> ((Ord k) => Map.Map k v -> b) 
-  -> ((Ord k) => Map.Map k v -> b) 
-  -> ((Ord k) => Map.Map k v -> Map.Map k v -> b) 
+mapPrimElim2 :: b
+  -> ((Ord k) => Map.Map k v -> b)
+  -> ((Ord k) => Map.Map k v -> b)
+  -> ((Ord k) => Map.Map k v -> Map.Map k v -> b)
   -> Map k v -> Map k v -> b
-mapPrimElim2 i f1 f2 ff s1 s2 = 
-  mapPrimElimOn s1 (mapPrimElimOn s2 i f1) $ \ p1 -> 
-    mapPrimElimOn s2 (f2 p1) $ \ p2 -> 
+mapPrimElim2 i f1 f2 ff s1 s2 =
+  mapPrimElimOn s1 (mapPrimElimOn s2 i f1) $ \ p1 ->
+    mapPrimElimOn s2 (f2 p1) $ \ p2 ->
       ff p1 p2
 
 mapPrimElim2' :: b -> ((Ord k) => Map.Map k v -> b) -> ((Ord k) => Map.Map k v -> Map.Map k v -> b) -> Map k v -> Map k v -> b
@@ -1378,7 +1380,7 @@ instance (Functorial Eq f) => Eq (Fix f) where
 instance (Functorial Eq f, Functorial Ord f) => Ord (Fix f) where
   Fix x `compare` Fix y = with (functorial :: W (Ord (f (Fix f)))) $ x `compare` y
 
-data StampedFix a f = StampedFix { stampedFixID :: a , stampedFix :: f (StampedFix a f) } 
+data StampedFix a f = StampedFix { stampedFixID :: a , stampedFix :: f (StampedFix a f) }
 stripStampedFix :: (Functor f) => StampedFix a f -> Fix f
 stripStampedFix (StampedFix _ f) = Fix $ map stripStampedFix f
 instance (Eq a)           => Eq (StampedFix a f)           where (==)     = (==)     `on` stampedFixID
@@ -1400,9 +1402,9 @@ listSetWithTopElim :: b -> (ListSet a -> b) -> ListSetWithTop a -> b
 listSetWithTopElim i f = \case { ListSetTop -> i ; ListSetNotTop xs -> f xs }
 
 listSetWithTopTranspose :: ListSetWithTop (ListSetWithTop a) -> ListSetWithTop (ListSetWithTop a)
-listSetWithTopTranspose = 
-  listSetWithTopElim ListSetTop 
-    $ maybeElim ListSetTop (ListSetNotTop . map ListSetNotTop . listSetTranspose) 
+listSetWithTopTranspose =
+  listSetWithTopElim ListSetTop
+    $ maybeElim ListSetTop (ListSetNotTop . map ListSetNotTop . listSetTranspose)
     . sequence . map (listSetWithTopElim Nothing Just)
 
 instance (Ord a) => PartialOrder (ListSetWithTop a) where
@@ -1410,8 +1412,8 @@ instance (Ord a) => PartialOrder (ListSetWithTop a) where
   ListSetTop       `pcompare` _                = PGT
   _                `pcompare` ListSetTop       = PLT
   ListSetNotTop xs `pcompare` ListSetNotTop ys = xs `pcompare` ys
-instance Buildable a (ListSetWithTop a) where 
-  nil = ListSetNotTop nil 
+instance Buildable a (ListSetWithTop a) where
+  nil = ListSetNotTop nil
   _ & ListSetTop = ListSetTop
   x & ListSetNotTop xs = ListSetNotTop $ x & xs
 instance Bot (ListSetWithTop a) where bot = ListSetNotTop nil
@@ -1490,7 +1492,7 @@ instance Meet (SetWithTop a) where
 instance MonadBot SetWithTop where mbot = bot
 instance MonadPlus SetWithTop where (<+>) = (\/)
 instance MonadTop SetWithTop where mtop = top
-instance Product SetWithTop where 
+instance Product SetWithTop where
   SetTop <*> _ = SetTop
   _ <*> SetTop = SetTop
   SetNotTop xs <*> SetNotTop ys = SetNotTop $ xs <*> ys

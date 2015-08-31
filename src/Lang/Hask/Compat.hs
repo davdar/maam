@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Lang.Hask.Compat where
 
 import FP
@@ -8,6 +10,9 @@ import qualified Prelude
 import Data.IORef
 import DynFlags
 import System.IO.Unsafe
+#if MIN_VERSION_base(4,8,0)
+import Plugins
+#endif
 
 makeLenses ''Plugin
 makeLenses ''ModGuts

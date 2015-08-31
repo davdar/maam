@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Lang.Hask.GHCPlugin where
 
 import FP
@@ -9,6 +11,9 @@ import qualified CoreSyn as H
 import Lang.Hask.Compat
 import Lang.Hask.Pretty ()
 import Outputable
+#if MIN_VERSION_base(4,8,0)
+import Plugins
+#endif
 
 plugin :: Plugin
 plugin = defaultPlugin |: installCoreToDosL =: \ (_ops :: [CommandLineOption]) (todo :: [CoreToDo]) -> do
@@ -22,7 +27,7 @@ maamAnalyze = updateM mg_bindsL $ mapM $ \case
   H.NonRec x e -> do
     df <- getDynFlags
     io $ initGlobalDynFlags df
-    io $ print $ fromChars $ showPpr df e 
+    io $ print $ fromChars $ showPpr df e
     us <- getUniqueSupplyM
     c <- runReaderT us $ cps e
     io $ pprint c

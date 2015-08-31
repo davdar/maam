@@ -11,6 +11,8 @@ version:             0.2.0.1
 description:         An application of the Galois Transformers framework to two example semantics.
 data-files:          data/lamif-src/*.lam data/hask-src/*.hs
 extra-source-files:  EnvSetup.hs ghci.sh Makefile README.md .ghci .reload.ghci
+tested-with:         GHC==7.8.4
+                   , GHC==7.10.2
 
 source-repository head
   type: git
@@ -20,8 +22,8 @@ library
   hs-source-dirs: src
   default-language: Haskell2010
   build-depends:
-      base == 4.7.*
-    , ghc == 7.8.*
+      base >= 4.7 && < 5
+    , ghc >= 7.8
     , containers 
     , text 
     , template-haskell 
