@@ -2,112 +2,298 @@ module Lang.LamIf.Monads where
 
 import FP
 import MAAM
+import Lang.LamIf.Stamp
 import Lang.LamIf.Semantics
-import Lang.LamIf.StateSpace
-import Lang.LamIf.Pretty ()
+import Lang.LamIf.Values
+import Lang.LamIf.Domains
 
--- Path Sensitive
-type PSΣ' val lτ dτ = (ID :.: ListSet) :.: (,) (𝒮 val lτ dτ)
-newtype PSΣ val lτ dτ a = PSΣ { unPSΣ :: ListSet (a, 𝒮 val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Pretty)
-instance Morphism2 (PSΣ val lτ dτ) (PSΣ' val lτ dτ)  where
-  morph2 = Compose . Compose . ID . map swap . unPSΣ
-instance Morphism2 (PSΣ' val lτ dτ) (PSΣ val lτ dτ) where
-  morph2 = PSΣ . map swap . unID . unCompose . unCompose
-instance Isomorphism2 (PSΣ val lτ dτ) (PSΣ' val lτ dτ) where
-instance (TimeC lτ, TimeC dτ) => Inject (PSΣ val lτ dτ) where
-  inj = PSΣ . inj . (,bot)
+-- # Common Injection
 
-newtype PSΣ𝒫 val lτ dτ a = PSΣ𝒫 { unPSΣ𝒫 :: Set (a, 𝒮 val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Pretty, Difference)
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Morphism (PSΣ val lτ dτ a) (PSΣ𝒫 val lτ dτ a) where
-  morph (PSΣ a𝓈s) = PSΣ𝒫 $ toSet $ toList a𝓈s
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Morphism (PSΣ𝒫 val lτ dτ a) (PSΣ val lτ dτ a) where
-  morph (PSΣ𝒫 a𝓈s) = PSΣ $ fromList $ toList a𝓈s
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Isomorphism (PSΣ val lτ dτ a) (PSΣ𝒫 val lτ dτ a)
+newtype InjectLamIf val a = InjectLamIf { runInjectLamIf ∷ (a,LamIfState val) }
 
-newtype PS val lτ dτ a = FSPS 
-  { unPS :: IsoMonadStep (PSΣ val lτ dτ) (PSΣ' val lτ dτ) 
-                 (StateT (𝒮 val lτ dτ) (ListSetT ID)) a 
-  } deriving 
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadBot, MonadPlus
-    , MonadState (𝒮 val lτ dτ)
-    , MonadStep (PSΣ val lτ dτ)
-    )
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (PS val lτ dτ)
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Execution (PSΣ val lτ dτ) (PSΣ𝒫 val lτ dτ) (PS val lτ dτ)
+isoInjectLamIf ∷ InjectLamIf val a ⇄ (a,LamIfState val)
+isoInjectLamIf = Iso runInjectLamIf InjectLamIf
 
--- Flow Sensitive Path Insensitive
-type FSΣ' val lτ dτ = (ID :.: ListSet) :.: (,) (𝒮 val lτ dτ)
+-- # Path Sensitive
 
-newtype FSΣ val lτ dτ a = FSΣ { unFSΣ :: ListSet (a, 𝒮 val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Pretty)
-instance Morphism2 (FSΣ val lτ dτ) (FSΣ' val lτ dτ)  where
-  morph2 = Compose . Compose . ID . map swap . unFSΣ
-instance Morphism2 (FSΣ' val lτ dτ) (FSΣ val lτ dτ) where
-  morph2 = FSΣ . map swap . unID . unCompose . unCompose
-instance Isomorphism2 (FSΣ val lτ dτ) (FSΣ' val lτ dτ) where
-instance (TimeC lτ, TimeC dτ) => Inject (FSΣ val lτ dτ) where
-  inj = FSΣ . inj . (,bot)
+-- Transition System
 
-newtype FSΣ𝒫 val lτ dτ a = FSΣ𝒫 { unFSΣ𝒫 :: Map a (Set (𝒮Cxt lτ dτ), Store val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Pretty, Difference)
-instance (Ord val, Join val, Ord lτ, Ord dτ, Ord a) => Morphism (FSΣ val lτ dτ a) (FSΣ𝒫 val lτ dτ a) where
-  morph = FSΣ𝒫 . toMapJoin . map (mapSnd $ \ (𝒮 cxt σ) -> (single cxt, σ)) . toList . unFSΣ
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Morphism (FSΣ𝒫 val lτ dτ a) (FSΣ val lτ dτ a) where
-  morph = FSΣ . fromList . toList . joins . map (\ (a, (cxts, σ)) -> setMapOn cxts $ \ cxt -> (a, 𝒮 cxt σ)) . toList . unFSΣ𝒫
-instance (Ord val, Join val, Ord lτ, Ord dτ, Ord a) => Isomorphism (FSΣ val lτ dτ a) (FSΣ𝒫 val lτ dτ a)
+newtype PathSensitiveΣᵇ val a = PathSensitiveΣᵇ { runPathSensitiveΣᵇ ∷ PolyStateΠ (LamIfState val) (NondetJoinΠ ID) a }
 
-newtype FS val lτ dτ a = FS 
-  { unFS :: IsoMonadStep (FSΣ val lτ dτ) (FSΣ' val lτ dτ) 
-                 (StateT (𝒮 val lτ dτ) (ListSetT ID)) a 
-  } deriving 
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadBot, MonadPlus
-    , MonadState (𝒮 val lτ dτ)
-    , MonadStep (FSΣ val lτ dτ)
-    )
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (FS val lτ dτ)
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Execution (FSΣ val lτ dτ) (FSΣ𝒫 val lτ dτ) (FS val lτ dτ)
+isoPathSensitiveΣᵇ ∷ PathSensitiveΣᵇ val a ⇄ PolyStateΠ (LamIfState val) (NondetJoinΠ ID) a
+isoPathSensitiveΣᵇ = Iso runPathSensitiveΣᵇ PathSensitiveΣᵇ
 
--- Path Insensitive
-instance Morphism (𝒮 val lτ dτ) (𝒮Cxt lτ dτ, Store val lτ dτ) where
-  morph (𝒮 cxt σ) = (cxt, σ)
-instance Morphism (𝒮Cxt lτ dτ, Store val lτ dτ) (𝒮 val lτ dτ) where
-  morph (cxt, σ) = 𝒮 cxt σ
-instance Isomorphism (𝒮 val lτ dτ) (𝒮Cxt lτ dτ, Store val lτ dτ)
+isoPathSensitiveΣᵇ2 ∷ PathSensitiveΣᵇ val ↝⇄ PolyStateΠ (LamIfState val) (NondetJoinΠ ID)
+isoPathSensitiveΣᵇ2 = iso2FromIso isoPathSensitiveΣᵇ
 
--- Flow Insensitive Path Insensitive
-type FIΣ' val lτ dτ = ((ID :.: (,) (Store val lτ dτ)) :.: ListSet) :.: (,) (𝒮Cxt lτ dτ)
+instance Inject (InjectLamIf val) (PathSensitiveΣᵇ val) where
+  inject = isoInject (iso2FromIso $ sym $ sym isoInjectLamIf ⌾ isoID ⌾ isoStateI) isoPathSensitiveΣᵇ2
 
-newtype FIΣ val lτ dτ a = FIΣ { unFIΣ :: (ListSet (a, 𝒮Cxt lτ dτ), Store val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Pretty)
-instance Morphism2 (FIΣ val lτ dτ) (FIΣ' val lτ dτ) where
-  morph2 = Compose . Compose . Compose . ID . mapSnd (map swap) . swap . unFIΣ
-instance Morphism2 (FIΣ' val lτ dτ) (FIΣ val lτ dτ) where
-  morph2 = FIΣ . swap . mapSnd (map swap) . unID . unCompose . unCompose . unCompose
-instance Isomorphism2 (FIΣ val lτ dτ) (FIΣ' val lτ dτ) where
+newtype PathSensitiveΣ val a = PathSensitiveΣ { runPathSensitiveΣ ∷ 𝒫 (a,LamIfState val) }
+  deriving (POrd,Bot,Join,JoinLattice,Difference,Pretty)
 
-newtype FIΣ𝒫 val lτ dτ a = FIΣ𝒫 { unFIΣ𝒫 :: (Set (a, 𝒮Cxt lτ dτ), Store val lτ dτ) }
-  deriving (PartialOrder, Bot, Join, JoinLattice, Difference, Pretty)
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Morphism (FIΣ val lτ dτ a) (FIΣ𝒫 val lτ dτ a) where
-  morph (FIΣ (a𝓈s, σ)) = FIΣ𝒫 (toSet $ toList a𝓈s, σ)
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Morphism (FIΣ𝒫 val lτ dτ a) (FIΣ val lτ dτ a) where
-  morph (FIΣ𝒫 (a𝓈s, σ)) = FIΣ (fromList $ toList a𝓈s, σ)
-instance (Ord val, Ord lτ, Ord dτ, Ord a) => Isomorphism (FIΣ val lτ dτ a) (FIΣ𝒫 val lτ dτ a)
+isoPathSensitiveΣ ∷ (Ord val,Ord a) ⇒ PathSensitiveΣ val a ⇄ PathSensitiveΣᵇ val a
+isoPathSensitiveΣ = Iso 
+  (PathSensitiveΣᵇ  ∘ PolyStateΠ ∘ NondetJoinΠ ∘ ID ∘ lazySet ∘ runPathSensitiveΣ) 
+  (PathSensitiveΣ ∘ set ∘ runID ∘ runNondetJoinΠ ∘ runPolyStateΠ  ∘ runPathSensitiveΣᵇ)
 
-instance (TimeC lτ, TimeC dτ) => Inject (FIΣ val lτ dτ) where
-  inj = FIΣ . (,bot) . inj . (,bot)
+-- Monad
 
-newtype FI val lτ dτ a = FIPI 
-  { unFI :: IsoMonadStep (FIΣ val lτ dτ) (FIΣ' val lτ dτ)
-                 (AddStateT (𝒮 val lτ dτ) (𝒮Cxt lτ dτ) (ListSetT (StateT (Store val lτ dτ) ID))) a 
-  } deriving 
-    ( Unit, Functor, Product, Applicative, Bind, Monad
-    , MonadBot, MonadPlus
-    , MonadState (𝒮 val lτ dτ)
-    , MonadStep (FIΣ val lτ dτ)
-    )
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Analysis val lτ dτ (FI val lτ dτ)
-instance (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Execution (FIΣ val lτ dτ) (FIΣ𝒫 val lτ dτ) (FI val lτ dτ)
+newtype PathSensitiveM val a = PathSensitiveM { runPathSensitiveM ∷ PolyStateT (LamIfState val) (NondetJoinT ID) a }
+  deriving 
+  (Functor,Monad,MonadBot,MonadJoin,MonadJoinLattice,MonadState (LamIfState val))
+
+isoPathSensitiveM ∷ PathSensitiveM val a ⇄ PolyStateT (LamIfState val) (NondetJoinT ID) a
+isoPathSensitiveM = Iso runPathSensitiveM PathSensitiveM
+
+isoPathSensitiveM2 ∷ PathSensitiveM val ↝⇄ PolyStateT (LamIfState val) (NondetJoinT ID)
+isoPathSensitiveM2 = iso2FromIso isoPathSensitiveM
+
+instance GaloisTransformer (PathSensitiveΣᵇ val) (PathSensitiveM val) where
+  αGT = isoαGT isoPathSensitiveΣᵇ2 isoPathSensitiveM2
+  γGT = isoγGT isoPathSensitiveΣᵇ2 isoPathSensitiveM2
+
+-- Execution
+
+instance (POrd val,JoinLattice val,Val val) ⇒ 
+  MonadLamIf val (PathSensitiveM val)
+
+instance (Ord val,POrd val,JoinLattice val,Val val) ⇒ 
+  ExecutionLamIf val 
+  (InjectLamIf val)
+  (PathSensitiveΣᵇ val)
+  (PathSensitiveM val)
+
+-- # Path Insensitive
+
+data LamIfContext val = LamIfContext
+  { ctxEnv ∷ Env 
+  , ctxΚAddr ∷ Maybe ExpAddr 
+  , ctxTime ∷ Time 
+  } deriving (Eq,Ord)
+makePrettyRecord ''LamIfContext
+
+data LamIfStores val = LamIfStores
+  { storesStore ∷ Store val
+  , storesΚStore ∷ KStore val
+  } deriving (Eq,Ord)
+makePrettyRecord ''LamIfStores
+
+instance (POrd val) ⇒ POrd (LamIfStores val) where
+  (⊑⊒) = poCompareFromLte $ \ (LamIfStores σ₁ κσ₁) (LamIfStores σ₂ κσ₂) → meets [σ₁ ⊑ σ₂,κσ₁ ⊑ κσ₂]
+instance Bot (LamIfStores val) where
+  bot = LamIfStores bot bot
+instance (Join val) ⇒ Join (LamIfStores val) where
+  LamIfStores σ₁ κσ₁ ⊔ LamIfStores σ₂ κσ₂ = LamIfStores (σ₁ ⊔ σ₂) (κσ₁ ⊔ κσ₂)
+instance (Join val) ⇒ JoinLattice (LamIfStores val)
+instance (Difference val) ⇒ Difference (LamIfStores val) where
+  LamIfStores σ₁ κσ₁ ⊟ LamIfStores σ₂ κσ₂ = LamIfStores (σ₁ ⊟ σ₂) (κσ₁ ⊟ κσ₂)
+
+splitLamIfState ∷ LamIfState val → (LamIfContext val,LamIfStores val)
+splitLamIfState (LamIfState ρ κl τ σ κσ) = (LamIfContext ρ κl τ,LamIfStores σ κσ)
+
+combineLamIfState ∷ (LamIfContext val,LamIfStores val) → LamIfState val
+combineLamIfState (LamIfContext ρ κl τ,LamIfStores σ κσ) = LamIfState ρ κl τ σ κσ
+
+isoSplitLamIfState ∷ LamIfState val ⇄ (LamIfContext val,LamIfStores val)
+isoSplitLamIfState = Iso splitLamIfState combineLamIfState
+
+isoCombineLamIfState ∷ (a,LamIfState val) ⇄ ((a,LamIfContext val),LamIfStores val)
+isoCombineLamIfState = Iso 
+  (\ (x,splitLamIfState → (ctx,stores)) → ((x,ctx),stores))
+  (\ ((x,ctx),stores) → (x,combineLamIfState (ctx,stores)))
+
+-- ## Flow Sensitive
+
+-- Transition System
+
+newtype FlowSensitiveΣᵇ val a = FlowSensitiveΣᵇ 
+  { runFlowSensitiveΣᵇ ∷ 
+      PolyStateΠ (LamIfContext val) 
+      (FlowJoinΠ (LamIfStores val)
+      ID) a
+  }
+
+isoFlowSensitiveΣᵇ ∷ FlowSensitiveΣᵇ val a ⇄ PolyStateΠ (LamIfContext val) (FlowJoinΠ (LamIfStores val) ID) a
+isoFlowSensitiveΣᵇ = Iso runFlowSensitiveΣᵇ FlowSensitiveΣᵇ
+
+isoFlowSensitiveΣ2ᵇ ∷ FlowSensitiveΣᵇ val ↝⇄ PolyStateΠ (LamIfContext val) (FlowJoinΠ (LamIfStores val) ID)
+isoFlowSensitiveΣ2ᵇ = iso2FromIso isoFlowSensitiveΣᵇ
+
+instance Inject (InjectLamIf val) (FlowSensitiveΣᵇ val) where
+  inject = isoInject 
+    (iso2FromIso $ sym (sym isoCombineLamIfState ⌾ isoID ⌾ isoStateI ⌾ isoStateI) ⌾ isoInjectLamIf)
+    isoFlowSensitiveΣ2ᵇ
+
+newtype FlowSensitiveΣ val a = FlowSensitiveΣ { runFlowSensitiveΣ ∷ (a,LamIfContext val) ⇰ LamIfStores val }
+  deriving (POrd,Bot,Join,JoinLattice,Difference,Pretty)
+
+isoFlowSensitiveΣ ∷ (Ord a,Join val) ⇒ FlowSensitiveΣ val a ⇄ FlowSensitiveΣᵇ val a
+isoFlowSensitiveΣ = Iso 
+  (FlowSensitiveΣᵇ ∘ PolyStateΠ ∘ FlowJoinΠ ∘ ID ∘ lazyDictJoin ∘ runFlowSensitiveΣ) 
+  (FlowSensitiveΣ ∘ dictJoin ∘ runID ∘ runFlowJoinΠ ∘ runPolyStateΠ ∘ runFlowSensitiveΣᵇ)
+
+-- Monad
+
+newtype FlowSensitiveM val a = FlowSensitiveM
+  { runFlowSensitiveM ∷
+      PolyStateT (LamIfContext val)
+      (FlowJoinT (LamIfStores val)
+      ID) a
+  }
+  deriving (Functor,Monad,MonadBot,MonadJoin,MonadJoinLattice)
+
+isoFlowSensitiveM ∷ FlowSensitiveM val a ⇄ PolyStateT (LamIfContext val) (FlowJoinT (LamIfStores val) ID) a
+isoFlowSensitiveM = Iso runFlowSensitiveM FlowSensitiveM
+
+isoFlowSensitiveM2 ∷ FlowSensitiveM val ↝⇄ PolyStateT (LamIfContext val) (FlowJoinT (LamIfStores val) ID)
+isoFlowSensitiveM2 = iso2FromIso isoFlowSensitiveM
+
+instance (Join val) ⇒ MonadState (LamIfState val) (FlowSensitiveM val) where
+  stateE ∷ StateT (LamIfState val) (FlowSensitiveM val) ↝ FlowSensitiveM val
+  stateE = 
+    FlowSensitiveM
+    ∘ PolyStateT
+    ∘ fmap stateE
+    ∘ stateE
+    ∘ fmap stateCommute
+    ∘ splitState
+    ∘ mapState isoSplitLamIfState
+    ∘ fmap (runPolyStateT ∘ runFlowSensitiveM)
+  stateI ∷ FlowSensitiveM val ↝ StateT (LamIfState val) (FlowSensitiveM val)
+  stateI =
+    fmap (FlowSensitiveM ∘ PolyStateT)
+    ∘ mapState (sym isoSplitLamIfState)
+    ∘ mergeState
+    ∘ fmap stateCommute
+    ∘ stateI
+    ∘ fmap stateI
+    ∘ runPolyStateT
+    ∘ runFlowSensitiveM
+
+instance (Join val) ⇒ GaloisTransformer (FlowSensitiveΣᵇ val) (FlowSensitiveM val) where
+  αGT = isoαGT isoFlowSensitiveΣ2ᵇ isoFlowSensitiveM2
+  γGT = isoγGT isoFlowSensitiveΣ2ᵇ isoFlowSensitiveM2
+
+instance (POrd val,JoinLattice val,Val val) ⇒ 
+  MonadLamIf val (FlowSensitiveM val)
+
+instance (Ord val,POrd val,JoinLattice val,Difference val,Val val,Pretty val) ⇒ 
+  ExecutionLamIf val 
+  (InjectLamIf val)
+  (FlowSensitiveΣᵇ val)
+  (FlowSensitiveM val)
+
+-- ## Flow Insensitive
+
+-- Transition System
+
+newtype FlowInsensitiveΣᵇ val a = FlowInsensitiveΣᵇ 
+  { runFlowInsensitiveΣᵇ ∷ 
+      PolyStateΠ (LamIfContext val) 
+      (NondetJoinΠ
+      (StateΠ (LamIfStores val)
+      ID)) a
+  }
+
+isoFlowInsensitiveΣᵇ 
+  ∷ FlowInsensitiveΣᵇ val a 
+  ⇄ PolyStateΠ (LamIfContext val) (NondetJoinΠ (StateΠ (LamIfStores val) ID)) a
+isoFlowInsensitiveΣᵇ = Iso runFlowInsensitiveΣᵇ FlowInsensitiveΣᵇ
+
+isoFlowInsensitiveΣᵇ2 
+   ∷ FlowInsensitiveΣᵇ val 
+  ↝⇄ PolyStateΠ (LamIfContext val) (NondetJoinΠ (StateΠ (LamIfStores val) ID))
+isoFlowInsensitiveΣᵇ2 = iso2FromIso isoFlowInsensitiveΣᵇ
+
+instance Inject (InjectLamIf val) (FlowInsensitiveΣᵇ val) where
+  inject = isoInject 
+    (iso2FromIso $ sym (sym isoCombineLamIfState ⌾ isoID ⌾ isoStateI ⌾ isoStateI) ⌾ isoInjectLamIf)
+    isoFlowInsensitiveΣᵇ2
+
+newtype FlowInsensitiveΣ val a = FlowInsensitiveΣ { runFlowInsensitiveΣ ∷ (𝒫(a,LamIfContext val),LamIfStores val) }
+  deriving (POrd,Bot,Join,JoinLattice,Difference,Pretty)
+
+isoFlowInsensitiveΣ ∷ (Ord a) ⇒ FlowInsensitiveΣ val a ⇄ FlowInsensitiveΣᵇ val a
+isoFlowInsensitiveΣ = Iso
+  (FlowInsensitiveΣᵇ ∘ PolyStateΠ ∘ NondetJoinΠ ∘ StateΠ ∘ ID ∘ mapFst lazySet ∘ runFlowInsensitiveΣ)
+  (FlowInsensitiveΣ ∘ mapFst set ∘ runID ∘ runStateΠ ∘ runNondetJoinΠ ∘ runPolyStateΠ ∘ runFlowInsensitiveΣᵇ)
+
+-- Monad
+
+newtype FlowInsensitiveM val a = FlowInsensitiveM
+  { runFlowInsensitiveM ∷
+      PolyStateT (LamIfContext val)
+      (NondetJoinT
+      (StateT (LamIfStores val)
+      ID)) a
+  }
+  deriving (Functor,Monad,MonadBot,MonadJoin,MonadJoinLattice)
+
+isoFlowInsensitiveM 
+  ∷ FlowInsensitiveM val a 
+  ⇄ PolyStateT (LamIfContext val) (NondetJoinT (StateT (LamIfStores val) ID)) a
+isoFlowInsensitiveM = Iso runFlowInsensitiveM FlowInsensitiveM
+
+isoFlowInsensitiveM2 
+   ∷ FlowInsensitiveM val 
+  ↝⇄ PolyStateT (LamIfContext val) (NondetJoinT (StateT (LamIfStores val) ID))
+isoFlowInsensitiveM2 = iso2FromIso isoFlowInsensitiveM
+
+instance (Join val) ⇒ MonadState (LamIfState val) (FlowInsensitiveM val) where
+  stateE ∷ StateT (LamIfState val) (FlowInsensitiveM val) ↝ FlowInsensitiveM val
+  stateE = 
+    FlowInsensitiveM
+    ∘ PolyStateT
+    ∘ fmap stateE
+    ∘ stateE
+    ∘ fmap stateCommute
+    ∘ splitState
+    ∘ mapState isoSplitLamIfState
+    ∘ fmap (runPolyStateT ∘ runFlowInsensitiveM)
+  stateI ∷ FlowInsensitiveM val ↝ StateT (LamIfState val) (FlowInsensitiveM val)
+  stateI =
+    fmap (FlowInsensitiveM ∘ PolyStateT)
+    ∘ mapState (sym isoSplitLamIfState)
+    ∘ mergeState
+    ∘ fmap stateCommute
+    ∘ stateI
+    ∘ fmap stateI
+    ∘ runPolyStateT
+    ∘ runFlowInsensitiveM
+
+instance (Join val) ⇒ GaloisTransformer (FlowInsensitiveΣᵇ val) (FlowInsensitiveM val) where
+  αGT = isoαGT isoFlowInsensitiveΣᵇ2 isoFlowInsensitiveM2
+  γGT = isoγGT isoFlowInsensitiveΣᵇ2 isoFlowInsensitiveM2
+
+instance (POrd val,JoinLattice val,Val val) ⇒ 
+  MonadLamIf val (FlowInsensitiveM val)
+
+instance (Ord val,POrd val,JoinLattice val,Difference val,Val val,Pretty val) ⇒ 
+  ExecutionLamIf val 
+  (InjectLamIf val)
+  (FlowInsensitiveΣᵇ val)
+  (FlowInsensitiveM val)
+
+-- # Monad Parameters
+
+data MonadParam where
+  MonadParam ∷ 
+    ∀ val ς' ς m. 
+    P m 
+    → ς Exp ⇄ ς' Exp
+    → (ς Exp → Doc)
+    → W (ExecutionLamIf val (InjectLamIf val) ς' m,LFPLamIf ς)
+    → MonadParam
+
+pathSensitive ∷ DomainParam → MonadParam
+pathSensitive (DomainParam (P ∷ P val) W) = 
+  MonadParam (P ∷ P (PathSensitiveM val)) isoPathSensitiveΣ (pretty ∘ mapKeyJoin varAddrName ∘ joins ∘ mapSet (store ∘ snd) ∘ runPathSensitiveΣ) W
+
+flowSensitive ∷ DomainParam → MonadParam
+flowSensitive (DomainParam (P ∷ P val) W) = 
+  MonadParam (P ∷ P (FlowSensitiveM val)) isoFlowSensitiveΣ (pretty ∘ mapKeyJoin varAddrName ∘ storesStore ∘ joins ∘ values ∘ runFlowSensitiveΣ) W
+
+flowInsensitive ∷ DomainParam → MonadParam
+flowInsensitive (DomainParam (P ∷ P val) W) = 
+  MonadParam (P ∷ P (FlowInsensitiveM val)) isoFlowInsensitiveΣ (pretty ∘ mapKeyJoin varAddrName ∘ storesStore ∘ snd ∘ runFlowInsensitiveΣ) W

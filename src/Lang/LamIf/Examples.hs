@@ -1,81 +1,58 @@
 module Lang.LamIf.Examples where
 
-import Lang.LamIf
 import FP
-import qualified FP.Pretty as P
+import Lang.LamIf.Parser
+import Lang.LamIf.Stamp
+import Lang.LamIf.Execution
+import Lang.LamIf.Time
+import Lang.LamIf.Domains
+import Lang.LamIf.Monads
 
-examplesMain :: IO ()
-examplesMain = flowSensitivityMain
+-- Sample Programs
 
-makeOptions :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [(Doc, Options)]
-makeOptions ltime dtime val monad gc closure lfilter dfilter = do
-  lt <- ltime
-  dt <- dtime
-  v <- val
-  m <- monad
-  g <- gc
-  c <- closure
-  lf <- lfilter
-  df <- dfilter
-  let d = P.hsep $ map P.heading
-        [ concat [ "LT=", lt ]
-        , concat [ "DT=", dt ]
-        , concat [ "V=", v ]
-        , concat [ "M=", m ]
-        , concat [ "G=", g ]
-        , concat [ "C=", c ]
-        , concat [ "LF=", lf ]
-        , concat [ "DF=", df ]
-        ]
-      o = Options (timeChoices       #! lt) 
-                  (timeChoices       #! dt) 
-                  (valChoices        #! v ) 
-                  (monadChoices      #! m ) 
-                  (gcChoices         #! g ) 
-                  (closureChoices    #! c ) 
-                  (timeFilterChoices #! lf)
-                  (timeFilterChoices #! df)
-  return (d, o)
+e_id ∷ IO SourceExp
+e_id = ioError $ parseExp $ concat $ intersperse "\n" $
+  [ "let id := lam x . x"
+  , "in id"
+  ]
 
+e_bad ∷ IO SourceExp
+e_bad = ioError $ parseExp "let id := lam x . y in id"
 
-runOptions :: [(Doc, Options)] -> RawExp -> Doc
-runOptions os e =
-  let (se, c) = stampCPS e
-  in P.vsep
-    [ P.heading "Source"
-    , localSetL P.maxRibbonWidthL (toi 40) $ pretty e 
-    , P.heading "Stamped"
-    , localSetL P.maxRibbonWidthL (toi 40) $ pretty se
-    , P.heading "CPS"
-    , localSetL P.maxRibbonWidthL (toi 40) $ pretty c
-    , P.vsep $ mapOn os $ \ (info, o) -> withOptions o $ \ gc cc ltf dtf ->
-        let ς = execOnlyStuck gc cc ltf dtf c
-        in P.vsep
-            [ pretty info
-            , pretty ς
-            ]
-    ]
+e_1 ∷ IO SourceExp
+e_1 = ioError $ parseExp "let n := (lam x. x + x) 1 in n"
 
-flowSensitivityMain :: IO ()
-flowSensitivityMain = do
-  e <- parseFile "data/lamif-src/flow-sensitivity.lam"
-  let os = makeOptions ["0"] ["0"] ["abstract"] ["fi", "fs", "ps"] ["yes"] ["link"] ["app"] ["app"]
-  pprint $ runOptions os e
+e_2 ∷ IO SourceExp
+e_2 = ioError $ parseExp $ concat $ intersperse "\n"
+  [ "let x := (1 + 1) - 1 in"
+  , "let n := (if0 x then x else 1) in"
+  , "let m := (if0 x then x else 1) in"
+  , "let r := (if0 x then n + m else 0) in r"
+  ]
 
-callSiteSensitivityMain :: IO ()
-callSiteSensitivityMain = do
-  e <- parseFile "data/lamif-src/call-site-sensitivity.lam"
-  let os = makeOptions ["0"] ["0", "1"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
-  pprint $ runOptions os e
+-- Sample Executions
 
-objectSensitivityMain :: IO ()
-objectSensitivityMain = do
-  e <- parseFile "data/lamif-src/object-sensitivity.lam"
-  let os = makeOptions ["0", "1"] ["0"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
-  pprint $ runOptions os e
+zcfa_FI ∷ IO ()
+zcfa_FI = do
+  e ← ioError ∘ stamp *$ e_2
+  pprint $ runParams zcfa abstract flowInsensitive e
 
-otherMain :: IO ()
-otherMain = do
-  e <- parseFile "data/lamif-src/kcfa.lam"
-  let os = makeOptions ["0", "1"] ["0"] ["abstract"] ["fi"] ["yes"] ["link"] ["app"] ["app"]
-  pprint $ runOptions os e
+zcfa_FS ∷ IO ()
+zcfa_FS = do
+  e ← ioError ∘ stamp *$ e_2
+  pprint $ runParams zcfa abstract flowSensitive e
+
+zcfa_PS ∷ IO ()
+zcfa_PS = do
+  e ← ioError ∘ stamp *$ e_2
+  pprint $ runParams zcfa abstract pathSensitive e
+
+stuff ∷ IO ()
+stuff = do
+  pprint $ runID $ runFlowJoinT action (𝕟 1) 
+  where
+    action ∷ FlowJoinT ℕ ID ()
+    action = do
+      x ← get
+      modify $ (+x)
+      modify $ (+x)

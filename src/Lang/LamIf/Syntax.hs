@@ -2,45 +2,46 @@ module Lang.LamIf.Syntax where
 
 import FP
 
-newtype RawName = RawName { getRawName :: String }
-  deriving (Eq, Ord)
-type SRawName = Stamped BdrNum RawName
-data GenName = GenName
-  { genNameMark :: Maybe Int
-  , genNameRawName :: RawName
-  }
-  deriving (Eq, Ord)
-newtype LocNum = LocNum Int deriving (Eq, Ord, PartialOrder, Peano)
-newtype BdrNum = BdrNum Int deriving (Eq, Ord, PartialOrder, Peano)
-type Name = Stamped BdrNum GenName
-srawNameToName :: SRawName -> Name
-srawNameToName (Stamped i x) = Stamped i $ GenName Nothing x
+data PreAtom n e = 
+    AInteger ℤ 
+  | AVar n 
+  | ALam n e
+makePrisms ''PreAtom
+makePrettySum ''PreAtom
 
-data Lit = I Int | B Bool
-  deriving (Eq, Ord)
-instance PartialOrder Lit where pcompare = discreteOrder
-makePrisms ''Lit
+mapAtomM ∷ (Monad m) ⇒ (n → m n') → (n → m n') → (e → m e') → PreAtom n e → m (PreAtom n' e')
+mapAtomM fVar fBdr fExp = \case
+  AInteger i → return $ AInteger i
+  AVar n → return AVar <⋅> fVar n
+  ALam n e → return ALam <⋅> fBdr n <⋅> fExp e
 
-data BinOp = Add | Sub | GTE
-  deriving (Eq, Ord)
-instance PartialOrder BinOp where pcompare = discreteOrder
-data LBinOp = LBinOp
-  { lbinOpOp :: BinOp
-  , lbinOpLevel :: Int
-  } deriving (Eq, Ord)
+instance FunctorM (PreAtom n) where mapM f = mapAtomM return return f
+instance Functor (PreAtom n) where map f = runID ∘ mapM (ID ∘ f)
 
-data PreExp n e = 
-    Lit Lit
-  | Var n
-  | Lam n e
-  | Prim LBinOp e e
-  | Let n e e
-  | App e e
-  | If e e e
-  | Tup e e
-  | Pi1 e
-  | Pi2 e
-  deriving (Eq, Ord)
-type RawExp = Fix (PreExp RawName)
-type Exp = StampedFix LocNum (PreExp SRawName)
+data Op = Plus | Minus
+  deriving (Eq,Ord)
+makePrettySum ''Op
+
+data PreExp n e =
+    EAtom (PreAtom n e)
+  | EIf e e e
+  | ELet n e e
+  | EOp Op e e
+  | EApp e e
+makePrettySum ''PreExp
+instance (Pretty n) ⇒ Functorial Pretty (PreExp n) where functorial = W
+
+mapExpM ∷ (Monad m) ⇒ (n → m n') → (n → m n') → (e → m e') → PreExp n e → m (PreExp n' e')
+mapExpM fVar fBdr fExp = \case
+  EAtom a → return EAtom <⋅> mapAtomM fVar fBdr fExp a
+  EIf e₁ e₂ e₃ → return EIf <⋅> fExp e₁ <⋅> fExp e₂ <⋅> fExp e₃
+  ELet x e₁ e₂ → return ELet <⋅> fBdr x <⋅> fExp e₁ <⋅> fExp e₂
+  EOp o e₁ e₂ → return (EOp o) <⋅> fExp e₁ <⋅> fExp e₂
+  EApp e₁ e₂ → return EApp <⋅> fExp e₁ <⋅> fExp e₂
+
+mapExp ∷ (n → n') → (n → n') → (e → e') → PreExp n e → PreExp n' e'
+mapExp fVar fBdr fExp = runID ∘ mapExpM (ID ∘ fVar) (ID ∘ fBdr) (ID ∘ fExp)
+
+instance FunctorM (PreExp n) where mapM f = mapExpM return return f
+instance Functor (PreExp n) where map f = mapExp id id f
 

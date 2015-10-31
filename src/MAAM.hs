@@ -1,9 +1,5 @@
 module MAAM
-  ( module MAAM.Inject
-  , module MAAM.MonadStep
-  , module MAAM.Time
+  ( module MAAM.GaloisTransformer
   ) where
 
-import MAAM.Inject
-import MAAM.MonadStep
-import MAAM.Time
+import MAAM.GaloisTransformer

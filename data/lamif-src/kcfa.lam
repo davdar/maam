@@ -1,0 +1,5 @@
+let app := lam f -> lam e -> f e in
+let id := lam x -> x in
+let n1 := app id 1 in
+let n2 := app id 2 in
+n1 + n2

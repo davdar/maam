@@ -2,308 +2,205 @@ module Lang.LamIf.Semantics where
 
 import FP
 import MAAM
-import Lang.LamIf.Syntax hiding (PreExp(..))
-import Lang.LamIf.CPS
-import Lang.LamIf.StateSpace
+import Lang.LamIf.Values
+import Lang.LamIf.Stamp
+import Lang.LamIf.Syntax
+import Lang.LamIf.Time
 
-type Ψ = LocNum
-
--- These are the raw constraints that must hold for:
--- - time lτ and dτ
--- - values val
--- - the monad m
-
-type TimeC τ =
-  ( Time Ψ τ
-  , Bot τ
-  , Ord τ
-  , Pretty τ
-  )
-
-type ValC lτ dτ val =
-  ( Val lτ dτ val
-  , Ord val
-  , PartialOrder val
-  , JoinLattice val
-  , Difference val
-  , Pretty val
-  )
-
-type MonadC val lτ dτ m =
-  ( Monad m, MonadBot m, MonadPlus m
-  , MonadState (𝒮 val lτ dτ) m
-  )
-
--- This type class aids type inference. The functional dependencies tell the
--- type checker that  choices for val, lτ, dτ and 𝓈 are unique for a given
--- m.
-class 
-  ( TimeC lτ
-  , TimeC dτ
-  , ValC lτ dτ val
-  , MonadC val lτ dτ m
-  ) => Analysis val lτ dτ m | m -> val , m -> lτ , m -> dτ where
-
--- Some helper types
-type GC m = Call -> m ()
-type CreateClo lτ dτ m = LocNum -> [Name] -> Call -> m (Clo lτ dτ)
-type TimeFilter = Call -> Bool
-
--- Generate a new address
-new :: (Analysis val lτ dτ m) => Name -> m (Addr lτ dτ)
-new x = do
-  lτ <- getL 𝓈lτL
-  dτ <- getL 𝓈dτL
-  return $ Addr x lτ dτ
-
--- bind a name to a value in an environment
-bind :: (Analysis val lτ dτ m) => Name -> val -> Map Name (Addr lτ dτ) -> m (Map Name (Addr lτ dτ))
-bind x vD ρ = do
-  l <- new x
-  modifyL 𝓈σL $ mapInsertWith (\/) l vD
-  return $ mapInsert x l ρ
-
--- bind a name to a value in _the_ environment
-bindM :: (Analysis val lτ dτ m) => Name -> val -> m ()
-bindM x vD = do
-  ρ <- getL 𝓈ρL
-  ρ' <- bind x vD ρ
-  putL 𝓈ρL ρ'
-
--- rebinds the value assigned to a name
-rebind :: (Analysis val lτ dτ m) => Name -> val -> m ()
-rebind x vD = do
-  ρ <- getL 𝓈ρL
-  let l = ρ #! x
-  modifyL 𝓈σL $ mapInsert l vD
-
--- rebinds the value assigned to a pico if it is a name
-rebindPico :: (Analysis val lτ dτ m) => PrePico Name -> val -> m ()
-rebindPico (Lit _) _ = return ()
-rebindPico (Var x) vD = rebind x vD
-
--- the denotation for addresses
-addr :: (Analysis val lτ dτ m) => Addr lτ dτ -> m val
-addr 𝓁 = do
-  σ <- getL 𝓈σL
-  maybeZero $ σ # 𝓁
-
--- the denotation for variables
-var :: (Analysis val lτ dτ m) => Name -> m val
-var x = do
-  ρ <- getL 𝓈ρL
-  𝓁 <- maybeZero $ ρ # x
-  addr 𝓁
-
--- the denotation for lambdas
-lam :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> LocNum -> [Name] -> Call -> m val
-lam createClo = clo ^..: createClo
-
--- the partial denotation for pico (for storing in values)
-picoRef :: (Analysis val lτ dτ m) => Pico -> m (PicoVal lτ dτ)
-picoRef (Lit l) = return $ LitPicoVal l
-picoRef (Var x) = do
-  ρ <- getL 𝓈ρL
-  AddrPicoVal ^$ maybeZero $ ρ # x
-
-picoVal :: (Analysis val lτ dτ m) => PicoVal lτ dτ -> m val
-picoVal (LitPicoVal l) = return $ lit l
-picoVal (AddrPicoVal 𝓁) = addr 𝓁
-
--- the denotation for the pico syntactic category
-pico :: (Analysis val lτ dτ m) => Pico -> m val
-pico = picoVal *. picoRef
-
--- the denotation for the atom syntactic category
-atom :: (Analysis val lτ dτ m) => CreateClo lτ dτ m -> Atom -> m val
-atom createClo a = case stamped a of
-  Pico p -> pico p
-  Prim o a1 a2 -> return (binop $ lbinOpOp o) <@> pico a1 <@> pico a2
-  LamF x kx c -> lam createClo (stampedID a) [x, kx] c
-  LamK x c -> lam createClo (stampedID a) [x] c
-  Tup p1 p2 -> pure (curry tup) <@> picoRef p1 <@> picoRef p2
-  Pi1 p -> picoVal *. fst ^. mset . elimTup *$ pico p
-  Pi2 p -> picoVal *. snd ^. mset . elimTup *$ pico p
-
-apply :: (Analysis val lτ dτ m) => TimeFilter -> Call -> PrePico Name -> val -> [val] -> m Call
-apply timeFilter c fx fv avs = do
-  fclo@(Clo cid' xs c' ρ lτ) <- mset $ elimClo fv
-  rebindPico fx $ clo fclo
-  xvs <- maybeZero $ zip xs avs
-  putL 𝓈ρL ρ
-  traverseOn xvs $ uncurry $ bindM 
-  putL 𝓈lτL lτ
-  when (timeFilter c) $
-    modifyL 𝓈lτL $ tick cid'
-  return c'
-
-call :: (Analysis val lτ dτ m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> m Call
-call gc createClo ltimeFilter dtimeFilter c = do
-  when (dtimeFilter c) $
-    modifyL 𝓈dτL $ tick $ stampedFixID c
-  c' <- case stampedFix c of
-    Let x a c' -> do
-      v <- atom createClo a
-      bindM x v
-      return c'
-    If ax tc fc -> do
-      b <- mset . elimBool *$ pico ax
-      rebindPico ax $ lit $ B b
-      return $ if b then tc else fc
-    AppF fx ax ka -> do
-      fv <- pico fx
-      av <- pico ax
-      kv <- pico ka
-      apply ltimeFilter c fx fv [av, kv]
-    AppK kx ax -> do
-      kv <- pico kx
-      av <- pico ax
-      apply ltimeFilter c kx kv [av]
-    Halt _ -> return c
-  gc c'
-  return c'
-
-onlyStuck :: (MonadStep ς m,  Analysis val lτ dτ m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> m Call
-onlyStuck gc createClo ltimeFilter dtimeFilter e = do
-  e' <- call gc createClo ltimeFilter dtimeFilter e
-  if e == e' then return e else mbot
-
--- Execution {{{
-
-type StateSpaceC ς' =
-  ( PartialOrder (ς' Call)
-  , JoinLattice (ς' Call)
-  , Difference (ς' Call)
-  , Pretty (ς' Call)
-  )
-
-class (MonadStep ς m, Inject ς, Isomorphism (ς Call) (ς' Call), StateSpaceC ς') => Execution ς ς' m | m -> ς, m -> ς'
-
-liftς :: (Execution ς ς' m) => (Call -> m Call) -> (ς' Call -> ς' Call)
-liftς f = isoto . mstepγ f . isofrom
-
-injectς :: forall ς ς' a. (Inject ς, Isomorphism (ς a) (ς' a)) => P ς -> a -> ς' a
-injectς P = isoto . (inj :: a -> ς a)
-
-execς :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
-execς gc createClo ltimeFilter dtimeFilter = poiter (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
-
-execCollect :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
-execCollect gc createClo ltimeFilter dtimeFilter = collect (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
-
-execCollectHistory :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) => 
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
-execCollectHistory gc createClo ltimeFilter dtimeFilter = collectHistory (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
-
-execCollectDiffs :: forall val lτ dτ m ς ς'. (Analysis val lτ dτ m, Execution ς ς' m) =>
-  GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> [ς' Call]
-execCollectDiffs gc createClo ltimeFilter dtimeFilter = collectDiffs (liftς $ call gc createClo ltimeFilter dtimeFilter) . injectς (P :: P ς)
-
-execOnlyStuck :: (Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> Call -> ς' Call
-execOnlyStuck gc createClo ltimeFilter dtimeFilter = 
-    liftς (onlyStuck gc createClo ltimeFilter dtimeFilter) 
-  . execCollect gc createClo ltimeFilter dtimeFilter
-
--- }}}
-
--- GC {{{
-
-nogc :: (Monad m) => Call -> m ()
-nogc _ = return ()
-
-yesgc :: (Analysis val lτ dτ m) => Call -> m ()
-yesgc c = do
-  ρ <- getL 𝓈ρL
-  σ <- getL 𝓈σL
-  let live0 = callTouched ρ $ freeVarsLam empty [] c
-  let live = collect (extend $ addrTouched σ) live0
-  modifyL 𝓈σL $ onlyKeys live
-
-callTouched :: (TimeC lτ, TimeC dτ) => Env lτ dτ -> Set Name -> Set (Addr lτ dτ)
-callTouched ρ xs = maybeSet . index ρ *$ xs
-
-closureTouched :: (TimeC lτ, TimeC dτ) => Clo lτ dτ -> Set (Addr lτ dτ)
-closureTouched (Clo _ xs c ρ _) = callTouched ρ $ freeVarsLam empty xs c
-
-picoValTouched :: (TimeC lτ, TimeC dτ) => PicoVal lτ dτ -> Set (Addr lτ dτ)
-picoValTouched (LitPicoVal _) = empty
-picoValTouched (AddrPicoVal 𝓁) = single 𝓁
-
-tupleTouched :: (TimeC lτ, TimeC dτ) => (PicoVal lτ dτ, PicoVal lτ dτ) -> Set (Addr lτ dτ)
-tupleTouched (pv1, pv2) = picoValTouched pv1 \/ picoValTouched pv2
-
-addrTouched :: (TimeC lτ, TimeC dτ, ValC lτ dτ val) => Map (Addr lτ dτ) val -> Addr lτ dτ -> Set (Addr lτ dτ)
-addrTouched σ 𝓁 = do
-  v <- maybeSet $ σ # 𝓁
-  msum
-    [ closureTouched *$ elimClo v 
-    , tupleTouched *$ elimTup v
-    ]
-
--- }}}
-
--- CreateClo {{{
-
-linkClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ dτ)
-linkClo cid xs c = do
-  ρ <- getL 𝓈ρL
-  lτ <- getL 𝓈lτL
-  return $ Clo cid xs c ρ lτ
-
-copyClo :: (Analysis val lτ dτ m) => LocNum -> [Name] -> Call -> m (Clo lτ dτ)
-copyClo cid xs c = do
-  let ys = toList $ freeVarsLam empty xs c
-  vs <- var ^*$ ys
-  yvs <- maybeZero $ zip ys vs
-  ρ <- runKleisliEndo mapEmpty *$ execWriterT $ do
-    traverseOn yvs $ tell . KleisliEndo . uncurry bind
-  lτ <- getL 𝓈lτL
-  return $ Clo cid xs c ρ lτ
-
--- }}}
-
--- Parametric Execution {{{
-
-type UniTime τ = W (TimeC τ)
-data ExTime where ExTime :: forall τ. UniTime τ -> ExTime
-
-type UniVal val = forall lτ dτ. (TimeC lτ, TimeC dτ) => W (ValC lτ dτ (val lτ dτ))
-data ExVal where ExVal :: forall val. UniVal val -> ExVal
-
-type UniMonad ς ς' m = 
-  forall val lτ dτ. (TimeC lτ, TimeC dτ, ValC lτ dτ val) 
-  => W (Analysis val lτ dτ (m val lτ dτ), Execution (ς val lτ dτ) (ς' val lτ dτ) (m val lτ dτ))
-data ExMonad where 
-  ExMonad :: forall ς ς' m. 
-       UniMonad ς ς' m 
-    -> ExMonad
-
-newtype AllGC = AllGC { runAllGC :: forall val lτ dτ m. (Analysis val lτ dτ m) => GC m }
-newtype AllCreateClo  = AllCreateClo { runAllCreateClo :: forall val lτ dτ m. (Analysis val lτ dτ m) => CreateClo lτ dτ m }
-
-data Options = Options
-  { ltimeOp :: ExTime
-  , dtimeOp :: ExTime
-  , valOp :: ExVal
-  , monadOp :: ExMonad
-  , gcOp :: AllGC
-  , createCloOp :: AllCreateClo
-  , ltimeFilterOp :: TimeFilter
-  , dtimeFilterOp :: TimeFilter
+data LamIfState val = LamIfState
+  { env ∷ Env
+  , κAddr ∷ Maybe ExpAddr
+  , time ∷ Time
+  , store ∷ Store val
+  , κStore ∷ KStore val
   }
+  deriving (Eq,Ord)
+makeLenses ''LamIfState
+makePrettyRecord ''LamIfState
+instance (POrd val) ⇒ POrd (LamIfState val) where
+  (⊑⊒) = poCompareFromLte $ \ (LamIfState ρ₁ κl₁ τ₁ σ₁ κσ₁) (LamIfState ρ₂ κl₂ τ₂ σ₂ κσ₂) → 
+    meets [ρ₁ ⊑ ρ₂,κl₁ ⊑ κl₂,τ₁ ⊑ τ₂,σ₁ ⊑ σ₂,κσ₁ ⊑ κσ₂]
 
-withOptions :: forall a. Options -> (forall val lτ dτ ς ς' m. (Analysis val lτ dτ m, Execution ς ς' m) => GC m -> CreateClo lτ dτ m -> TimeFilter -> TimeFilter -> a) -> a
-withOptions o f = case o of
-  Options (ExTime (W :: UniTime lτ)) 
-          (ExTime (W :: UniTime dτ))
-          (ExVal (W :: W (ValC lτ dτ (val lτ dτ))))
-          (ExMonad (W :: W ( Analysis (val lτ dτ) lτ dτ (m (val lτ dτ) lτ dτ)
-                           , Execution (ς (val lτ dτ) lτ dτ) (ς' (val lτ dτ) lτ dτ) (m (val lτ dτ) lτ dτ))))
-          (AllGC (gc :: GC (m (val lτ dτ) lτ dτ)))
-          (AllCreateClo (createClo :: CreateClo lτ dτ (m (val lτ dτ) lτ dτ)))
-          (ltimeFilter :: TimeFilter)
-          (dtimeFilter :: TimeFilter) -> f gc createClo ltimeFilter dtimeFilter
+data LamIfEnv = LamIfEnv
+  { currentExp ∷ Exp
+  , timeParam ∷ TimeParam
+  }
+makeLenses ''LamIfEnv
 
--- }}}
+class 
+  ( POrd val
+  , JoinLattice val
+  , Val val
+  , Monad m
+  , MonadState (LamIfState val) m
+  , MonadJoinLattice m
+  ) ⇒ MonadLamIf val m | m → val
+
+type ParamsM m = ReaderT LamIfEnv m
+
+atom ∷ (MonadLamIf val m) ⇒ Atom → ParamsM m AtomVal
+atom (AInteger i) = return $ AtomValInt i
+atom (AVar x) = do
+  ρ ← getL envL
+  case ρ # x of
+    Nothing → mbot
+    Just l → return $ AtomValAddr l
+atom (ALam x e) = do
+  ρ ← getL envL
+  ce ← askL currentExpL
+  τ ← getL (lexicalL ⌾ timeL)
+  return $ AtomValClo $ Closure ce x e ρ τ
+
+atomVal ∷ (MonadLamIf val m) ⇒ AtomVal → ParamsM m val
+atomVal (AtomValInt i) = return $ intI i
+atomVal (AtomValAddr l) = do
+  σ ← getL storeL
+  case σ # l of
+    Nothing → mbot
+    Just v → return v
+atomVal (AtomValClo clo) = return $ cloI clo
+atomVal (AtomValOp o av₁ av₂) = do
+  v₁ ← atomVal av₁
+  v₂ ← atomVal av₂
+  return $ δ o v₁ v₂
+
+push ∷ (MonadLamIf val m) ⇒ Frame → ParamsM m ()
+push fr = do
+  τ ← getL timeL
+  e ← askL currentExpL
+  let κl = Just $ ExpAddr e τ
+  κl' ← getL κAddrL
+  modifyL κStoreL $ \ κσ → κσ ⊔ dict [κl ↦ frameI (fr,κl')]
+  putL κAddrL κl
+
+pop ∷ (MonadLamIf val m) ⇒ ParamsM m Frame
+pop = do
+  κl ← getL κAddrL
+  κσ ← getL κStoreL
+  case κσ # κl of
+    Nothing → mbot
+    Just v → do
+      (fr,κl') ← mset $ frameE v
+      putL κAddrL κl'
+      return fr
+
+bind ∷ (MonadLamIf val m) ⇒ Name → val → ParamsM m ()
+bind x v = do
+  τ ← getL timeL
+  let l = VarAddr x τ
+  modifyL envL $ \ ρ → insertDict x l ρ 
+  modifyL storeL $ \ σ → σ ⊔ dict [l ↦ v]
+
+tickL ∷ (MonadLamIf val m) ⇒ Exp → (Lens LamIfEnv (Maybe ℕ)) → (Lens (LamIfState val) [Exp]) → ParamsM m ()
+tickL ce kL τL = do
+  k ← askL kL
+  modifyL τL $ \ τ → elimMaybe id firstN k $ ce:τ
+
+tickO ∷ (MonadLamIf val m) ⇒ Exp → ParamsM m ()
+tickO ce = do
+  tickL ce (lexicalObjDepthL ⌾ timeParamL) (objL ⌾ lexicalL ⌾ timeL)
+  tickL ce (dynamicObjDepthL ⌾ timeParamL) (objL ⌾ dynamicL ⌾ timeL)
+
+refine ∷ (MonadLamIf val m) ⇒ Name → val → ParamsM m ()
+refine x v = do
+  ρ ← getL envL
+  σ ← getL storeL
+  case ρ # x of
+    Nothing → mbot
+    Just l → putL storeL $ insertDict l v σ
+
+delZeroM ∷ (MonadLamIf val m) ⇒ Name → ParamsM m ()
+delZeroM x = do
+  ρ ← getL envL
+  case ρ # x of
+    Nothing → mbot
+    Just l → modifyL storeL $ modifyDict delZero l
+
+stackReturn ∷ (MonadLamIf val m) ⇒ Maybe Atom → AtomVal → ParamsM m Exp
+stackReturn aM v = do
+  fr ← pop
+  case fr of
+    IfH e₂ e₃ ρ lτ → do
+      putL envL ρ
+      putL (lexicalL ⌾ timeL) lτ
+      b ← mset ∘ isZeroE *$ atomVal v
+      when b $
+        whenMaybe (view (aVarL ⌾ justL) aM) $ \ x → refine x $ intI $ 𝕫 0
+      when (not b) $
+        whenMaybe (view (aVarL ⌾ justL) aM) $ \ x → delZeroM x
+      return $ if b then e₂ else e₃
+    LetH x e₂ ρ lτ → do
+      putL envL ρ
+      putL (lexicalL ⌾ timeL) lτ
+      bind x *$ atomVal v
+      return e₂
+    OpL o e₂ ρ lτ → do
+      putL envL ρ
+      putL (lexicalL ⌾ timeL) lτ
+      push $ OpR v o
+      return e₂
+    OpR v₁ o → do
+      stackReturn Nothing $ AtomValOp o v₁ v
+    AppL e₂ ρ lτ → do
+      putL envL ρ
+      putL (lexicalL ⌾ timeL) lτ
+      push $ AppR v
+      return e₂
+    AppR v₁ → do
+      Closure ce x e ρ lτ ← mset ∘ cloE *$ atomVal v₁
+      putL envL ρ
+      putL (lexicalL ⌾ timeL) lτ
+      tickO ce
+      bind x *$ atomVal v
+      return e
+
+tickK ∷ (MonadLamIf val m) ⇒ ParamsM m ()
+tickK = do
+  ce ← askL currentExpL
+  tickL ce (lexicalCallDepthL ⌾ timeParamL) (callL ⌾ lexicalL ⌾ timeL)
+  tickL ce (dynamicCallDepthL ⌾ timeParamL)  (callL ⌾ dynamicL ⌾ timeL)
+
+step ∷ (MonadLamIf val m) ⇒ TimeParam → Exp → m Exp
+step ps e = runReaderTWith (LamIfEnv e ps) $ do
+  tickK
+  case expRawExp e of
+    EAtom a → do
+      v ← atom a
+      stackReturn (Just a) v
+    EIf e₁ e₂ e₃ → do
+      ρ ← getL envL
+      lτ ← getL (lexicalL ⌾ timeL)
+      push $ IfH e₂ e₃ ρ lτ
+      return e₁
+    ELet x e₁ e₂ → do
+      ρ ← getL envL
+      lτ ← getL (lexicalL ⌾ timeL)
+      push $ LetH x e₂ ρ lτ
+      return e₁
+    EOp o e₁ e₂ → do
+      ρ ← getL envL
+      lτ ← getL (lexicalL ⌾ timeL)
+      push $ OpL o e₂ ρ lτ
+      return e₁
+    EApp e₁ e₂ → do
+      ρ ← getL envL
+      lτ ← getL (lexicalL ⌾ timeL)
+      push $ AppL e₂ ρ lτ
+      return e₁
+
+gc ∷ (MonadLamIf val m) ⇒ Exp → m ()
+gc = undefined
+
+class 
+  ( MonadLamIf val m
+  , Inject ι ς
+  , GaloisTransformer ς m
+  ) ⇒ ExecutionLamIf val ι ς m | m → val,m → ς
+
+type LFPLamIf ς = (POrd (ς Exp),JoinLattice (ς Exp),Difference (ς Exp))
+
+ex ∷ (ExecutionLamIf val ι ς' m,LFPLamIf ς) ⇒ TimeParam → ς Exp ⇄ ς' Exp → (Exp → m Exp) → ς Exp → ς Exp
+ex ps iso f = collect (isoFrom iso ∘ γGT (f *∘ step ps) ∘ isoTo iso)
+
+exDiffs ∷ (ExecutionLamIf val ι ς' m,LFPLamIf ς) ⇒ TimeParam → ς Exp ⇄ ς' Exp → (Exp → m Exp) → ς Exp → Stream (ς Exp)
+exDiffs ps iso f = collectDiffs (isoFrom iso ∘ γGT (f *∘ step ps) ∘ isoTo iso)

@@ -1,0 +1,11 @@
+let cell := new ref ...
+let f := lam x -> ... get from cell ...
+
+let foo := lam z ->
+  f ()
+  cell += 1 
+  f ()
+
+  
+
+  

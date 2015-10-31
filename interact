@@ -1,0 +1,3 @@
+#! /bin/bash
+
+ghci `runhaskell darailude/ghci-load/GHCILoad.hs ops` "$@"
